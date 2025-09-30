@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const Vacations = () => {
@@ -21,11 +25,39 @@ const Vacations = () => {
       <main className="grid gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Alege data</CardTitle>
+            <CardTitle>Alege data concediului</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Calendar mode="single" selected={date} onSelect={setDate} className="rounded-md border w-full max-w-sm" />
-            <Button onClick={() => toast.info('Funcție în curs de implementare')}>Trimite cererea</Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Selectează data</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <Button 
+              onClick={() => toast.info('Funcție în curs de implementare')}
+              disabled={!date}
+              className="w-full"
+            >
+              Trimite cererea
+            </Button>
           </CardContent>
         </Card>
       </main>
