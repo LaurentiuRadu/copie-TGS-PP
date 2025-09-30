@@ -113,7 +113,10 @@ const Mobile = () => {
     setSelectedTask(null);
   };
 
-  const todayHours = "6h 32m";
+  const BREAK_MINUTES = 30;
+  const todayTotalMinutes = 392; // Example: 6h 32m = 392 minutes
+  const todayWorkedMinutes = Math.max(0, todayTotalMinutes - BREAK_MINUTES);
+  const todayHours = `${Math.floor(todayWorkedMinutes / 60)}h ${todayWorkedMinutes % 60}m`;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -180,6 +183,9 @@ const Mobile = () => {
           <CardContent className="p-6">
             <div className="text-white/80 text-sm mb-1">Ore astăzi</div>
             <div className="text-4xl font-bold text-white">{todayHours}</div>
+            <div className="text-white/60 text-xs mt-2">
+              (Include deducerea automată a pauzei de 30 min)
+            </div>
           </CardContent>
         </Card>
 
