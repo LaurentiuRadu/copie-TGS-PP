@@ -11,6 +11,7 @@ import Mobile from "./pages/Mobile";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Vacations from "./pages/Vacations";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,14 @@ const App = () => (
             />
             <Route path="/dashboard" element={<Index />} />
             <Route path="/landing" element={<Landing />} />
+            <Route
+              path="/vacations"
+              element={
+                <ProtectedRoute allowedRole="employee">
+                  <Vacations />
+                </ProtectedRoute>
+              }
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

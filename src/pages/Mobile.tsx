@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen } from "lucide-react";
+import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ro } from "date-fns/locale";
@@ -15,6 +15,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useNavigate } from 'react-router-dom';
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -40,47 +41,36 @@ const Mobile = () => {
   const [shiftSeconds, setShiftSeconds] = useState(0);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
 
-  useEffect(() => {
-    const checkLocationPermission = async () => {
-      try {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        // Check current permission status
-        const permission = await Geolocation.checkPermissions();
-        
-        if (permission.location === 'granted') {
-          // Permission already granted, get current position
-          await Geolocation.getCurrentPosition({
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
-          });
-          setLocationEnabled(true);
-          setLocationError(null);
-        } else if (permission.location === 'prompt' || permission.location === 'prompt-with-rationale') {
-          // Request permission
-          const requestResult = await Geolocation.requestPermissions();
-          if (requestResult.location === 'granted') {
-            await Geolocation.getCurrentPosition();
-            setLocationEnabled(true);
-            setLocationError(null);
-          } else {
-            setLocationEnabled(false);
-            setLocationError("Permisiunea pentru locație a fost refuzată");
-          }
-        } else {
-          setLocationEnabled(false);
-          setLocationError("Locația trebuie activată pentru a folosi aplicația");
-        }
-      } catch (error) {
-        console.error('Location error:', error);
-        setLocationEnabled(false);
-        setLocationError("Eroare la accesarea locației");
-      }
-    };
+  // Cross-platform geolocation helpers
+  const getCurrentPositionAny = async (opts?: PositionOptions) => {
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      // @ts-ignore - Capacitor options compatible
+      return await Geolocation.getCurrentPosition(opts as any);
+    } catch {
+      return await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!('geolocation' in navigator)) return reject(new Error('Geolocation not supported'));
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
+      });
+    }
+  };
 
-    checkLocationPermission();
+  const requestLocationAccess = async () => {
+    try {
+      setLocationError(null);
+      await getCurrentPositionAny({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+      setLocationEnabled(true);
+    } catch (e) {
+      setLocationEnabled(false);
+      setLocationError("Permisiunea pentru locație a fost refuzată sau indisponibilă");
+    }
+  };
+
+  useEffect(() => {
+    requestLocationAccess();
   }, []);
 
   useEffect(() => {
@@ -107,8 +97,7 @@ const Mobile = () => {
     
     try {
       // Get current location when starting shift
-      const { Geolocation } = await import('@capacitor/geolocation');
-      const position = await Geolocation.getCurrentPosition({
+      const position = await getCurrentPositionAny({
         enableHighAccuracy: true,
         timeout: 5000,
         maximumAge: 0
@@ -206,6 +195,10 @@ const Mobile = () => {
                   <FolderOpen className="h-4 w-4" />
                   Proiecte
                 </Button>
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/vacations')}>
+                  <CalendarDays className="h-4 w-4" />
+                  Concedii
+                </Button>
                 <Button 
                   variant="outline" 
                   className="w-full justify-start gap-2 text-destructive hover:text-destructive"
@@ -225,11 +218,16 @@ const Mobile = () => {
         {!locationEnabled && locationError && (
           <Card className="border-destructive bg-destructive/10">
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-destructive">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <span className="text-sm font-medium">{locationError}</span>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-destructive">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm font-medium">{locationError}</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={requestLocationAccess}>
+                  Reîncearcă
+                </Button>
               </div>
             </CardContent>
           </Card>
