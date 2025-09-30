@@ -40,9 +40,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    console.debug('[AuthProvider] mount');
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.debug('[AuthProvider] onAuthStateChange', { event, hasSession: !!session });
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -96,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // THEN check for existing session
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
+        console.debug('[AuthProvider] getSession resolved', { hasSession: !!session });
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -122,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Session fetch error:', err);
       })
       .finally(() => {
+        console.debug('[AuthProvider] loading -> false');
         setLoading(false);
       });
 

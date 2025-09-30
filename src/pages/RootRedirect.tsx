@@ -5,6 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 const RootRedirect = () => {
   const { loading, user, userRole } = useAuth();
 
+  console.debug('[RootRedirect]', { loading, hasUser: !!user, userRole });
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
