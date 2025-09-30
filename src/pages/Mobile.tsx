@@ -7,7 +7,6 @@ import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen } 
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ro } from "date-fns/locale";
-import { Geolocation } from '@capacitor/geolocation';
 import {
   Sheet,
   SheetContent,
@@ -46,12 +45,13 @@ const Mobile = () => {
   useEffect(() => {
     const checkLocationPermission = async () => {
       try {
+        const { Geolocation } = await import('@capacitor/geolocation');
         // Check current permission status
         const permission = await Geolocation.checkPermissions();
         
         if (permission.location === 'granted') {
           // Permission already granted, get current position
-          const position = await Geolocation.getCurrentPosition({
+          await Geolocation.getCurrentPosition({
             enableHighAccuracy: true,
             timeout: 5000,
             maximumAge: 0
@@ -62,7 +62,7 @@ const Mobile = () => {
           // Request permission
           const requestResult = await Geolocation.requestPermissions();
           if (requestResult.location === 'granted') {
-            const position = await Geolocation.getCurrentPosition();
+            await Geolocation.getCurrentPosition();
             setLocationEnabled(true);
             setLocationError(null);
           } else {
@@ -107,6 +107,7 @@ const Mobile = () => {
     
     try {
       // Get current location when starting shift
+      const { Geolocation } = await import('@capacitor/geolocation');
       const position = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 5000,
