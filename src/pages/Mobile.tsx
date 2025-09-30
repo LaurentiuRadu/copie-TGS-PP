@@ -7,6 +7,7 @@ import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen } 
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ro } from "date-fns/locale";
+import { Geolocation } from '@capacitor/geolocation';
 import {
   Sheet,
   SheetContent,
@@ -43,37 +44,43 @@ const Mobile = () => {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
 
   useEffect(() => {
-    // Check location permission on mount
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+    const checkLocationPermission = async () => {
+      try {
+        // Check current permission status
+        const permission = await Geolocation.checkPermissions();
+        
+        if (permission.location === 'granted') {
+          // Permission already granted, get current position
+          const position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          });
           setLocationEnabled(true);
           setLocationError(null);
-        },
-        (error) => {
-          setLocationEnabled(false);
-          setLocationError("Locația trebuie activată pentru a folosi aplicația");
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-
-      // Watch location changes
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          setLocationEnabled(true);
-          setLocationError(null);
-        },
-        (error) => {
+        } else if (permission.location === 'prompt' || permission.location === 'prompt-with-rationale') {
+          // Request permission
+          const requestResult = await Geolocation.requestPermissions();
+          if (requestResult.location === 'granted') {
+            const position = await Geolocation.getCurrentPosition();
+            setLocationEnabled(true);
+            setLocationError(null);
+          } else {
+            setLocationEnabled(false);
+            setLocationError("Permisiunea pentru locație a fost refuzată");
+          }
+        } else {
           setLocationEnabled(false);
           setLocationError("Locația trebuie activată pentru a folosi aplicația");
         }
-      );
+      } catch (error) {
+        console.error('Location error:', error);
+        setLocationEnabled(false);
+        setLocationError("Eroare la accesarea locației");
+      }
+    };
 
-      return () => navigator.geolocation.clearWatch(watchId);
-    } else {
-      setLocationEnabled(false);
-      setLocationError("Dispozitivul nu suportă locația");
-    }
+    checkLocationPermission();
   }, []);
 
   useEffect(() => {
@@ -93,12 +100,32 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleShiftStart = (type: ShiftType) => {
+  const handleShiftStart = async (type: ShiftType) => {
     if (!locationEnabled) {
       return;
     }
-    setActiveShift(type);
-    setShiftSeconds(0);
+    
+    try {
+      // Get current location when starting shift
+      const position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      });
+      
+      console.log('Shift started at:', {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: new Date(position.timestamp)
+      });
+      
+      setActiveShift(type);
+      setShiftSeconds(0);
+    } catch (error) {
+      console.error('Failed to get location:', error);
+      setLocationError("Nu s-a putut obține locația");
+    }
   };
 
   const handleShiftEnd = () => {
