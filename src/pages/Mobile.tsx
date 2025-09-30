@@ -152,38 +152,37 @@ const Mobile = () => {
             </div>
 
             {/* Controls */}
-            <div className="flex gap-3">
-              {!isRunning ? (
-                <Button
-                  size="lg"
-                  onClick={handleStart}
-                  className="flex-1 h-14 text-lg bg-gradient-primary hover:opacity-90 gap-2"
-                >
-                  <Play className="h-6 w-6" />
-                  Start
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    onClick={handlePause}
-                    className="flex-1 h-14 text-lg gap-2"
-                  >
-                    <Pause className="h-6 w-6" />
-                    Pauză
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="destructive"
-                    onClick={handleStop}
-                    className="h-14 px-6 gap-2"
-                  >
-                    <Square className="h-5 w-5" />
-                    Stop
-                  </Button>
-                </>
-              )}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                size="lg"
+                onClick={handleStart}
+                className="h-14 text-base bg-gradient-primary hover:opacity-90"
+              >
+                INTRARE CONDUS
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={handleStart}
+                className="h-14 text-base"
+              >
+                INTRARE PASAGER
+              </Button>
+              <Button
+                size="lg"
+                onClick={handleStart}
+                className="h-14 text-base bg-gradient-primary hover:opacity-90"
+              >
+                INTRARE
+              </Button>
+              <Button
+                size="lg"
+                variant="destructive"
+                onClick={handleStop}
+                className="h-14 text-base"
+              >
+                IEȘIRE
+              </Button>
             </div>
           </CardContent>
         </Card>
