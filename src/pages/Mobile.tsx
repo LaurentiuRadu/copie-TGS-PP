@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Square, Menu, Clock, CheckCircle2, FolderOpen } from "lucide-react";
+import { Play, Pause, Square, Menu, Clock, CheckCircle2, FolderOpen, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sheet,
   SheetContent,
@@ -40,6 +41,7 @@ const projects = [
 ];
 
 const Mobile = () => {
+  const { user, signOut } = useAuth();
   const [isRunning, setIsRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [selectedTask, setSelectedTask] = useState<number | null>(null);
@@ -129,7 +131,7 @@ const Mobile = () => {
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">TimeTrack</h1>
-              <p className="text-xs text-muted-foreground">Alex Popescu</p>
+              <p className="text-xs text-muted-foreground">{user?.user_metadata?.full_name || user?.email}</p>
             </div>
           </div>
           
@@ -156,6 +158,14 @@ const Mobile = () => {
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <FolderOpen className="h-4 w-4" />
                   Proiecte
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                  onClick={signOut}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Deconectare
                 </Button>
               </div>
             </SheetContent>

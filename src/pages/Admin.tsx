@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Download, Filter, Plus } from "lucide-react";
+import { Users, Download, Filter, Plus, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const employees = [
   {
@@ -94,6 +95,8 @@ const recentActivities = [
 ];
 
 const Admin = () => {
+  const { signOut } = useAuth();
+  
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -130,6 +133,15 @@ const Admin = () => {
               <Button size="sm" className="gap-2 bg-gradient-primary">
                 <Plus className="h-4 w-4" />
                 Angajat Nou
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={signOut}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Deconectare
               </Button>
             </div>
           </header>
