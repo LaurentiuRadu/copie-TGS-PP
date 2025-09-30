@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Square, Menu, Clock, CheckCircle2, FolderOpen, LogOut } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import { ro } from "date-fns/locale";
 import {
   Sheet,
   SheetContent,
@@ -13,40 +16,31 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const tasks = [
-  {
-    id: 1,
-    title: "Review cod pentru PR #234",
-    project: "Backend API",
-    status: "in-progress",
-  },
-  {
-    id: 2,
-    title: "Design mockup pagină login",
-    project: "Frontend UI",
-    status: "pending",
-  },
-  {
-    id: 3,
-    title: "Testing feature autentificare",
-    project: "QA",
-    status: "pending",
-  },
-];
+type ShiftType = "condus" | "pasager" | "normal" | null;
 
-const projects = [
-  { id: 1, name: "Redesign Website", client: "Acme Corp" },
-  { id: 2, name: "Mobile App Development", client: "TechStart" },
-  { id: 3, name: "API Integration", client: "DataFlow Inc" },
+interface DayData {
+  date: Date;
+  normalHours: number;
+  condusHours: number;
+  pasagerHours: number;
+}
+
+// Mock data pentru calendar - în realitate va veni din baza de date
+const mockMonthData: DayData[] = [
+  { date: new Date(2025, 0, 2), normalHours: 8, condusHours: 0, pasagerHours: 0 },
+  { date: new Date(2025, 0, 3), normalHours: 0, condusHours: 7, pasagerHours: 0 },
+  { date: new Date(2025, 0, 6), normalHours: 0, condusHours: 0, pasagerHours: 8 },
+  { date: new Date(2025, 0, 7), normalHours: 8, condusHours: 0, pasagerHours: 0 },
+  { date: new Date(2025, 0, 8), normalHours: 0, condusHours: 6, pasagerHours: 0 },
 ];
 
 const Mobile = () => {
   const { user, signOut } = useAuth();
-  const [isRunning, setIsRunning] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [selectedTask, setSelectedTask] = useState<number | null>(null);
+  const [activeShift, setActiveShift] = useState<ShiftType>(null);
+  const [shiftSeconds, setShiftSeconds] = useState(0);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
 
   useEffect(() => {
     // Check location permission on mount
@@ -84,13 +78,13 @@ const Mobile = () => {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning) {
+    if (activeShift) {
       interval = setInterval(() => {
-        setSeconds((prev) => prev + 1);
+        setShiftSeconds((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isRunning]);
+  }, [activeShift]);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -99,20 +93,45 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleStart = () => {
-    if (selectedTask === null) {
-      alert("Te rog selectează un task!");
+  const handleShiftStart = (type: ShiftType) => {
+    if (!locationEnabled) {
       return;
     }
-    setIsRunning(true);
+    setActiveShift(type);
+    setShiftSeconds(0);
   };
 
-  const handlePause = () => setIsRunning(false);
-  
-  const handleStop = () => {
-    setIsRunning(false);
-    setSeconds(0);
-    setSelectedTask(null);
+  const handleShiftEnd = () => {
+    // Aici se va salva în baza de date
+    setActiveShift(null);
+    setShiftSeconds(0);
+  };
+
+  const getShiftTypeLabel = (type: ShiftType) => {
+    switch (type) {
+      case "condus":
+        return "Condus";
+      case "pasager":
+        return "Pasager";
+      case "normal":
+        return "Normal";
+      default:
+        return "";
+    }
+  };
+
+  const getDayColor = (date: Date) => {
+    const dayData = mockMonthData.find(
+      (d) => format(d.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
+    );
+    
+    if (!dayData) return "";
+    
+    if (dayData.condusHours > 0) return "bg-blue-500/20 hover:bg-blue-500/30";
+    if (dayData.pasagerHours > 0) return "bg-green-500/20 hover:bg-green-500/30";
+    if (dayData.normalHours > 0) return "bg-purple-500/20 hover:bg-purple-500/30";
+    
+    return "";
   };
 
   const BREAK_MINUTES = 30;
@@ -188,67 +207,65 @@ const Mobile = () => {
           </Card>
         )}
 
-        {/* Today Stats */}
-        <Card className="bg-gradient-primary">
-          <CardContent className="p-6">
-            <div className="text-white/80 text-sm mb-1">Ore astăzi</div>
-            <div className="text-4xl font-bold text-white">{todayHours}</div>
-            <div className="text-white/60 text-xs mt-2">
-              (Include deducerea automată a pauzei de 30 min)
+        {/* Active Shift Card */}
+        <Card className={`shadow-lg ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
+          <CardHeader className="pb-3">
+            <CardTitle className={`text-lg ${activeShift ? "text-white" : "text-foreground"}`}>
+              {activeShift ? "Tură Activă" : "Nicio tură activă"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className={`text-5xl font-bold tracking-wider ${activeShift ? "text-white" : "text-muted-foreground"}`}>
+              {formatTime(shiftSeconds)}
             </div>
+            {activeShift && (
+              <div className={`flex items-center gap-2 text-sm ${activeShift ? "text-white/90" : "text-muted-foreground"}`}>
+                {activeShift === "condus" && <Car className="h-4 w-4" />}
+                {activeShift === "pasager" && <Users className="h-4 w-4" />}
+                {activeShift === "normal" && <Briefcase className="h-4 w-4" />}
+                <span>Tip: {getShiftTypeLabel(activeShift)}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Timer Card */}
+        {/* Shift Controls */}
         <Card className="shadow-lg">
-          <CardContent className="p-6 space-y-6">
-            <div className="text-center space-y-4">
-              <div className="text-6xl font-bold text-foreground tracking-wider">
-                {formatTime(seconds)}
-              </div>
-              
-              {selectedTask !== null && (
-                <div className="px-4 py-2 bg-muted rounded-lg">
-                  <div className="text-xs text-muted-foreground mb-1">Task activ:</div>
-                  <div className="font-medium text-foreground text-sm">
-                    {tasks.find(t => t.id === selectedTask)?.title}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Controls */}
-            <div className="grid grid-cols-2 gap-3">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 gap-3">
               <Button
                 size="lg"
-                onClick={handleStart}
-                disabled={!locationEnabled}
-                className="h-14 text-base bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleShiftStart("condus")}
+                disabled={!locationEnabled || activeShift !== null}
+                className="h-16 text-base bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
+                <Car className="h-6 w-6" />
                 INTRARE CONDUS
               </Button>
               <Button
                 size="lg"
-                onClick={handleStart}
-                disabled={!locationEnabled}
-                className="h-14 text-base bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleShiftStart("pasager")}
+                disabled={!locationEnabled || activeShift !== null}
+                className="h-16 text-base bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
+                <Users className="h-6 w-6" />
                 INTRARE PASAGER
               </Button>
               <Button
                 size="lg"
-                onClick={handleStart}
-                disabled={!locationEnabled}
-                className="h-14 text-base bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleShiftStart("normal")}
+                disabled={!locationEnabled || activeShift !== null}
+                className="h-16 text-base bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
+                <Briefcase className="h-6 w-6" />
                 INTRARE
               </Button>
               <Button
                 size="lg"
                 variant="destructive"
-                onClick={handleStop}
-                disabled={!locationEnabled}
-                className="h-14 text-base"
+                onClick={handleShiftEnd}
+                disabled={!activeShift}
+                className="h-16 text-base font-semibold"
               >
                 IEȘIRE
               </Button>
@@ -256,53 +273,47 @@ const Mobile = () => {
           </CardContent>
         </Card>
 
-        {/* Task Selection */}
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">Selectează Task</h2>
-          {tasks.map((task) => (
-            <Card
-              key={task.id}
-              className={`cursor-pointer transition-all ${
-                selectedTask === task.id
-                  ? "border-primary border-2 shadow-md"
-                  : "border-border hover:border-primary/50"
-              }`}
-              onClick={() => !isRunning && setSelectedTask(task.id)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground mb-1">{task.title}</div>
-                    <div className="text-sm text-muted-foreground">{task.project}</div>
-                  </div>
-                  {selectedTask === task.id && (
-                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Projects List */}
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">Proiectele Mele</h2>
-          {projects.map((project) => (
-            <Card key={project.id} className="hover:border-primary/50 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
-                    <FolderOpen className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground">{project.name}</div>
-                    <div className="text-sm text-muted-foreground">{project.client}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Monthly Calendar */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-lg">Calendar Lunar</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Calendar
+              mode="single"
+              selected={selectedMonth}
+              onSelect={(date) => date && setSelectedMonth(date)}
+              locale={ro}
+              className="rounded-md border w-full"
+              modifiers={{
+                condus: mockMonthData.filter(d => d.condusHours > 0).map(d => d.date),
+                pasager: mockMonthData.filter(d => d.pasagerHours > 0).map(d => d.date),
+                normal: mockMonthData.filter(d => d.normalHours > 0).map(d => d.date),
+              }}
+              modifiersClassNames={{
+                condus: "bg-blue-500/20 hover:bg-blue-500/30 text-blue-900 dark:text-blue-100",
+                pasager: "bg-green-500/20 hover:bg-green-500/30 text-green-900 dark:text-green-100",
+                normal: "bg-purple-500/20 hover:bg-purple-500/30 text-purple-900 dark:text-purple-100",
+              }}
+            />
+            
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-purple-500/30"></div>
+                <span className="text-muted-foreground">Ore Normale</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-blue-500/30"></div>
+                <span className="text-muted-foreground">Ore Condus</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-500/30"></div>
+                <span className="text-muted-foreground">Ore Pasager</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
