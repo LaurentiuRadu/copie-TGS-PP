@@ -42,41 +42,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Defer role fetching to avoid deadlock
-          setTimeout(async () => {
-            const { data: roleData } = await supabase
+          // Fetch role without async in callback  
+          setTimeout(() => {
+            const userId = session.user.id;
+            supabase
               .from('user_roles')
               .select('role')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
+              .eq('user_id', userId)
+              .maybeSingle()
+              .then(({ data: roleData, error }) => {
+                if (error) {
+                  console.error('Role fetch error:', error);
+                  setUserRole(null);
+                  return;
+                }
 
-            let role = (roleData?.role as UserRole) ?? null;
-            if (!role) {
-              const derived = deriveRoleFromUser(session.user);
-              if (derived) {
-                role = derived;
-                setUserRole(role);
-                ensureRoleExists(session.user, role);
-              } else {
-                setUserRole(null);
-              }
-            } else {
-              setUserRole(role);
-            }
+                let role = (roleData?.role as UserRole) ?? null;
+                if (!role) {
+                  const derived = deriveRoleFromUser(session.user);
+                  if (derived) {
+                    role = derived;
+                    setUserRole(role);
+                    // Don't await, just fire and forget
+                    ensureRoleExists(session.user, role).catch(() => {});
+                  } else {
+                    setUserRole(null);
+                  }
+                } else {
+                  setUserRole(role);
+                }
 
-            // Redirect based on role (fallback to derived for testing)
-            if (event === 'SIGNED_IN') {
-              if (role === 'admin') {
-                navigate('/admin');
-              } else {
-                navigate('/mobile');
-              }
-            }
+                // Redirect based on role
+                if (event === 'SIGNED_IN') {
+                  if (role === 'admin') {
+                    navigate('/admin');
+                  } else if (role === 'employee') {
+                    navigate('/mobile');
+                  }
+                }
+              });
           }, 0);
         } else {
           setUserRole(null);
@@ -85,31 +94,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
-          .then(async ({ data: roleData }) => {
-            let role = (roleData?.role as UserRole) ?? deriveRoleFromUser(session.user!);
+        if (session?.user) {
+          try {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            let role = (roleData?.role as UserRole) ?? deriveRoleFromUser(session.user);
             setUserRole(role);
             if (!roleData?.role && role) {
-              await ensureRoleExists(session.user!, role);
+              await ensureRoleExists(session.user, role);
             }
-            setLoading(false);
-          });
-      } else {
+          } catch (err) {
+            console.error('Role fetch error:', err);
+            setUserRole(null);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Session fetch error:', err);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    });
+      });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -121,7 +138,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, session, userRole, loading, signOut }}>
-      {children}
+      {loading ? (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-muted-foreground">Se încarcă...</p>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }
