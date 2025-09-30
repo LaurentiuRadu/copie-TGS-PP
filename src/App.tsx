@@ -12,6 +12,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Vacations from "./pages/Vacations";
+import RootRedirect from "./pages/RootRedirect";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +24,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/auth" replace />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/mobile"
