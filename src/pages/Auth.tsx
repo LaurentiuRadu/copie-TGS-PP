@@ -36,6 +36,127 @@ const Auth = () => {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
 
+  const handleDemoEmployee = async () => {
+    setLoading(true);
+    setError(null);
+    
+    const demoUsername = "demoangajat";
+    const demoPassword = "123456";
+    const demoEmail = `${demoUsername}@employee.local`;
+
+    try {
+      // Încearcă să creezi contul
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: demoEmail,
+        password: demoPassword,
+        options: {
+          data: {
+            username: demoUsername,
+            full_name: "Angajat Demo",
+          },
+          emailRedirectTo: `${window.location.origin}/mobile`,
+        },
+      });
+
+      if (signUpError && !signUpError.message.includes("already")) {
+        throw signUpError;
+      }
+
+      // Dacă contul există deja sau a fost creat, autentifică-te
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (signInError) throw signInError;
+
+      // Asigură-te că are rol de angajat
+      if (signUpData?.user) {
+        await supabase.from('user_roles').insert({
+          user_id: signUpData.user.id,
+          role: 'employee',
+        }).then(() => {});
+      }
+
+      toast.success("Autentificare demo reușită!");
+      navigate("/mobile");
+    } catch (err) {
+      console.error("Demo employee error:", err);
+      // Încearcă doar login dacă signup-ul a eșuat
+      try {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: demoEmail,
+          password: demoPassword,
+        });
+        if (!signInError) {
+          navigate("/mobile");
+        }
+      } catch (loginErr) {
+        setError("Eroare la autentificarea demo");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoAdmin = async () => {
+    setLoading(true);
+    setError(null);
+    
+    const demoEmail = "demoadmin@test.com";
+    const demoPassword = "123456";
+
+    try {
+      // Încearcă să creezi contul
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: demoEmail,
+        password: demoPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/admin`,
+        },
+      });
+
+      if (signUpError && !signUpError.message.includes("already")) {
+        throw signUpError;
+      }
+
+      // Dacă contul există deja sau a fost creat, autentifică-te
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (signInError) throw signInError;
+
+      // Asigură-te că are rol de admin
+      if (signUpData?.user) {
+        await supabase.from('user_roles').insert({
+          user_id: signUpData.user.id,
+          role: 'admin',
+        }).then(() => {});
+      }
+
+      toast.success("Autentificare demo reușită!");
+      navigate("/admin");
+    } catch (err) {
+      console.error("Demo admin error:", err);
+      // Încearcă doar login dacă signup-ul a eșuat
+      try {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: demoEmail,
+          password: demoPassword,
+        });
+        if (!signInError) {
+          navigate("/admin");
+        }
+      } catch (loginErr) {
+        setError("Eroare la autentificarea demo");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEmployeeAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -189,6 +310,29 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Demo Buttons */}
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg space-y-3">
+            <p className="text-sm font-medium text-center text-muted-foreground mb-3">Acces Rapid pentru Testare</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={handleDemoEmployee}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                size="sm"
+              >
+                Demo Angajat
+              </Button>
+              <Button
+                onClick={handleDemoAdmin}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+                size="sm"
+              >
+                Demo Admin
+              </Button>
+            </div>
+          </div>
+
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
