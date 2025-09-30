@@ -17,10 +17,7 @@ const employeeSchema = z.object({
 });
 
 const adminSchema = z.object({
-  email: z.string().trim().email("Email invalid").refine(
-    (email) => email.endsWith("@tgservices.ro"),
-    "Doar email-urile cu domeniul @tgservices.ro sunt permise pentru admin"
-  ),
+  email: z.string().trim().email("Email invalid"),
   password: z.string().min(6, "Parola trebuie să aibă minim 6 caractere"),
 });
 
@@ -255,11 +252,11 @@ const Auth = () => {
             <TabsContent value="admin">
               <form onSubmit={handleAdminAuth} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="admin-email">Email (@tgservices.ro)</Label>
+                  <Label htmlFor="admin-email">Email</Label>
                   <Input
                     id="admin-email"
                     type="email"
-                    placeholder="ex: admin@tgservices.ro"
+                    placeholder="ex: admin@example.com"
                     value={adminEmail}
                     onChange={(e) => setAdminEmail(e.target.value)}
                     required
