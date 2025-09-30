@@ -156,22 +156,21 @@ const Mobile = () => {
               <Button
                 size="lg"
                 onClick={handleStart}
-                className="h-14 text-base bg-gradient-primary hover:opacity-90"
+                className="h-14 text-base bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
               >
                 INTRARE CONDUS
               </Button>
               <Button
                 size="lg"
-                variant="secondary"
                 onClick={handleStart}
-                className="h-14 text-base"
+                className="h-14 text-base bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
               >
                 INTRARE PASAGER
               </Button>
               <Button
                 size="lg"
                 onClick={handleStart}
-                className="h-14 text-base bg-gradient-primary hover:opacity-90"
+                className="h-14 text-base bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white"
               >
                 INTRARE
               </Button>
