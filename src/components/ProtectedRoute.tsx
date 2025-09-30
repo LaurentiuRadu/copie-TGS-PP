@@ -22,14 +22,13 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
     return <Navigate to="/auth" replace />;
   }
 
-  if (allowedRole && userRole !== allowedRole) {
+  if (allowedRole && userRole && userRole !== allowedRole) {
     // Redirect to the correct page based on role
     if (userRole === 'admin') {
       return <Navigate to="/admin" replace />;
     } else if (userRole === 'employee') {
       return <Navigate to="/mobile" replace />;
     }
-    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;

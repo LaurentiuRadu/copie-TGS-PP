@@ -22,6 +22,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const deriveRoleFromUser = (u: User): Exclude<UserRole, null> | null => {
+    const email = u.email || (u.user_metadata as any)?.email || "";
+    if (email.endsWith("@employee.local")) return 'employee';
+    if (email === 'demoadmin@test.com' || email.endsWith('@tgservices.ro')) return 'admin';
+    return null;
+  };
+
+  const ensureRoleExists = async (u: User, role: Exclude<UserRole, null>) => {
+    try {
+      await supabase
+        .from('user_roles')
+        .insert({ user_id: u.id, role });
+    } catch (e) {
+      // ignore insert errors (duplicate, etc.)
+    }
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -36,16 +53,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .from('user_roles')
               .select('role')
               .eq('user_id', session.user.id)
-              .single();
+              .maybeSingle();
 
-            const role = roleData?.role as UserRole;
-            setUserRole(role);
+            let role = (roleData?.role as UserRole) ?? null;
+            if (!role) {
+              const derived = deriveRoleFromUser(session.user);
+              if (derived) {
+                role = derived;
+                setUserRole(role);
+                ensureRoleExists(session.user, role);
+              } else {
+                setUserRole(null);
+              }
+            } else {
+              setUserRole(role);
+            }
 
-            // Redirect based on role
+            // Redirect based on role (fallback to derived for testing)
             if (event === 'SIGNED_IN') {
               if (role === 'admin') {
                 navigate('/admin');
-              } else if (role === 'employee') {
+              } else {
                 navigate('/mobile');
               }
             }
@@ -66,9 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
-          .single()
-          .then(({ data: roleData }) => {
-            setUserRole(roleData?.role as UserRole);
+          .maybeSingle()
+          .then(async ({ data: roleData }) => {
+            let role = (roleData?.role as UserRole) ?? deriveRoleFromUser(session.user!);
+            setUserRole(role);
+            if (!roleData?.role && role) {
+              await ensureRoleExists(session.user!, role);
+            }
             setLoading(false);
           });
       } else {
