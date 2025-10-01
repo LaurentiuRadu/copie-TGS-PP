@@ -26,6 +26,7 @@ import { useSafeArea } from "@/hooks/useSafeArea";
 import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
 import { RomaniaTimeClock } from "@/components/RomaniaTimeClock";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -58,6 +59,7 @@ const Mobile = () => {
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
   useAutoDarkMode(); // Auto switch theme based on time of day
+  useRealtimeTimeEntries(true); // Real-time updates pentru pontaje
 
   useSwipeGesture({
     onSwipeLeft: useCallback(() => {

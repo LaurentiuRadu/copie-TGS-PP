@@ -9,8 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus } from 'lucide-react';
-import { toast } from 'sonner';
 import { AppHeader } from '@/components/AppHeader';
+import { useOptimizedVacations } from '@/hooks/useOptimizedVacations';
 import {
   Dialog,
   DialogContent,
@@ -47,126 +47,63 @@ interface VacationRequest {
 
 const Vacations = () => {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<VacationRequest[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [vacationType, setVacationType] = useState<string>('vacation');
   const [reason, setReason] = useState('');
 
+  // Folosim hook-ul optimizat cu React Query
+  const { requests, isLoading, createRequest, updateStatus } = useOptimizedVacations(
+    user?.id,
+    isAdmin
+  );
+
   useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
+      setIsAdmin(!!data);
+    };
     checkAdminRole();
-    fetchRequests();
   }, [user]);
-
-  const checkAdminRole = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .single();
-    setIsAdmin(!!data);
-  };
-
-  const fetchRequests = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      let query = supabase
-        .from('vacation_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      // Non-admins only see their own requests
-      if (!isAdmin) {
-        query = query.eq('user_id', user.id);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Fetch profiles for admin view
-      if (isAdmin && data) {
-        const requestsWithProfiles = await Promise.all(
-          data.map(async (req) => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', req.user_id)
-              .single();
-            return { ...req, profiles: profile };
-          })
-        );
-        setRequests(requestsWithProfiles as VacationRequest[]);
-      } else {
-        setRequests(data || []);
-      }
-    } catch (error: any) {
-      console.error('Error fetching requests:', error);
-      toast.error('Eroare la încărcarea cererilor');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateRequest = async () => {
     if (!user || !dateRange?.from || !dateRange?.to) {
-      toast.error('Selectează perioada de concediu');
       return;
     }
 
     const daysCount = differenceInDays(dateRange.to, dateRange.from) + 1;
 
-    try {
-      const { error } = await supabase
-        .from('vacation_requests')
-        .insert([{
-          user_id: user.id,
-          start_date: format(dateRange.from, 'yyyy-MM-dd'),
-          end_date: format(dateRange.to, 'yyyy-MM-dd'),
-          days_count: daysCount,
-          type: vacationType,
-          reason: reason || null,
-        }]);
+    createRequest({
+      user_id: user.id,
+      start_date: format(dateRange.from, 'yyyy-MM-dd'),
+      end_date: format(dateRange.to, 'yyyy-MM-dd'),
+      days_count: daysCount,
+      type: vacationType,
+      reason: reason || null,
+    });
 
-      if (error) throw error;
-
-      toast.success('Cerere trimisă cu succes');
-      setShowNewRequest(false);
-      setDateRange(undefined);
-      setReason('');
-      setVacationType('vacation');
-      fetchRequests();
-    } catch (error: any) {
-      console.error('Error creating request:', error);
-      toast.error('Eroare la crearea cererii');
-    }
+    setShowNewRequest(false);
+    setDateRange(undefined);
+    setReason('');
+    setVacationType('vacation');
   };
 
   const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected', adminNotes?: string) => {
-    try {
-      const { error } = await supabase
-        .from('vacation_requests')
-        .update({
-          status,
-          admin_notes: adminNotes || null,
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success(status === 'approved' ? 'Cerere aprobată' : 'Cerere respinsă');
-      fetchRequests();
-    } catch (error: any) {
-      console.error('Error updating status:', error);
-      toast.error('Eroare la actualizarea cererii');
-    }
+    if (!user) return;
+    
+    updateStatus({
+      id,
+      status,
+      adminNotes,
+      reviewedBy: user.id,
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -274,12 +211,12 @@ const Vacations = () => {
             {isAdmin ? 'Toate Cererile' : 'Cererile Mele'} ({requests.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Se încarcă...
-            </div>
-          ) : requests.length === 0 ? (
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Se încarcă...
+              </div>
+            ) : requests.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Nu există cereri
             </div>
