@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Camera, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
@@ -170,6 +170,9 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
               </Badge>
             )}
           </div>
+          <DialogDescription>
+            Poziționează-te în fața camerei pentru a captura o fotografie clară.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
