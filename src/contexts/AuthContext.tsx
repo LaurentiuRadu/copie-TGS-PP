@@ -106,16 +106,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (session?.user) {
           try {
-            const { data: roleData } = await supabase
+            const { data: roleData, error: fetchError } = await supabase
               .from('user_roles')
               .select('role')
               .eq('user_id', session.user.id)
               .maybeSingle();
             
+            if (fetchError) {
+              console.error('Role fetch error:', fetchError);
+              const derived = deriveRoleFromUser(session.user);
+              setUserRole(derived);
+              return;
+            }
+            
             let role = (roleData?.role as UserRole) ?? deriveRoleFromUser(session.user);
             setUserRole(role);
-            if (!roleData?.role && role) {
-              await ensureRoleExists(session.user, role);
+            
+            // Only try to create role if none exists and we have a derived role
+            if (!roleData && role) {
+              // Check if role already exists before inserting
+              const { data: existingRole } = await supabase
+                .from('user_roles')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .eq('role', role)
+                .maybeSingle();
+              
+              if (!existingRole) {
+                await ensureRoleExists(session.user, role);
+              }
             }
           } catch (err) {
             console.error('Role fetch error:', err);

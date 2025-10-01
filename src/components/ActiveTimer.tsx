@@ -32,14 +32,14 @@ export function ActiveTimer() {
   };
 
   return (
-    <Card className="shadow-custom-md">
+    <Card className="shadow-custom-md animate-fade-in hover-scale">
       <CardHeader>
         <CardTitle>Time Tracker Activ</CardTitle>
         <CardDescription>Înregistrează timpul lucrat pentru task-uri</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-center">
-          <div className="text-6xl font-bold text-foreground tracking-wider">
+          <div className="text-6xl font-bold text-foreground tracking-wider animate-fade-in">
             {formatTime(seconds)}
           </div>
         </div>

@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
 import { ro } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,7 +33,6 @@ interface DayData {
   pasagerHours: number;
 }
 
-// Mock data pentru calendar - în realitate va veni din baza de date
 const mockMonthData: DayData[] = [
   { date: new Date(2025, 0, 2), normalHours: 8, condusHours: 0, pasagerHours: 0 },
   { date: new Date(2025, 0, 3), normalHours: 0, condusHours: 7, pasagerHours: 0 },
@@ -48,15 +47,14 @@ const Mobile = () => {
   const [shiftSeconds, setShiftSeconds] = useState(0);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
 
-  // Swipe gesture for calendar navigation
   useSwipeGesture({
     onSwipeLeft: useCallback(() => {
       setSelectedMonth(prev => addMonths(prev, 1));
@@ -75,16 +73,23 @@ const Mobile = () => {
       await getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
       setLocationEnabled(true);
       triggerHaptic('light');
-    } catch (e) {
+    } catch (e: any) {
       setLocationEnabled(false);
-      setLocationError("Permisiunea pentru locație a fost refuzată sau indisponibilă");
+      const errorMessage = e.code === 1 
+        ? "Accesul la locație a fost refuzat. Activează permisiunile GPS." 
+        : e.code === 2
+        ? "Nu s-a putut determina locația. Verifică conexiunea GPS."
+        : e.code === 3
+        ? "Timeout la determinarea locației. Încearcă din nou."
+        : "Locație indisponibilă";
+      setLocationError(errorMessage);
       triggerHaptic('error');
     }
   }, [triggerHaptic]);
 
   useEffect(() => {
     requestLocationAccess();
-  }, []);
+  }, [requestLocationAccess]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -104,21 +109,18 @@ const Mobile = () => {
   };
 
   const handleShiftStart = useCallback(async (type: ShiftType) => {
+    if (isProcessing) return;
+    
     if (!locationEnabled) {
       toast.error("Locația nu este activată");
       triggerHaptic('error');
       return;
     }
     
+    setIsProcessing(true);
     triggerHaptic('medium');
-    await performClockIn(type);
-  }, [locationEnabled, triggerHaptic]);
-
-  const performClockIn = async (type: ShiftType) => {
     
     try {
-      triggerHaptic('medium');
-      // Get current location
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 5000,
@@ -130,7 +132,6 @@ const Mobile = () => {
         longitude: position.coords.longitude,
       };
 
-      // Fetch active work locations
       const { data: locations, error: locError } = await supabase
         .from('work_locations')
         .select('*')
@@ -144,7 +145,6 @@ const Mobile = () => {
         return;
       }
 
-      // Find nearest valid location
       const nearestLocation = findNearestLocation(currentCoords, locations);
 
       if (!nearestLocation) {
@@ -153,12 +153,10 @@ const Mobile = () => {
         return;
       }
 
-      // Get device info
       const deviceId = generateDeviceFingerprint();
       const deviceInfo = getDeviceInfo();
       const ipAddress = await getClientIP();
 
-      // Create time entry with security info
       const { data: entry, error: entryError } = await supabase
         .from('time_entries')
         .insert([{
@@ -187,10 +185,14 @@ const Mobile = () => {
       console.error('Failed to start shift:', error);
       triggerHaptic('error');
       toast.error(error.message || "Eroare la începerea pontajului");
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }, [locationEnabled, isProcessing, user, triggerHaptic]);
 
   const handleShiftEnd = useCallback(async () => {
+    if (isProcessing) return;
+    
     if (!activeTimeEntry) {
       toast.error("Nu există pontaj activ");
       triggerHaptic('error');
@@ -203,14 +205,10 @@ const Mobile = () => {
       return;
     }
 
+    setIsProcessing(true);
     triggerHaptic('medium');
-    await performClockOut();
-  }, [activeTimeEntry, locationEnabled, triggerHaptic]);
-
-  const performClockOut = async () => {
+    
     try {
-      triggerHaptic('medium');
-      // Get current location
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 5000,
@@ -222,7 +220,6 @@ const Mobile = () => {
         longitude: position.coords.longitude,
       };
 
-      // Fetch active work locations
       const { data: locations, error: locError } = await supabase
         .from('work_locations')
         .select('*')
@@ -236,7 +233,6 @@ const Mobile = () => {
         return;
       }
 
-      // Find nearest valid location
       const nearestLocation = findNearestLocation(currentCoords, locations);
 
       if (!nearestLocation) {
@@ -248,7 +244,6 @@ const Mobile = () => {
       const clockInTime = activeTimeEntry.clock_in_time;
       const clockOutTime = new Date().toISOString();
 
-      // Update time entry with clock-out
       const { error: updateError } = await supabase
         .from('time_entries')
         .update({
@@ -261,7 +256,6 @@ const Mobile = () => {
 
       if (updateError) throw updateError;
 
-      // Calculate time segments automatically
       try {
         await supabase.functions.invoke('calculate-time-segments', {
           body: {
@@ -272,7 +266,6 @@ const Mobile = () => {
         });
       } catch (segmentError) {
         console.error('Failed to calculate segments:', segmentError);
-        // Don't fail the clock-out if segment calculation fails
       }
 
       triggerHaptic('success');
@@ -285,19 +278,17 @@ const Mobile = () => {
       console.error('Failed to end shift:', error);
       triggerHaptic('error');
       toast.error(error.message || "Eroare la terminarea pontajului");
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }, [activeTimeEntry, locationEnabled, isProcessing, triggerHaptic]);
 
   const getShiftTypeLabel = (type: ShiftType) => {
     switch (type) {
-      case "condus":
-        return "Condus";
-      case "pasager":
-        return "Pasager";
-      case "normal":
-        return "Normal";
-      default:
-        return "";
+      case "condus": return "Condus";
+      case "pasager": return "Pasager";
+      case "normal": return "Normal";
+      default: return "";
     }
   };
 
@@ -307,25 +298,21 @@ const Mobile = () => {
     );
     
     if (!dayData) return "";
-    
     if (dayData.condusHours > 0) return "bg-blue-500/20 hover:bg-blue-500/30";
     if (dayData.pasagerHours > 0) return "bg-green-500/20 hover:bg-green-500/30";
     if (dayData.normalHours > 0) return "bg-purple-500/20 hover:bg-purple-500/30";
-    
     return "";
   };
 
   const BREAK_MINUTES = 30;
-  const todayTotalMinutes = 392; // Example: 6h 32m = 392 minutes
+  const todayTotalMinutes = 392;
   const todayWorkedMinutes = Math.max(0, todayTotalMinutes - BREAK_MINUTES);
   const todayHours = `${Math.floor(todayWorkedMinutes / 60)}h ${todayWorkedMinutes % 60}m`;
 
-  // Memoize expensive calculations
   const formattedTime = useMemo(() => formatTime(shiftSeconds), [shiftSeconds]);
 
   return (
     <div className="min-h-screen bg-background pb-safe-area-bottom">
-      {/* Header */}
       <header 
         className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border"
         style={{ paddingTop: `${safeArea.top}px` }}
@@ -384,9 +371,8 @@ const Mobile = () => {
       </header>
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
-        {/* Location Warning */}
         {!locationEnabled && locationError && (
-          <Card className="border-destructive bg-destructive/10 animate-slide-down">
+          <Card className="border-destructive bg-destructive/10 animate-fade-in">
             <CardContent className="p-3 xs:p-4">
               <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-destructive">
@@ -395,16 +381,21 @@ const Mobile = () => {
                   </svg>
                   <span className="text-responsive-xs font-medium">{locationError}</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={requestLocationAccess} className="touch-target w-full xs:w-auto">
-                  Reîncearcă
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={requestLocationAccess} 
+                  className="touch-target w-full xs:w-auto"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Se verifică..." : "Reîncearcă"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Active Shift Card */}
-        <Card className={`shadow-custom-lg transition-all duration-300 ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
+        <Card className={`shadow-custom-lg transition-all duration-300 animate-fade-in ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
           <CardHeader className="pb-2 xs:pb-3">
             <CardTitle className={`text-responsive-lg ${activeShift ? "text-white" : "text-foreground"}`}>
               {activeShift ? "Tură Activă" : "Nicio tură activă"}
@@ -425,46 +416,85 @@ const Mobile = () => {
           </CardContent>
         </Card>
 
-        {/* Shift Controls */}
-        <Card className="shadow-custom-lg">
+        <Card className="shadow-custom-lg animate-fade-in">
           <CardContent className="p-4 xs:p-6">
             <div className="grid grid-cols-1 gap-2 xs:gap-3">
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("condus")}
-                disabled={!locationEnabled || activeShift !== null}
+                disabled={!locationEnabled || activeShift !== null || isProcessing}
                 className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95"
               >
-                <Car className="h-5 w-5 xs:h-6 xs:w-6" />
-                INTRARE CONDUS
+                {isProcessing ? (
+                  <>
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Se procesează...
+                  </>
+                ) : (
+                  <>
+                    <Car className="h-5 w-5 xs:h-6 xs:w-6" />
+                    INTRARE CONDUS
+                  </>
+                )}
               </Button>
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("pasager")}
-                disabled={!locationEnabled || activeShift !== null}
+                disabled={!locationEnabled || activeShift !== null || isProcessing}
                 className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95"
               >
-                <Users className="h-5 w-5 xs:h-6 xs:w-6" />
-                INTRARE PASAGER
+                {isProcessing ? (
+                  <>
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Se procesează...
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-5 w-5 xs:h-6 xs:w-6" />
+                    INTRARE PASAGER
+                  </>
+                )}
               </Button>
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("normal")}
-                disabled={!locationEnabled || activeShift !== null}
+                disabled={!locationEnabled || activeShift !== null || isProcessing}
                 className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95"
               >
-                <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
-                INTRARE
+                {isProcessing ? (
+                  <>
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Se procesează...
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
+                    INTRARE NORMAL
+                  </>
+                )}
               </Button>
-              <Button
-                size="lg"
-                variant="destructive"
-                onClick={handleShiftEnd}
-                disabled={!activeShift}
-                className="touch-target no-select h-14 xs:h-16 text-responsive-sm font-semibold transition-all active:scale-95"
-              >
-                IEȘIRE
-              </Button>
+              
+              {activeShift && (
+                <Button
+                  size="lg"
+                  onClick={handleShiftEnd}
+                  disabled={isProcessing}
+                  variant="destructive"
+                  className="touch-target no-select h-14 xs:h-16 text-responsive-sm flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 mt-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Se procesează...
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-5 w-5 xs:h-6 xs:w-6" />
+                      IEȘIRE
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
