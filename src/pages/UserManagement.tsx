@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminSearchCommand } from "@/components/AdminSearchCommand";
+import { MobileTableCard, MobileTableRow } from "@/components/MobileTableCard";
+import { ResponsiveHeader } from "@/components/ResponsiveHeader";
 
 interface User {
   id: string;
@@ -177,38 +179,32 @@ const UserManagement = () => {
         <AppSidebar />
         
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border/50 bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 px-6 shadow-sm">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Gestionare Utilizatori
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
+          <ResponsiveHeader title="Gestionare Utilizatori" showSearch>
+            <div className="hidden md:block">
               <AdminSearchCommand />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={loadUsers}
-                disabled={loading}
-                className="gap-2 hover:bg-accent transition-all"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden md:inline">Reîmprospătează</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={signOut}
-                className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden md:inline">Deconectare</span>
-              </Button>
             </div>
-          </header>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadUsers}
+              disabled={loading}
+              className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline">Reîmprospătează</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={signOut}
+              className="hidden md:flex gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all"
+            >
+              <LogOut className="h-4 w-4" />
+              Deconectare
+            </Button>
+          </ResponsiveHeader>
 
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto p-3 md:p-6">
             <Card className="shadow-elegant border-primary/10 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-glass opacity-30 pointer-events-none" />
               <CardHeader className="relative">
@@ -225,19 +221,19 @@ const UserManagement = () => {
                   </Badge>
                 </div>
                 
-                <div className="flex items-center gap-3 mt-4">
-                  <div className="relative flex-1 max-w-md">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-4">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Caută după nume, email sau rol..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 bg-background/50 border-primary/20 focus:border-primary transition-all"
+                      className="pl-10 bg-background/50 border-primary/20 focus:border-primary transition-all h-10"
                     />
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button variant="outline" size="sm" className="gap-2 h-10 whitespace-nowrap">
                     <Filter className="h-4 w-4" />
-                    Filtre
+                    <span className="hidden sm:inline">Filtre</span>
                   </Button>
                 </div>
               </CardHeader>
@@ -253,37 +249,39 @@ const UserManagement = () => {
                     <p>{searchQuery ? 'Nu s-au găsit utilizatori' : 'Nu există utilizatori'}</p>
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-border/50 overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead className="font-semibold">Username</TableHead>
-                          <TableHead className="font-semibold">Nume Complet</TableHead>
-                          <TableHead className="font-semibold">Email</TableHead>
-                          <TableHead className="font-semibold">Roluri</TableHead>
-                          <TableHead className="text-right font-semibold">Acțiuni</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredUsers.map((user) => (
-                          <TableRow key={user.id} className="hover:bg-accent/30 transition-colors">
-                            <TableCell className="font-medium">{user.username}</TableCell>
-                            <TableCell>{user.fullName}</TableCell>
-                            <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1 flex-wrap">
-                                {user.roles.map((role) => (
-                                  <Badge 
-                                    key={role} 
-                                    variant={role === 'admin' ? 'default' : 'secondary'}
-                                    className="shadow-sm"
-                                  >
-                                    {role}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
+                  <>
+                    {/* Desktop Table */}
+                    <div className="hidden lg:block rounded-lg border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead className="font-semibold">Username</TableHead>
+                            <TableHead className="font-semibold">Nume Complet</TableHead>
+                            <TableHead className="font-semibold">Email</TableHead>
+                            <TableHead className="font-semibold">Roluri</TableHead>
+                            <TableHead className="text-right font-semibold">Acțiuni</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredUsers.map((user) => (
+                            <TableRow key={user.id} className="hover:bg-accent/30 transition-colors">
+                              <TableCell className="font-medium">{user.username}</TableCell>
+                              <TableCell>{user.fullName}</TableCell>
+                              <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1 flex-wrap">
+                                  {user.roles.map((role) => (
+                                    <Badge 
+                                      key={role} 
+                                      variant={role === 'admin' ? 'default' : 'secondary'}
+                                      className="shadow-sm"
+                                    >
+                                      {role}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
                               <Dialog open={resetDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
                                 setResetDialogOpen(open);
                                 if (!open) {
@@ -350,12 +348,114 @@ const UserManagement = () => {
                                   </DialogFooter>
                                 </DialogContent>
                               </Dialog>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="lg:hidden space-y-3">
+                      {filteredUsers.map((user) => (
+                        <MobileTableCard key={user.id}>
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="font-semibold text-base">{user.username}</div>
+                                <div className="text-sm text-muted-foreground mt-0.5">{user.fullName}</div>
+                              </div>
+                              <div className="flex gap-1 flex-wrap justify-end ml-2">
+                                {user.roles.map((role) => (
+                                  <Badge 
+                                    key={role} 
+                                    variant={role === 'admin' ? 'default' : 'secondary'}
+                                    className="text-xs"
+                                  >
+                                    {role}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <MobileTableRow 
+                              label="Email" 
+                              value={<span className="text-muted-foreground text-xs break-all">{user.email}</span>}
+                              fullWidth
+                            />
+                            
+                            <Dialog open={resetDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
+                              setResetDialogOpen(open);
+                              if (!open) {
+                                setSelectedUser(null);
+                                setNewPassword('');
+                              }
+                            }}>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setResetDialogOpen(true);
+                                  }}
+                                  className="w-full gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary transition-all touch-target"
+                                >
+                                  <Key className="h-4 w-4" />
+                                  Resetează Parolă
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle>Resetează Parola</DialogTitle>
+                                  <DialogDescription>
+                                    Setează o parolă nouă pentru {user.username} ({user.fullName})
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="new-password">Parola Nouă</Label>
+                                    <Input
+                                      id="new-password"
+                                      type="text"
+                                      placeholder="Introdu parola nouă"
+                                      value={newPassword}
+                                      onChange={(e) => setNewPassword(e.target.value)}
+                                      autoComplete="off"
+                                      className="border-primary/20 focus:border-primary"
+                                    />
+                                    <p className="text-sm text-muted-foreground">
+                                      Parola trebuie să aibă cel puțin 6 caractere
+                                    </p>
+                                  </div>
+                                </div>
+                                <DialogFooter className="flex-col sm:flex-row gap-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setResetDialogOpen(false);
+                                      setSelectedUser(null);
+                                      setNewPassword('');
+                                    }}
+                                    className="w-full sm:w-auto"
+                                  >
+                                    Anulează
+                                  </Button>
+                                  <Button 
+                                    onClick={handleResetPassword}
+                                    disabled={resetting || !newPassword || newPassword.length < 6}
+                                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                  >
+                                    {resetting ? 'Se resetează...' : 'Resetează Parola'}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
+                        </MobileTableCard>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
