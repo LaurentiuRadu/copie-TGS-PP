@@ -324,22 +324,22 @@ const Mobile = () => {
         <div className="flex items-center justify-between p-3 xs:p-4 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={() => navigate(-1)}
-              className="h-10 w-10 flex-shrink-0 touch-target"
+              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
               title="Înapoi"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-6 w-6 text-primary" />
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={() => navigate(1)}
-              className="h-10 w-10 flex-shrink-0 touch-target"
+              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
               title="Înainte"
             >
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-6 w-6 text-primary" />
             </Button>
           </div>
 
