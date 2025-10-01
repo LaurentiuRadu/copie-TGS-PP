@@ -445,7 +445,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_daily_stats: {
+        Row: {
+          entries_count: number | null
+          total_hours: number | null
+          user_id: string | null
+          work_date: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -454,6 +462,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      has_role_cached: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      refresh_daily_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
