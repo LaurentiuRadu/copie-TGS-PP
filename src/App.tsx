@@ -17,6 +17,7 @@ import WorkLocations from "./pages/WorkLocations";
 import RootRedirect from "./pages/RootRedirect";
 import TimeEntries from "./pages/TimeEntries";
 import MyTimeEntries from "./pages/MyTimeEntries";
+import Alerts from "./pages/Alerts";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="employee">
                     <MyTimeEntries />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/alerts"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <Alerts />
                   </ProtectedRoute>
                 }
               />
