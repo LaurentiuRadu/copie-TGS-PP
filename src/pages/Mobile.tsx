@@ -24,6 +24,7 @@ import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useSafeArea } from "@/hooks/useSafeArea";
 import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
+import { RomaniaTimeClock } from "@/components/RomaniaTimeClock";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -319,8 +320,8 @@ const Mobile = () => {
         className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border"
         style={{ paddingTop: `${safeArea.top}px` }}
       >
-        <div className="flex items-center justify-between p-3 xs:p-4">
-          <div className="flex items-center gap-2 xs:gap-3 min-w-0">
+        <div className="flex items-center justify-between p-3 xs:p-4 gap-2">
+          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
             <div className="flex h-8 w-8 xs:h-10 xs:w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
               <Clock className="h-4 w-4 xs:h-6 xs:w-6 text-primary-foreground" />
             </div>
@@ -329,6 +330,8 @@ const Mobile = () => {
               <p className="text-sm xs:text-base text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
             </div>
           </div>
+          
+          <RomaniaTimeClock />
           
           <Sheet>
             <SheetTrigger asChild>
