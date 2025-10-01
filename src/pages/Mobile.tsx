@@ -10,8 +10,6 @@ import { ro } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getCurrentPosition, findNearestLocation } from "@/lib/geolocation";
-import { SelfieCapture } from "@/components/SelfieCapture";
-import { PhotoEnrollment } from "@/components/PhotoEnrollment";
 import { generateDeviceFingerprint, getDeviceInfo, getClientIP } from "@/lib/deviceFingerprint";
 import {
   Sheet,
@@ -53,13 +51,6 @@ const Mobile = () => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
-  const [showSelfieCapture, setShowSelfieCapture] = useState(false);
-  const [pendingSelfieAction, setPendingSelfieAction] = useState<'clock-in' | 'clock-out' | null>(null);
-  const [pendingShiftType, setPendingShiftType] = useState<ShiftType>(null);
-  const [clockInPhoto, setClockInPhoto] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [showEnrollment, setShowEnrollment] = useState(false);
-  const [verifyingFace, setVerifyingFace] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const safeArea = useSafeArea();
@@ -93,31 +84,7 @@ const Mobile = () => {
 
   useEffect(() => {
     requestLocationAccess();
-    loadUserProfile();
   }, []);
-
-  const loadUserProfile = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Error loading profile:', error);
-      return;
-    }
-
-    setUserProfile(data);
-
-    // Check if user needs to enroll reference photo
-    if (!data.reference_photo_url) {
-      toast.error("Trebuie să înregistrezi o poză de referință înainte de a pontare");
-      setShowEnrollment(true);
-    }
-  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -136,91 +103,7 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSelfieCapture = async (photoDataUrl: string) => {
-    if (!userProfile?.reference_photo_url && pendingSelfieAction !== 'clock-in') {
-      toast.error("Nu ai poză de referință înrolată");
-      triggerHaptic('error');
-      return;
-    }
-
-    if (pendingSelfieAction === 'clock-in') {
-      // Verify face before clock-in
-      setVerifyingFace(true);
-      try {
-        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-face', {
-          body: { 
-            referenceImage: userProfile.reference_photo_url,
-            currentImage: photoDataUrl,
-            action: 'verify'
-          }
-        });
-
-        if (verifyError) throw verifyError;
-
-        console.log('Face verification result:', verifyData);
-
-        if (!verifyData.isValid) {
-          toast.error(verifyData.reason || "Verificarea facială a eșuat. Încearcă din nou cu o poză mai clară.");
-          triggerHaptic('error');
-          setVerifyingFace(false);
-          return;
-        }
-
-        triggerHaptic('success');
-        toast.success(`Verificare reușită (${verifyData.confidence}% încredere)`);
-        setClockInPhoto(photoDataUrl);
-        performClockIn(photoDataUrl);
-      } catch (error) {
-        console.error('Face verification error:', error);
-        toast.error("Eroare la verificarea facială. Încearcă din nou.");
-        triggerHaptic('error');
-      } finally {
-        setVerifyingFace(false);
-      }
-    } else if (pendingSelfieAction === 'clock-out') {
-      // Verify face before clock-out
-      setVerifyingFace(true);
-      try {
-        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-face', {
-          body: { 
-            referenceImage: userProfile.reference_photo_url,
-            currentImage: photoDataUrl,
-            action: 'verify'
-          }
-        });
-
-        if (verifyError) throw verifyError;
-
-        console.log('Face verification result:', verifyData);
-
-        if (!verifyData.isValid) {
-          toast.error(verifyData.reason || "Verificarea facială a eșuat. Încearcă din nou cu o poză mai clară.");
-          triggerHaptic('error');
-          setVerifyingFace(false);
-          return;
-        }
-
-        triggerHaptic('success');
-        toast.success(`Verificare reușită (${verifyData.confidence}% încredere)`);
-        performClockOut(photoDataUrl);
-      } catch (error) {
-        console.error('Face verification error:', error);
-        toast.error("Eroare la verificarea facială. Încearcă din nou.");
-        triggerHaptic('error');
-      } finally {
-        setVerifyingFace(false);
-      }
-    }
-  };
-
   const handleShiftStart = useCallback(async (type: ShiftType) => {
-    if (!userProfile?.reference_photo_url) {
-      toast.error("Trebuie să înregistrezi o poză de referință înainte de a pontare");
-      setShowEnrollment(true);
-      triggerHaptic('warning');
-      return;
-    }
-
     if (!locationEnabled) {
       toast.error("Locația nu este activată");
       triggerHaptic('error');
@@ -228,14 +111,10 @@ const Mobile = () => {
     }
     
     triggerHaptic('medium');
-    // Request selfie first
-    setPendingShiftType(type);
-    setPendingSelfieAction('clock-in');
-    setShowSelfieCapture(true);
-  }, [userProfile, locationEnabled, triggerHaptic]);
+    await performClockIn(type);
+  }, [locationEnabled, triggerHaptic]);
 
-  const performClockIn = async (photoDataUrl: string) => {
-    const type = pendingShiftType;
+  const performClockIn = async (type: ShiftType) => {
     
     try {
       triggerHaptic('medium');
@@ -288,7 +167,6 @@ const Mobile = () => {
           clock_in_latitude: currentCoords.latitude,
           clock_in_longitude: currentCoords.longitude,
           clock_in_location_id: nearestLocation.id,
-          clock_in_photo_url: photoDataUrl,
           device_id: deviceId,
           device_info: deviceInfo,
           ip_address: ipAddress,
@@ -309,10 +187,6 @@ const Mobile = () => {
       console.error('Failed to start shift:', error);
       triggerHaptic('error');
       toast.error(error.message || "Eroare la începerea pontajului");
-    } finally {
-      setPendingSelfieAction(null);
-      setPendingShiftType(null);
-      setShowSelfieCapture(false);
     }
   };
 
@@ -330,39 +204,10 @@ const Mobile = () => {
     }
 
     triggerHaptic('medium');
-    // Request selfie for clock-out
-    setPendingSelfieAction('clock-out');
-    setShowSelfieCapture(true);
+    await performClockOut();
   }, [activeTimeEntry, locationEnabled, triggerHaptic]);
 
-  const handleResetReferencePhoto = async () => {
-    try {
-      triggerHaptic('warning');
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          reference_photo_url: null,
-          photo_quality_score: null,
-          reference_photo_enrolled_at: null
-        })
-        .eq('id', user?.id);
-
-      if (error) throw error;
-
-      // Refresh user profile
-      await loadUserProfile();
-      
-      toast.success("Poza de referință a fost resetată. Poți reface enrollment-ul.");
-      triggerHaptic('success');
-    } catch (error) {
-      console.error('Error resetting reference photo:', error);
-      toast.error("Eroare la resetarea pozei");
-      triggerHaptic('error');
-    }
-  };
-
-  const performClockOut = async (photoDataUrl: string) => {
+  const performClockOut = async () => {
     try {
       triggerHaptic('medium');
       // Get current location
@@ -403,7 +248,7 @@ const Mobile = () => {
       const clockInTime = activeTimeEntry.clock_in_time;
       const clockOutTime = new Date().toISOString();
 
-      // Update time entry with clock-out photo
+      // Update time entry with clock-out
       const { error: updateError } = await supabase
         .from('time_entries')
         .update({
@@ -411,7 +256,6 @@ const Mobile = () => {
           clock_out_latitude: currentCoords.latitude,
           clock_out_longitude: currentCoords.longitude,
           clock_out_location_id: nearestLocation.id,
-          clock_out_photo_url: photoDataUrl,
         })
         .eq('id', activeTimeEntry.id);
 
@@ -436,15 +280,11 @@ const Mobile = () => {
       setActiveShift(null);
       setShiftSeconds(0);
       setActiveTimeEntry(null);
-      setClockInPhoto(null);
       
     } catch (error: any) {
       console.error('Failed to end shift:', error);
       triggerHaptic('error');
       toast.error(error.message || "Eroare la terminarea pontajului");
-    } finally {
-      setPendingSelfieAction(null);
-      setShowSelfieCapture(false);
     }
   };
 
@@ -529,17 +369,7 @@ const Mobile = () => {
                   <CalendarDays className="h-4 w-4" />
                   Concedii
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start gap-2 text-orange-500 hover:text-orange-600"
-                  onClick={handleResetReferencePhoto}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                  </svg>
-                  Resetează Poza Referință
-                </Button>
-                <Button 
+                <Button
                   variant="outline" 
                   className="w-full justify-start gap-2 text-destructive hover:text-destructive"
                   onClick={signOut}
@@ -711,57 +541,6 @@ const Mobile = () => {
         </Card>
       </main>
 
-      {/* Selfie Capture Modal */}
-      <SelfieCapture
-        open={showSelfieCapture && !verifyingFace}
-        onClose={() => {
-          setShowSelfieCapture(false);
-          setPendingSelfieAction(null);
-          setPendingShiftType(null);
-          triggerHaptic('light');
-        }}
-        onCapture={handleSelfieCapture}
-        title={pendingSelfieAction === 'clock-in' ? 'Selfie la Intrare' : 'Selfie la Ieșire'}
-      />
-
-      {/* Photo Enrollment Modal */}
-      {user && (
-        <PhotoEnrollment
-          open={showEnrollment}
-          onClose={() => {
-            setShowEnrollment(false);
-            triggerHaptic('light');
-          }}
-          onSuccess={() => {
-            setShowEnrollment(false);
-            loadUserProfile();
-            triggerHaptic('success');
-            toast.success("Poză de referință înregistrată cu succes!");
-          }}
-          userId={user.id}
-        />
-      )}
-
-      {/* Verification Loading Overlay */}
-      {verifyingFace && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-sm animate-slide-up">
-            <CardContent className="p-6 space-y-4">
-              <div className="flex flex-col items-center gap-4">
-                <div className="animate-pulse-soft">
-                  <Clock className="h-12 w-12 text-primary" />
-                </div>
-                <div className="text-center space-y-2">
-                  <h3 className="text-responsive-lg font-semibold">Verificare facială...</h3>
-                  <p className="text-responsive-sm text-muted-foreground">
-                    Te rugăm să aștepți în timp ce verificăm identitatea
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 };
