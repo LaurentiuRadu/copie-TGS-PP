@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useSafeArea } from "@/hooks/useSafeArea";
+import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -54,6 +55,7 @@ const Mobile = () => {
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
+  useAutoDarkMode(); // Auto switch theme based on time of day
 
   useSwipeGesture({
     onSwipeLeft: useCallback(() => {
