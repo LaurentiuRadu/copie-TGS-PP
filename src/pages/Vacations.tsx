@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
@@ -49,7 +50,7 @@ const Vacations = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showNewRequest, setShowNewRequest] = useState(false);
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [vacationType, setVacationType] = useState<string>('vacation');
   const [reason, setReason] = useState('');
 
@@ -112,7 +113,7 @@ const Vacations = () => {
   };
 
   const handleCreateRequest = async () => {
-    if (!user || !dateRange.from || !dateRange.to) {
+    if (!user || !dateRange?.from || !dateRange?.to) {
       toast.error('Selectează perioada de concediu');
       return;
     }
@@ -135,7 +136,7 @@ const Vacations = () => {
 
       toast.success('Cerere trimisă cu succes');
       setShowNewRequest(false);
-      setDateRange({ from: undefined, to: undefined });
+      setDateRange(undefined);
       setReason('');
       setVacationType('vacation');
       fetchRequests();
@@ -226,7 +227,7 @@ const Vacations = () => {
                   <Calendar
                     mode="range"
                     selected={dateRange}
-                    onSelect={(range) => setDateRange(range || { from: undefined, to: undefined })}
+                    onSelect={setDateRange}
                     locale={ro}
                     className="rounded-md border mt-2"
                     disabled={(date) => {
@@ -235,7 +236,7 @@ const Vacations = () => {
                       return date < today;
                     }}
                   />
-                  {dateRange.from && dateRange.to && (
+                  {dateRange?.from && dateRange?.to && (
                     <p className="text-sm text-muted-foreground mt-2">
                       {differenceInDays(dateRange.to, dateRange.from) + 1} zile selectate
                     </p>
@@ -255,7 +256,7 @@ const Vacations = () => {
                 <Button 
                   onClick={handleCreateRequest}
                   className="w-full"
-                  disabled={!dateRange.from || !dateRange.to}
+                  disabled={!dateRange?.from || !dateRange?.to}
                 >
                   Trimite Cerere
                 </Button>
