@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Camera, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -23,6 +23,44 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
   const { toast } = useToast();
   const MAX_RETRIES = 3;
 
+  // Handle stream attachment to video element after render
+  useEffect(() => {
+    const attachStream = async () => {
+      if (stream && videoRef.current && !capturedPhoto) {
+        try {
+          console.log('Attaching stream to video element');
+          videoRef.current.srcObject = stream;
+          console.log('Video srcObject set');
+          
+          // Wait for video metadata to load
+          await new Promise((resolve) => {
+            if (videoRef.current) {
+              videoRef.current.onloadedmetadata = () => {
+                console.log('Video metadata loaded');
+                resolve(true);
+              };
+            }
+          });
+          
+          // Explicitly play the video
+          if (videoRef.current) {
+            await videoRef.current.play();
+            console.log('Video playing successfully');
+          }
+        } catch (error) {
+          console.error('Error attaching stream:', error);
+          toast({
+            title: "Eroare redare",
+            description: "Nu se poate reda imaginea camerei.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    attachStream();
+  }, [stream, capturedPhoto, toast]);
+
   const startCamera = async () => {
     try {
       console.log('Starting camera...');
@@ -38,34 +76,6 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
       console.log('Video tracks:', mediaStream.getVideoTracks());
       
       setStream(mediaStream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        console.log('Video srcObject set');
-        
-        // Wait for video metadata to load
-        await new Promise((resolve) => {
-          if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => {
-              console.log('Video metadata loaded');
-              resolve(true);
-            };
-          }
-        });
-        
-        // Explicitly play the video for browsers that require it
-        try {
-          await videoRef.current.play();
-          console.log('Video playing successfully');
-        } catch (playError) {
-          console.error('Error playing video:', playError);
-          toast({
-            title: "Eroare redare",
-            description: "Nu se poate reda imaginea camerei.",
-            variant: "destructive",
-          });
-        }
-      }
     } catch (error) {
       console.error('Error accessing camera:', error);
       toast({
