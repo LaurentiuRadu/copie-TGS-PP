@@ -1,9 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { DashboardStats } from "@/components/DashboardStats";
 import { ActiveTimer } from "@/components/ActiveTimer";
-import { RecentTasks } from "@/components/RecentTasks";
-import { ProjectsList } from "@/components/ProjectsList";
 import heroImage from "@/assets/hero-team.jpg";
 
 const Index = () => {
@@ -48,14 +45,7 @@ const Index = () => {
 
             {/* Content */}
             <div className="p-6 space-y-6">
-              <DashboardStats />
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                <ActiveTimer />
-                <ProjectsList />
-              </div>
-
-              <RecentTasks />
+              <ActiveTimer />
             </div>
           </main>
         </div>
