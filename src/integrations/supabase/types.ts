@@ -61,6 +61,7 @@ export type Database = {
       }
       work_hour_rules: {
         Row: {
+          applies_to_days: number[]
           created_at: string | null
           description: string | null
           end_time: string
@@ -70,6 +71,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          applies_to_days?: number[]
           created_at?: string | null
           description?: string | null
           end_time: string
@@ -79,6 +81,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          applies_to_days?: number[]
           created_at?: string | null
           description?: string | null
           end_time?: string
