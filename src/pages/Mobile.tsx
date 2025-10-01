@@ -25,6 +25,7 @@ import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useSafeArea } from "@/hooks/useSafeArea";
 import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
 import { RomaniaTimeClock } from "@/components/RomaniaTimeClock";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -321,13 +322,34 @@ const Mobile = () => {
         style={{ paddingTop: `${safeArea.top}px` }}
       >
         <div className="flex items-center justify-between p-3 xs:p-4 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="h-10 w-10 flex-shrink-0 touch-target"
+              title="Înapoi"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(1)}
+              className="h-10 w-10 flex-shrink-0 touch-target"
+              title="Înainte"
+            >
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
+
           <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
             <div className="flex h-8 w-8 xs:h-10 xs:w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
               <Clock className="h-4 w-4 xs:h-6 xs:w-6 text-primary-foreground" />
             </div>
-            <div className="min-w-0">
-              <h1 className="text-lg xs:text-xl font-bold text-foreground truncate">TimeTrack</h1>
-              <p className="text-sm xs:text-base text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
+            <div className="min-w-0 hidden xs:block">
+              <h1 className="text-base xs:text-lg font-semibold text-foreground truncate">TimeTrack</h1>
+              <p className="text-xs xs:text-sm text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
             </div>
           </div>
           
