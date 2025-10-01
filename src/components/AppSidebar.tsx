@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Time Tracker", url: "/tracker", icon: Clock },
+  { title: "Panou Principal", url: "/", icon: Home },
+  { title: "Pontaj", url: "/tracker", icon: Clock },
   { title: "Rapoarte", url: "/rapoarte", icon: BarChart3 },
   { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "Echipă", url: "/echipa", icon: Users },

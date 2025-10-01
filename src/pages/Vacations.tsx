@@ -6,6 +6,7 @@ import { type DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { ro } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -40,7 +41,7 @@ const Vacations = () => {
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date?.from ? (
-                    date.to ? `${format(date.from, "PPP")} - ${format(date.to, "PPP")}` : format(date.from, "PPP")
+                    date.to ? `${format(date.from, "PPP", { locale: ro })} - ${format(date.to, "PPP", { locale: ro })}` : format(date.from, "PPP", { locale: ro })
                   ) : (
                     <span>Selectează perioada</span>
                   )}
@@ -53,6 +54,7 @@ const Vacations = () => {
                    onSelect={setDate}
                    initialFocus
                    numberOfMonths={2}
+                   locale={ro}
                    className="pointer-events-auto"
                  />
               </PopoverContent>

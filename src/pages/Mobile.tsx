@@ -310,7 +310,7 @@ const Mobile = () => {
               selected={selectedMonth}
               onSelect={(date) => date && setSelectedMonth(date)}
               locale={ro}
-              className="rounded-md border w-full"
+              className="rounded-md border w-full pointer-events-auto"
               modifiers={{
                 condus: mockMonthData.filter(d => d.condusHours > 0).map(d => d.date),
                 pasager: mockMonthData.filter(d => d.pasagerHours > 0).map(d => d.date),
