@@ -1,1 +1,4 @@
 project_id = "hbwkufaksipsqipqdqcv"
+
+[functions.calculate-time-segments]
+verify_jwt = true

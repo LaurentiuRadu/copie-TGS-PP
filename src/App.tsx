@@ -15,6 +15,8 @@ import NotFound from "./pages/NotFound";
 import Vacations from "./pages/Vacations";
 import WorkLocations from "./pages/WorkLocations";
 import RootRedirect from "./pages/RootRedirect";
+import TimeEntries from "./pages/TimeEntries";
+import MyTimeEntries from "./pages/MyTimeEntries";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +62,22 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <WorkLocations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/time-entries"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <TimeEntries />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-time-entries"
+                element={
+                  <ProtectedRoute allowedRole="employee">
+                    <MyTimeEntries />
                   </ProtectedRoute>
                 }
               />
