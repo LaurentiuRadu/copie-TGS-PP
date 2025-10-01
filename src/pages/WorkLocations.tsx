@@ -65,7 +65,19 @@ const WorkLocations = () => {
   }, []);
 
   useEffect(() => {
-    if (!mapContainer.current) return;
+    // Initialize or cleanup map based on dialog visibility
+    if (!dialogOpen) {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+      // Clear any markers when dialog closes
+      markers.current.forEach((m) => m.remove());
+      markers.current = [];
+      return;
+    }
+
+    if (!mapContainer.current || map.current) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -78,9 +90,14 @@ const WorkLocations = () => {
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+    // Ensure proper sizing after dialog opens
+    map.current.on('load', () => {
+      map.current?.resize();
+    });
+
     // Update formData when map is clicked
     map.current.on('click', (e) => {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         latitude: e.lngLat.lat,
         longitude: e.lngLat.lng,
@@ -89,8 +106,9 @@ const WorkLocations = () => {
 
     return () => {
       map.current?.remove();
+      map.current = null;
     };
-  }, []);
+  }, [dialogOpen]);
 
   // Update markers when locations or formData changes
   useEffect(() => {
