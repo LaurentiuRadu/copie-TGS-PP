@@ -323,8 +323,8 @@ const Mobile = () => {
               <Clock className="h-4 w-4 xs:h-6 xs:w-6 text-primary-foreground" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-responsive-base font-bold text-foreground truncate">TimeTrack</h1>
-              <p className="text-responsive-xs text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
+              <h1 className="text-lg xs:text-xl font-bold text-foreground truncate">TimeTrack</h1>
+              <p className="text-sm xs:text-base text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
             </div>
           </div>
           
