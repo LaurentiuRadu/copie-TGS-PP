@@ -428,8 +428,8 @@ const Mobile = () => {
               {activeShift ? "Tură Activă" : "Nicio tură activă"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 xs:space-y-3">
-            <div className={`text-responsive-2xl font-bold tracking-wider tabular-nums ${activeShift ? "text-white animate-pulse-soft" : "text-muted-foreground"}`}>
+          <CardContent className={activeShift ? "space-y-2 xs:space-y-3" : "py-3"}>
+            <div className={`font-bold tracking-wider tabular-nums ${activeShift ? "text-responsive-2xl text-white animate-pulse-soft" : "text-xl text-muted-foreground"}`}>
               {formattedTime}
             </div>
             {activeShift && (
