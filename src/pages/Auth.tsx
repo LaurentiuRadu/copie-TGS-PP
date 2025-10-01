@@ -314,32 +314,6 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Demo Buttons */}
-          <div className="mb-6 p-4 bg-muted/50 rounded-lg space-y-3 border-2 border-primary/20">
-            <p className="text-sm font-semibold text-center text-foreground mb-3">🚀 Acces Rapid pentru Testare</p>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                onClick={handleDemoEmployee}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold disabled:opacity-50"
-                size="lg"
-              >
-                👤 Demo Angajat
-              </Button>
-              <Button
-                type="button"
-                onClick={handleDemoAdmin}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold disabled:opacity-50"
-                size="lg"
-              >
-                🔑 Demo Admin
-              </Button>
-            </div>
-            <p className="text-xs text-center text-muted-foreground">Click pentru intrare automată</p>
-          </div>
-
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
