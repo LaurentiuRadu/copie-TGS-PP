@@ -8,6 +8,7 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Clock, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { AppHeader } from '@/components/AppHeader';
 
 interface TimeEntry {
   id: string;
@@ -98,8 +99,10 @@ const MyTimeEntries = () => {
   const monthlyWeightedHours = entries.reduce((sum, entry) => sum + calculateWeightedHours(entry), 0);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Pontajele Mele</h1>
+    <div className="min-h-screen bg-background">
+      <AppHeader title="Pontajele Mele" />
+      
+      <div className="container mx-auto p-6 space-y-6">
 
       {/* Monthly Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -229,13 +232,14 @@ const MyTimeEntries = () => {
                           </div>
                         )}
                       </div>
-                    </CardContent>
+                     </CardContent>
                   </Card>
                 );
               })
             )}
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

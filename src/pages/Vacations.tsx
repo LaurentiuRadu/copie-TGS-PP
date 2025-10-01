@@ -10,6 +10,7 @@ import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { AppHeader } from '@/components/AppHeader';
 import {
   Dialog,
   DialogContent,
@@ -190,9 +191,8 @@ const Vacations = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Concedii</h1>
+    <div className="min-h-screen bg-background">
+      <AppHeader title="Concedii">
         {!isAdmin && (
           <Dialog open={showNewRequest} onOpenChange={setShowNewRequest}>
             <DialogTrigger asChild>
@@ -264,10 +264,11 @@ const Vacations = () => {
             </DialogContent>
           </Dialog>
         )}
-      </div>
+      </AppHeader>
 
-      {/* Requests List */}
-      <Card>
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Requests List */}
+        <Card>
         <CardHeader>
           <CardTitle>
             {isAdmin ? 'Toate Cererile' : 'Cererile Mele'} ({requests.length})
@@ -351,6 +352,7 @@ const Vacations = () => {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

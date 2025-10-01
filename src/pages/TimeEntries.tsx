@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Clock, MapPin, Smartphone, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { AppHeader } from '@/components/AppHeader';
 import {
   Dialog,
   DialogContent,
@@ -137,13 +138,14 @@ const TimeEntries = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Pontaje Detaliate</h1>
+    <div className="min-h-screen bg-background">
+      <AppHeader title="Pontaje Detaliate">
         <Badge variant="outline" className="text-lg px-4 py-2">
           {format(selectedDate, 'dd MMMM yyyy', { locale: ro })}
         </Badge>
-      </div>
+      </AppHeader>
+      
+      <div className="container mx-auto p-6 space-y-6">
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
@@ -380,7 +382,7 @@ const TimeEntries = () => {
               {selectedEntry.device_id && (
                 <div>
                   <h3 className="font-semibold mb-2">Informații Dispozitiv</h3>
-                  <div className="text-sm space-y-1 font-mono text-muted-foreground">
+                   <div className="text-sm space-y-1 font-mono text-muted-foreground">
                     <p>Device ID: {selectedEntry.device_id.slice(0, 32)}...</p>
                   </div>
                 </div>
@@ -389,6 +391,7 @@ const TimeEntries = () => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
