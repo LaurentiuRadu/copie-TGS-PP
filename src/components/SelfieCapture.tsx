@@ -25,19 +25,45 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
 
   const startCamera = async () => {
     try {
+      console.log('Starting camera...');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 1280, height: 720 }
+        video: { 
+          facingMode: 'user', 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 }
+        }
       });
+      
+      console.log('Media stream obtained:', mediaStream);
+      console.log('Video tracks:', mediaStream.getVideoTracks());
       
       setStream(mediaStream);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        console.log('Video srcObject set');
+        
+        // Wait for video metadata to load
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              console.log('Video metadata loaded');
+              resolve(true);
+            };
+          }
+        });
+        
         // Explicitly play the video for browsers that require it
         try {
           await videoRef.current.play();
+          console.log('Video playing successfully');
         } catch (playError) {
           console.error('Error playing video:', playError);
+          toast({
+            title: "Eroare redare",
+            description: "Nu se poate reda imaginea camerei.",
+            variant: "destructive",
+          });
         }
       }
     } catch (error) {
