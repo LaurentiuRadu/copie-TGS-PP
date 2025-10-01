@@ -33,6 +33,12 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // Explicitly play the video for browsers that require it
+        try {
+          await videoRef.current.play();
+        } catch (playError) {
+          console.error('Error playing video:', playError);
+        }
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
