@@ -381,28 +381,16 @@ const WorkLocations = () => {
                         {mapError && (
                           <p className="text-sm text-destructive">{mapError}</p>
                         )}
-                        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
-                          <Input
-                            id="mapbox-token"
-                            placeholder="Token Mapbox public (pk...); dacă lipsește, folosim tokenul implicit"
-                            value={mapboxToken}
-                            onChange={(e) => setMapboxToken(e.target.value)}
-                          />
-                          <Button type="button" variant="outline" onClick={() => {
-                            if (!mapboxToken) {
-                              toast.message('Folosești tokenul implicit inclus în aplicație.');
-                            } else {
-                              toast.success('Token Mapbox salvat');
-                            }
-                            if (map.current) {
-                              map.current.remove();
-                              map.current = null;
-                            }
-                          }}>
-                            Salvează token
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground">Dacă harta nu apare, introduce tokenul public Mapbox din contul tău (Tokens).</p>
+                        <Input
+                          id="mapbox-token"
+                          placeholder="Token Mapbox public (pk...); lasă gol pentru tokenul implicit"
+                          value={mapboxToken}
+                          onChange={(e) => setMapboxToken(e.target.value)}
+                          className="mb-2"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Token-ul se salvează automat. Închide și redeschide dialogul pentru a aplica modificările.
+                        </p>
                         <div ref={mapContainer} className="h-[300px] rounded-lg border" />
                       </div>
                     </div>
