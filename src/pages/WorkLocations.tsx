@@ -60,6 +60,15 @@ const WorkLocations = () => {
     radius_meters: 100,
   });
 
+  const [mapboxToken, setMapboxToken] = useState<string>(() => {
+    return localStorage.getItem('mapboxPublicToken') || '';
+  });
+  const [mapError, setMapError] = useState<string>('');
+
+  useEffect(() => {
+    localStorage.setItem('mapboxPublicToken', mapboxToken);
+  }, [mapboxToken]);
+
   useEffect(() => {
     fetchLocations();
   }, []);
@@ -79,7 +88,7 @@ const WorkLocations = () => {
 
     if (!mapContainer.current || map.current) return;
 
-    mapboxgl.accessToken = MAPBOX_TOKEN;
+    mapboxgl.accessToken = mapboxToken || MAPBOX_TOKEN;
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -93,6 +102,12 @@ const WorkLocations = () => {
     // Ensure proper sizing after dialog opens
     map.current.on('load', () => {
       map.current?.resize();
+      setMapError('');
+    });
+
+    // Surface Mapbox errors (e.g., invalid token)
+    map.current.on('error', () => {
+      setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
     });
 
     // Update formData when map is clicked
@@ -108,7 +123,7 @@ const WorkLocations = () => {
       map.current?.remove();
       map.current = null;
     };
-  }, [dialogOpen]);
+  }, [dialogOpen, mapboxToken]);
 
   // Update markers when locations or formData changes
   useEffect(() => {
@@ -363,6 +378,31 @@ const WorkLocations = () => {
 
                       <div className="space-y-2">
                         <Label>Hartă (Click pentru a selecta locația)</Label>
+                        {mapError && (
+                          <p className="text-sm text-destructive">{mapError}</p>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+                          <Input
+                            id="mapbox-token"
+                            placeholder="Token Mapbox public (pk...); dacă lipsește, folosim tokenul implicit"
+                            value={mapboxToken}
+                            onChange={(e) => setMapboxToken(e.target.value)}
+                          />
+                          <Button type="button" variant="outline" onClick={() => {
+                            if (!mapboxToken) {
+                              toast.message('Folosești tokenul implicit inclus în aplicație.');
+                            } else {
+                              toast.success('Token Mapbox salvat');
+                            }
+                            if (map.current) {
+                              map.current.remove();
+                              map.current = null;
+                            }
+                          }}>
+                            Salvează token
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Dacă harta nu apare, introduce tokenul public Mapbox din contul tău (Tokens).</p>
                         <div ref={mapContainer} className="h-[300px] rounded-lg border" />
                       </div>
                     </div>
