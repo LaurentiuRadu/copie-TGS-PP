@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "next-themes";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Mobile from "./pages/Mobile";
@@ -30,6 +31,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <PWAInstallPrompt />
         <BrowserRouter>
           <AuthProvider>
             <Routes>
