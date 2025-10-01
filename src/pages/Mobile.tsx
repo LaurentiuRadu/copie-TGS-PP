@@ -7,6 +7,9 @@ import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, C
 import { useAuth } from "@/contexts/AuthContext";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ro } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { getCurrentPosition, findNearestLocation } from "@/lib/geolocation";
 import {
   Sheet,
   SheetContent,
@@ -43,25 +46,12 @@ const Mobile = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-
-  // Cross-platform geolocation helpers
-  const getCurrentPositionAny = async (opts?: PositionOptions) => {
-    try {
-      const { Geolocation } = await import('@capacitor/geolocation');
-      // @ts-ignore - Capacitor options compatible
-      return await Geolocation.getCurrentPosition(opts as any);
-    } catch {
-      return await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!('geolocation' in navigator)) return reject(new Error('Geolocation not supported'));
-        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
-      });
-    }
-  };
+  const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
 
   const requestLocationAccess = async () => {
     try {
       setLocationError(null);
-      await getCurrentPositionAny({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+      await getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
       setLocationEnabled(true);
     } catch (e) {
       setLocationEnabled(false);
@@ -92,36 +82,138 @@ const Mobile = () => {
 
   const handleShiftStart = async (type: ShiftType) => {
     if (!locationEnabled) {
+      toast.error("Locația nu este activată");
       return;
     }
     
     try {
-      // Get current location when starting shift
-      const position = await getCurrentPositionAny({
+      // Get current location
+      const position = await getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 5000,
         maximumAge: 0
       });
       
-      console.log('Shift started at:', {
+      const currentCoords = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        timestamp: new Date(position.timestamp)
-      });
-      
+      };
+
+      // Fetch active work locations
+      const { data: locations, error: locError } = await supabase
+        .from('work_locations')
+        .select('*')
+        .eq('is_active', true);
+
+      if (locError) throw locError;
+
+      if (!locations || locations.length === 0) {
+        toast.error("Nu există locații de lucru configurate");
+        return;
+      }
+
+      // Find nearest valid location
+      const nearestLocation = findNearestLocation(currentCoords, locations);
+
+      if (!nearestLocation) {
+        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
+        return;
+      }
+
+      // Create time entry
+      const { data: entry, error: entryError } = await supabase
+        .from('time_entries')
+        .insert([{
+          user_id: user?.id,
+          clock_in_time: new Date().toISOString(),
+          clock_in_latitude: currentCoords.latitude,
+          clock_in_longitude: currentCoords.longitude,
+          clock_in_location_id: nearestLocation.id,
+          notes: `Tip: ${getShiftTypeLabel(type)}`
+        }])
+        .select()
+        .single();
+
+      if (entryError) throw entryError;
+
+      setActiveTimeEntry(entry);
       setActiveShift(type);
       setShiftSeconds(0);
-    } catch (error) {
-      console.error('Failed to get location:', error);
-      setLocationError("Nu s-a putut obține locația");
+      toast.success(`Pontaj început la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+      
+    } catch (error: any) {
+      console.error('Failed to start shift:', error);
+      toast.error(error.message || "Eroare la începerea pontajului");
     }
   };
 
-  const handleShiftEnd = () => {
-    // Aici se va salva în baza de date
-    setActiveShift(null);
-    setShiftSeconds(0);
+  const handleShiftEnd = async () => {
+    if (!activeTimeEntry) {
+      toast.error("Nu există pontaj activ");
+      return;
+    }
+
+    if (!locationEnabled) {
+      toast.error("Locația nu este activată");
+      return;
+    }
+
+    try {
+      // Get current location
+      const position = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      });
+      
+      const currentCoords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+
+      // Fetch active work locations
+      const { data: locations, error: locError } = await supabase
+        .from('work_locations')
+        .select('*')
+        .eq('is_active', true);
+
+      if (locError) throw locError;
+
+      if (!locations || locations.length === 0) {
+        toast.error("Nu există locații de lucru configurate");
+        return;
+      }
+
+      // Find nearest valid location
+      const nearestLocation = findNearestLocation(currentCoords, locations);
+
+      if (!nearestLocation) {
+        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
+        return;
+      }
+
+      // Update time entry
+      const { error: updateError } = await supabase
+        .from('time_entries')
+        .update({
+          clock_out_time: new Date().toISOString(),
+          clock_out_latitude: currentCoords.latitude,
+          clock_out_longitude: currentCoords.longitude,
+          clock_out_location_id: nearestLocation.id,
+        })
+        .eq('id', activeTimeEntry.id);
+
+      if (updateError) throw updateError;
+
+      toast.success(`Pontaj terminat la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+      setActiveShift(null);
+      setShiftSeconds(0);
+      setActiveTimeEntry(null);
+      
+    } catch (error: any) {
+      console.error('Failed to end shift:', error);
+      toast.error(error.message || "Eroare la terminarea pontajului");
+    }
   };
 
   const getShiftTypeLabel = (type: ShiftType) => {

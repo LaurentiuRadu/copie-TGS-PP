@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings } from "lucide-react";
+import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -13,11 +13,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Panou Principal", url: "/", icon: Home },
+  { title: "Panou Principal", url: "/admin", icon: Home },
   { title: "Pontaj", url: "/tracker", icon: Clock },
   { title: "Rapoarte", url: "/rapoarte", icon: BarChart3 },
   { title: "Calendar", url: "/calendar", icon: Calendar },
   { title: "Echipă", url: "/echipa", icon: Users },
+  { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Setări", url: "/setari", icon: Settings },
 ];
 

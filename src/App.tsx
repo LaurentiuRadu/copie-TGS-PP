@@ -13,6 +13,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Vacations from "./pages/Vacations";
+import WorkLocations from "./pages/WorkLocations";
 import RootRedirect from "./pages/RootRedirect";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="employee">
                     <Vacations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/work-locations"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <WorkLocations />
                   </ProtectedRoute>
                 }
               />
