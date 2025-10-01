@@ -119,7 +119,15 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      // Mirror the image horizontally
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+      
       ctx.drawImage(video, 0, 0, width, height);
+      
+      // Reset transform
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      
       // Lower quality for smaller file size
       const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
       setCapturedPhoto(photoDataUrl);
@@ -230,6 +238,7 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
                   playsInline
                   muted
                   className="w-full h-full object-cover"
+                  style={{ transform: 'scaleX(-1)' }}
                 />
               </div>
               
