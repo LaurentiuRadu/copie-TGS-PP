@@ -2,3 +2,6 @@ project_id = "hbwkufaksipsqipqdqcv"
 
 [functions.calculate-time-segments]
 verify_jwt = true
+
+[functions.verify-face]
+verify_jwt = false

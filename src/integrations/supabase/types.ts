@@ -46,6 +46,9 @@ export type Database = {
           created_at: string | null
           full_name: string | null
           id: string
+          photo_quality_score: number | null
+          reference_photo_enrolled_at: string | null
+          reference_photo_url: string | null
           updated_at: string | null
           username: string | null
         }
@@ -53,6 +56,9 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id: string
+          photo_quality_score?: number | null
+          reference_photo_enrolled_at?: string | null
+          reference_photo_url?: string | null
           updated_at?: string | null
           username?: string | null
         }
@@ -60,6 +66,9 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string
+          photo_quality_score?: number | null
+          reference_photo_enrolled_at?: string | null
+          reference_photo_url?: string | null
           updated_at?: string | null
           username?: string | null
         }

@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getCurrentPosition, findNearestLocation } from "@/lib/geolocation";
 import { SelfieCapture } from "@/components/SelfieCapture";
+import { PhotoEnrollment } from "@/components/PhotoEnrollment";
 import { generateDeviceFingerprint, getDeviceInfo, getClientIP } from "@/lib/deviceFingerprint";
 import {
   Sheet,
@@ -53,6 +54,9 @@ const Mobile = () => {
   const [pendingSelfieAction, setPendingSelfieAction] = useState<'clock-in' | 'clock-out' | null>(null);
   const [pendingShiftType, setPendingShiftType] = useState<ShiftType>(null);
   const [clockInPhoto, setClockInPhoto] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [showEnrollment, setShowEnrollment] = useState(false);
+  const [verifyingFace, setVerifyingFace] = useState(false);
 
   const requestLocationAccess = async () => {
     try {
@@ -67,7 +71,31 @@ const Mobile = () => {
 
   useEffect(() => {
     requestLocationAccess();
+    loadUserProfile();
   }, []);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Error loading profile:', error);
+      return;
+    }
+
+    setUserProfile(data);
+
+    // Check if user needs to enroll reference photo
+    if (!data.reference_photo_url) {
+      toast.error("Trebuie să înregistrezi o poză de referință înainte de a pontare");
+      setShowEnrollment(true);
+    }
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -86,16 +114,83 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSelfieCapture = (photoDataUrl: string) => {
+  const handleSelfieCapture = async (photoDataUrl: string) => {
+    if (!userProfile?.reference_photo_url && pendingSelfieAction !== 'clock-in') {
+      toast.error("Nu ai poză de referință înrolată");
+      return;
+    }
+
     if (pendingSelfieAction === 'clock-in') {
-      setClockInPhoto(photoDataUrl);
-      performClockIn(photoDataUrl);
+      // Verify face before clock-in
+      setVerifyingFace(true);
+      try {
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-face', {
+          body: { 
+            referenceImage: userProfile.reference_photo_url,
+            currentImage: photoDataUrl,
+            action: 'verify'
+          }
+        });
+
+        if (verifyError) throw verifyError;
+
+        console.log('Face verification result:', verifyData);
+
+        if (!verifyData.isValid) {
+          toast.error(verifyData.reason || "Verificarea facială a eșuat. Încearcă din nou cu o poză mai clară.");
+          setVerifyingFace(false);
+          return;
+        }
+
+        toast.success(`Verificare reușită (${verifyData.confidence}% încredere)`);
+        setClockInPhoto(photoDataUrl);
+        performClockIn(photoDataUrl);
+      } catch (error) {
+        console.error('Face verification error:', error);
+        toast.error("Eroare la verificarea facială. Încearcă din nou.");
+      } finally {
+        setVerifyingFace(false);
+      }
     } else if (pendingSelfieAction === 'clock-out') {
-      performClockOut(photoDataUrl);
+      // Verify face before clock-out
+      setVerifyingFace(true);
+      try {
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-face', {
+          body: { 
+            referenceImage: userProfile.reference_photo_url,
+            currentImage: photoDataUrl,
+            action: 'verify'
+          }
+        });
+
+        if (verifyError) throw verifyError;
+
+        console.log('Face verification result:', verifyData);
+
+        if (!verifyData.isValid) {
+          toast.error(verifyData.reason || "Verificarea facială a eșuat. Încearcă din nou cu o poză mai clară.");
+          setVerifyingFace(false);
+          return;
+        }
+
+        toast.success(`Verificare reușită (${verifyData.confidence}% încredere)`);
+        performClockOut(photoDataUrl);
+      } catch (error) {
+        console.error('Face verification error:', error);
+        toast.error("Eroare la verificarea facială. Încearcă din nou.");
+      } finally {
+        setVerifyingFace(false);
+      }
     }
   };
 
   const handleShiftStart = async (type: ShiftType) => {
+    if (!userProfile?.reference_photo_url) {
+      toast.error("Trebuie să înregistrezi o poză de referință înainte de a pontare");
+      setShowEnrollment(true);
+      return;
+    }
+
     if (!locationEnabled) {
       toast.error("Locația nu este activată");
       return;
@@ -501,7 +596,7 @@ const Mobile = () => {
 
       {/* Selfie Capture Modal */}
       <SelfieCapture
-        open={showSelfieCapture}
+        open={showSelfieCapture && !verifyingFace}
         onClose={() => {
           setShowSelfieCapture(false);
           setPendingSelfieAction(null);
@@ -510,6 +605,30 @@ const Mobile = () => {
         onCapture={handleSelfieCapture}
         title={pendingSelfieAction === 'clock-in' ? 'Selfie la Intrare' : 'Selfie la Ieșire'}
       />
+
+      {/* Photo Enrollment Modal */}
+      {user && (
+        <PhotoEnrollment
+          open={showEnrollment}
+          onClose={() => setShowEnrollment(false)}
+          onSuccess={() => {
+            setShowEnrollment(false);
+            loadUserProfile();
+          }}
+          userId={user.id}
+        />
+      )}
+
+      {/* Verification Loading Overlay */}
+      {verifyingFace && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card p-8 rounded-lg shadow-xl text-center">
+            <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-lg font-medium">Verificare facială în curs...</p>
+            <p className="text-sm text-muted-foreground mt-2">Așteaptă câteva secunde</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
