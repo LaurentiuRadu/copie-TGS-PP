@@ -20,6 +20,7 @@ import MyTimeEntries from "./pages/MyTimeEntries";
 import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 import BulkImport from "./pages/BulkImport";
+import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <BulkImport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user-management"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <UserManagement />
                   </ProtectedRoute>
                 }
               />
