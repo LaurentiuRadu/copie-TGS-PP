@@ -59,6 +59,36 @@ export type Database = {
         }
         Relationships: []
       }
+      work_hour_rules: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_time: string
+          id: string
+          rule_type: Database["public"]["Enums"]["work_hour_type"]
+          start_time: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_time: string
+          id?: string
+          rule_type: Database["public"]["Enums"]["work_hour_type"]
+          start_time: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_time?: string
+          id?: string
+          rule_type?: Database["public"]["Enums"]["work_hour_type"]
+          start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -74,6 +104,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "employee"
+      work_hour_type: "normal" | "night" | "saturday" | "sunday_holiday"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -202,6 +233,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "employee"],
+      work_hour_type: ["normal", "night", "saturday", "sunday_holiday"],
     },
   },
 } as const
