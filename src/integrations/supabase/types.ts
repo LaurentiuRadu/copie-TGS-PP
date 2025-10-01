@@ -38,6 +38,69 @@ export type Database = {
         }
         Relationships: []
       }
+      time_entries: {
+        Row: {
+          clock_in_latitude: number | null
+          clock_in_location_id: string | null
+          clock_in_longitude: number | null
+          clock_in_time: string
+          clock_out_latitude: number | null
+          clock_out_location_id: string | null
+          clock_out_longitude: number | null
+          clock_out_time: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          clock_in_latitude?: number | null
+          clock_in_location_id?: string | null
+          clock_in_longitude?: number | null
+          clock_in_time: string
+          clock_out_latitude?: number | null
+          clock_out_location_id?: string | null
+          clock_out_longitude?: number | null
+          clock_out_time?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          clock_in_latitude?: number | null
+          clock_in_location_id?: string | null
+          clock_in_longitude?: number | null
+          clock_in_time?: string
+          clock_out_latitude?: number | null
+          clock_out_location_id?: string | null
+          clock_out_longitude?: number | null
+          clock_out_time?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_clock_in_location_id_fkey"
+            columns: ["clock_in_location_id"]
+            isOneToOne: false
+            referencedRelation: "work_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_clock_out_location_id_fkey"
+            columns: ["clock_out_location_id"]
+            isOneToOne: false
+            referencedRelation: "work_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -88,6 +151,45 @@ export type Database = {
           id?: string
           rule_type?: Database["public"]["Enums"]["work_hour_type"]
           start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      work_locations: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean
+          latitude: number
+          longitude: number
+          name: string
+          radius_meters: number
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          latitude: number
+          longitude: number
+          name: string
+          radius_meters?: number
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number
+          longitude?: number
+          name?: string
+          radius_meters?: number
           updated_at?: string | null
         }
         Relationships: []
