@@ -55,22 +55,14 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-flash-lite",
           messages: [
             {
               role: "user",
               content: [
                 {
                   type: "text",
-                  text: `Analizează calitatea acestei fotografii pentru recunoaștere facială. 
-                  Verifică:
-                  1. Dacă fața este clară și vizibilă
-                  2. Dacă lumina este suficientă (nu prea întunecată)
-                  3. Dacă nu este blurată
-                  4. Dacă persoana privește spre cameră
-                  
-                  Răspunde DOAR cu un JSON în formatul: {"quality": "good"|"poor", "score": 0-100, "reason": "explicatie scurta"}
-                  Nu adăuga text suplimentar.`
+                  text: `Verifică calitatea foto: fața clară, vizibilă, bine luminată, nu blurată. JSON: {"quality": "good"|"poor", "score": 0-100, "reason": "scurt"}`
                 },
                 {
                   type: "image_url",
@@ -160,24 +152,14 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "user",
-            content: `Compară cele două fotografii și determină dacă sunt aceeași persoană.
-            Prima imagine este imaginea de referință înrolată.
-            A doua imagine este imaginea curentă pentru verificare.
+            content: `Compară cele 2 fotografii - aceeași persoană? Analizează: trăsături faciale, calitate foto, similaritate. JSON: {"match": true|false, "confidence": 0-100, "quality": "good"|"poor", "reason": "scurt"}
             
-            Analizează:
-            1. Trăsăturile faciale (ochi, nas, gură, formă față)
-            2. Dacă calitatea imaginii curente este suficientă
-            3. Similaritatea generală
-            
-            Răspunde DOAR cu un JSON în formatul: {"match": true|false, "confidence": 0-100, "quality": "good"|"poor", "reason": "explicatie scurta"}
-            Nu adăuga text suplimentar.
-            
-            Imagine referință: ${referenceImage}
-            Imagine curentă: ${currentImage}`
+            Ref: ${referenceImage}
+            Curent: ${currentImage}`
           }
         ]
       }),
