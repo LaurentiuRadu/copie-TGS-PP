@@ -1,5 +1,7 @@
 import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -12,22 +14,39 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  { title: "Panou Principal", url: "/admin", icon: Home },
-  { title: "Pontaj Mobil", url: "/mobile", icon: Clock },
-  { title: "Pontaje Admin", url: "/time-entries", icon: ClipboardList },
-  { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
+// Meniuri pentru Admin
+const adminMenuItems = [
+  { title: "Dashboard", url: "/admin", icon: Home },
+  { title: "Gestionare Utilizatori", url: "/user-management", icon: UserCog },
+  { title: "Pontaje Detaliate", url: "/time-entries", icon: ClipboardList },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Verificări Faciale", url: "/face-verifications", icon: Shield },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Import Salariați", url: "/bulk-import", icon: Users },
-  { title: "Gestionare Utilizatori", url: "/user-management", icon: UserCog },
   { title: "Concedii", url: "/vacations", icon: Calendar },
-  { title: "Setări", url: "/setari", icon: Settings },
+];
+
+// Meniuri pentru Angajați
+const employeeMenuItems = [
+  { title: "Pontaj", url: "/mobile", icon: Clock },
+  { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
+  { title: "Concedii", url: "/vacations", icon: Calendar },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
 ];
 
 export function AppSidebar() {
   const { open } = useSidebar();
+  const { userRole } = useAuth();
+  const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
+
+  useEffect(() => {
+    // Setează meniurile bazate pe rol
+    if (userRole === 'admin') {
+      setMenuItems(adminMenuItems);
+    } else {
+      setMenuItems(employeeMenuItems);
+    }
+  }, [userRole]);
 
   return (
     <Sidebar collapsible="icon" className="border-sidebar-border">
