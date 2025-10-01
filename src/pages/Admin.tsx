@@ -2,92 +2,158 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Download, Filter, Plus, LogOut } from "lucide-react";
+import { Users, Download, Filter, Plus, LogOut, TrendingUp, Clock, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AdminSearchCommand } from "@/components/AdminSearchCommand";
 
 const Admin = () => {
   const { signOut } = useAuth();
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
+      <div className="flex min-h-screen w-full bg-gradient-to-br from-background via-background to-muted/20">
         <AppSidebar />
         
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-6">
+          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border/50 bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 px-6 shadow-sm">
             <SidebarTrigger />
             <div className="flex-1">
-              <h1 className="text-lg font-semibold text-foreground">Admin Dashboard</h1>
+              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Admin Dashboard
+              </h1>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filtrează
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-              <Button size="sm" className="gap-2 bg-gradient-primary">
-                <Plus className="h-4 w-4" />
-                Angajat Nou
-              </Button>
+            <div className="flex items-center gap-3">
+              <AdminSearchCommand />
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={signOut}
-                className="gap-2"
+                className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all duration-200"
               >
                 <LogOut className="h-4 w-4" />
-                Deconectare
+                <span className="hidden md:inline">Deconectare</span>
               </Button>
             </div>
           </header>
 
           <main className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-primary/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Angajați</CardTitle>
+                  <Users className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    Activi în sistem
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-success/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Prezenti Astăzi</CardTitle>
+                  <Clock className="h-4 w-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    Pontați în prezent
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-warning/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Cereri Concediu</CardTitle>
+                  <Calendar className="h-4 w-4 text-warning" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    În așteptare aprobare
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-info/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Performanță</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-info" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    Media ore lucrate/zi
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Team Overview Card */}
-            <Card className="shadow-custom-md">
-              <CardHeader>
+            <Card className="shadow-elegant border-primary/10 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-glass opacity-50 pointer-events-none" />
+              <CardHeader className="relative">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <Users className="h-6 w-6 text-primary" />
                       Echipa - Monitorizare Timp Real
                     </CardTitle>
-                    <CardDescription>Status și activitate angajați</CardDescription>
+                    <CardDescription className="mt-1">Status și activitate angajați</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="gap-2 hover:bg-accent transition-all">
+                      <Filter className="h-4 w-4" />
+                      Filtrează
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2 hover:bg-accent transition-all">
+                      <Download className="h-4 w-4" />
+                      Export
+                    </Button>
+                    <Button size="sm" className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all">
+                      <Plus className="h-4 w-4" />
+                      Angajat Nou
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  Nu există date disponibile
+              <CardContent className="relative">
+                <div className="text-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-lg">Nu există date disponibile</p>
+                  <p className="text-sm mt-1">Datele vor apărea aici când angajații încep să ponteze</p>
                 </div>
               </CardContent>
             </Card>
 
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Recent Activity */}
-              <Card className="shadow-custom-sm">
+              <Card className="shadow-custom-md border-primary/5">
                 <CardHeader>
-                  <CardTitle>Activitate Recentă</CardTitle>
+                  <CardTitle className="text-lg">Activitate Recentă</CardTitle>
                   <CardDescription>Ultimele acțiuni ale echipei</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nu există activități recente
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Clock className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p>Nu există activități recente</p>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Quick Stats */}
-              <Card className="shadow-custom-sm">
+              <Card className="shadow-custom-md border-primary/5">
                 <CardHeader>
-                  <CardTitle>Statistici Rapide</CardTitle>
+                  <CardTitle className="text-lg">Statistici Rapide</CardTitle>
                   <CardDescription>Rezumat săptămâna curentă</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    Nu există date disponibile
+                  <div className="text-center py-12 text-muted-foreground">
+                    <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p>Nu există date disponibile</p>
                   </div>
                 </CardContent>
               </Card>
