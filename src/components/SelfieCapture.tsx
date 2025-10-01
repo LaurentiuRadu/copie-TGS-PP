@@ -99,13 +99,29 @@ export const SelfieCapture = ({ open, onClose, onCapture, onQualityFailed, title
     const canvas = canvasRef.current;
     const video = videoRef.current;
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Optimize image size for AI processing (max 800x800)
+    const maxSize = 800;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    
+    if (width > maxSize || height > maxSize) {
+      if (width > height) {
+        height = (height / width) * maxSize;
+        width = maxSize;
+      } else {
+        width = (width / height) * maxSize;
+        height = maxSize;
+      }
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(video, 0, 0);
-      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      ctx.drawImage(video, 0, 0, width, height);
+      // Lower quality for smaller file size
+      const photoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
       setCapturedPhoto(photoDataUrl);
       stopCamera();
     }

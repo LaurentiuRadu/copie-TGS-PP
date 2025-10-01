@@ -164,34 +164,20 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: [
-              {
-                type: "text",
-                text: `Compară cele două fotografii și determină dacă sunt aceeași persoană.
-                Prima imagine este imaginea de referință înrolată.
-                A doua imagine este imaginea curentă pentru verificare.
-                
-                Analizează:
-                1. Trăsăturile faciale (ochi, nas, gură, formă față)
-                2. Dacă calitatea imaginii curente este suficientă
-                3. Similaritatea generală
-                
-                Răspunde DOAR cu un JSON în formatul: {"match": true|false, "confidence": 0-100, "quality": "good"|"poor", "reason": "explicatie scurta"}
-                Nu adăuga text suplimentar.`
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: referenceImage
-                }
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: currentImage
-                }
-              }
-            ]
+            content: `Compară cele două fotografii și determină dacă sunt aceeași persoană.
+            Prima imagine este imaginea de referință înrolată.
+            A doua imagine este imaginea curentă pentru verificare.
+            
+            Analizează:
+            1. Trăsăturile faciale (ochi, nas, gură, formă față)
+            2. Dacă calitatea imaginii curente este suficientă
+            3. Similaritatea generală
+            
+            Răspunde DOAR cu un JSON în formatul: {"match": true|false, "confidence": 0-100, "quality": "good"|"poor", "reason": "explicatie scurta"}
+            Nu adăuga text suplimentar.
+            
+            Imagine referință: ${referenceImage}
+            Imagine curentă: ${currentImage}`
           }
         ]
       }),
