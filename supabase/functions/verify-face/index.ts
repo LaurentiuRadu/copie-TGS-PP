@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
 const corsHeaders = {
@@ -6,10 +7,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface VerificationLog {
+  user_id: string;
+  time_entry_id?: string;
+  verification_type: 'enrollment' | 'clock_in' | 'clock_out';
+  photo_url: string;
+  quality_score?: number;
+  match_score?: number;
+  is_match?: boolean;
+  is_quality_pass: boolean;
+  failure_reason?: string;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -17,7 +35,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const { referenceImage, currentImage, action } = await req.json();
+    const { referenceImage, currentImage, action, userId, timeEntryId, photoUrl } = await req.json();
 
     if (!currentImage) {
       return new Response(
@@ -69,6 +87,17 @@ serve(async (req) => {
       if (!qualityResponse.ok) {
         const errorText = await qualityResponse.text();
         console.error("AI quality check error:", qualityResponse.status, errorText);
+        
+        if (userId && photoUrl) {
+          await logVerification(supabaseClient, {
+            user_id: userId,
+            verification_type: 'enrollment',
+            photo_url: photoUrl,
+            is_quality_pass: false,
+            failure_reason: 'AI quality check failed'
+          });
+        }
+        
         throw new Error("Failed to check photo quality");
       }
 
@@ -89,9 +118,23 @@ serve(async (req) => {
       const result = JSON.parse(jsonMatch[0]);
       console.log("Quality check result:", result);
 
+      const isValid = result.quality === 'good' && result.score >= 70;
+
+      // Log enrollment
+      if (userId && photoUrl) {
+        await logVerification(supabaseClient, {
+          user_id: userId,
+          verification_type: 'enrollment',
+          photo_url: photoUrl,
+          quality_score: result.score / 100,
+          is_quality_pass: isValid,
+          failure_reason: !isValid ? result.reason : undefined
+        });
+      }
+
       return new Response(
         JSON.stringify({
-          isValid: result.quality === 'good' && result.score >= 70,
+          isValid,
           quality: result.quality,
           score: result.score,
           reason: result.reason
@@ -157,6 +200,18 @@ serve(async (req) => {
     if (!verifyResponse.ok) {
       const errorText = await verifyResponse.text();
       console.error("AI verification error:", verifyResponse.status, errorText);
+      
+      if (userId && photoUrl) {
+        await logVerification(supabaseClient, {
+          user_id: userId,
+          time_entry_id: timeEntryId,
+          verification_type: action === 'verify' ? 'clock_in' : 'clock_out',
+          photo_url: photoUrl,
+          is_quality_pass: false,
+          failure_reason: 'AI verification failed'
+        });
+      }
+      
       throw new Error("Failed to verify face");
     }
 
@@ -177,9 +232,26 @@ serve(async (req) => {
     const result = JSON.parse(jsonMatch[0]);
     console.log("Verification result:", result);
 
+    const isValid = result.match && result.confidence >= 70 && result.quality === 'good';
+
+    // Log verification
+    if (userId && photoUrl) {
+      await logVerification(supabaseClient, {
+        user_id: userId,
+        time_entry_id: timeEntryId,
+        verification_type: action === 'verify' ? 'clock_in' : 'clock_out',
+        photo_url: photoUrl,
+        quality_score: result.quality === 'good' ? 0.8 : 0.4,
+        match_score: result.confidence / 100,
+        is_match: result.match,
+        is_quality_pass: result.quality === 'good',
+        failure_reason: !isValid ? result.reason : undefined
+      });
+    }
+
     return new Response(
       JSON.stringify({
-        isValid: result.match && result.confidence >= 70 && result.quality === 'good',
+        isValid,
         match: result.match,
         confidence: result.confidence,
         quality: result.quality,
@@ -197,3 +269,17 @@ serve(async (req) => {
     );
   }
 });
+
+async function logVerification(supabase: any, log: VerificationLog) {
+  try {
+    const { error } = await supabase
+      .from('face_verification_logs')
+      .insert(log);
+    
+    if (error) {
+      console.error('Error logging verification:', error);
+    }
+  } catch (err) {
+    console.error('Failed to log verification:', err);
+  }
+}

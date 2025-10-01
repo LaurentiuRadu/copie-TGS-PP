@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      face_verification_logs: {
+        Row: {
+          created_at: string
+          failure_reason: string | null
+          id: string
+          is_match: boolean | null
+          is_quality_pass: boolean | null
+          match_score: number | null
+          photo_url: string
+          quality_score: number | null
+          time_entry_id: string | null
+          user_id: string
+          verification_type: string
+        }
+        Insert: {
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          is_match?: boolean | null
+          is_quality_pass?: boolean | null
+          match_score?: number | null
+          photo_url: string
+          quality_score?: number | null
+          time_entry_id?: string | null
+          user_id: string
+          verification_type: string
+        }
+        Update: {
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          is_match?: boolean | null
+          is_quality_pass?: boolean | null
+          match_score?: number | null
+          photo_url?: string
+          quality_score?: number | null
+          time_entry_id?: string | null
+          user_id?: string
+          verification_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "face_verification_logs_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       holidays: {
         Row: {
           created_at: string | null

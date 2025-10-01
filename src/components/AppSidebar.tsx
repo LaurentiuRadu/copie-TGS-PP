@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle } from "lucide-react";
+import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -18,6 +18,7 @@ const menuItems = [
   { title: "Pontaje Admin", url: "/time-entries", icon: ClipboardList },
   { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
+  { title: "Verificări Faciale", url: "/face-verifications", icon: Shield },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Setări", url: "/setari", icon: Settings },

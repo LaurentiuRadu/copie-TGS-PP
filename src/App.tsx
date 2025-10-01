@@ -18,6 +18,7 @@ import RootRedirect from "./pages/RootRedirect";
 import TimeEntries from "./pages/TimeEntries";
 import MyTimeEntries from "./pages/MyTimeEntries";
 import Alerts from "./pages/Alerts";
+import FaceVerifications from "./pages/FaceVerifications";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <Alerts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/face-verifications"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <FaceVerifications />
                   </ProtectedRoute>
                 }
               />
