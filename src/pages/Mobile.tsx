@@ -424,8 +424,13 @@ const Mobile = () => {
 
         <Card className={`shadow-custom-lg transition-all duration-300 animate-fade-in ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
           <CardHeader className="pb-2 xs:pb-3">
-            <CardTitle className={`text-responsive-lg ${activeShift ? "text-white" : "text-foreground"}`}>
-              {activeShift ? "Tură Activă" : "Nicio tură activă"}
+            <CardTitle className={`text-responsive-lg ${activeShift ? "text-white" : "text-foreground"} flex items-center justify-between gap-2`}>
+              <span>{activeShift ? "Tură Activă" : "Nicio tură activă"}</span>
+              {!activeShift && (
+                <span className="text-sm text-muted-foreground font-normal truncate">
+                  {user?.user_metadata?.full_name || user?.email}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className={activeShift ? "space-y-2 xs:space-y-3" : "py-3"}>
