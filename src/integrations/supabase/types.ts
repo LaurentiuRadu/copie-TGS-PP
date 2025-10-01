@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      holidays: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          date: string
+          id: string
+          is_recurring: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          id?: string
+          is_recurring?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          id?: string
+          is_recurring?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -43,13 +70,18 @@ export type Database = {
           clock_in_latitude: number | null
           clock_in_location_id: string | null
           clock_in_longitude: number | null
+          clock_in_photo_url: string | null
           clock_in_time: string
           clock_out_latitude: number | null
           clock_out_location_id: string | null
           clock_out_longitude: number | null
+          clock_out_photo_url: string | null
           clock_out_time: string | null
           created_at: string | null
+          device_id: string | null
+          device_info: Json | null
           id: string
+          ip_address: string | null
           notes: string | null
           updated_at: string | null
           user_id: string
@@ -58,13 +90,18 @@ export type Database = {
           clock_in_latitude?: number | null
           clock_in_location_id?: string | null
           clock_in_longitude?: number | null
+          clock_in_photo_url?: string | null
           clock_in_time: string
           clock_out_latitude?: number | null
           clock_out_location_id?: string | null
           clock_out_longitude?: number | null
+          clock_out_photo_url?: string | null
           clock_out_time?: string | null
           created_at?: string | null
+          device_id?: string | null
+          device_info?: Json | null
           id?: string
+          ip_address?: string | null
           notes?: string | null
           updated_at?: string | null
           user_id: string
@@ -73,13 +110,18 @@ export type Database = {
           clock_in_latitude?: number | null
           clock_in_location_id?: string | null
           clock_in_longitude?: number | null
+          clock_in_photo_url?: string | null
           clock_in_time?: string
           clock_out_latitude?: number | null
           clock_out_location_id?: string | null
           clock_out_longitude?: number | null
+          clock_out_photo_url?: string | null
           clock_out_time?: string | null
           created_at?: string | null
+          device_id?: string | null
+          device_info?: Json | null
           id?: string
+          ip_address?: string | null
           notes?: string | null
           updated_at?: string | null
           user_id?: string
@@ -97,6 +139,47 @@ export type Database = {
             columns: ["clock_out_location_id"]
             isOneToOne: false
             referencedRelation: "work_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_entry_segments: {
+        Row: {
+          created_at: string | null
+          end_time: string
+          hours_decimal: number
+          id: string
+          multiplier: number
+          segment_type: string
+          start_time: string
+          time_entry_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_time: string
+          hours_decimal: number
+          id?: string
+          multiplier?: number
+          segment_type: string
+          start_time: string
+          time_entry_id: string
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string
+          hours_decimal?: number
+          id?: string
+          multiplier?: number
+          segment_type?: string
+          start_time?: string
+          time_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entry_segments_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -125,30 +208,39 @@ export type Database = {
       work_hour_rules: {
         Row: {
           applies_to_days: number[]
+          applies_to_holidays: boolean | null
+          applies_to_weekends: boolean | null
           created_at: string | null
           description: string | null
           end_time: string
           id: string
+          multiplier: number | null
           rule_type: Database["public"]["Enums"]["work_hour_type"]
           start_time: string
           updated_at: string | null
         }
         Insert: {
           applies_to_days?: number[]
+          applies_to_holidays?: boolean | null
+          applies_to_weekends?: boolean | null
           created_at?: string | null
           description?: string | null
           end_time: string
           id?: string
+          multiplier?: number | null
           rule_type: Database["public"]["Enums"]["work_hour_type"]
           start_time: string
           updated_at?: string | null
         }
         Update: {
           applies_to_days?: number[]
+          applies_to_holidays?: boolean | null
+          applies_to_weekends?: boolean | null
           created_at?: string | null
           description?: string | null
           end_time?: string
           id?: string
+          multiplier?: number | null
           rule_type?: Database["public"]["Enums"]["work_hour_type"]
           start_time?: string
           updated_at?: string | null

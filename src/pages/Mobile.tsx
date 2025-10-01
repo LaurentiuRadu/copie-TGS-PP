@@ -10,6 +10,8 @@ import { ro } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getCurrentPosition, findNearestLocation } from "@/lib/geolocation";
+import { SelfieCapture } from "@/components/SelfieCapture";
+import { generateDeviceFingerprint, getDeviceInfo, getClientIP } from "@/lib/deviceFingerprint";
 import {
   Sheet,
   SheetContent,
@@ -47,6 +49,10 @@ const Mobile = () => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
+  const [showSelfieCapture, setShowSelfieCapture] = useState(false);
+  const [pendingSelfieAction, setPendingSelfieAction] = useState<'clock-in' | 'clock-out' | null>(null);
+  const [pendingShiftType, setPendingShiftType] = useState<ShiftType>(null);
+  const [clockInPhoto, setClockInPhoto] = useState<string | null>(null);
 
   const requestLocationAccess = async () => {
     try {
@@ -80,11 +86,29 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleSelfieCapture = (photoDataUrl: string) => {
+    if (pendingSelfieAction === 'clock-in') {
+      setClockInPhoto(photoDataUrl);
+      performClockIn(photoDataUrl);
+    } else if (pendingSelfieAction === 'clock-out') {
+      performClockOut(photoDataUrl);
+    }
+  };
+
   const handleShiftStart = async (type: ShiftType) => {
     if (!locationEnabled) {
       toast.error("Locația nu este activată");
       return;
     }
+    
+    // Request selfie first
+    setPendingShiftType(type);
+    setPendingSelfieAction('clock-in');
+    setShowSelfieCapture(true);
+  };
+
+  const performClockIn = async (photoDataUrl: string) => {
+    const type = pendingShiftType;
     
     try {
       // Get current location
@@ -120,7 +144,12 @@ const Mobile = () => {
         return;
       }
 
-      // Create time entry
+      // Get device info
+      const deviceId = generateDeviceFingerprint();
+      const deviceInfo = getDeviceInfo();
+      const ipAddress = await getClientIP();
+
+      // Create time entry with security info
       const { data: entry, error: entryError } = await supabase
         .from('time_entries')
         .insert([{
@@ -129,6 +158,10 @@ const Mobile = () => {
           clock_in_latitude: currentCoords.latitude,
           clock_in_longitude: currentCoords.longitude,
           clock_in_location_id: nearestLocation.id,
+          clock_in_photo_url: photoDataUrl,
+          device_id: deviceId,
+          device_info: deviceInfo,
+          ip_address: ipAddress,
           notes: `Tip: ${getShiftTypeLabel(type)}`
         }])
         .select()
@@ -144,6 +177,10 @@ const Mobile = () => {
     } catch (error: any) {
       console.error('Failed to start shift:', error);
       toast.error(error.message || "Eroare la începerea pontajului");
+    } finally {
+      setPendingSelfieAction(null);
+      setPendingShiftType(null);
+      setShowSelfieCapture(false);
     }
   };
 
@@ -158,6 +195,12 @@ const Mobile = () => {
       return;
     }
 
+    // Request selfie for clock-out
+    setPendingSelfieAction('clock-out');
+    setShowSelfieCapture(true);
+  };
+
+  const performClockOut = async (photoDataUrl: string) => {
     try {
       // Get current location
       const position = await getCurrentPosition({
@@ -192,27 +235,49 @@ const Mobile = () => {
         return;
       }
 
-      // Update time entry
+      const clockInTime = activeTimeEntry.clock_in_time;
+      const clockOutTime = new Date().toISOString();
+
+      // Update time entry with clock-out photo
       const { error: updateError } = await supabase
         .from('time_entries')
         .update({
-          clock_out_time: new Date().toISOString(),
+          clock_out_time: clockOutTime,
           clock_out_latitude: currentCoords.latitude,
           clock_out_longitude: currentCoords.longitude,
           clock_out_location_id: nearestLocation.id,
+          clock_out_photo_url: photoDataUrl,
         })
         .eq('id', activeTimeEntry.id);
 
       if (updateError) throw updateError;
 
+      // Calculate time segments automatically
+      try {
+        await supabase.functions.invoke('calculate-time-segments', {
+          body: {
+            time_entry_id: activeTimeEntry.id,
+            clock_in_time: clockInTime,
+            clock_out_time: clockOutTime
+          }
+        });
+      } catch (segmentError) {
+        console.error('Failed to calculate segments:', segmentError);
+        // Don't fail the clock-out if segment calculation fails
+      }
+
       toast.success(`Pontaj terminat la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
       setActiveShift(null);
       setShiftSeconds(0);
       setActiveTimeEntry(null);
+      setClockInPhoto(null);
       
     } catch (error: any) {
       console.error('Failed to end shift:', error);
       toast.error(error.message || "Eroare la terminarea pontajului");
+    } finally {
+      setPendingSelfieAction(null);
+      setShowSelfieCapture(false);
     }
   };
 
@@ -433,6 +498,18 @@ const Mobile = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Selfie Capture Modal */}
+      <SelfieCapture
+        open={showSelfieCapture}
+        onClose={() => {
+          setShowSelfieCapture(false);
+          setPendingSelfieAction(null);
+          setPendingShiftType(null);
+        }}
+        onCapture={handleSelfieCapture}
+        title={pendingSelfieAction === 'clock-in' ? 'Selfie la Intrare' : 'Selfie la Ieșire'}
+      />
     </div>
   );
 };
