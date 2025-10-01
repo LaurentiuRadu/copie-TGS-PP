@@ -79,11 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   setUserRole(role);
                 }
 
-                // Redirect based on role
+                // Only redirect on SIGNED_IN event, not on TOKEN_REFRESHED or other events
                 if (event === 'SIGNED_IN') {
-                  if (role === 'admin') {
+                  // Check current path to avoid unnecessary redirects
+                  const currentPath = window.location.pathname;
+                  if (role === 'admin' && !currentPath.startsWith('/admin') && !currentPath.startsWith('/time-entries') && !currentPath.startsWith('/work-locations') && !currentPath.startsWith('/alerts') && !currentPath.startsWith('/face-verifications') && !currentPath.startsWith('/bulk-import') && !currentPath.startsWith('/user-management')) {
                     navigate('/admin');
-                  } else if (role === 'employee') {
+                  } else if (role === 'employee' && !currentPath.startsWith('/mobile') && !currentPath.startsWith('/my-time-entries') && !currentPath.startsWith('/vacations')) {
                     navigate('/mobile');
                   }
                 }

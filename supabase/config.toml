@@ -5,3 +5,12 @@ verify_jwt = true
 
 [functions.verify-face]
 verify_jwt = false
+
+[functions.list-users]
+verify_jwt = true
+
+[functions.bulk-create-users]
+verify_jwt = true
+
+[functions.reset-user-password]
+verify_jwt = true
