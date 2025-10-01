@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Verificări Faciale", url: "/face-verifications", icon: Shield },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
+  { title: "Import Salariați", url: "/bulk-import", icon: Users },
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Setări", url: "/setari", icon: Settings },
 ];
