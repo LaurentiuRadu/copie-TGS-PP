@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.reset-user-password]
 verify_jwt = true
+
+[functions.update-employee-username]
+verify_jwt = true
