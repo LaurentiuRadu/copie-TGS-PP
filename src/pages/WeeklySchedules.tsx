@@ -87,11 +87,27 @@ export default function WeeklySchedules() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_schedules')
-        .select('*, profiles!weekly_schedules_user_id_fkey(full_name)')
+        .select('*')
         .eq('week_start_date', selectedWeek)
         .eq('team_id', selectedTeam)
         .order('day_of_week');
       if (error) throw error;
+      
+      // Fetch employee names separately
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(s => s.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', userIds);
+        
+        // Merge employee names into schedules
+        return data.map(schedule => ({
+          ...schedule,
+          profiles: profiles?.find(p => p.id === schedule.user_id) || null
+        }));
+      }
+      
       return data;
     }
   });
