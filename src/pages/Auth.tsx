@@ -13,12 +13,12 @@ import { z } from "zod";
 
 const employeeSchema = z.object({
   username: z.string().trim().min(3, "Username-ul trebuie să aibă minim 3 caractere").max(50),
-  password: z.string().min(6, "Parola trebuie să aibă minim 6 caractere"),
+  password: z.string().min(4, "Parola trebuie să aibă minim 4 caractere"),
 });
 
 const adminSchema = z.object({
   email: z.string().trim().email("Email invalid"),
-  password: z.string().min(6, "Parola trebuie să aibă minim 6 caractere"),
+  password: z.string().min(4, "Parola trebuie să aibă minim 4 caractere"),
 });
 
 const Auth = () => {
