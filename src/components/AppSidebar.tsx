@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog } from "lucide-react";
+import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,7 @@ const adminMenuItems = [
   { title: "Dashboard", url: "/admin", icon: Home },
   { title: "Gestionare Utilizatori", url: "/user-management", icon: UserCog },
   { title: "Pontaje Detaliate", url: "/time-entries", icon: ClipboardList },
+  { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Import Salariați", url: "/bulk-import", icon: Users },

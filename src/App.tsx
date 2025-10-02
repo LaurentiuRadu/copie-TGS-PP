@@ -22,6 +22,7 @@ import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 import BulkImport from "./pages/BulkImport";
 import UserManagement from "./pages/UserManagement";
+import WeeklySchedules from "./pages/WeeklySchedules";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +117,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/weekly-schedules"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <WeeklySchedules />
                   </ProtectedRoute>
                 }
               />

@@ -4,6 +4,7 @@ import { Menu, LogOut } from "lucide-react";
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 
 interface ResponsiveHeaderProps {
   title: string;
@@ -59,6 +60,7 @@ export function ResponsiveHeader({ title, children, showSearch = false }: Respon
 
       {/* Actions */}
       <div className="flex items-center gap-2">
+        <ScheduleNotificationBell />
         {children}
       </div>
     </header>

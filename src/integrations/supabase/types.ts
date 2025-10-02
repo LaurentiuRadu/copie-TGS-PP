@@ -124,6 +124,38 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          read_at: string | null
+          schedule_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          schedule_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          schedule_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_notifications_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_alerts: {
         Row: {
           alert_type: string
@@ -359,6 +391,51 @@ export type Database = {
           type?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_schedules: {
+        Row: {
+          activity: string | null
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          id: string
+          location: string | null
+          observations: string | null
+          team_id: string
+          updated_at: string
+          user_id: string
+          vehicle: string | null
+          week_start_date: string
+        }
+        Insert: {
+          activity?: string | null
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          location?: string | null
+          observations?: string | null
+          team_id: string
+          updated_at?: string
+          user_id: string
+          vehicle?: string | null
+          week_start_date: string
+        }
+        Update: {
+          activity?: string | null
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          location?: string | null
+          observations?: string | null
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+          vehicle?: string | null
+          week_start_date?: string
         }
         Relationships: []
       }

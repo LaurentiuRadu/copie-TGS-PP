@@ -27,6 +27,8 @@ import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
 import { RomaniaTimeClock } from "@/components/RomaniaTimeClock";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
+import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
+import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -357,6 +359,8 @@ const Mobile = () => {
           
           <RomaniaTimeClock />
           
+          <ScheduleNotificationBell />
+          
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="touch-target no-select flex-shrink-0">
@@ -532,6 +536,9 @@ const Mobile = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Employee Schedule */}
+        <EmployeeScheduleView />
 
         {/* Monthly Calendar */}
         <Card className="shadow-custom-lg">
