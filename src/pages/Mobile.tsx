@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays } from "lucide-react";
+import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays, Construction, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addMonths, subMonths } from "date-fns";
 import { ro } from "date-fns/locale";
@@ -68,6 +68,8 @@ const Mobile = () => {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; newType: ShiftType }>({ open: false, newType: null });
+  const [equipmentDialog, setEquipmentDialog] = useState(false);
+  const [equipmentPhoto, setEquipmentPhoto] = useState<string | null>(null);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -299,6 +301,59 @@ const Mobile = () => {
     setConfirmDialog({ open: false, newType: null });
     triggerHaptic('light');
   }, [triggerHaptic]);
+
+  // Users allowed to use equipment button
+  const EQUIPMENT_USERS = ['ababeiciprian', 'costachemarius', 'costacheflorin', 'rusugheorghita'];
+  const canUseEquipment = user?.user_metadata?.username && 
+    EQUIPMENT_USERS.includes(user.user_metadata.username.toLowerCase());
+
+  const handleEquipmentStart = useCallback(async () => {
+    if (!activeTimeEntry) {
+      toast.error("Nu există pontaj activ pentru a marca condus utilaj");
+      triggerHaptic('error');
+      return;
+    }
+
+    setEquipmentDialog(false);
+    triggerHaptic('success');
+
+    try {
+      // Update time entry with equipment marker
+      const currentNotes = activeTimeEntry.notes || '';
+      const updatedNotes = currentNotes.includes('Condus Utilaj') 
+        ? currentNotes 
+        : `${currentNotes} | Condus Utilaj`;
+
+      const { error } = await supabase
+        .from('time_entries')
+        .update({ 
+          notes: updatedNotes,
+        })
+        .eq('id', activeTimeEntry.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setActiveTimeEntry({ ...activeTimeEntry, notes: updatedNotes });
+      
+      toast.success("Condus Utilaj marcat cu succes!");
+    } catch (error: any) {
+      console.error('Failed to mark equipment:', error);
+      toast.error("Eroare la marcarea utilajului");
+      triggerHaptic('error');
+    }
+  }, [activeTimeEntry, triggerHaptic]);
+
+  const handleEquipmentPhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEquipmentPhoto(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   const handleShiftEnd = useCallback(async () => {
     if (isProcessing) return;
@@ -614,6 +669,18 @@ const Mobile = () => {
                 )}
               </Button>
               
+              {activeShift && canUseEquipment && (
+                <Button
+                  size="lg"
+                  onClick={() => setEquipmentDialog(true)}
+                  disabled={isProcessing}
+                  className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 text-white flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 shadow-lg"
+                >
+                  <Construction className="h-5 w-5 xs:h-6 xs:w-6" />
+                  CONDUS UTILAJ
+                </Button>
+              )}
+              
               {activeShift && (
                 <Button
                   size="lg"
@@ -727,6 +794,69 @@ const Mobile = () => {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelShiftChange}>Anulează</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmShiftChange}>Confirmă Schimbarea</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Equipment Confirmation Dialog */}
+      <AlertDialog open={equipmentDialog} onOpenChange={setEquipmentDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
+              <Construction className="h-6 w-6" />
+              Confirmare Condus Utilaj
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p className="text-base">
+                Ești pe cale să marchezi <strong>Condus Utilaj</strong> pentru pontajul curent.
+              </p>
+              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+                <p className="text-sm text-orange-800 dark:text-orange-200 font-medium mb-2">
+                  ⚠️ Atenție
+                </p>
+                <p className="text-sm text-orange-700 dark:text-orange-300">
+                  Această acțiune va marca pontajul ca fiind efectuat cu utilaj de construcție. 
+                  Asigură-te că utilizezi utilajul înainte de a confirma.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Camera className="h-4 w-4" />
+                  Poză utilaj (opțional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleEquipmentPhotoCapture}
+                  className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+                />
+                {equipmentPhoto && (
+                  <div className="mt-2">
+                    <img 
+                      src={equipmentPhoto} 
+                      alt="Equipment" 
+                      className="w-full h-32 object-cover rounded-md border"
+                    />
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setEquipmentDialog(false);
+              setEquipmentPhoto(null);
+            }}>
+              Anulează
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleEquipmentStart}
+              className="bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700"
+            >
+              <Construction className="h-4 w-4 mr-2" />
+              Confirmă Utilaj
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
