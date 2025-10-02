@@ -77,9 +77,32 @@ export function EmployeeScheduleView() {
       // Create a map of user_id -> profile
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      // Attach teammates to each schedule
+      // Build team members map - all members for each team
+      const teamMembersMap = new Map<string, Array<{ id: string; full_name: string; username: string }>>();
+      
+      teamIds.forEach(teamId => {
+        const members = allTeamSchedules
+          ?.filter(ts => ts.team_id === teamId && ts.user_id !== user.id)
+          .map(ts => {
+            const profile = profileMap.get(ts.user_id);
+            return {
+              id: ts.user_id,
+              full_name: profile?.full_name || 'Unknown',
+              username: profile?.username || ''
+            };
+          }) || [];
+        
+        // Remove duplicates by user_id
+        const uniqueMembers = Array.from(
+          new Map(members.map(m => [m.id, m])).values()
+        );
+        
+        teamMembersMap.set(teamId, uniqueMembers);
+      });
+
+      // Attach teammates to each schedule (same day/shift colleagues)
       const schedulesWithTeammates = mySchedules.map(schedule => {
-        const teammates = allTeamSchedules
+        const sameShiftTeammates = allTeamSchedules
           ?.filter(ts => 
             ts.team_id === schedule.team_id &&
             ts.day_of_week === schedule.day_of_week &&
@@ -98,7 +121,8 @@ export function EmployeeScheduleView() {
 
         return {
           ...schedule,
-          teammates
+          teammates: sameShiftTeammates,
+          allTeamMembers: teamMembersMap.get(schedule.team_id) || []
         };
       });
 
@@ -224,7 +248,7 @@ export function EmployeeScheduleView() {
                 <div className="flex items-start gap-2 pt-2 border-t">
                   <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Colegii din echipă:</p>
+                    <p className="text-xs text-muted-foreground mb-1">Colegi în aceeași tură:</p>
                     <div className="flex flex-wrap gap-1">
                       {schedule.teammates.map((teammate) => (
                         <Badge 
@@ -233,6 +257,26 @@ export function EmployeeScheduleView() {
                           className="text-xs font-normal"
                         >
                           {teammate.full_name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {schedule.allTeamMembers && schedule.allTeamMembers.length > 0 && (
+                <div className="flex items-start gap-2 pt-2 border-t">
+                  <Users className="h-4 w-4 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold mb-1">Toți membrii echipei {schedule.team_id}:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {schedule.allTeamMembers.map((member) => (
+                        <Badge 
+                          key={member.id} 
+                          variant="outline" 
+                          className="text-xs font-normal"
+                        >
+                          {member.full_name}
                         </Badge>
                       ))}
                     </div>
