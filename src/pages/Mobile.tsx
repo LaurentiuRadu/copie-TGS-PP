@@ -99,6 +99,45 @@ const Mobile = () => {
     requestLocationAccess();
   }, [requestLocationAccess]);
 
+  // Check for active shift on mount
+  useEffect(() => {
+    const checkActiveShift = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data: activeEntry, error } = await supabase
+          .from('time_entries')
+          .select('*')
+          .eq('user_id', user.id)
+          .is('clock_out_time', null)
+          .order('clock_in_time', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (activeEntry) {
+          // Extract shift type from notes
+          const notesMatch = activeEntry.notes?.match(/Tip: (Condus|Pasager|Normal)/i);
+          const shiftType = notesMatch ? notesMatch[1].toLowerCase() as ShiftType : 'normal';
+          
+          // Calculate elapsed seconds
+          const clockInTime = new Date(activeEntry.clock_in_time).getTime();
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - clockInTime) / 1000);
+          
+          setActiveTimeEntry(activeEntry);
+          setActiveShift(shiftType);
+          setShiftSeconds(elapsedSeconds);
+        }
+      } catch (error) {
+        console.error('Failed to check active shift:', error);
+      }
+    };
+
+    checkActiveShift();
+  }, [user?.id]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (activeShift) {
@@ -129,6 +168,22 @@ const Mobile = () => {
     triggerHaptic('medium');
     
     try {
+      // Check for any existing active shifts and close them
+      const { data: existingEntries } = await supabase
+        .from('time_entries')
+        .select('id, clock_in_time')
+        .eq('user_id', user?.id)
+        .is('clock_out_time', null);
+
+      if (existingEntries && existingEntries.length > 0) {
+        // Close all existing active shifts
+        for (const entry of existingEntries) {
+          await supabase
+            .from('time_entries')
+            .update({ clock_out_time: new Date().toISOString() })
+            .eq('id', entry.id);
+        }
+      }
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 5000,
