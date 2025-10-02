@@ -367,7 +367,7 @@ const UserManagement = () => {
                     <Label htmlFor="new-username">Username *</Label>
                     <Input
                       id="new-username"
-                      placeholder="ex: laurentiuradu"
+                      placeholder="ex: ionpopescu"
                       value={newUsername}
                       onChange={(e) => setNewUsername(e.target.value)}
                       className="border-primary/20 focus:border-primary"

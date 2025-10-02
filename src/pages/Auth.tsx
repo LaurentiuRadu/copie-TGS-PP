@@ -212,7 +212,7 @@ const Auth = () => {
                   <Label htmlFor="employee-username">Username</Label>
                   <Input
                     id="employee-username"
-                    placeholder="ex: laurentiuradu"
+                    placeholder="ex: ionpopescu"
                     value={employeeUsername}
                     onChange={(e) => setEmployeeUsername(e.target.value)}
                     required
@@ -225,7 +225,7 @@ const Auth = () => {
                     <Label htmlFor="employee-fullname">Nume Complet</Label>
                     <Input
                       id="employee-fullname"
-                      placeholder="ex: Laurențiu Radu"
+                      placeholder="ex: Ion Popescu"
                       value={employeeFullName}
                       onChange={(e) => setEmployeeFullName(e.target.value)}
                       required
