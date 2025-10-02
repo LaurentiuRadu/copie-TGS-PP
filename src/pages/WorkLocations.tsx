@@ -88,40 +88,54 @@ const WorkLocations = () => {
 
     if (!mapContainer.current || map.current) return;
 
-    mapboxgl.accessToken = mapboxToken || MAPBOX_TOKEN;
+    // Wait for DOM to be ready and dialog animation to complete
+    const initTimer = setTimeout(() => {
+      if (!mapContainer.current) return;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [formData.longitude, formData.latitude],
-      zoom: 12,
-    });
+      mapboxgl.accessToken = mapboxToken || MAPBOX_TOKEN;
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [formData.longitude, formData.latitude],
+        zoom: 12,
+      });
 
-    // Ensure proper sizing after dialog opens
-    map.current.on('load', () => {
-      map.current?.resize();
-      setMapError('');
-    });
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    // Surface Mapbox errors (e.g., invalid token)
-    map.current.on('error', () => {
-      setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
-    });
+      // Ensure proper sizing after dialog opens
+      map.current.on('load', () => {
+        // Force resize twice for reliability
+        setTimeout(() => {
+          map.current?.resize();
+        }, 100);
+        setTimeout(() => {
+          map.current?.resize();
+        }, 300);
+        setMapError('');
+      });
 
-    // Update formData when map is clicked
-    map.current.on('click', (e) => {
-      setFormData((prev) => ({
-        ...prev,
-        latitude: e.lngLat.lat,
-        longitude: e.lngLat.lng,
-      }));
-    });
+      // Surface Mapbox errors (e.g., invalid token)
+      map.current.on('error', () => {
+        setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
+      });
+
+      // Update formData when map is clicked
+      map.current.on('click', (e) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: e.lngLat.lat,
+          longitude: e.lngLat.lng,
+        }));
+      });
+    }, 100);
 
     return () => {
-      map.current?.remove();
-      map.current = null;
+      clearTimeout(initTimer);
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
     };
   }, [dialogOpen, mapboxToken]);
 
@@ -281,6 +295,60 @@ const WorkLocations = () => {
     setEditingLocation(null);
   };
 
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocalizarea nu este suportată de acest browser');
+      return;
+    }
+
+    toast.info('Se obține locația...');
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setFormData((prev) => ({
+          ...prev,
+          latitude,
+          longitude,
+        }));
+        
+        // Centrare harta pe locația curentă
+        if (map.current) {
+          map.current.flyTo({
+            center: [longitude, latitude],
+            zoom: 15,
+            duration: 1500,
+          });
+        }
+        
+        toast.success('Locație obținută cu succes!');
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        let errorMessage = 'Nu s-a putut obține locația';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Permisiunea de localizare a fost refuzată';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Informațiile de localizare nu sunt disponibile';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Cererea de localizare a expirat';
+            break;
+        }
+        
+        toast.error(errorMessage);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -377,7 +445,19 @@ const WorkLocations = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Hartă (Click pentru a selecta locația)</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Hartă (Click pentru a selecta locația)</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={useCurrentLocation}
+                            className="gap-2"
+                          >
+                            <MapPin className="h-4 w-4" />
+                            Locația Mea
+                          </Button>
+                        </div>
                         {mapError && (
                           <p className="text-sm text-destructive">{mapError}</p>
                         )}
@@ -391,7 +471,10 @@ const WorkLocations = () => {
                         <p className="text-xs text-muted-foreground">
                           Token-ul se salvează automat. Închide și redeschide dialogul pentru a aplica modificările.
                         </p>
-                        <div ref={mapContainer} className="h-[300px] rounded-lg border" />
+                        <div ref={mapContainer} className="h-[300px] rounded-lg border bg-muted" />
+                        <p className="text-xs text-muted-foreground">
+                          💡 Click pe hartă pentru a seta locația sau folosește butonul "Locația Mea"
+                        </p>
                       </div>
                     </div>
                     <DialogFooter>
