@@ -2,14 +2,15 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +57,9 @@ export default function WeeklySchedules() {
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const [coordinatorId, setCoordinatorId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('summary');
   const [formData, setFormData] = useState({
     team_id: 'E1',
     week_start_date: selectedWeek,
@@ -134,6 +138,10 @@ export default function WeeklySchedules() {
         throw new Error('Selectează cel puțin un angajat');
       }
 
+      if (!coordinatorId && !editingSchedule) {
+        throw new Error('Selectează un coordonator');
+      }
+
       const vehicles = selectedVehicles.join(', ');
 
       // Dacă editezi
@@ -146,7 +154,8 @@ export default function WeeklySchedules() {
             vehicle: vehicles,
             observations: formData.observations,
             shift_type: formData.shift_type,
-            day_of_week: formData.day_of_week
+            day_of_week: formData.day_of_week,
+            coordinator_id: coordinatorId || editingSchedule.coordinator_id
           })
           .eq('id', editingSchedule.id);
         
@@ -154,18 +163,24 @@ export default function WeeklySchedules() {
         return [editingSchedule];
       }
 
-      // Dacă adaugi
-      const scheduleEntries = selectedEmployees.map(userId => ({
-        team_id: formData.team_id,
-        week_start_date: formData.week_start_date,
-        user_id: userId,
-        day_of_week: formData.day_of_week,
-        location: formData.location,
-        activity: formData.activity,
-        vehicle: vehicles,
-        observations: formData.observations,
-        shift_type: formData.shift_type
-      }));
+      // Dacă adaugi - pentru fiecare zi selectată și fiecare angajat
+      const scheduleEntries = [];
+      for (const dayOfWeek of selectedDays) {
+        for (const userId of selectedEmployees) {
+          scheduleEntries.push({
+            team_id: formData.team_id,
+            week_start_date: formData.week_start_date,
+            user_id: userId,
+            day_of_week: dayOfWeek,
+            location: formData.location,
+            activity: formData.activity,
+            vehicle: vehicles,
+            observations: formData.observations,
+            shift_type: formData.shift_type,
+            coordinator_id: coordinatorId
+          });
+        }
+      }
 
       const { data: schedules, error } = await supabase
         .from('weekly_schedules')
@@ -222,6 +237,8 @@ export default function WeeklySchedules() {
     setEditingSchedule(null);
     setSelectedEmployees([]);
     setSelectedVehicles([]);
+    setSelectedDays([1]);
+    setCoordinatorId('');
     setFormData({
       team_id: selectedTeam,
       week_start_date: selectedWeek,
@@ -245,8 +262,11 @@ export default function WeeklySchedules() {
   const handleEdit = (schedule: any) => {
     setEditingSchedule(schedule);
     setShowForm(true);
+    setActiveTab('details');
     setSelectedEmployees([schedule.user_id]);
     setSelectedVehicles(schedule.vehicle ? schedule.vehicle.split(',').map((v: string) => v.trim()) : []);
+    setSelectedDays([schedule.day_of_week]);
+    setCoordinatorId(schedule.coordinator_id || '');
     setFormData({
       team_id: schedule.team_id,
       week_start_date: schedule.week_start_date,
@@ -271,6 +291,15 @@ export default function WeeklySchedules() {
       prev.includes(vehicle) 
         ? prev.filter(v => v !== vehicle)
         : [...prev, vehicle]
+    );
+  };
+
+  const toggleDay = (day: number) => {
+    if (editingSchedule) return; // Nu permite multiselect în modul editare
+    setSelectedDays(prev => 
+      prev.includes(day) 
+        ? prev.filter(d => d !== day)
+        : [...prev, day].sort()
     );
   };
 
@@ -303,6 +332,41 @@ export default function WeeklySchedules() {
     setShowDeleteDialog(false);
   };
 
+  // Group schedules by team for summary view
+  const teamSummary = useMemo(() => {
+    if (!schedules) return [];
+    
+    const grouped = schedules.reduce((acc: any, schedule: any) => {
+      const key = `${schedule.location}-${schedule.activity}-${schedule.vehicle}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          team_id: schedule.team_id,
+          location: schedule.location,
+          activity: schedule.activity,
+          vehicle: schedule.vehicle,
+          coordinator: schedule.coordinator_id ? 
+            employees?.find(e => e.id === schedule.coordinator_id) : null,
+          members: new Set(),
+          days: new Set(),
+          shift_type: schedule.shift_type,
+          observations: schedule.observations
+        };
+      }
+      
+      acc[key].members.add(schedule.profiles?.full_name || 'N/A');
+      acc[key].days.add(schedule.day_of_week);
+      
+      return acc;
+    }, {});
+    
+    return Object.values(grouped).map((group: any) => ({
+      ...group,
+      members: Array.from(group.members),
+      days: Array.from(group.days).sort()
+    }));
+  }, [schedules, employees]);
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Card>
@@ -314,7 +378,7 @@ export default function WeeklySchedules() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filters */}
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <Label>Săptămâna (Nr. {weekNumber})</Label>
               <Input
@@ -339,28 +403,47 @@ export default function WeeklySchedules() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={() => { resetForm(); setShowForm(!showForm); }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adaugă Programare
+            <Button onClick={() => { resetForm(); setShowForm(!showForm); setActiveTab('details'); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adaugă Programare
+            </Button>
+            {selectedScheduleIds.length > 0 && (
+              <Button variant="destructive" onClick={handleDeleteSelected}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Șterge ({selectedScheduleIds.length})
               </Button>
-              {selectedScheduleIds.length > 0 && (
-                <Button variant="destructive" onClick={handleDeleteSelected}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Șterge ({selectedScheduleIds.length})
-                </Button>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Add/Edit Form */}
           {showForm && (
-            <form onSubmit={handleSubmit} className="border rounded-lg p-4 space-y-6">
+            <form onSubmit={handleSubmit} className="border rounded-lg p-4 space-y-6 bg-muted/30">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">
                   {editingSchedule ? 'Editează Programare' : 'Adaugă Programare Nouă'}
                 </h3>
               </div>
+              
+              {/* Coordonator Selection */}
+              <div className="border-b pb-4">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Coordonator *
+                </Label>
+                <Select value={coordinatorId} onValueChange={setCoordinatorId}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selectează coordonatorul echipei" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees?.map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        👤 {emp.full_name || emp.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Multi-select Angajați */}
                 <div className="space-y-3">
@@ -427,9 +510,10 @@ export default function WeeklySchedules() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <Label>Zi *</Label>
+              {/* Multi-select Days */}
+              <div className="space-y-3">
+                <Label className="text-base">{editingSchedule ? 'Zi *' : 'Zile * (selectare multiplă)'}</Label>
+                {editingSchedule ? (
                   <Select value={String(formData.day_of_week)} onValueChange={(value) => setFormData({ ...formData, day_of_week: Number(value) })}>
                     <SelectTrigger>
                       <SelectValue />
@@ -440,7 +524,34 @@ export default function WeeklySchedules() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                      {dayNames.map((day, idx) => {
+                        const dayNum = idx + 1;
+                        return (
+                          <div key={dayNum} className="flex items-center space-x-2 border rounded-md p-2 hover:bg-accent cursor-pointer"
+                            onClick={() => toggleDay(dayNum)}>
+                            <Checkbox
+                              id={`day-${dayNum}`}
+                              checked={selectedDays.includes(dayNum)}
+                              onCheckedChange={() => toggleDay(dayNum)}
+                            />
+                            <label htmlFor={`day-${dayNum}`} className="text-sm cursor-pointer flex-1">
+                              {day}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedDays.length} zi(le) selectată(e)
+                    </p>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <Label>Tip Tură *</Label>
                   <Select value={formData.shift_type} onValueChange={(value) => setFormData({ ...formData, shift_type: value })}>
@@ -491,90 +602,198 @@ export default function WeeklySchedules() {
             </form>
           )}
 
-          {/* Schedule Table */}
-          <div className="border rounded-lg overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">
-                    <Checkbox
-                      checked={schedules?.length > 0 && selectedScheduleIds.length === schedules?.length}
-                      onCheckedChange={toggleAllSchedules}
-                    />
-                  </TableHead>
-                  <TableHead>Zi</TableHead>
-                  <TableHead>Tură</TableHead>
-                  <TableHead>Angajat</TableHead>
-                  <TableHead>Locație</TableHead>
-                  <TableHead>Activitate</TableHead>
-                  <TableHead>Mașină</TableHead>
-                  <TableHead>Observații</TableHead>
-                  <TableHead className="w-[120px]">Acțiuni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          {/* Tabs: Summary and Details */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="summary" className="gap-2">
+                <Users className="h-4 w-4" />
+                Rezumat Programări
+              </TabsTrigger>
+              <TabsTrigger value="details" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Detalii Complete
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Summary Tab */}
+            <TabsContent value="summary" className="mt-6">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">Se încarcă...</TableCell>
-                  </TableRow>
-                ) : schedules?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground">
-                      Nu există programări pentru această săptămână
-                    </TableCell>
-                  </TableRow>
+                  <div className="col-span-full text-center py-8">Se încarcă...</div>
+                ) : teamSummary.length === 0 ? (
+                  <div className="col-span-full text-center py-8 text-muted-foreground">
+                    Nu există programări pentru această săptămână
+                  </div>
                 ) : (
-                  schedules?.map((schedule: any) => (
-                    <TableRow key={schedule.id} className={selectedScheduleIds.includes(schedule.id) ? 'bg-muted/50' : ''}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedScheduleIds.includes(schedule.id)}
-                          onCheckedChange={() => toggleScheduleSelection(schedule.id)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{dayNames[schedule.day_of_week - 1]}</TableCell>
-                      <TableCell>
-                        <span className={schedule.shift_type === 'noapte' ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}>
-                          {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
-                        </span>
-                      </TableCell>
-                      <TableCell>{schedule.profiles?.full_name}</TableCell>
-                      <TableCell>{schedule.location}</TableCell>
-                      <TableCell>{schedule.activity}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {schedule.vehicle?.split(',').map((v: string, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="font-mono">
-                              {v.trim()}
-                            </Badge>
-                          ))}
+                  teamSummary.map((summary: any, idx: number) => (
+                    <Card key={idx} className="hover:shadow-lg transition-shadow cursor-pointer"
+                      onClick={() => setActiveTab('details')}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="text-lg">{summary.team_id}</span>
+                          <Badge variant={summary.shift_type === 'noapte' ? 'default' : 'secondary'}>
+                            {summary.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
+                          </Badge>
+                        </CardTitle>
+                        {summary.coordinator && (
+                          <CardDescription className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            Coordonator: <strong>{summary.coordinator.full_name}</strong>
+                          </CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {summary.location && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span>{summary.location}</span>
+                          </div>
+                        )}
+                        {summary.activity && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Activity className="h-4 w-4 text-muted-foreground" />
+                            <span>{summary.activity}</span>
+                          </div>
+                        )}
+                        {summary.vehicle && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Car className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-mono text-xs">{summary.vehicle}</span>
+                          </div>
+                        )}
+                        <div className="pt-2 border-t">
+                          <div className="text-xs text-muted-foreground mb-1">Zile programate:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {summary.days.map((day: number) => (
+                              <Badge key={day} variant="outline" className="text-xs">
+                                {dayNames[day - 1]}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>{schedule.observations}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(schedule)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteSchedule.mutate([schedule.id])}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                        <div className="pt-2 border-t">
+                          <div className="text-xs text-muted-foreground mb-1">Membri echipă ({summary.members.length}):</div>
+                          <div className="flex flex-wrap gap-1">
+                            {summary.members.slice(0, 3).map((member: string, idx: number) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {member}
+                              </Badge>
+                            ))}
+                            {summary.members.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{summary.members.length - 3}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </CardContent>
+                    </Card>
                   ))
                 )}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            </TabsContent>
+
+            {/* Details Tab */}
+            <TabsContent value="details" className="mt-6">
+              <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={schedules?.length > 0 && selectedScheduleIds.length === schedules?.length}
+                        onCheckedChange={toggleAllSchedules}
+                      />
+                    </TableHead>
+                    <TableHead>Zi</TableHead>
+                    <TableHead>Tură</TableHead>
+                    <TableHead>Angajat</TableHead>
+                    <TableHead>Coordonator</TableHead>
+                    <TableHead>Locație</TableHead>
+                    <TableHead>Activitate</TableHead>
+                    <TableHead>Mașină</TableHead>
+                    <TableHead>Observații</TableHead>
+                    <TableHead className="w-[120px]">Acțiuni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center">Se încarcă...</TableCell>
+                    </TableRow>
+                  ) : schedules?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
+                        Nu există programări pentru această săptămână
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    schedules?.map((schedule: any) => {
+                      const coordinator = employees?.find(e => e.id === schedule.coordinator_id);
+                      return (
+                        <TableRow key={schedule.id} className={selectedScheduleIds.includes(schedule.id) ? 'bg-muted/50' : ''}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedScheduleIds.includes(schedule.id)}
+                              onCheckedChange={() => toggleScheduleSelection(schedule.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{dayNames[schedule.day_of_week - 1]}</TableCell>
+                          <TableCell>
+                            <span className={schedule.shift_type === 'noapte' ? 'text-blue-600 dark:text-blue-400 font-medium' : ''}>
+                              {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{schedule.profiles?.full_name}</TableCell>
+                          <TableCell>
+                            {coordinator ? (
+                              <Badge variant="outline" className="gap-1">
+                                <User className="h-3 w-3" />
+                                {coordinator.full_name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{schedule.location}</TableCell>
+                          <TableCell>{schedule.activity}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {schedule.vehicle?.split(',').map((v: string, idx: number) => (
+                                <Badge key={idx} variant="secondary" className="font-mono">
+                                  {v.trim()}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>{schedule.observations}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(schedule)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteSchedule.mutate([schedule.id])}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

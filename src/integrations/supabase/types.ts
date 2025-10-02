@@ -397,6 +397,7 @@ export type Database = {
       weekly_schedules: {
         Row: {
           activity: string | null
+          coordinator_id: string | null
           created_at: string
           created_by: string | null
           day_of_week: number
@@ -412,6 +413,7 @@ export type Database = {
         }
         Insert: {
           activity?: string | null
+          coordinator_id?: string | null
           created_at?: string
           created_by?: string | null
           day_of_week: number
@@ -427,6 +429,7 @@ export type Database = {
         }
         Update: {
           activity?: string | null
+          coordinator_id?: string | null
           created_at?: string
           created_by?: string | null
           day_of_week?: number
@@ -440,7 +443,15 @@ export type Database = {
           vehicle?: string | null
           week_start_date?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "weekly_schedules_coordinator_id_fkey"
+            columns: ["coordinator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_hour_rules: {
         Row: {
