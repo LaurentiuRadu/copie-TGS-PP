@@ -345,11 +345,11 @@ export default function WeeklySchedules() {
       setDayConfigurations(prevConfigs => {
         const newConfigs = { ...prevConfigs };
         if (newDays.includes(day) && !prevConfigs[day]) {
-          // Initialize with one empty configuration
+          // Initialize with one empty configuration, pre-populated with selected vehicles
           newConfigs[day] = [{
             location: '',
             activity: '',
-            vehicle: '',
+            vehicle: selectedVehicles.join(', '),
             shift_type: 'zi',
             observations: ''
           }];
@@ -372,7 +372,7 @@ export default function WeeklySchedules() {
         {
           location: '',
           activity: '',
-          vehicle: '',
+          vehicle: selectedVehicles.join(', '),
           shift_type: 'zi',
           observations: ''
         }
