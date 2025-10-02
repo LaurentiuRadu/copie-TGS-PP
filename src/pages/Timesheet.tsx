@@ -83,18 +83,77 @@ const Timesheet = () => {
       .join(', ');
   };
 
+  const calculateHoursByType = (entry: any) => {
+    const hours = {
+      normale: 0,
+      noapte: 0,
+      sambata: 0,
+      sarbatori: 0,
+      pasager: 0,
+      condus: 0,
+      utilaj: 0,
+    };
+
+    if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
+      entry.time_entry_segments.forEach((seg: any) => {
+        const h = Number(seg.hours_decimal);
+        const type = seg.segment_type;
+
+        if (type === 'normal') {
+          hours.normale += h;
+        } else if (type === 'night' || type.includes('night')) {
+          hours.noapte += h;
+        } else if (type === 'weekend' || type.includes('weekend')) {
+          hours.sambata += h;
+        } else if (type === 'holiday' || type.includes('holiday')) {
+          hours.sarbatori += h;
+        }
+      });
+    }
+
+    // Parse notes for special categories
+    const notes = entry.notes || '';
+    const totalHours = calculateTotalHours(entry);
+    
+    if (notes.toLowerCase().includes('pasager')) {
+      hours.pasager = totalHours;
+      // Reset other categories if marked as passenger
+      hours.normale = 0;
+      hours.noapte = 0;
+      hours.sambata = 0;
+      hours.sarbatori = 0;
+    }
+    if (notes.toLowerCase().includes('condus') && !notes.toLowerCase().includes('utilaj')) {
+      hours.condus = totalHours;
+    }
+    if (notes.toLowerCase().includes('condus utilaj')) {
+      hours.utilaj = totalHours;
+    }
+
+    return hours;
+  };
+
   const prepareExportData = () => {
     if (!entries) return [];
     
-    return entries.map((entry) => ({
-      Angajat: entry.profiles?.full_name || 'Necunoscut',
-      Data: format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro }),
-      Intrare: format(new Date(entry.clock_in_time), 'HH:mm'),
-      Ieșire: entry.clock_out_time ? format(new Date(entry.clock_out_time), 'HH:mm') : 'În lucru',
-      'Ore Totale': calculateTotalHours(entry).toFixed(2),
-      'Ore Plătite': calculateWeightedHours(entry).toFixed(2),
-      Segmente: formatSegments(entry.time_entry_segments || []),
-    }));
+    return entries.map((entry) => {
+      const hoursByType = calculateHoursByType(entry);
+      return {
+        Angajat: entry.profiles?.full_name || 'Necunoscut',
+        Data: format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro }),
+        Normale: hoursByType.normale > 0 ? hoursByType.normale.toFixed(2) : '-',
+        Noapte: hoursByType.noapte > 0 ? hoursByType.noapte.toFixed(2) : '-',
+        Sâmbătă: hoursByType.sambata > 0 ? hoursByType.sambata.toFixed(2) : '-',
+        'D/Sărbători': hoursByType.sarbatori > 0 ? hoursByType.sarbatori.toFixed(2) : '-',
+        Pasager: hoursByType.pasager > 0 ? hoursByType.pasager.toFixed(2) : '-',
+        Condus: hoursByType.condus > 0 ? hoursByType.condus.toFixed(2) : '-',
+        Utilaj: hoursByType.utilaj > 0 ? hoursByType.utilaj.toFixed(2) : '-',
+        CO: '-',
+        CM: '-',
+        Observații: entry.notes || '-',
+        Total: calculateTotalHours(entry).toFixed(2),
+      };
+    });
   };
 
   const handleExportExcel = () => {
@@ -259,49 +318,62 @@ const Timesheet = () => {
                     <TableRow>
                       <TableHead>Angajat</TableHead>
                       <TableHead>Data</TableHead>
-                      <TableHead>Intrare</TableHead>
-                      <TableHead>Ieșire</TableHead>
-                      <TableHead className="text-right">Ore Totale</TableHead>
-                      <TableHead className="text-right">Ore Plătite</TableHead>
-                      <TableHead>Segmente</TableHead>
+                      <TableHead className="text-right">Normale</TableHead>
+                      <TableHead className="text-right">Noapte</TableHead>
+                      <TableHead className="text-right">Sâmbătă</TableHead>
+                      <TableHead className="text-right">D/Sărbători</TableHead>
+                      <TableHead className="text-right">Pasager</TableHead>
+                      <TableHead className="text-right">Condus</TableHead>
+                      <TableHead className="text-right">Utilaj</TableHead>
+                      <TableHead className="text-right">CO</TableHead>
+                      <TableHead className="text-right">CM</TableHead>
+                      <TableHead>Observații</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEntries.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">
-                          {entry.profiles?.full_name || 'Necunoscut'}
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro })}
-                        </TableCell>
-                        <TableCell>{format(new Date(entry.clock_in_time), 'HH:mm')}</TableCell>
-                        <TableCell>
-                          {entry.clock_out_time ? format(new Date(entry.clock_out_time), 'HH:mm') : (
-                            <Badge variant="secondary">În lucru</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {calculateTotalHours(entry).toFixed(2)}h
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-primary">
-                          {calculateWeightedHours(entry).toFixed(2)}h
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {entry.time_entry_segments && entry.time_entry_segments.length > 0 ? (
-                              entry.time_entry_segments.map((seg, idx) => (
-                                <Badge key={idx} variant={getSegmentColor(seg.segment_type) as any} className="text-xs">
-                                  {getSegmentLabel(seg.segment_type)}: {Number(seg.hours_decimal).toFixed(1)}h ({seg.multiplier}x)
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredEntries.map((entry) => {
+                      const hoursByType = calculateHoursByType(entry);
+                      return (
+                        <TableRow key={entry.id}>
+                          <TableCell className="font-medium">
+                            {entry.profiles?.full_name || 'Necunoscut'}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.normale > 0 ? `${hoursByType.normale.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.noapte > 0 ? `${hoursByType.noapte.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.sambata > 0 ? `${hoursByType.sambata.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.sarbatori > 0 ? `${hoursByType.sarbatori.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.pasager > 0 ? `${hoursByType.pasager.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.condus > 0 ? `${hoursByType.condus.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.utilaj > 0 ? `${hoursByType.utilaj.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">-</TableCell>
+                          <TableCell className="text-right">-</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {entry.notes || '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {calculateTotalHours(entry).toFixed(1)}h
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

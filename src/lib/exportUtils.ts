@@ -3,11 +3,17 @@ import * as XLSX from 'xlsx';
 interface ExportTimeEntry {
   Angajat: string;
   Data: string;
-  Intrare: string;
-  Ieșire: string;
-  'Ore Totale': number;
-  'Ore Plătite': number;
-  Segmente: string;
+  Normale: string;
+  Noapte: string;
+  Sâmbătă: string;
+  'D/Sărbători': string;
+  Pasager: string;
+  Condus: string;
+  Utilaj: string;
+  CO: string;
+  CM: string;
+  Observații: string;
+  Total: string;
 }
 
 export const exportToExcel = (data: ExportTimeEntry[], filename: string) => {
@@ -17,11 +23,17 @@ export const exportToExcel = (data: ExportTimeEntry[], filename: string) => {
   worksheet['!cols'] = [
     { wch: 20 }, // Angajat
     { wch: 12 }, // Data
-    { wch: 10 }, // Intrare
-    { wch: 10 }, // Ieșire
-    { wch: 12 }, // Ore Totale
-    { wch: 12 }, // Ore Plătite
-    { wch: 50 }, // Segmente
+    { wch: 10 }, // Normale
+    { wch: 10 }, // Noapte
+    { wch: 10 }, // Sâmbătă
+    { wch: 12 }, // D/Sărbători
+    { wch: 10 }, // Pasager
+    { wch: 10 }, // Condus
+    { wch: 10 }, // Utilaj
+    { wch: 8 },  // CO
+    { wch: 8 },  // CM
+    { wch: 30 }, // Observații
+    { wch: 10 }, // Total
   ];
   
   const workbook = XLSX.utils.book_new();
