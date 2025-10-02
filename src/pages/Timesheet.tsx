@@ -321,12 +321,7 @@ const Timesheet = () => {
                       <TableHead className="text-right">Normale</TableHead>
                       <TableHead className="text-right">Noapte</TableHead>
                       <TableHead className="text-right">Sâmbătă</TableHead>
-                      <TableHead className="text-right">
-                        <div className="flex flex-col leading-tight">
-                          <span>Duminica</span>
-                          <span>Sarbatori</span>
-                        </div>
-                      </TableHead>
+                      <TableHead className="text-right">Duminica Sarbatori</TableHead>
                       <TableHead className="text-right">Pasager</TableHead>
                       <TableHead className="text-right">Condus</TableHead>
                       <TableHead className="text-right">Utilaj</TableHead>
