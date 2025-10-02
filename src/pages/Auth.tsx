@@ -202,11 +202,21 @@ const Auth = () => {
 
           <Tabs defaultValue="employee" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="employee">Angajat</TabsTrigger>
-              <TabsTrigger value="admin">Administrator</TabsTrigger>
+              <TabsTrigger 
+                value="employee" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Angajat
+              </TabsTrigger>
+              <TabsTrigger 
+                value="admin"
+                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground"
+              >
+                Administrator
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="employee">
+            <TabsContent value="employee" className="border-l-4 border-primary pl-4">
               <form onSubmit={handleEmployeeAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="employee-username">Username</Label>
@@ -270,7 +280,7 @@ const Auth = () => {
               </form>
             </TabsContent>
 
-            <TabsContent value="admin">
+            <TabsContent value="admin" className="border-l-4 border-secondary pl-4">
               <form onSubmit={handleAdminAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="admin-email">Email</Label>
