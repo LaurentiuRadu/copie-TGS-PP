@@ -121,8 +121,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
         console.debug('[AuthProvider] getSession resolved', { hasSession: !!session });
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+        } else {
+          // Don't overwrite existing state if listener already populated it
+          // Keep current user/session as-is
+        }
 
         if (session?.user) {
           try {
