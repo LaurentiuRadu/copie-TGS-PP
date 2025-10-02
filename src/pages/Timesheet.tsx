@@ -93,8 +93,11 @@ const Timesheet = () => {
 
   const calculateTotalHours = (entry: any) => {
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
-      // Sum hours_decimal directly - they already contain the multiplier applied
-      return entry.time_entry_segments.reduce((sum: number, seg: any) => sum + Number(seg.hours_decimal), 0);
+      // Sum PAID hours (hours_decimal × multiplier)
+      return entry.time_entry_segments.reduce(
+        (sum: number, seg: any) => sum + Number(seg.hours_decimal) * Number(seg.multiplier),
+        0
+      );
     }
     if (entry.clock_out_time) {
       const diff = new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime();
@@ -106,7 +109,11 @@ const Timesheet = () => {
   const formatSegments = (segments: any[]) => {
     if (!segments || segments.length === 0) return '-';
     return segments
-      .map((seg) => `${getSegmentLabel(seg.segment_type)}: ${Number(seg.hours_decimal).toFixed(2)}h`)
+      .map((seg) => {
+        const realHours = Number(seg.hours_decimal);
+        const paidHours = realHours * Number(seg.multiplier);
+        return `${getSegmentLabel(seg.segment_type)}: ${realHours.toFixed(2)}h → ${paidHours.toFixed(2)}h (${seg.multiplier}x)`;
+      })
       .join(', ');
   };
 
@@ -148,20 +155,22 @@ const Timesheet = () => {
     }
 
     // Default: Normal shifts - distribute hours by time segments
-    // IMPORTANT: hours_decimal already contains hours WITH multiplier applied
+    // IMPORTANT: hours_decimal contains REAL hours, multiply by multiplier to get PAID hours
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
       entry.time_entry_segments.forEach((seg: any) => {
-        const h = Number(seg.hours_decimal); // Already multiplied hours
+        const realHours = Number(seg.hours_decimal);
+        const multiplier = Number(seg.multiplier);
+        const paidHours = realHours * multiplier; // Calculate paid hours
         const type = seg.segment_type;
 
         if (type === 'normal') {
-          hours.normale += h;
+          hours.normale += paidHours;
         } else if (type === 'night') {
-          hours.noapte += h;
+          hours.noapte += paidHours;
         } else if (type === 'saturday') {
-          hours.sambata += h;
+          hours.sambata += paidHours;
         } else if (type === 'sunday' || type === 'holiday' || type === 'holiday_night') {
-          hours.sarbatori += h;
+          hours.sarbatori += paidHours;
         }
       });
     }

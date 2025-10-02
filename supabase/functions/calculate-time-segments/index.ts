@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
       const hour = current.getHours();
       const isNight = hour >= 22 || hour < 6;
       
-      // Calculate actual worked hours for this segment
+      // Calculate actual worked hours for this segment (REAL hours, not paid hours)
       const actualHours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
       
       if (isHoliday) {
@@ -109,15 +109,13 @@ Deno.serve(async (req) => {
         }
       }
       
-      // IMPORTANT: hours_decimal contains ACTUAL HOURS × MULTIPLIER
-      // This is the final paid amount, not raw hours
-      const paidHours = actualHours * multiplier;
-      
+      // IMPORTANT: hours_decimal contains REAL/ACTUAL hours worked
+      // To get paid hours: hours_decimal × multiplier
       segments.push({
         segment_type: segmentType,
         start_time: current.toISOString(),
         end_time: segmentEnd.toISOString(),
-        hours_decimal: Math.round(paidHours * 100) / 100,
+        hours_decimal: Math.round(actualHours * 100) / 100,
         multiplier
       });
       
