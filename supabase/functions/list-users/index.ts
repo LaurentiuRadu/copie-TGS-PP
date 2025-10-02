@@ -71,15 +71,25 @@ Deno.serve(async (req) => {
       .from('user_roles')
       .select('user_id, role')
 
-    // Combine user data with roles
-    const usersWithRoles = users.map(u => ({
-      id: u.id,
-      email: u.email,
-      username: u.user_metadata?.username || '',
-      fullName: u.user_metadata?.full_name || '',
-      roles: userRoles?.filter(r => r.user_id === u.id).map(r => r.role) || [],
-      createdAt: u.created_at
-    }))
+    // Get profiles for names/usernames
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id, username, full_name')
+
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]))
+
+    // Combine user data with roles and profiles
+    const usersWithRoles = users.map(u => {
+      const profile = profileMap.get(u.id)
+      return {
+        id: u.id,
+        email: u.email,
+        username: (u.user_metadata?.username as string | undefined) || profile?.username || '',
+        fullName: (u.user_metadata?.full_name as string | undefined) || profile?.full_name || '',
+        roles: (userRoles || []).filter(r => r.user_id === u.id).map(r => r.role) || [],
+        createdAt: u.created_at
+      }
+    })
 
     return new Response(
       JSON.stringify({ users: usersWithRoles }),
