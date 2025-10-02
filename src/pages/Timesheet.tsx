@@ -144,7 +144,7 @@ const Timesheet = () => {
         Normale: hoursByType.normale > 0 ? hoursByType.normale.toFixed(2) : '-',
         Noapte: hoursByType.noapte > 0 ? hoursByType.noapte.toFixed(2) : '-',
         Sâmbătă: hoursByType.sambata > 0 ? hoursByType.sambata.toFixed(2) : '-',
-        'D/Sărbători': hoursByType.sarbatori > 0 ? hoursByType.sarbatori.toFixed(2) : '-',
+        'Duminica Sarbatori': hoursByType.sarbatori > 0 ? hoursByType.sarbatori.toFixed(2) : '-',
         Pasager: hoursByType.pasager > 0 ? hoursByType.pasager.toFixed(2) : '-',
         Condus: hoursByType.condus > 0 ? hoursByType.condus.toFixed(2) : '-',
         Utilaj: hoursByType.utilaj > 0 ? hoursByType.utilaj.toFixed(2) : '-',
