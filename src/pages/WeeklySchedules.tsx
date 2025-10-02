@@ -530,8 +530,7 @@ export default function WeeklySchedules() {
                       {dayNames.map((day, idx) => {
                         const dayNum = idx + 1;
                         return (
-                          <div key={dayNum} className="flex items-center space-x-2 border rounded-md p-2 hover:bg-accent cursor-pointer"
-                            onClick={() => toggleDay(dayNum)}>
+                          <div key={dayNum} className="flex items-center space-x-2 border rounded-md p-2 hover:bg-accent">
                             <Checkbox
                               id={`day-${dayNum}`}
                               checked={selectedDays.includes(dayNum)}
