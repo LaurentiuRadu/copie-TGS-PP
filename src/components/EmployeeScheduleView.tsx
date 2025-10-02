@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Users } from 'lucide-react';
-import { format, startOfWeek } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Calendar, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, startOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
@@ -13,9 +15,26 @@ const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', '
 
 export function EmployeeScheduleView() {
   const { user } = useAuth();
-  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const [selectedWeek, setSelectedWeek] = useState(new Date());
+  const currentWeekStart = format(startOfWeek(selectedWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const isCurrentWeek = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd') === currentWeekStart;
 
   useRealtimeSchedules(true);
+
+  const handlePreviousWeek = () => {
+    setSelectedWeek(subWeeks(selectedWeek, 1));
+  };
+
+  const handleNextWeek = () => {
+    setSelectedWeek(addWeeks(selectedWeek, 1));
+  };
+
+  const handleCurrentWeek = () => {
+    setSelectedWeek(new Date());
+  };
+
+  const weekStart = startOfWeek(selectedWeek, { weekStartsOn: 1 });
+  const weekEnd = addWeeks(weekStart, 1);
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ['my-schedules', user?.id, currentWeekStart],
@@ -88,6 +107,40 @@ export function EmployeeScheduleView() {
     enabled: !!user
   });
 
+  const renderWeekNavigation = () => (
+    <div className="flex items-center justify-between">
+      <CardTitle className="flex items-center gap-2">
+        <Calendar className="h-5 w-5" />
+        Programarea Săptămânii
+      </CardTitle>
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handlePreviousWeek}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        {!isCurrentWeek && (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleCurrentWeek}
+          >
+            Săptămâna curentă
+          </Button>
+        )}
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleNextWeek}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <Card>
@@ -102,10 +155,10 @@ export function EmployeeScheduleView() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Programarea Săptămânii
-          </CardTitle>
+          {renderWeekNavigation()}
+          <p className="text-sm text-muted-foreground mt-2">
+            {format(weekStart, 'd MMM', { locale: ro })} - {format(weekEnd, 'd MMM yyyy', { locale: ro })}
+          </p>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">Nu ai programări pentru această săptămână</p>
@@ -117,10 +170,10 @@ export function EmployeeScheduleView() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Programarea Săptămânii
-        </CardTitle>
+        {renderWeekNavigation()}
+        <p className="text-sm text-muted-foreground mt-2">
+          {format(weekStart, 'd MMM', { locale: ro })} - {format(weekEnd, 'd MMM yyyy', { locale: ro })}
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
