@@ -10,16 +10,36 @@ import { AppSidebar } from "@/components/AppSidebar";
 import * as XLSX from 'xlsx';
 
 const EMPLOYEES = [
-  { fullName: "ANGAJAT 1", username: "angajat1", isAdmin: false },
-  { fullName: "ANGAJAT 2", username: "angajat2", isAdmin: false },
-  { fullName: "ANGAJAT 3", username: "angajat3", isAdmin: false },
-  { fullName: "ANGAJAT 4", username: "angajat4", isAdmin: false },
-  { fullName: "ANGAJAT 5", username: "angajat5", isAdmin: false },
-  { fullName: "ANGAJAT 6", username: "angajat6", isAdmin: false },
-  { fullName: "ANGAJAT 7", username: "angajat7", isAdmin: false },
-  { fullName: "ANGAJAT 8", username: "angajat8", isAdmin: false },
-  { fullName: "ANGAJAT 9", username: "angajat9", isAdmin: false },
-  { fullName: "ANGAJAT 10", username: "angajat10", isAdmin: false },
+  { fullName: "ABABEI CIPRIAN", username: "ababeiciprian", isAdmin: false },
+  { fullName: "ALEXANDRESCU ADRIAN", username: "alexandrescuadrian", isAdmin: false },
+  { fullName: "APOSTU CATALINA", username: "apostucatalina", isAdmin: true },
+  { fullName: "CANBEI RAZVAN", username: "canbeirazvan", isAdmin: false },
+  { fullName: "CHITICARU FLORIN", username: "chiticaruflorin", isAdmin: false },
+  { fullName: "CIOINEA VASILE", username: "cioineavasile", isAdmin: false },
+  { fullName: "COSTACHE FLORIN", username: "costacheflorin", isAdmin: true },
+  { fullName: "COSTACHE MARIUS", username: "costachemarius", isAdmin: false },
+  { fullName: "COSTAN IONEL", username: "costanionel", isAdmin: false },
+  { fullName: "FLOREA DANIEL", username: "floreadaniel", isAdmin: false },
+  { fullName: "FLOREA GHEORGHE", username: "floreagheorghe", isAdmin: false },
+  { fullName: "GHINTUIALA MADALINA", username: "ghintuialamadalina", isAdmin: true },
+  { fullName: "HRISCU COSTEL", username: "hriscucostel", isAdmin: false },
+  { fullName: "IFRIM CLAUDIU", username: "ifrimclaudiu", isAdmin: false },
+  { fullName: "IFRIM REMUS", username: "ifrimremus", isAdmin: false },
+  { fullName: "JIMBU COSTEL", username: "jimbucostel", isAdmin: false },
+  { fullName: "JIMBU GABRIEL", username: "jimbugabriel", isAdmin: false },
+  { fullName: "JIMBU MARIAN", username: "jimbumarian", isAdmin: false },
+  { fullName: "MACIUCA BOGDAN", username: "maciucabogdan", isAdmin: false },
+  { fullName: "MORARU ION", username: "moraruion", isAdmin: false },
+  { fullName: "MUNTEANU ADRIAN", username: "munteanuadrian", isAdmin: false },
+  { fullName: "NISTOR BOGDAN", username: "nistorbogdan", isAdmin: false },
+  { fullName: "NISTOR RADU", username: "nistorradu", isAdmin: false },
+  { fullName: "RADU COSTEL", username: "raducostel", isAdmin: false },
+  { fullName: "RADU IOAN", username: "raduioan", isAdmin: false },
+  { fullName: "RADU LAURENTIU", username: "radulaurentiu", isAdmin: true },
+  { fullName: "RUSU GHEORGHITA", username: "rusugheorghita", isAdmin: false },
+  { fullName: "RUSU IONEL", username: "rusuionel", isAdmin: false },
+  { fullName: "UNGUREANU MADALIN", username: "unguranumadalin", isAdmin: false },
+  { fullName: "URSACHE DUMITRU", username: "ursachedumitru", isAdmin: false },
 ];
 
 export default function BulkImport() {
@@ -111,15 +131,15 @@ export default function BulkImport() {
                 <CardHeader>
                   <CardTitle>Import Salariați</CardTitle>
                   <CardDescription>
-                    Importă {EMPLOYEES.length} salariați în sistem. Toți vor primi parola temporară "ChangeMe123!" și vor trebui să o schimbe la prima autentificare.
+                    Importă {EMPLOYEES.length} salariați în sistem. Toți vor primi parola temporară "1234".
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Alert>
                     <AlertDescription>
-                      <strong>Username format:</strong> nume + prenume (ex: abaeiciprian pentru Ababei Ciprian)<br />
+                      <strong>Username format:</strong> nume + prenume (ex: ababeiciprian pentru Ababei Ciprian)<br />
                       <strong>Email format:</strong> username@company.local<br />
-                      <strong>Parolă temporară:</strong> ChangeMe123!<br />
+                      <strong>Parolă temporară:</strong> 1234<br />
                       <strong>Administratori:</strong> {EMPLOYEES.filter(e => e.isAdmin).length} persoane
                     </AlertDescription>
                   </Alert>
