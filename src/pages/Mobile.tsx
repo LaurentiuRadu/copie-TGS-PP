@@ -19,6 +19,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useNavigate } from 'react-router-dom';
 import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
@@ -57,6 +67,7 @@ const Mobile = () => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; newType: ShiftType }>({ open: false, newType: null });
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -164,7 +175,7 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleShiftStart = useCallback(async (type: ShiftType) => {
+  const handleShiftStart = useCallback(async (type: ShiftType, skipConfirmation: boolean = false) => {
     if (isProcessing) return;
     
     if (!locationEnabled) {
@@ -172,9 +183,18 @@ const Mobile = () => {
       triggerHaptic('error');
       return;
     }
+
+    // If there's an active shift and it's different from the new type, show confirmation dialog
+    if (activeShift && activeShift !== type && !skipConfirmation) {
+      setConfirmDialog({ open: true, newType: type });
+      triggerHaptic('light');
+      return;
+    }
     
     setIsProcessing(true);
     triggerHaptic('medium');
+    
+    const previousShiftType = activeShift;
     
     try {
       // Check for any existing active shifts and close them
@@ -251,7 +271,13 @@ const Mobile = () => {
       setActiveShift(type);
       setShiftSeconds(0);
       triggerHaptic('success');
-      toast.success(`Pontaj început la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+      
+      // Enhanced toast message for shift changes
+      if (previousShiftType && previousShiftType !== type) {
+        toast.success(`Tură ${getShiftTypeLabel(previousShiftType)} închisă. Tură ${getShiftTypeLabel(type)} începută la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+      } else {
+        toast.success(`Pontaj început la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+      }
       
     } catch (error: any) {
       console.error('Failed to start shift:', error);
@@ -260,7 +286,19 @@ const Mobile = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [locationEnabled, isProcessing, user, triggerHaptic]);
+  }, [locationEnabled, isProcessing, user, triggerHaptic, activeShift]);
+
+  const handleConfirmShiftChange = useCallback(() => {
+    setConfirmDialog({ open: false, newType: null });
+    if (confirmDialog.newType) {
+      handleShiftStart(confirmDialog.newType, true);
+    }
+  }, [confirmDialog.newType, handleShiftStart]);
+
+  const handleCancelShiftChange = useCallback(() => {
+    setConfirmDialog({ open: false, newType: null });
+    triggerHaptic('light');
+  }, [triggerHaptic]);
 
   const handleShiftEnd = useCallback(async () => {
     if (isProcessing) return;
@@ -524,8 +562,8 @@ const Mobile = () => {
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("condus")}
-                disabled={!locationEnabled || activeShift !== null || isProcessing}
-                className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95"
+                disabled={!locationEnabled || isProcessing}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "ring-4 ring-blue-300 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -542,8 +580,8 @@ const Mobile = () => {
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("pasager")}
-                disabled={!locationEnabled || activeShift !== null || isProcessing}
-                className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95"
+                disabled={!locationEnabled || isProcessing}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "ring-4 ring-green-300 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -560,8 +598,8 @@ const Mobile = () => {
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("normal")}
-                disabled={!locationEnabled || activeShift !== null || isProcessing}
-                className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95"
+                disabled={!locationEnabled || isProcessing}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "ring-4 ring-purple-300 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -676,6 +714,22 @@ const Mobile = () => {
         </Card>
       </main>
 
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && handleCancelShiftChange()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Schimbare Regim Tură</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ai o tură activă de tip <strong>{getShiftTypeLabel(activeShift)}</strong>. 
+              Vrei să o închizi și să începi o tură nouă de tip <strong>{getShiftTypeLabel(confirmDialog.newType)}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelShiftChange}>Anulează</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmShiftChange}>Confirmă Schimbarea</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
