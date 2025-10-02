@@ -48,7 +48,7 @@ const mockMonthData: DayData[] = [
 ];
 
 const Mobile = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const [activeShift, setActiveShift] = useState<ShiftType>(null);
   const [shiftSeconds, setShiftSeconds] = useState(0);
   const [locationEnabled, setLocationEnabled] = useState(false);
@@ -99,11 +99,15 @@ const Mobile = () => {
     requestLocationAccess();
   }, [requestLocationAccess]);
 
-  // Check for active shift on mount
+  // Check for active shift on mount (after auth is ready)
   useEffect(() => {
     const checkActiveShift = async () => {
-      if (!user?.id) return;
-      
+      if (loading || !user?.id) {
+        console.debug('[Mobile] skip checkActiveShift', { loading, hasUser: !!user });
+        return;
+      }
+      console.debug('[Mobile] checkActiveShift start', { userId: user.id });
+
       try {
         const { data: activeEntry, error } = await supabase
           .from('time_entries')
@@ -114,29 +118,34 @@ const Mobile = () => {
           .limit(1)
           .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+          console.error('[Mobile] Active entry fetch error:', error);
+          return;
+        }
 
+        console.debug('[Mobile] activeEntry', { hasActive: !!activeEntry });
         if (activeEntry) {
-          // Extract shift type from notes
           const notesMatch = activeEntry.notes?.match(/Tip: (Condus|Pasager|Normal)/i);
-          const shiftType = notesMatch ? notesMatch[1].toLowerCase() as ShiftType : 'normal';
-          
-          // Calculate elapsed seconds
+          const shiftType = notesMatch ? (notesMatch[1].toLowerCase() as ShiftType) : 'normal';
+
           const clockInTime = new Date(activeEntry.clock_in_time).getTime();
-          const now = Date.now();
-          const elapsedSeconds = Math.floor((now - clockInTime) / 1000);
-          
+          const elapsedSeconds = Math.floor((Date.now() - clockInTime) / 1000);
+
           setActiveTimeEntry(activeEntry);
           setActiveShift(shiftType);
           setShiftSeconds(elapsedSeconds);
+        } else {
+          setActiveShift(null);
+          setActiveTimeEntry(null);
+          setShiftSeconds(0);
         }
       } catch (error) {
-        console.error('Failed to check active shift:', error);
+        console.error('[Mobile] Failed to check active shift:', error);
       }
     };
 
     checkActiveShift();
-  }, [user?.id]);
+  }, [user?.id, loading]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
