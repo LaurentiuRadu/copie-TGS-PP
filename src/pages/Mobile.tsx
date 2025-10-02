@@ -315,7 +315,12 @@ const Mobile = () => {
   console.log('Active time entry:', activeTimeEntry?.id);
 
   const handleEquipmentStart = useCallback(async () => {
+    console.log('=== CONDUS UTILAJ START ===');
+    console.log('Active time entry:', activeTimeEntry);
+    console.log('Equipment photo:', equipmentPhoto ? 'Photo present' : 'No photo');
+    
     if (!activeTimeEntry) {
+      console.error('No active time entry!');
       toast.error("Nu există pontaj activ pentru a marca condus utilaj");
       triggerHaptic('error');
       return;
@@ -325,31 +330,86 @@ const Mobile = () => {
     triggerHaptic('success');
 
     try {
+      let photoUrl = null;
+
+      // Upload photo if present
+      if (equipmentPhoto) {
+        console.log('Uploading equipment photo...');
+        try {
+          const base64Data = equipmentPhoto.split(',')[1];
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+          const fileName = `equipment_${activeTimeEntry.id}_${Date.now()}.jpg`;
+          const filePath = `${user?.id}/${fileName}`;
+
+          console.log('Uploading to path:', filePath);
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('profile-photos')
+            .upload(filePath, blob);
+
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            throw uploadError;
+          }
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('profile-photos')
+            .getPublicUrl(filePath);
+
+          photoUrl = publicUrl;
+          console.log('Photo uploaded successfully:', photoUrl);
+        } catch (uploadErr) {
+          console.error('Failed to upload photo:', uploadErr);
+          toast.error("Eroare la încărcarea pozei");
+        }
+      }
+
       // Update time entry with equipment marker
       const currentNotes = activeTimeEntry.notes || '';
+      const photoNote = photoUrl ? ` [Poză: ${photoUrl}]` : '';
       const updatedNotes = currentNotes.includes('Condus Utilaj') 
         ? currentNotes 
-        : `${currentNotes} | Condus Utilaj`;
+        : `${currentNotes} | Condus Utilaj${photoNote}`.trim();
 
-      const { error } = await supabase
+      console.log('Current notes:', currentNotes);
+      console.log('Updated notes:', updatedNotes);
+      console.log('Updating time entry ID:', activeTimeEntry.id);
+
+      const { data: updateData, error: updateError } = await supabase
         .from('time_entries')
         .update({ 
           notes: updatedNotes,
         })
-        .eq('id', activeTimeEntry.id);
+        .eq('id', activeTimeEntry.id)
+        .select();
 
-      if (error) throw error;
+      console.log('Update response:', { data: updateData, error: updateError });
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
 
       // Update local state
       setActiveTimeEntry({ ...activeTimeEntry, notes: updatedNotes });
+      setEquipmentPhoto(null);
       
+      console.log('=== CONDUS UTILAJ SUCCESS ===');
       toast.success("Condus Utilaj marcat cu succes!");
     } catch (error: any) {
+      console.error('=== CONDUS UTILAJ ERROR ===');
       console.error('Failed to mark equipment:', error);
-      toast.error("Eroare la marcarea utilajului");
+      toast.error("Eroare la marcarea utilajului: " + (error.message || 'Unknown error'));
       triggerHaptic('error');
     }
-  }, [activeTimeEntry, triggerHaptic]);
+  }, [activeTimeEntry, equipmentPhoto, user, triggerHaptic]);
 
   const handleEquipmentPhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
