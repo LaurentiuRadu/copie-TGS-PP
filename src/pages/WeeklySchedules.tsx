@@ -13,6 +13,8 @@ import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
+import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
+
 interface ScheduleEntry {
   id?: string;
   team_id: string;
@@ -30,6 +32,7 @@ const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', '
 
 export default function WeeklySchedules() {
   const queryClient = useQueryClient();
+  useRealtimeSchedules(true);
   const [selectedWeek, setSelectedWeek] = useState(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [selectedTeam, setSelectedTeam] = useState('E1');
   const [showForm, setShowForm] = useState(false);

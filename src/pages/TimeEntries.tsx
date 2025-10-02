@@ -93,6 +93,22 @@ const TimeEntries = () => {
     fetchEntries();
   }, [selectedDate]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('time-entries-admin-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, () => {
+        fetchEntries();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entry_segments' }, () => {
+        fetchEntries();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDate]);
+
   const getSegmentLabel = (type: string) => {
     const labels: Record<string, string> = {
       normal_day: 'Ore Normale Zi',

@@ -6,11 +6,15 @@ import { Calendar } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
+import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
+
 const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
 export function EmployeeScheduleView() {
   const { user } = useAuth();
   const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+
+  useRealtimeSchedules(true);
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ['my-schedules', user?.id, currentWeekStart],

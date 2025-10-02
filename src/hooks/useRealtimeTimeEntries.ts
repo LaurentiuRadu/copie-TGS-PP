@@ -49,6 +49,15 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'time_entry_segments' },
+        (payload) => {
+          console.log('Time entry segment change:', payload);
+          queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
+        }
+      )
       .subscribe();
 
     return () => {
