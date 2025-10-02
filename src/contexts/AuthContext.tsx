@@ -83,10 +83,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (event === 'SIGNED_IN') {
                   // Check current path to avoid unnecessary redirects
                   const currentPath = window.location.pathname;
-                  if (role === 'admin' && !currentPath.startsWith('/admin') && !currentPath.startsWith('/time-entries') && !currentPath.startsWith('/work-locations') && !currentPath.startsWith('/alerts') && !currentPath.startsWith('/face-verifications') && !currentPath.startsWith('/bulk-import') && !currentPath.startsWith('/user-management')) {
-                    navigate('/admin');
-                  } else if (role === 'employee' && !currentPath.startsWith('/mobile') && !currentPath.startsWith('/my-time-entries') && !currentPath.startsWith('/vacations')) {
-                    navigate('/mobile');
+                  
+                  // Define valid paths for each role
+                  const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules'];
+                  const employeePaths = ['/mobile', '/my-time-entries', '/vacations'];
+                  
+                  const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
+                                       (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
+                  
+                  // Only redirect if user is not on a valid path for their role
+                  if (!isOnValidPath) {
+                    if (role === 'admin') {
+                      navigate('/admin');
+                    } else if (role === 'employee') {
+                      navigate('/mobile');
+                    }
                   }
                 }
               });

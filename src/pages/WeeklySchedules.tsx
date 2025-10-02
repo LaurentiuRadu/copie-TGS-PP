@@ -836,14 +836,32 @@ export default function WeeklySchedules() {
                   </div>
                 ) : (
                   teamSummary.map((summary: any, idx: number) => (
-                    <Card key={idx} className="hover:shadow-lg transition-shadow cursor-pointer"
-                      onClick={() => setActiveTab('details')}>
+                    <Card key={idx} className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                           <span className="text-lg">Echipa {summary.team_id}</span>
-                          <Badge variant="outline">
-                            {summary.members.length} membri
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              {summary.members.length} membri
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const teamScheduleIds = schedules
+                                  ?.filter((s: any) => 
+                                    s.team_id === summary.team_id && 
+                                    s.coordinator_id === summary.coordinator?.id
+                                  )
+                                  .map((s: any) => s.id) || [];
+                                setSelectedScheduleIds(teamScheduleIds);
+                                setShowDeleteDialog(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </CardTitle>
                         {summary.coordinator && (
                           <CardDescription className="flex items-center gap-1">
@@ -852,7 +870,10 @@ export default function WeeklySchedules() {
                           </CardDescription>
                         )}
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent 
+                        className="space-y-3 cursor-pointer"
+                        onClick={() => setActiveTab('details')}
+                      >
                         <div className="pt-2 border-t">
                           <div className="text-xs text-muted-foreground mb-2">Membri echipă:</div>
                           <div className="flex flex-wrap gap-1">
