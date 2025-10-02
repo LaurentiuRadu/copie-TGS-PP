@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import * as XLSX from 'xlsx';
 
 const EMPLOYEES = [
   { fullName: "ANGAJAT 1", username: "angajat1", isAdmin: false },
@@ -65,6 +66,32 @@ export default function BulkImport() {
     }
   };
 
+  const handleExportCredentials = () => {
+    const exportData = EMPLOYEES.map(emp => ({
+      'Nume Complet': emp.fullName,
+      'Username': emp.username,
+      'Parolă': 'ChangeMe123!',
+      'Rol': emp.isAdmin ? 'Administrator' : 'Angajat'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    worksheet['!cols'] = [
+      { wch: 25 }, // Nume Complet
+      { wch: 20 }, // Username
+      { wch: 15 }, // Parolă
+      { wch: 15 }, // Rol
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Credențiale');
+    XLSX.writeFile(workbook, `credentiale-angajati-${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    toast({
+      title: "Export realizat",
+      description: "Lista cu credențiale a fost descărcată.",
+    });
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -90,7 +117,7 @@ export default function BulkImport() {
                 <CardContent className="space-y-4">
                   <Alert>
                     <AlertDescription>
-                      <strong>Username format:</strong> prenume + nume (ex: ababeiciprian)<br />
+                      <strong>Username format:</strong> nume + prenume (ex: abaeiciprian pentru Ababei Ciprian)<br />
                       <strong>Email format:</strong> username@company.local<br />
                       <strong>Parolă temporară:</strong> ChangeMe123!<br />
                       <strong>Administratori:</strong> {EMPLOYEES.filter(e => e.isAdmin).length} persoane
@@ -109,10 +136,16 @@ export default function BulkImport() {
                     </div>
                   </div>
 
-                  <Button onClick={handleImport} disabled={loading} className="w-full">
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Importă Salariați
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={handleImport} disabled={loading} className="flex-1">
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Importă Salariați
+                    </Button>
+                    <Button onClick={handleExportCredentials} variant="outline" disabled={loading}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Export Username & Parolă
+                    </Button>
+                  </div>
 
                   {results && (
                     <div className="space-y-4 mt-6">
