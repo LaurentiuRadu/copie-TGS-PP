@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -57,9 +57,20 @@ export default function WeeklySchedules() {
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [coordinatorId, setCoordinatorId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('summary');
+  
+  // Configuration per day - each day can have multiple location entries
+  interface DayConfiguration {
+    location: string;
+    activity: string;
+    vehicle: string;
+    shift_type: 'zi' | 'noapte';
+    observations: string;
+  }
+  const [dayConfigurations, setDayConfigurations] = useState<Record<number, DayConfiguration[]>>({});
+  
   const [formData, setFormData] = useState({
     team_id: 'E1',
     week_start_date: selectedWeek,
@@ -163,22 +174,25 @@ export default function WeeklySchedules() {
         return [editingSchedule];
       }
 
-      // Dacă adaugi - pentru fiecare zi selectată și fiecare angajat
+      // Dacă adaugi - pentru fiecare zi, configurație, și angajat
       const scheduleEntries = [];
       for (const dayOfWeek of selectedDays) {
-        for (const userId of selectedEmployees) {
-          scheduleEntries.push({
-            team_id: formData.team_id,
-            week_start_date: formData.week_start_date,
-            user_id: userId,
-            day_of_week: dayOfWeek,
-            location: formData.location,
-            activity: formData.activity,
-            vehicle: vehicles,
-            observations: formData.observations,
-            shift_type: formData.shift_type,
-            coordinator_id: coordinatorId
-          });
+        const configs = dayConfigurations[dayOfWeek] || [];
+        for (const config of configs) {
+          for (const userId of selectedEmployees) {
+            scheduleEntries.push({
+              team_id: formData.team_id,
+              week_start_date: formData.week_start_date,
+              user_id: userId,
+              day_of_week: dayOfWeek,
+              location: config.location,
+              activity: config.activity,
+              vehicle: config.vehicle || null,
+              observations: config.observations || null,
+              shift_type: config.shift_type,
+              coordinator_id: coordinatorId
+            });
+          }
         }
       }
 
@@ -237,8 +251,9 @@ export default function WeeklySchedules() {
     setEditingSchedule(null);
     setSelectedEmployees([]);
     setSelectedVehicles([]);
-    setSelectedDays([1]);
+    setSelectedDays([]);
     setCoordinatorId('');
+    setDayConfigurations({});
     setFormData({
       team_id: selectedTeam,
       week_start_date: selectedWeek,
@@ -256,6 +271,31 @@ export default function WeeklySchedules() {
       toast.error('Selectează cel puțin un angajat');
       return;
     }
+    
+    // Validate day configurations for new schedules
+    if (!editingSchedule) {
+      if (selectedDays.length === 0) {
+        toast.error('Selectează cel puțin o zi');
+        return;
+      }
+      
+      for (const day of selectedDays) {
+        const configs = dayConfigurations[day] || [];
+        if (configs.length === 0) {
+          toast.error(`Adaugă cel puțin o configurație pentru ${dayNames[day - 1]}`);
+          return;
+        }
+        // Validate each config has required fields
+        for (let i = 0; i < configs.length; i++) {
+          const config = configs[i];
+          if (!config.location || !config.activity) {
+            toast.error(`Completează Locația și Activitatea pentru ${dayNames[day - 1]} - Locație ${i + 1}`);
+            return;
+          }
+        }
+      }
+    }
+    
     createSchedule.mutate();
   };
 
@@ -296,11 +336,69 @@ export default function WeeklySchedules() {
 
   const toggleDay = (day: number) => {
     if (editingSchedule) return; // Nu permite multiselect în modul editare
-    setSelectedDays(prev => 
-      prev.includes(day) 
+    setSelectedDays(prev => {
+      const newDays = prev.includes(day) 
         ? prev.filter(d => d !== day)
-        : [...prev, day].sort()
-    );
+        : [...prev, day].sort();
+      
+      // Initialize or remove day configuration
+      setDayConfigurations(prevConfigs => {
+        const newConfigs = { ...prevConfigs };
+        if (newDays.includes(day) && !prevConfigs[day]) {
+          // Initialize with one empty configuration
+          newConfigs[day] = [{
+            location: '',
+            activity: '',
+            vehicle: '',
+            shift_type: 'zi',
+            observations: ''
+          }];
+        } else if (!newDays.includes(day)) {
+          // Remove configuration for unselected day
+          delete newConfigs[day];
+        }
+        return newConfigs;
+      });
+      
+      return newDays;
+    });
+  };
+  
+  const addDayConfiguration = (dayNum: number) => {
+    setDayConfigurations(prev => ({
+      ...prev,
+      [dayNum]: [
+        ...(prev[dayNum] || []),
+        {
+          location: '',
+          activity: '',
+          vehicle: '',
+          shift_type: 'zi',
+          observations: ''
+        }
+      ]
+    }));
+  };
+  
+  const removeDayConfiguration = (dayNum: number, configIndex: number) => {
+    setDayConfigurations(prev => {
+      const newConfigs = { ...prev };
+      newConfigs[dayNum] = newConfigs[dayNum].filter((_, idx) => idx !== configIndex);
+      return newConfigs;
+    });
+  };
+  
+  const updateDayConfiguration = (dayNum: number, configIndex: number, field: keyof DayConfiguration, value: string) => {
+    setDayConfigurations(prev => {
+      const newConfigs = { ...prev };
+      if (!newConfigs[dayNum]) return prev;
+      newConfigs[dayNum] = [...newConfigs[dayNum]];
+      newConfigs[dayNum][configIndex] = {
+        ...newConfigs[dayNum][configIndex],
+        [field]: value
+      };
+      return newConfigs;
+    });
   };
 
   const toggleScheduleSelection = (scheduleId: string) => {
@@ -550,45 +648,148 @@ export default function WeeklySchedules() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <Label>Tip Tură *</Label>
-                  <Select value={formData.shift_type} onValueChange={(value) => setFormData({ ...formData, shift_type: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="zi">Zi</SelectItem>
-                      <SelectItem value="noapte">Noapte</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {/* Day Configurations - shown only for new schedules */}
+              {!editingSchedule && selectedDays.length > 0 && (
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold text-lg">Configurare per Zi</h3>
+                  {selectedDays.sort((a, b) => a - b).map(dayNum => (
+                    <div key={dayNum} className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {dayNames[dayNum - 1]}
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addDayConfiguration(dayNum)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Adaugă locație
+                        </Button>
+                      </div>
+                      
+                      {(dayConfigurations[dayNum] || []).map((config, configIndex) => (
+                        <div key={configIndex} className="border rounded p-3 space-y-3 bg-background">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Locație {configIndex + 1}</span>
+                            {dayConfigurations[dayNum].length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeDayConfiguration(dayNum, configIndex)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <Label>Tip Tură *</Label>
+                              <Select
+                                value={config.shift_type}
+                                onValueChange={(value) => updateDayConfiguration(dayNum, configIndex, 'shift_type', value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="zi">Zi</SelectItem>
+                                  <SelectItem value="noapte">Noapte</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label>Locație *</Label>
+                              <Input
+                                value={config.location}
+                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'location', e.target.value)}
+                                placeholder="Ex: București"
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label>Activitate *</Label>
+                              <Input
+                                value={config.activity}
+                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'activity', e.target.value)}
+                                placeholder="Ex: Pază"
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label>Vehicul</Label>
+                              <Input
+                                value={config.vehicle}
+                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'vehicle', e.target.value)}
+                                placeholder="Ex: B-123-ABC"
+                              />
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                              <Label>Observații</Label>
+                              <Input
+                                value={config.observations}
+                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'observations', e.target.value)}
+                                placeholder="Detalii suplimentare"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <Label>Locație</Label>
-                  <Input
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="ex: Bacău"
-                  />
-                </div>
-                <div>
-                  <Label>Activitate</Label>
-                  <Input
-                    value={formData.activity}
-                    onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
-                    placeholder="ex: MIV"
-                  />
-                </div>
-              </div>
+              )}
 
-              <div>
-                <Label>Observații</Label>
-                <Input
-                  value={formData.observations}
-                  onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                  placeholder="ex: Coordonator..."
-                />
-              </div>
+              {/* Legacy fields - shown only for editing existing schedules */}
+              {editingSchedule && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Tip Tură *</Label>
+                    <Select value={formData.shift_type} onValueChange={(value) => setFormData({ ...formData, shift_type: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="zi">Zi</SelectItem>
+                        <SelectItem value="noapte">Noapte</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Locație</Label>
+                    <Input
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="ex: Bacău"
+                    />
+                  </div>
+                  <div>
+                    <Label>Activitate</Label>
+                    <Input
+                      value={formData.activity}
+                      onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
+                      placeholder="ex: MIV"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {editingSchedule && (
+                <div>
+                  <Label>Observații</Label>
+                  <Input
+                    value={formData.observations}
+                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+                    placeholder="ex: Coordonator..."
+                  />
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={createSchedule.isPending}>
