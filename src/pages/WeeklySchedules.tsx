@@ -849,6 +849,25 @@ export default function WeeklySchedules() {
                               size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setActiveTab('details');
+                                // Select all schedules from this team
+                                const teamScheduleIds = schedules
+                                  ?.filter((s: any) => 
+                                    s.team_id === summary.team_id && 
+                                    s.coordinator_id === summary.coordinator?.id
+                                  )
+                                  .map((s: any) => s.id) || [];
+                                setSelectedScheduleIds(teamScheduleIds);
+                              }}
+                              title="Editează programările"
+                            >
+                              <Edit className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const teamScheduleIds = schedules
                                   ?.filter((s: any) => 
                                     s.team_id === summary.team_id && 
@@ -858,6 +877,7 @@ export default function WeeklySchedules() {
                                 setSelectedScheduleIds(teamScheduleIds);
                                 setShowDeleteDialog(true);
                               }}
+                              title="Șterge toate programările"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
