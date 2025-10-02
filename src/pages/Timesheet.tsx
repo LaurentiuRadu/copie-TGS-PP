@@ -70,11 +70,11 @@ const Timesheet = () => {
   const getSegmentLabel = (type: string) => {
     const labels: { [key: string]: string } = {
       normal: 'Normal',
-      weekend: 'Weekend',
-      weekend_night: 'Weekend Noapte',
+      night: 'Noapte',
+      saturday: 'Sâmbătă',
+      sunday: 'Duminică',
       holiday: 'Sărbătoare',
       holiday_night: 'Sărbătoare Noapte',
-      night: 'Noapte',
     };
     return labels[type] || type;
   };
@@ -82,17 +82,18 @@ const Timesheet = () => {
   const getSegmentColor = (type: string) => {
     const colors: { [key: string]: string } = {
       normal: 'default',
-      weekend: 'secondary',
-      weekend_night: 'secondary',
+      night: 'outline',
+      saturday: 'secondary',
+      sunday: 'destructive',
       holiday: 'destructive',
       holiday_night: 'destructive',
-      night: 'outline',
     };
     return colors[type] || 'default';
   };
 
   const calculateTotalHours = (entry: any) => {
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
+      // Sum hours_decimal directly - they already contain the multiplier applied
       return entry.time_entry_segments.reduce((sum: number, seg: any) => sum + Number(seg.hours_decimal), 0);
     }
     if (entry.clock_out_time) {
@@ -102,20 +103,10 @@ const Timesheet = () => {
     return 0;
   };
 
-  const calculateWeightedHours = (entry: any) => {
-    if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
-      return entry.time_entry_segments.reduce(
-        (sum: number, seg: any) => sum + Number(seg.hours_decimal) * Number(seg.multiplier),
-        0
-      );
-    }
-    return calculateTotalHours(entry);
-  };
-
   const formatSegments = (segments: any[]) => {
     if (!segments || segments.length === 0) return '-';
     return segments
-      .map((seg) => `${getSegmentLabel(seg.segment_type)}: ${Number(seg.hours_decimal).toFixed(2)}h (${seg.multiplier}x)`)
+      .map((seg) => `${getSegmentLabel(seg.segment_type)}: ${Number(seg.hours_decimal).toFixed(2)}h`)
       .join(', ');
   };
 
@@ -157,18 +148,19 @@ const Timesheet = () => {
     }
 
     // Default: Normal shifts - distribute hours by time segments
+    // IMPORTANT: hours_decimal already contains hours WITH multiplier applied
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
       entry.time_entry_segments.forEach((seg: any) => {
-        const h = Number(seg.hours_decimal);
+        const h = Number(seg.hours_decimal); // Already multiplied hours
         const type = seg.segment_type;
 
         if (type === 'normal') {
           hours.normale += h;
-        } else if (type === 'night' || type.includes('night')) {
+        } else if (type === 'night') {
           hours.noapte += h;
-        } else if (type === 'weekend' || type.includes('weekend')) {
+        } else if (type === 'saturday') {
           hours.sambata += h;
-        } else if (type === 'holiday' || type.includes('holiday')) {
+        } else if (type === 'sunday' || type === 'holiday' || type === 'holiday_night') {
           hours.sarbatori += h;
         }
       });
@@ -221,7 +213,8 @@ const Timesheet = () => {
   }) || [];
 
   const totalHours = filteredEntries.reduce((sum, entry) => sum + calculateTotalHours(entry), 0);
-  const totalPaidHours = filteredEntries.reduce((sum, entry) => sum + calculateWeightedHours(entry), 0);
+  // Total paid hours is the same as total hours now (already includes multipliers)
+  const totalPaidHours = totalHours;
 
   // Calculate monthly aggregates by employee
   const employeeAggregates = filteredEntries.reduce((acc: any, entry) => {
@@ -425,8 +418,7 @@ const Timesheet = () => {
                       label="Ore"
                       value={
                         <div className="flex gap-2">
-                          <Badge variant="outline">{calculateTotalHours(entry).toFixed(2)}h</Badge>
-                          <Badge variant="default">{calculateWeightedHours(entry).toFixed(2)}h plătite</Badge>
+                          <Badge variant="default">{calculateTotalHours(entry).toFixed(2)}h plătite</Badge>
                         </div>
                       }
                     />

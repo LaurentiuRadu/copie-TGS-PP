@@ -73,41 +73,51 @@ Deno.serve(async (req) => {
       const hour = current.getHours();
       const isNight = hour >= 22 || hour < 6;
       
+      // Calculate actual worked hours for this segment
+      const actualHours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
+      
       if (isHoliday) {
         // Pentru sărbători: 00:00-06:00 = 25% spor, 06:00-24:00 = 100% spor
         if (hour < 6) {
           segmentType = 'holiday_night';
           multiplier = 1.25;
         } else {
-          segmentType = 'holiday_day';
+          segmentType = 'holiday';
           multiplier = 2.0;
         }
       } else if (isSunday) {
         // Pentru duminică: 00:00-06:00 = 25% spor, 06:00-24:00 = 100% spor
         if (hour < 6) {
-          segmentType = 'weekend_sunday_night';
+          segmentType = 'night';
           multiplier = 1.25;
         } else {
-          segmentType = 'weekend_sunday_day';
+          segmentType = 'sunday';
           multiplier = 2.0;
         }
       } else if (isSaturday) {
         // Pentru sâmbătă: tot 50% spor (inclusiv noaptea 22:00-06:00)
-        segmentType = isNight ? 'weekend_saturday_night' : 'weekend_saturday_day';
+        segmentType = 'saturday';
         multiplier = 1.5;
       } else {
         // Zile normale: 06:00-22:00 = 0% spor, 22:00-06:00 = 25% spor
-        segmentType = isNight ? 'normal_night' : 'normal_day';
-        multiplier = isNight ? 1.25 : 1.0;
+        if (isNight) {
+          segmentType = 'night';
+          multiplier = 1.25;
+        } else {
+          segmentType = 'normal';
+          multiplier = 1.0;
+        }
       }
       
-      const hours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
+      // IMPORTANT: hours_decimal contains ACTUAL HOURS × MULTIPLIER
+      // This is the final paid amount, not raw hours
+      const paidHours = actualHours * multiplier;
       
       segments.push({
         segment_type: segmentType,
         start_time: current.toISOString(),
         end_time: segmentEnd.toISOString(),
-        hours_decimal: Math.round(hours * 100) / 100,
+        hours_decimal: Math.round(paidHours * 100) / 100,
         multiplier
       });
       
