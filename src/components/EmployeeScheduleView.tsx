@@ -256,7 +256,7 @@ export function EmployeeScheduleView() {
                           variant="secondary" 
                           className="text-xs font-normal"
                         >
-                          {teammate.full_name}
+                          {teammate.full_name || teammate.username || 'Fără nume'}
                         </Badge>
                       ))}
                     </div>
@@ -276,7 +276,7 @@ export function EmployeeScheduleView() {
                           variant="outline" 
                           className="text-xs font-normal"
                         >
-                          {member.full_name}
+                          {member.full_name || member.username || 'Fără nume'}
                         </Badge>
                       ))}
                     </div>
