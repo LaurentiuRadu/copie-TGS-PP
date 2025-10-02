@@ -131,17 +131,32 @@ const Timesheet = () => {
     };
 
     const notes = entry.notes || '';
-    const isPassenger = notes.toLowerCase().includes('pasager');
-    const isDriving = notes.toLowerCase().includes('condus') && !notes.toLowerCase().includes('utilaj');
+    const totalHours = calculateTotalHours(entry);
+
+    // Check shift type from notes to determine which category to use
+    const isPassenger = notes.toLowerCase().includes('tip: pasager');
+    const isDriving = notes.toLowerCase().includes('tip: condus');
     const isEquipment = notes.toLowerCase().includes('condus utilaj');
 
-    // If passenger, all hours go to passenger category only
-    if (isPassenger) {
-      hours.pasager = calculateTotalHours(entry);
+    // Priority 1: If marked as "Condus Utilaj", all hours go to Utilaj
+    if (isEquipment) {
+      hours.utilaj = totalHours;
       return hours;
     }
 
-    // Calculate base hours from segments (normal work time distribution)
+    // Priority 2: If shift type is "Pasager", all hours go to Pasager
+    if (isPassenger) {
+      hours.pasager = totalHours;
+      return hours;
+    }
+
+    // Priority 3: If shift type is "Condus", all hours go to Condus
+    if (isDriving) {
+      hours.condus = totalHours;
+      return hours;
+    }
+
+    // Default: Normal shifts - distribute hours by time segments
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
       entry.time_entry_segments.forEach((seg: any) => {
         const h = Number(seg.hours_decimal);
@@ -157,15 +172,6 @@ const Timesheet = () => {
           hours.sarbatori += h;
         }
       });
-    }
-
-    // Add driving/equipment markers - these are ADDITIONAL to base hours
-    const totalHours = calculateTotalHours(entry);
-    if (isDriving) {
-      hours.condus = totalHours;
-    }
-    if (isEquipment) {
-      hours.utilaj = totalHours;
     }
 
     return hours;
