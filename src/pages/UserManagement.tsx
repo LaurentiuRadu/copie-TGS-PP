@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Key, LogOut, RefreshCw, Search, Filter, UserPlus } from "lucide-react";
+import { Users, Key, LogOut, RefreshCw, Search, Filter, UserPlus, Edit } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -46,6 +46,13 @@ const UserManagement = () => {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'admin' | 'employee'>('employee');
   const [creating, setCreating] = useState(false);
+
+  // Edit user dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -187,6 +194,72 @@ const UserManagement = () => {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser || !editFirstName || !editLastName) {
+      toast({
+        title: "Eroare",
+        description: "Completează toate câmpurile",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Eroare",
+          description: "Nu ești autentificat",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('update-user', {
+        body: {
+          userId: editingUser.id,
+          firstName: editFirstName,
+          lastName: editLastName,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error updating user:', error);
+        toast({
+          title: "Eroare",
+          description: "Nu s-a putut actualiza utilizatorul",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Succes",
+        description: `Utilizatorul ${editingUser.username} a fost actualizat`,
+      });
+
+      setEditDialogOpen(false);
+      setEditingUser(null);
+      setEditFirstName('');
+      setEditLastName('');
+      loadUsers();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut actualiza utilizatorul",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -471,6 +544,85 @@ const UserManagement = () => {
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
+                                <div className="flex gap-2 justify-end">
+                                  <Dialog open={editDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
+                                    setEditDialogOpen(open);
+                                    if (!open) {
+                                      setEditingUser(null);
+                                      setEditFirstName('');
+                                      setEditLastName('');
+                                    }
+                                  }}>
+                                    <DialogTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingUser(user);
+                                          const names = user.fullName.split(' ');
+                                          setEditFirstName(names.slice(0, -1).join(' ') || '');
+                                          setEditLastName(names[names.length - 1] || '');
+                                          setEditDialogOpen(true);
+                                        }}
+                                        className="gap-2 hover:bg-accent/50 transition-all"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                        Editează
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-md">
+                                      <DialogHeader>
+                                        <DialogTitle>Editează Utilizator</DialogTitle>
+                                        <DialogDescription>
+                                          Actualizează numele și prenumele pentru {user.username}
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="space-y-4 py-4">
+                                        <div className="grid grid-cols-2 gap-3">
+                                          <div className="space-y-2">
+                                            <Label htmlFor="edit-firstname">Prenume *</Label>
+                                            <Input
+                                              id="edit-firstname"
+                                              placeholder="ex: Laurențiu"
+                                              value={editFirstName}
+                                              onChange={(e) => setEditFirstName(e.target.value)}
+                                              className="border-primary/20 focus:border-primary"
+                                            />
+                                          </div>
+                                          <div className="space-y-2">
+                                            <Label htmlFor="edit-lastname">Nume *</Label>
+                                            <Input
+                                              id="edit-lastname"
+                                              placeholder="ex: Radu"
+                                              value={editLastName}
+                                              onChange={(e) => setEditLastName(e.target.value)}
+                                              className="border-primary/20 focus:border-primary"
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <DialogFooter>
+                                        <Button
+                                          variant="outline"
+                                          onClick={() => {
+                                            setEditDialogOpen(false);
+                                            setEditingUser(null);
+                                            setEditFirstName('');
+                                            setEditLastName('');
+                                          }}
+                                        >
+                                          Anulează
+                                        </Button>
+                                        <Button 
+                                          onClick={handleUpdateUser}
+                                          disabled={updating || !editFirstName || !editLastName}
+                                          className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                        >
+                                          {updating ? 'Se actualizează...' : 'Salvează'}
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
                               <Dialog open={resetDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
                                 setResetDialogOpen(open);
                                 if (!open) {
@@ -537,6 +689,7 @@ const UserManagement = () => {
                                   </DialogFooter>
                                 </DialogContent>
                               </Dialog>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -573,6 +726,87 @@ const UserManagement = () => {
                               fullWidth
                             />
                             
+                            <div className="flex gap-2">
+                              <Dialog open={editDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
+                                setEditDialogOpen(open);
+                                if (!open) {
+                                  setEditingUser(null);
+                                  setEditFirstName('');
+                                  setEditLastName('');
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingUser(user);
+                                      const names = user.fullName.split(' ');
+                                      setEditFirstName(names.slice(0, -1).join(' ') || '');
+                                      setEditLastName(names[names.length - 1] || '');
+                                      setEditDialogOpen(true);
+                                    }}
+                                    className="flex-1 gap-2 hover:bg-accent/50 transition-all touch-target"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Editează
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                  <DialogHeader>
+                                    <DialogTitle>Editează Utilizator</DialogTitle>
+                                    <DialogDescription>
+                                      Actualizează numele și prenumele pentru {user.username}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-firstname-mobile">Prenume *</Label>
+                                        <Input
+                                          id="edit-firstname-mobile"
+                                          placeholder="ex: Laurențiu"
+                                          value={editFirstName}
+                                          onChange={(e) => setEditFirstName(e.target.value)}
+                                          className="border-primary/20 focus:border-primary"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-lastname-mobile">Nume *</Label>
+                                        <Input
+                                          id="edit-lastname-mobile"
+                                          placeholder="ex: Radu"
+                                          value={editLastName}
+                                          onChange={(e) => setEditLastName(e.target.value)}
+                                          className="border-primary/20 focus:border-primary"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <DialogFooter className="flex-col sm:flex-row gap-2">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setEditDialogOpen(false);
+                                        setEditingUser(null);
+                                        setEditFirstName('');
+                                        setEditLastName('');
+                                      }}
+                                      className="w-full sm:w-auto"
+                                    >
+                                      Anulează
+                                    </Button>
+                                    <Button 
+                                      onClick={handleUpdateUser}
+                                      disabled={updating || !editFirstName || !editLastName}
+                                      className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                    >
+                                      {updating ? 'Se actualizează...' : 'Salvează'}
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            
                             <Dialog open={resetDialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
                               setResetDialogOpen(open);
                               if (!open) {
@@ -588,7 +822,7 @@ const UserManagement = () => {
                                     setSelectedUser(user);
                                     setResetDialogOpen(true);
                                   }}
-                                  className="w-full gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary transition-all touch-target"
+                                  className="flex-1 gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary transition-all touch-target"
                                 >
                                   <Key className="h-4 w-4" />
                                   Resetează Parolă
@@ -640,6 +874,7 @@ const UserManagement = () => {
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>
+                            </div>
                           </div>
                         </MobileTableCard>
                       ))}
