@@ -53,7 +53,7 @@ const Auth = () => {
 
       if (isSignUp) {
         // For signup, we create an account with username as email (workaround)
-        const email = `${validated.username}@employee.local`;
+        const email = `${validated.username}@company.local`;
         
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -85,7 +85,7 @@ const Auth = () => {
         }
       } else {
         // Login with username
-        const email = `${validated.username}@employee.local`;
+        const email = `${validated.username}@company.local`;
         
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,

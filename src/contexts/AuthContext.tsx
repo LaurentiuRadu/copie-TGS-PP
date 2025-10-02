@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const deriveRoleFromUser = (u: User): Exclude<UserRole, null> | null => {
     const email = u.email || (u.user_metadata as any)?.email || "";
-    if (email.endsWith("@employee.local")) return 'employee';
+    if (email.endsWith("@company.local")) return 'employee';
     if (email === 'demoadmin@test.com' || email.endsWith('@tgservices.ro')) return 'admin';
     return null;
   };
