@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Calendar, Plus, Trash2 } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 
@@ -30,6 +31,19 @@ interface ScheduleEntry {
 
 const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
+const AVAILABLE_VEHICLES = [
+  'B-119-ARF',
+  'B-169-TGS',
+  'B-777-TGS',
+  'B-997-TGS',
+  'BC-19-TGS',
+  'BC-29-CUL',
+  'BC-37-CUL',
+  'BC-61-CUL',
+  'BC-81-TGS',
+  'BC-99-CUL'
+];
+
 export default function WeeklySchedules() {
   const queryClient = useQueryClient();
   useRealtimeSchedules(true);
@@ -37,7 +51,7 @@ export default function WeeklySchedules() {
   const [selectedTeam, setSelectedTeam] = useState('E1');
   const [showForm, setShowForm] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  const [vehiclesList, setVehiclesList] = useState<string[]>(['']);
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     team_id: 'E1',
     week_start_date: selectedWeek,
@@ -85,7 +99,7 @@ export default function WeeklySchedules() {
         throw new Error('Selectează cel puțin un angajat');
       }
 
-      const vehicles = vehiclesList.filter(v => v.trim()).join(', ');
+      const vehicles = selectedVehicles.join(', ');
       const scheduleEntries = selectedEmployees.map(userId => ({
         team_id: formData.team_id,
         week_start_date: formData.week_start_date,
@@ -122,7 +136,7 @@ export default function WeeklySchedules() {
       toast.success('Programări adăugate cu succes!');
       setShowForm(false);
       setSelectedEmployees([]);
-      setVehiclesList(['']);
+      setSelectedVehicles([]);
       setFormData({
         team_id: selectedTeam,
         week_start_date: selectedWeek,
@@ -175,16 +189,12 @@ export default function WeeklySchedules() {
     );
   };
 
-  const addVehicle = () => {
-    setVehiclesList(prev => [...prev, '']);
-  };
-
-  const updateVehicle = (index: number, value: string) => {
-    setVehiclesList(prev => prev.map((v, i) => i === index ? value : v));
-  };
-
-  const removeVehicle = (index: number) => {
-    setVehiclesList(prev => prev.filter((_, i) => i !== index));
+  const toggleVehicle = (vehicle: string) => {
+    setSelectedVehicles(prev => 
+      prev.includes(vehicle) 
+        ? prev.filter(v => v !== vehicle)
+        : [...prev, vehicle]
+    );
   };
 
   return (
@@ -260,39 +270,29 @@ export default function WeeklySchedules() {
                   </p>
                 </div>
 
-                {/* Multi-input Mașini */}
+                {/* Multi-select Mașini */}
                 <div className="space-y-3">
-                  <Label>Mașini (multiple)</Label>
-                  <div className="space-y-2">
-                    {vehiclesList.map((vehicle, index) => (
-                      <div key={index} className="flex gap-2">
-                        <Input
-                          value={vehicle}
-                          onChange={(e) => updateVehicle(index, e.target.value)}
-                          placeholder="ex: BC37CUL"
+                  <Label>Mașini (selectare multiplă)</Label>
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                    {AVAILABLE_VEHICLES.map(vehicle => (
+                      <div key={vehicle} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`vehicle-${vehicle}`}
+                          checked={selectedVehicles.includes(vehicle)}
+                          onCheckedChange={() => toggleVehicle(vehicle)}
                         />
-                        {vehiclesList.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeVehicle(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <label
+                          htmlFor={`vehicle-${vehicle}`}
+                          className="text-sm cursor-pointer flex-1 font-mono"
+                        >
+                          {vehicle}
+                        </label>
                       </div>
                     ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addVehicle}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adaugă mașină
-                    </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedVehicles.length} mașină/i selectată/e
+                  </p>
                 </div>
               </div>
 
@@ -398,7 +398,15 @@ export default function WeeklySchedules() {
                       <TableCell>{schedule.profiles?.full_name}</TableCell>
                       <TableCell>{schedule.location}</TableCell>
                       <TableCell>{schedule.activity}</TableCell>
-                      <TableCell>{schedule.vehicle}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {schedule.vehicle?.split(',').map((v: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="font-mono">
+                              {v.trim()}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
                       <TableCell>{schedule.observations}</TableCell>
                       <TableCell>
                         <Button
