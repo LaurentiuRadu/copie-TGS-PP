@@ -38,8 +38,8 @@ Deno.serve(async (req) => {
     }
 
     const userId = profile.id;
-    const oldEmail = `${oldUsername}@employee.local`;
-    const newEmail = `${newUsername}@employee.local`;
+    const oldEmail = `${oldUsername}@company.local`;
+    const newEmail = `${newUsername}@company.local`;
 
     // Update email in auth.users
     const { error: authError } = await supabaseClient.auth.admin.updateUserById(

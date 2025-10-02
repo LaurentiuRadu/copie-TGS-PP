@@ -84,18 +84,36 @@ const Auth = () => {
           navigate("/mobile");
         }
       } else {
-        // Login with username
-        const email = `${validated.username}@company.local`;
+        // Login with username - try both domains with fallback
+        const primaryEmail = `${validated.username}@company.local`;
         
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+        let { error: signInError } = await supabase.auth.signInWithPassword({
+          email: primaryEmail,
           password: validated.password,
         });
 
-        if (signInError) {
-          if (signInError.message.includes("Invalid")) {
+        // If failed with @company.local, try @employee.local
+        if (signInError && signInError.message.includes("Invalid")) {
+          const fallbackEmail = `${validated.username}@employee.local`;
+          
+          const { data: fallbackData, error: fallbackError } = await supabase.auth.signInWithPassword({
+            email: fallbackEmail,
+            password: validated.password,
+          });
+
+          if (fallbackError) {
             throw new Error("Username sau parolă incorectă");
           }
+
+          // Successfully logged in with old domain - migrate to new domain in background
+          if (fallbackData.user) {
+            supabase.auth.admin.updateUserById(fallbackData.user.id, {
+              email: primaryEmail
+            }).catch(err => console.error("Domain migration error:", err));
+            
+            toast.success("Autentificare reușită!");
+          }
+        } else if (signInError) {
           throw signInError;
         }
 

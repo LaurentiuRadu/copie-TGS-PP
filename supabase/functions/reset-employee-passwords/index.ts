@@ -55,15 +55,17 @@ Deno.serve(async (req) => {
         }
 
         const email = userResp.user?.email || ''
-        // Only reset for employee accounts created for time tracking
-        if (!email.endsWith('@company.local')) {
-          results.skipped += 1
-          continue
+        
+        // Reset ALL employee accounts, regardless of domain
+        // Also migrate old @employee.local accounts to @company.local
+        const updates: any = { password: targetPassword }
+        
+        if (email.endsWith('@employee.local')) {
+          const username = email.replace('@employee.local', '')
+          updates.email = `${username}@company.local`
         }
 
-        const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-          password: targetPassword,
-        })
+        const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userId, updates)
 
         if (updateErr) {
           results.errors.push({ user_id: userId, error: updateErr.message })

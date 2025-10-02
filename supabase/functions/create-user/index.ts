@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     }
 
     const fullName = `${firstName} ${lastName}`;
-    const email = `${username}@employee.local`;
+    const email = `${username}@company.local`;
 
     // Create user in auth.users
     const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
