@@ -443,14 +443,17 @@ export default function WeeklySchedules() {
           team_id: schedule.team_id,
           coordinator: schedule.coordinator_id ? 
             employees?.find(e => e.id === schedule.coordinator_id) : null,
+          coordinator_id: schedule.coordinator_id,
           members: new Set(),
           locations: new Map(), // Map of day -> location details
           days: new Set(),
+          scheduleIds: [], // Store all schedule IDs for this team
         };
       }
       
       acc[key].members.add(schedule.profiles?.full_name || 'N/A');
       acc[key].days.add(schedule.day_of_week);
+      acc[key].scheduleIds.push(schedule.id); // Add schedule ID
       
       // Track locations per day
       const dayKey = schedule.day_of_week;
@@ -850,14 +853,8 @@ export default function WeeklySchedules() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveTab('details');
-                                // Select all schedules from this team
-                                const teamScheduleIds = schedules
-                                  ?.filter((s: any) => 
-                                    s.team_id === summary.team_id && 
-                                    s.coordinator_id === summary.coordinator?.id
-                                  )
-                                  .map((s: any) => s.id) || [];
-                                setSelectedScheduleIds(teamScheduleIds);
+                                // Use the stored schedule IDs
+                                setSelectedScheduleIds(summary.scheduleIds || []);
                               }}
                               title="Editează programările"
                             >
@@ -868,13 +865,8 @@ export default function WeeklySchedules() {
                               size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const teamScheduleIds = schedules
-                                  ?.filter((s: any) => 
-                                    s.team_id === summary.team_id && 
-                                    s.coordinator_id === summary.coordinator?.id
-                                  )
-                                  .map((s: any) => s.id) || [];
-                                setSelectedScheduleIds(teamScheduleIds);
+                                // Use the stored schedule IDs
+                                setSelectedScheduleIds(summary.scheduleIds || []);
                                 setShowDeleteDialog(true);
                               }}
                               title="Șterge toate programările"
