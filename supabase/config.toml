@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.update-employee-username]
 verify_jwt = true
+
+[functions.create-user]
+verify_jwt = true

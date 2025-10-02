@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Key, LogOut, RefreshCw, Search, Filter } from "lucide-react";
+import { Users, Key, LogOut, RefreshCw, Search, Filter, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AdminSearchCommand } from "@/components/AdminSearchCommand";
 import { MobileTableCard, MobileTableRow } from "@/components/MobileTableCard";
 import { ResponsiveHeader } from "@/components/ResponsiveHeader";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface User {
   id: string;
@@ -36,6 +37,15 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [resetting, setResetting] = useState(false);
+  
+  // Add user dialog
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newFirstName, setNewFirstName] = useState('');
+  const [newLastName, setNewLastName] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'employee'>('employee');
+  const [creating, setCreating] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -100,6 +110,85 @@ const UserManagement = () => {
     );
     setFilteredUsers(filtered);
   }, [searchQuery, users]);
+
+  const handleAddUser = async () => {
+    if (!newUsername || !newFirstName || !newLastName || !newUserPassword) {
+      toast({
+        title: "Eroare",
+        description: "Completează toate câmpurile",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newUserPassword.length < 6) {
+      toast({
+        title: "Eroare",
+        description: "Parola trebuie să aibă cel puțin 6 caractere",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setCreating(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Eroare",
+          description: "Nu ești autentificat",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('create-user', {
+        body: {
+          username: newUsername,
+          firstName: newFirstName,
+          lastName: newLastName,
+          password: newUserPassword,
+          role: newUserRole,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error creating user:', error);
+        toast({
+          title: "Eroare",
+          description: "Nu s-a putut crea utilizatorul",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Succes",
+        description: `Utilizatorul ${newUsername} a fost creat cu succes`,
+      });
+
+      setAddUserDialogOpen(false);
+      setNewUsername('');
+      setNewFirstName('');
+      setNewLastName('');
+      setNewUserPassword('');
+      setNewUserRole('employee');
+      loadUsers();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut crea utilizatorul",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleResetPassword = async () => {
     if (!selectedUser || !newPassword) {
@@ -183,6 +272,106 @@ const UserManagement = () => {
             <div className="hidden md:block">
               <AdminSearchCommand />
             </div>
+            <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  size="sm"
+                  className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden md:inline">Adaugă Utilizator</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Adaugă Utilizator Nou</DialogTitle>
+                  <DialogDescription>
+                    Creează un cont nou pentru un angajat sau administrator
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new-username">Username *</Label>
+                    <Input
+                      id="new-username"
+                      placeholder="ex: laurentiuradu"
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      className="border-primary/20 focus:border-primary"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-firstname">Prenume *</Label>
+                      <Input
+                        id="new-firstname"
+                        placeholder="ex: Laurențiu"
+                        value={newFirstName}
+                        onChange={(e) => setNewFirstName(e.target.value)}
+                        className="border-primary/20 focus:border-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-lastname">Nume *</Label>
+                      <Input
+                        id="new-lastname"
+                        placeholder="ex: Radu"
+                        value={newLastName}
+                        onChange={(e) => setNewLastName(e.target.value)}
+                        className="border-primary/20 focus:border-primary"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-password">Parolă *</Label>
+                    <Input
+                      id="new-user-password"
+                      type="text"
+                      placeholder="Minim 6 caractere"
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
+                      autoComplete="off"
+                      className="border-primary/20 focus:border-primary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-user-role">Rol *</Label>
+                    <Select value={newUserRole} onValueChange={(value: 'admin' | 'employee') => setNewUserRole(value)}>
+                      <SelectTrigger className="border-primary/20 focus:border-primary">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employee">Angajat</SelectItem>
+                        <SelectItem value="admin">Administrator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setAddUserDialogOpen(false);
+                      setNewUsername('');
+                      setNewFirstName('');
+                      setNewLastName('');
+                      setNewUserPassword('');
+                      setNewUserRole('employee');
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    Anulează
+                  </Button>
+                  <Button 
+                    onClick={handleAddUser}
+                    disabled={creating || !newUsername || !newFirstName || !newLastName || !newUserPassword}
+                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                  >
+                    {creating ? 'Se creează...' : 'Creează Utilizator'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button 
               variant="outline" 
               size="sm" 
