@@ -312,6 +312,7 @@ const Mobile = () => {
   console.log('Username lowercase:', user?.user_metadata?.username?.toLowerCase());
   console.log('Can use equipment:', canUseEquipment);
   console.log('Active shift:', activeShift);
+  console.log('Active time entry:', activeTimeEntry?.id);
 
   const handleEquipmentStart = useCallback(async () => {
     if (!activeTimeEntry) {

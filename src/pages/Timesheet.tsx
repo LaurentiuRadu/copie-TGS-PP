@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -20,6 +20,7 @@ import { exportToExcel, exportToCSV } from '@/lib/exportUtils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTableCard, MobileTableRow } from '@/components/MobileTableCard';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Popover,
   PopoverContent,
@@ -30,6 +31,41 @@ const Timesheet = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
   const isMobile = useIsMobile();
+
+  // Realtime subscription for time entries and segments
+  useEffect(() => {
+    const channel = supabase
+      .channel('timesheet-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'time_entries'
+        },
+        () => {
+          // Refetch data when time entries change
+          window.location.reload();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'time_entry_segments'
+        },
+        () => {
+          // Refetch data when segments change
+          window.location.reload();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const getSegmentLabel = (type: string) => {
     const labels: { [key: string]: string } = {
@@ -94,6 +130,18 @@ const Timesheet = () => {
       utilaj: 0,
     };
 
+    const notes = entry.notes || '';
+    const isPassenger = notes.toLowerCase().includes('pasager');
+    const isDriving = notes.toLowerCase().includes('condus') && !notes.toLowerCase().includes('utilaj');
+    const isEquipment = notes.toLowerCase().includes('condus utilaj');
+
+    // If passenger, all hours go to passenger category only
+    if (isPassenger) {
+      hours.pasager = calculateTotalHours(entry);
+      return hours;
+    }
+
+    // Calculate base hours from segments (normal work time distribution)
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
       entry.time_entry_segments.forEach((seg: any) => {
         const h = Number(seg.hours_decimal);
@@ -111,22 +159,12 @@ const Timesheet = () => {
       });
     }
 
-    // Parse notes for special categories
-    const notes = entry.notes || '';
+    // Add driving/equipment markers - these are ADDITIONAL to base hours
     const totalHours = calculateTotalHours(entry);
-    
-    if (notes.toLowerCase().includes('pasager')) {
-      hours.pasager = totalHours;
-      // Reset other categories if marked as passenger
-      hours.normale = 0;
-      hours.noapte = 0;
-      hours.sambata = 0;
-      hours.sarbatori = 0;
-    }
-    if (notes.toLowerCase().includes('condus') && !notes.toLowerCase().includes('utilaj')) {
+    if (isDriving) {
       hours.condus = totalHours;
     }
-    if (notes.toLowerCase().includes('condus utilaj')) {
+    if (isEquipment) {
       hours.utilaj = totalHours;
     }
 
@@ -179,6 +217,38 @@ const Timesheet = () => {
   const totalHours = filteredEntries.reduce((sum, entry) => sum + calculateTotalHours(entry), 0);
   const totalPaidHours = filteredEntries.reduce((sum, entry) => sum + calculateWeightedHours(entry), 0);
 
+  // Calculate monthly aggregates by employee
+  const employeeAggregates = filteredEntries.reduce((acc: any, entry) => {
+    const employeeName = entry.profiles?.full_name || 'Necunoscut';
+    if (!acc[employeeName]) {
+      acc[employeeName] = {
+        name: employeeName,
+        entries: 0,
+        normale: 0,
+        noapte: 0,
+        sambata: 0,
+        sarbatori: 0,
+        pasager: 0,
+        condus: 0,
+        utilaj: 0,
+        total: 0,
+      };
+    }
+    
+    const hours = calculateHoursByType(entry);
+    acc[employeeName].entries += 1;
+    acc[employeeName].normale += hours.normale;
+    acc[employeeName].noapte += hours.noapte;
+    acc[employeeName].sambata += hours.sambata;
+    acc[employeeName].sarbatori += hours.sarbatori;
+    acc[employeeName].pasager += hours.pasager;
+    acc[employeeName].condus += hours.condus;
+    acc[employeeName].utilaj += hours.utilaj;
+    acc[employeeName].total += calculateTotalHours(entry);
+    
+    return acc;
+  }, {});
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader title="Timesheet" />
@@ -213,6 +283,67 @@ const Timesheet = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Employee Monthly Summary */}
+        {Object.keys(employeeAggregates).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Sumar Lunar pe Angajat</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Object.values(employeeAggregates).map((emp: any) => (
+                  <div key={emp.name} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-semibold text-lg">{emp.name}</h3>
+                      <Badge variant="outline">{emp.entries} pontaje</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Normale:</span>
+                        <span className="ml-2 font-medium">{emp.normale.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Noapte:</span>
+                        <span className="ml-2 font-medium">{emp.noapte.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sâmbătă:</span>
+                        <span className="ml-2 font-medium">{emp.sambata.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">D/Sărbători:</span>
+                        <span className="ml-2 font-medium">{emp.sarbatori.toFixed(1)}h</span>
+                      </div>
+                      {emp.pasager > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Pasager:</span>
+                          <span className="ml-2 font-medium">{emp.pasager.toFixed(1)}h</span>
+                        </div>
+                      )}
+                      {emp.condus > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Condus:</span>
+                          <span className="ml-2 font-medium">{emp.condus.toFixed(1)}h</span>
+                        </div>
+                      )}
+                      {emp.utilaj > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Utilaj:</span>
+                          <span className="ml-2 font-medium">{emp.utilaj.toFixed(1)}h</span>
+                        </div>
+                      )}
+                      <div className="col-span-2 md:col-span-4 pt-2 border-t">
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="ml-2 font-bold text-lg">{emp.total.toFixed(1)}h</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters and Export */}
         <Card>
