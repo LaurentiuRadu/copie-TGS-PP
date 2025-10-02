@@ -306,6 +306,12 @@ const Mobile = () => {
   const EQUIPMENT_USERS = ['ababeiciprian', 'costachemarius', 'costacheflorin', 'rusugheorghita'];
   const canUseEquipment = user?.user_metadata?.username && 
     EQUIPMENT_USERS.includes(user.user_metadata.username.toLowerCase());
+  
+  // Debug logging
+  console.log('Username:', user?.user_metadata?.username);
+  console.log('Username lowercase:', user?.user_metadata?.username?.toLowerCase());
+  console.log('Can use equipment:', canUseEquipment);
+  console.log('Active shift:', activeShift);
 
   const handleEquipmentStart = useCallback(async () => {
     if (!activeTimeEntry) {
