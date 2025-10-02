@@ -1,11 +1,9 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { ThemeProvider } from "next-themes";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
@@ -24,18 +22,13 @@ import BulkImport from "./pages/BulkImport";
 import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
 
-const queryClient = new QueryClient();
-
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <PWAInstallPrompt />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
+  <TooltipProvider>
+    <Toaster />
+    <Sonner />
+    <PWAInstallPrompt />
+    <AuthProvider>
+      <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
               <Route
@@ -128,14 +121,11 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AuthProvider>
+  </TooltipProvider>
 );
 
 export default App;
