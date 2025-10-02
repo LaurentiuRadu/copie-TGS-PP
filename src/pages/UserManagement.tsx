@@ -378,7 +378,7 @@ const UserManagement = () => {
                       <Label htmlFor="new-firstname">Prenume *</Label>
                       <Input
                         id="new-firstname"
-                        placeholder="ex: Laurențiu"
+                        placeholder="Prenume"
                         value={newFirstName}
                         onChange={(e) => setNewFirstName(e.target.value)}
                         className="border-primary/20 focus:border-primary"
@@ -388,7 +388,7 @@ const UserManagement = () => {
                       <Label htmlFor="new-lastname">Nume *</Label>
                       <Input
                         id="new-lastname"
-                        placeholder="ex: Radu"
+                        placeholder="Nume"
                         value={newLastName}
                         onChange={(e) => setNewLastName(e.target.value)}
                         className="border-primary/20 focus:border-primary"
@@ -583,7 +583,7 @@ const UserManagement = () => {
                                             <Label htmlFor="edit-firstname">Prenume *</Label>
                                             <Input
                                               id="edit-firstname"
-                                              placeholder="ex: Laurențiu"
+                                              placeholder="Prenume"
                                               value={editFirstName}
                                               onChange={(e) => setEditFirstName(e.target.value)}
                                               className="border-primary/20 focus:border-primary"
@@ -593,7 +593,7 @@ const UserManagement = () => {
                                             <Label htmlFor="edit-lastname">Nume *</Label>
                                             <Input
                                               id="edit-lastname"
-                                              placeholder="ex: Radu"
+                                              placeholder="Nume"
                                               value={editLastName}
                                               onChange={(e) => setEditLastName(e.target.value)}
                                               className="border-primary/20 focus:border-primary"
@@ -765,7 +765,7 @@ const UserManagement = () => {
                                         <Label htmlFor="edit-firstname-mobile">Prenume *</Label>
                                         <Input
                                           id="edit-firstname-mobile"
-                                          placeholder="ex: Laurențiu"
+                                          placeholder="Prenume"
                                           value={editFirstName}
                                           onChange={(e) => setEditFirstName(e.target.value)}
                                           className="border-primary/20 focus:border-primary"
@@ -775,7 +775,7 @@ const UserManagement = () => {
                                         <Label htmlFor="edit-lastname-mobile">Nume *</Label>
                                         <Input
                                           id="edit-lastname-mobile"
-                                          placeholder="ex: Radu"
+                                          placeholder="Nume"
                                           value={editLastName}
                                           onChange={(e) => setEditLastName(e.target.value)}
                                           className="border-primary/20 focus:border-primary"
