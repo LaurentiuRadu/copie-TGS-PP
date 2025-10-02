@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Users } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
@@ -21,15 +22,68 @@ export function EmployeeScheduleView() {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
+      // Get user's schedules
+      const { data: mySchedules, error: myError } = await supabase
         .from('weekly_schedules')
         .select('*')
         .eq('user_id', user.id)
         .eq('week_start_date', currentWeekStart)
         .order('day_of_week');
 
-      if (error) throw error;
-      return data;
+      if (myError) throw myError;
+      if (!mySchedules || mySchedules.length === 0) return [];
+
+      // Get all team IDs user is part of
+      const teamIds = [...new Set(mySchedules.map(s => s.team_id))];
+
+      // Get all schedules for these teams in the same week
+      const { data: allTeamSchedules, error: teamError } = await supabase
+        .from('weekly_schedules')
+        .select('*')
+        .in('team_id', teamIds)
+        .eq('week_start_date', currentWeekStart)
+        .order('day_of_week');
+
+      if (teamError) throw teamError;
+
+      // Get unique user IDs from team schedules
+      const userIds = [...new Set(allTeamSchedules?.map(s => s.user_id) || [])];
+
+      // Fetch profiles for all users
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+
+      // Create a map of user_id -> profile
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Attach teammates to each schedule
+      const schedulesWithTeammates = mySchedules.map(schedule => {
+        const teammates = allTeamSchedules
+          ?.filter(ts => 
+            ts.team_id === schedule.team_id &&
+            ts.day_of_week === schedule.day_of_week &&
+            ts.shift_type === schedule.shift_type &&
+            ts.location === schedule.location &&
+            ts.user_id !== user.id
+          )
+          .map(ts => {
+            const profile = profileMap.get(ts.user_id);
+            return {
+              id: ts.user_id,
+              full_name: profile?.full_name || 'Unknown',
+              username: profile?.username || ''
+            };
+          }) || [];
+
+        return {
+          ...schedule,
+          teammates
+        };
+      });
+
+      return schedulesWithTeammates;
     },
     enabled: !!user
   });
@@ -110,6 +164,26 @@ export function EmployeeScheduleView() {
                 <div className="flex items-start gap-2 pt-2 border-t">
                   <span className="text-muted-foreground text-sm">💬</span>
                   <span className="text-sm text-muted-foreground">{schedule.observations}</span>
+                </div>
+              )}
+              
+              {schedule.teammates && schedule.teammates.length > 0 && (
+                <div className="flex items-start gap-2 pt-2 border-t">
+                  <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground mb-1">Colegii din echipă:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {schedule.teammates.map((teammate) => (
+                        <Badge 
+                          key={teammate.id} 
+                          variant="secondary" 
+                          className="text-xs font-normal"
+                        >
+                          {teammate.full_name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
