@@ -129,48 +129,57 @@ const Timesheet = () => {
     };
 
     const notes = entry.notes || '';
-    const totalHours = calculateTotalHours(entry);
+    
+    // Calculate REAL total hours (not paid hours)
+    let realTotalHours = 0;
+    if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
+      realTotalHours = entry.time_entry_segments.reduce(
+        (sum: number, seg: any) => sum + Number(seg.hours_decimal),
+        0
+      );
+    } else if (entry.clock_out_time) {
+      const diff = new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime();
+      realTotalHours = diff / (1000 * 60 * 60);
+    }
 
     // Check shift type from notes to determine which category to use
     const isPassenger = notes.toLowerCase().includes('tip: pasager');
     const isDriving = notes.toLowerCase().includes('tip: condus');
     const isEquipment = notes.toLowerCase().includes('condus utilaj');
 
-    // Priority 1: If marked as "Condus Utilaj", all hours go to Utilaj
+    // Priority 1: If marked as "Condus Utilaj", all REAL hours go to Utilaj
     if (isEquipment) {
-      hours.utilaj = totalHours;
+      hours.utilaj = realTotalHours;
       return hours;
     }
 
-    // Priority 2: If shift type is "Pasager", all hours go to Pasager
+    // Priority 2: If shift type is "Pasager", all REAL hours go to Pasager
     if (isPassenger) {
-      hours.pasager = totalHours;
+      hours.pasager = realTotalHours;
       return hours;
     }
 
-    // Priority 3: If shift type is "Condus", all hours go to Condus
+    // Priority 3: If shift type is "Condus", all REAL hours go to Condus
     if (isDriving) {
-      hours.condus = totalHours;
+      hours.condus = realTotalHours;
       return hours;
     }
 
-    // Default: Normal shifts - distribute hours by time segments
-    // IMPORTANT: hours_decimal contains REAL hours, multiply by multiplier to get PAID hours
+    // Default: Normal shifts - distribute REAL hours by time segments
+    // Export REAL hours WITHOUT multiplier so Payroll can apply their own
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
       entry.time_entry_segments.forEach((seg: any) => {
-        const realHours = Number(seg.hours_decimal);
-        const multiplier = Number(seg.multiplier);
-        const paidHours = realHours * multiplier; // Calculate paid hours
+        const realHours = Number(seg.hours_decimal); // REAL hours, not paid
         const type = seg.segment_type;
 
         if (type === 'normal') {
-          hours.normale += paidHours;
+          hours.normale += realHours;
         } else if (type === 'night') {
-          hours.noapte += paidHours;
+          hours.noapte += realHours;
         } else if (type === 'saturday') {
-          hours.sambata += paidHours;
+          hours.sambata += realHours;
         } else if (type === 'sunday' || type === 'holiday' || type === 'holiday_night') {
-          hours.sarbatori += paidHours;
+          hours.sarbatori += realHours;
         }
       });
     }
