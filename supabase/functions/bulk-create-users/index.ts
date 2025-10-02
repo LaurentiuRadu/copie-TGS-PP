@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       errors: [] as { username: string; error: string }[]
     }
 
-    const defaultPassword = '1234'
+    const defaultPassword = '123456'
 
     for (const employee of employees) {
       try {

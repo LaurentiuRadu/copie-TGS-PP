@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, KeyRound } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -90,7 +90,7 @@ export default function BulkImport() {
     const exportData = EMPLOYEES.map(emp => ({
       'Nume Complet': emp.fullName,
       'Username': emp.username,
-      'Parolă': '1234',
+      'Parolă': '123456',
       'Rol': emp.isAdmin ? 'Administrator' : 'Angajat'
     }));
 
@@ -112,6 +112,20 @@ export default function BulkImport() {
     });
   };
 
+  const handleResetPasswords = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-employee-passwords', { body: {} });
+      if (error) throw error;
+      toast({ title: 'Parole resetate', description: `Au fost resetate ${data.count} conturi. Omise: ${data.skipped}.` });
+    } catch (e) {
+      console.error('Reset passwords error:', e);
+      toast({ title: 'Eroare', description: e instanceof Error ? e.message : 'A apărut o eroare', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -131,7 +145,7 @@ export default function BulkImport() {
                 <CardHeader>
                   <CardTitle>Import Salariați</CardTitle>
                   <CardDescription>
-                    Importă {EMPLOYEES.length} salariați în sistem. Toți vor primi parola temporară "1234".
+                    Importă {EMPLOYEES.length} salariați în sistem. Toți vor primi parola temporară "123456".
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -139,7 +153,7 @@ export default function BulkImport() {
                     <AlertDescription>
                       <strong>Username format:</strong> nume + prenume (ex: ababeiciprian pentru Ababei Ciprian)<br />
                       <strong>Email format:</strong> username@company.local<br />
-                      <strong>Parolă temporară:</strong> 1234<br />
+                      <strong>Parolă temporară:</strong> 123456<br />
                       <strong>Administratori:</strong> {EMPLOYEES.filter(e => e.isAdmin).length} persoane
                     </AlertDescription>
                   </Alert>
@@ -156,14 +170,18 @@ export default function BulkImport() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button onClick={handleImport} disabled={loading} className="flex-1">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button onClick={handleImport} disabled={loading} className="flex-1 min-w-[200px]">
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Importă Salariați
                     </Button>
-                    <Button onClick={handleExportCredentials} variant="outline" disabled={loading}>
+                    <Button onClick={handleExportCredentials} variant="outline" disabled={loading} className="min-w-[220px]">
                       <Download className="mr-2 h-4 w-4" />
                       Export Username & Parolă
+                    </Button>
+                    <Button onClick={handleResetPasswords} variant="outline" disabled={loading} className="min-w-[260px]">
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Resetează parole (123456)
                     </Button>
                   </div>
 
