@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Key, LogOut, RefreshCw, Search, Filter, UserPlus, Edit } from "lucide-react";
+import { Users, Key, LogOut, RefreshCw, Search, Filter, UserPlus, Edit, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -53,6 +53,11 @@ const UserManagement = () => {
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [updating, setUpdating] = useState(false);
+
+  // Delete user dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -332,6 +337,63 @@ const UserManagement = () => {
       });
     } finally {
       setResetting(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Eroare",
+          description: "Nu ești autentificat",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: {
+          userId: deletingUser.id,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error deleting user:', error);
+        toast({
+          title: "Eroare",
+          description: "Nu s-a putut șterge utilizatorul",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Succes",
+        description: `Utilizatorul ${deletingUser.username} a fost șters`,
+      });
+
+      setDeleteDialogOpen(false);
+      setDeletingUser(null);
+      loadUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut șterge utilizatorul",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -689,6 +751,55 @@ const UserManagement = () => {
                                   </DialogFooter>
                                 </DialogContent>
                               </Dialog>
+                              <Dialog open={deleteDialogOpen && deletingUser?.id === user.id} onOpenChange={(open) => {
+                                setDeleteDialogOpen(open);
+                                if (!open) {
+                                  setDeletingUser(null);
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setDeletingUser(user);
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                    className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Șterge
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                  <DialogHeader>
+                                    <DialogTitle>Șterge Utilizator</DialogTitle>
+                                    <DialogDescription>
+                                      Ești sigur că vrei să ștergi utilizatorul {user.username} ({user.fullName})?
+                                      Această acțiune este permanentă și nu poate fi anulată.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <DialogFooter>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setDeleteDialogOpen(false);
+                                        setDeletingUser(null);
+                                      }}
+                                    >
+                                      Anulează
+                                    </Button>
+                                    <Button 
+                                      onClick={handleDeleteUser}
+                                      disabled={deleting}
+                                      variant="destructive"
+                                      className="shadow-md hover:shadow-lg transition-all"
+                                    >
+                                      {deleting ? 'Se șterge...' : 'Șterge Definitiv'}
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -870,6 +981,57 @@ const UserManagement = () => {
                                     className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                   >
                                     {resetting ? 'Se resetează...' : 'Resetează Parola'}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                            
+                            <Dialog open={deleteDialogOpen && deletingUser?.id === user.id} onOpenChange={(open) => {
+                              setDeleteDialogOpen(open);
+                              if (!open) {
+                                setDeletingUser(null);
+                              }
+                            }}>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setDeletingUser(user);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  className="flex-1 gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all touch-target"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Șterge
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                  <DialogTitle>Șterge Utilizator</DialogTitle>
+                                  <DialogDescription>
+                                    Ești sigur că vrei să ștergi utilizatorul {user.username} ({user.fullName})?
+                                    Această acțiune este permanentă și nu poate fi anulată.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter className="flex-col sm:flex-row gap-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setDeleteDialogOpen(false);
+                                      setDeletingUser(null);
+                                    }}
+                                    className="w-full sm:w-auto"
+                                  >
+                                    Anulează
+                                  </Button>
+                                  <Button 
+                                    onClick={handleDeleteUser}
+                                    disabled={deleting}
+                                    variant="destructive"
+                                    className="w-full sm:w-auto shadow-md hover:shadow-lg transition-all"
+                                  >
+                                    {deleting ? 'Se șterge...' : 'Șterge Definitiv'}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
