@@ -303,7 +303,7 @@ const Mobile = () => {
   }, [triggerHaptic]);
 
   // Users allowed to use equipment button
-  const EQUIPMENT_USERS = ['ababeiciprian', 'costachemarius', 'costacheflorin', 'rusugheorghita'];
+  const EQUIPMENT_USERS = ['ababeiciprian', 'costachemarius', 'costacheflorin'];
   const canUseEquipment = user?.user_metadata?.username && 
     EQUIPMENT_USERS.includes(user.user_metadata.username.toLowerCase());
 
