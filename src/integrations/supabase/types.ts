@@ -565,6 +565,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      user_in_team: {
+        Args: { _team_id: string; _user_id: string; _week_start: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "employee"
