@@ -323,8 +323,8 @@ const Timesheet = () => {
                       <TableHead className="text-right">Sâmbătă</TableHead>
                       <TableHead className="text-right">
                         <div className="flex flex-col leading-tight">
-                          <span>Duminică și</span>
-                          <span>Sărbători</span>
+                          <span>Duminica</span>
+                          <span>Sarbatori</span>
                         </div>
                       </TableHead>
                       <TableHead className="text-right">Pasager</TableHead>
