@@ -40,17 +40,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.debug('[AuthProvider] mount');
+    console.log('[AuthProvider] 🔧 Mounting auth provider');
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.debug('[AuthProvider] onAuthStateChange', { event, hasSession: !!session });
+        console.log('[AuthProvider] 🔔 Auth state changed:', { 
+          event, 
+          hasSession: !!session,
+          userId: session?.user?.id,
+          timestamp: new Date().toISOString() 
+        });
         
         // Handle SIGNED_OUT immediately
         if (event === 'SIGNED_OUT') {
+          console.warn('[AuthProvider] ⚠️ User signed out detected');
           setSession(null);
           setUser(null);
           setUserRole(null);
+          return;
+        }
+        
+        // Prevent unnecessary re-authentication on TOKEN_REFRESHED
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('[AuthProvider] 🔄 Token refreshed, keeping current state');
+          setSession(session);
+          // Don't reset user or trigger role fetch again
           return;
         }
         
@@ -120,7 +134,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // THEN check for existing session
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
-        console.debug('[AuthProvider] getSession resolved', { hasSession: !!session });
+        console.log('[AuthProvider] 📝 Initial session check:', { 
+          hasSession: !!session,
+          userId: session?.user?.id 
+        });
         if (session) {
           setSession(session);
           setUser(session.user);
@@ -171,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Session fetch error:', err);
       })
       .finally(() => {
-        console.debug('[AuthProvider] loading -> false');
+        console.log('[AuthProvider] ✅ Auth initialization complete');
         setLoading(false);
       });
 
@@ -179,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    console.log('[AuthProvider] 🚪 Manual sign out triggered');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
