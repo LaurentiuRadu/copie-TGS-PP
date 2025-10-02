@@ -70,7 +70,7 @@ export default function BulkImport() {
     const exportData = EMPLOYEES.map(emp => ({
       'Nume Complet': emp.fullName,
       'Username': emp.username,
-      'Parolă': 'ChangeMe123!',
+      'Parolă': '1234',
       'Rol': emp.isAdmin ? 'Administrator' : 'Angajat'
     }));
 

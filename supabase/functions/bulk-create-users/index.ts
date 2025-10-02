@@ -34,53 +34,88 @@ Deno.serve(async (req) => {
       errors: [] as { username: string; error: string }[]
     }
 
-    const defaultPassword = 'ChangeMe123!'
+    const defaultPassword = '1234'
 
     for (const employee of employees) {
       try {
-        // Create user in auth.users
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: `${employee.username}@company.local`,
-          password: defaultPassword,
-          email_confirm: true,
-          user_metadata: {
-            username: employee.username,
-            full_name: employee.fullName
+        const email = `${employee.username}@company.local`
+        
+        // Check if user already exists
+        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
+        const existingUser = existingUsers.users.find(u => u.email === email)
+
+        if (existingUser) {
+          // UPDATE existing user
+          const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            existingUser.id,
+            {
+              password: defaultPassword,
+              user_metadata: {
+                username: employee.username,
+                full_name: employee.fullName
+              }
+            }
+          )
+
+          if (updateError) {
+            results.errors.push({ username: employee.username, error: updateError.message })
+            continue
           }
-        })
 
-        if (authError) {
-          results.errors.push({ username: employee.username, error: authError.message })
-          continue
-        }
+          // Delete old roles
+          await supabaseAdmin
+            .from('user_roles')
+            .delete()
+            .eq('user_id', existingUser.id)
 
-        // Add employee role
-        const { error: employeeRoleError } = await supabaseAdmin
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'employee'
+          // Insert new roles
+          const rolesToInsert = [{ user_id: existingUser.id, role: 'employee' }]
+          if (employee.isAdmin) {
+            rolesToInsert.push({ user_id: existingUser.id, role: 'admin' })
+          }
+
+          const { error: rolesError } = await supabaseAdmin
+            .from('user_roles')
+            .insert(rolesToInsert)
+
+          if (rolesError) {
+            console.error(`Error updating roles for ${employee.username}:`, rolesError)
+          }
+
+          results.success.push(`${employee.username} (updated)`)
+        } else {
+          // CREATE new user
+          const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password: defaultPassword,
+            email_confirm: true,
+            user_metadata: {
+              username: employee.username,
+              full_name: employee.fullName
+            }
           })
 
-        if (employeeRoleError) {
-          console.error(`Error adding employee role for ${employee.username}:`, employeeRoleError)
-        }
-
-        // Add admin role if applicable
-        if (employee.isAdmin) {
-          const { error: adminRoleError } = await supabaseAdmin
-            .from('user_roles')
-            .insert({
-              user_id: authData.user.id,
-              role: 'admin'
-            })
-
-          if (adminRoleError) {
-            console.error(`Error adding admin role for ${employee.username}:`, adminRoleError)
+          if (authError) {
+            results.errors.push({ username: employee.username, error: authError.message })
+            continue
           }
-        }
 
-        results.success.push(employee.username)
+          // Add roles
+          const rolesToInsert = [{ user_id: authData.user.id, role: 'employee' }]
+          if (employee.isAdmin) {
+            rolesToInsert.push({ user_id: authData.user.id, role: 'admin' })
+          }
+
+          const { error: rolesError } = await supabaseAdmin
+            .from('user_roles')
+            .insert(rolesToInsert)
+
+          if (rolesError) {
+            console.error(`Error adding roles for ${employee.username}:`, rolesError)
+          }
+
+          results.success.push(`${employee.username} (created)`)
+        }
       } catch (error) {
         results.errors.push({ 
           username: employee.username, 
