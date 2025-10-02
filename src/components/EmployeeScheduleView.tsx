@@ -73,7 +73,12 @@ export function EmployeeScheduleView() {
             >
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-lg">{dayNames[schedule.day_of_week - 1]}</span>
-                <span className="text-sm text-muted-foreground">Echipa {schedule.team_id}</span>
+                <div className="flex gap-2 items-center">
+                  <span className={schedule.shift_type === 'noapte' ? 'text-blue-600 dark:text-blue-400 font-medium text-sm' : 'text-sm'}>
+                    {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
+                  </span>
+                  <span className="text-sm text-muted-foreground">Echipa {schedule.team_id}</span>
+                </div>
               </div>
               
               {schedule.location && (

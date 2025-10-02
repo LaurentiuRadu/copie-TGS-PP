@@ -403,6 +403,7 @@ export type Database = {
           id: string
           location: string | null
           observations: string | null
+          shift_type: string
           team_id: string
           updated_at: string
           user_id: string
@@ -417,6 +418,7 @@ export type Database = {
           id?: string
           location?: string | null
           observations?: string | null
+          shift_type?: string
           team_id: string
           updated_at?: string
           user_id: string
@@ -431,6 +433,7 @@ export type Database = {
           id?: string
           location?: string | null
           observations?: string | null
+          shift_type?: string
           team_id?: string
           updated_at?: string
           user_id?: string
