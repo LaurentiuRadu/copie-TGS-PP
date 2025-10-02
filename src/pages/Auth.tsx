@@ -343,7 +343,7 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont admin" : "Autentificare admin"}
                 </Button>
               </form>
