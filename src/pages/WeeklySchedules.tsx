@@ -430,30 +430,36 @@ export default function WeeklySchedules() {
     setShowDeleteDialog(false);
   };
 
-  // Group schedules by team for summary view
+  // Group schedules by team for summary view - grouped by team_id and coordinator
   const teamSummary = useMemo(() => {
     if (!schedules) return [];
     
+    // Group by team_id and coordinator
     const grouped = schedules.reduce((acc: any, schedule: any) => {
-      const key = `${schedule.location}-${schedule.activity}-${schedule.vehicle}`;
+      const key = `${schedule.team_id}-${schedule.coordinator_id || 'no-coordinator'}`;
       
       if (!acc[key]) {
         acc[key] = {
           team_id: schedule.team_id,
-          location: schedule.location,
-          activity: schedule.activity,
-          vehicle: schedule.vehicle,
           coordinator: schedule.coordinator_id ? 
             employees?.find(e => e.id === schedule.coordinator_id) : null,
           members: new Set(),
+          locations: new Map(), // Map of day -> location details
           days: new Set(),
-          shift_type: schedule.shift_type,
-          observations: schedule.observations
         };
       }
       
       acc[key].members.add(schedule.profiles?.full_name || 'N/A');
       acc[key].days.add(schedule.day_of_week);
+      
+      // Track locations per day
+      const dayKey = schedule.day_of_week;
+      if (!acc[key].locations.has(dayKey)) {
+        acc[key].locations.set(dayKey, new Set());
+      }
+      acc[key].locations.get(dayKey).add(
+        `${schedule.shift_type === 'zi' ? '☀️' : '🌙'} ${schedule.location}${schedule.activity ? ' - ' + schedule.activity : ''}`
+      );
       
       return acc;
     }, {});
@@ -461,7 +467,11 @@ export default function WeeklySchedules() {
     return Object.values(grouped).map((group: any) => ({
       ...group,
       members: Array.from(group.members),
-      days: Array.from(group.days).sort()
+      days: Array.from(group.days).sort(),
+      locations: Array.from(group.locations.entries()).map(([day, locs]) => ({
+        day,
+        locations: Array.from(locs)
+      }))
     }));
   }, [schedules, employees]);
 
@@ -830,9 +840,9 @@ export default function WeeklySchedules() {
                       onClick={() => setActiveTab('details')}>
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                          <span className="text-lg">{summary.team_id}</span>
-                          <Badge variant={summary.shift_type === 'noapte' ? 'default' : 'secondary'}>
-                            {summary.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
+                          <span className="text-lg">Echipa {summary.team_id}</span>
+                          <Badge variant="outline">
+                            {summary.members.length} membri
                           </Badge>
                         </CardTitle>
                         {summary.coordinator && (
@@ -843,47 +853,35 @@ export default function WeeklySchedules() {
                         )}
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {summary.location && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>{summary.location}</span>
-                          </div>
-                        )}
-                        {summary.activity && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Activity className="h-4 w-4 text-muted-foreground" />
-                            <span>{summary.activity}</span>
-                          </div>
-                        )}
-                        {summary.vehicle && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Car className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-mono text-xs">{summary.vehicle}</span>
-                          </div>
-                        )}
                         <div className="pt-2 border-t">
-                          <div className="text-xs text-muted-foreground mb-1">Zile programate:</div>
+                          <div className="text-xs text-muted-foreground mb-2">Membri echipă:</div>
                           <div className="flex flex-wrap gap-1">
-                            {summary.days.map((day: number) => (
-                              <Badge key={day} variant="outline" className="text-xs">
-                                {dayNames[day - 1]}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="pt-2 border-t">
-                          <div className="text-xs text-muted-foreground mb-1">Membri echipă ({summary.members.length}):</div>
-                          <div className="flex flex-wrap gap-1">
-                            {summary.members.slice(0, 3).map((member: string, idx: number) => (
+                            {summary.members.map((member: string, idx: number) => (
                               <Badge key={idx} variant="secondary" className="text-xs">
                                 {member}
                               </Badge>
                             ))}
-                            {summary.members.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{summary.members.length - 3}
-                              </Badge>
-                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="pt-2 border-t">
+                          <div className="text-xs text-muted-foreground mb-2">Program săptămânal:</div>
+                          <div className="space-y-2">
+                            {summary.locations.map((dayLoc: any) => (
+                              <div key={dayLoc.day} className="text-sm">
+                                <div className="font-medium text-xs text-muted-foreground mb-1">
+                                  {dayNames[dayLoc.day - 1]}:
+                                </div>
+                                <div className="flex flex-col gap-1 ml-2">
+                                  {dayLoc.locations.map((loc: string, idx: number) => (
+                                    <div key={idx} className="flex items-start gap-1 text-xs">
+                                      <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                      <span>{loc}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </CardContent>
