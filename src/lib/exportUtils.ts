@@ -6,7 +6,8 @@ interface ExportTimeEntry {
   Normale: string;
   Noapte: string;
   Sâmbătă: string;
-  'D/Sărbători': string;
+  Duminică: string;
+  Sărbători: string;
   Pasager: string;
   Condus: string;
   Utilaj: string;
@@ -26,7 +27,8 @@ export const exportToExcel = (data: ExportTimeEntry[], filename: string) => {
     { wch: 10 }, // Normale
     { wch: 10 }, // Noapte
     { wch: 10 }, // Sâmbătă
-    { wch: 12 }, // D/Sărbători
+    { wch: 10 }, // Duminică
+    { wch: 10 }, // Sărbători
     { wch: 10 }, // Pasager
     { wch: 10 }, // Condus
     { wch: 10 }, // Utilaj

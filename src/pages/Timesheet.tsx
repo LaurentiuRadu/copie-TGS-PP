@@ -88,11 +88,15 @@ const Timesheet = () => {
       normale: 0,
       noapte: 0,
       sambata: 0,
+      duminica: 0,
       sarbatori: 0,
       pasager: 0,
       condus: 0,
       utilaj: 0,
     };
+
+    const entryDate = new Date(entry.clock_in_time);
+    const dayOfWeek = entryDate.getDay(); // 0 = Sunday, 6 = Saturday
 
     if (entry.time_entry_segments && entry.time_entry_segments.length > 0) {
       entry.time_entry_segments.forEach((seg: any) => {
@@ -104,7 +108,12 @@ const Timesheet = () => {
         } else if (type === 'night' || type.includes('night')) {
           hours.noapte += h;
         } else if (type === 'weekend' || type.includes('weekend')) {
-          hours.sambata += h;
+          // Check if it's Sunday (0) or Saturday (6)
+          if (dayOfWeek === 0) {
+            hours.duminica += h;
+          } else if (dayOfWeek === 6) {
+            hours.sambata += h;
+          }
         } else if (type === 'holiday' || type.includes('holiday')) {
           hours.sarbatori += h;
         }
@@ -121,6 +130,7 @@ const Timesheet = () => {
       hours.normale = 0;
       hours.noapte = 0;
       hours.sambata = 0;
+      hours.duminica = 0;
       hours.sarbatori = 0;
     }
     if (notes.toLowerCase().includes('condus') && !notes.toLowerCase().includes('utilaj')) {
@@ -144,7 +154,8 @@ const Timesheet = () => {
         Normale: hoursByType.normale > 0 ? hoursByType.normale.toFixed(2) : '-',
         Noapte: hoursByType.noapte > 0 ? hoursByType.noapte.toFixed(2) : '-',
         Sâmbătă: hoursByType.sambata > 0 ? hoursByType.sambata.toFixed(2) : '-',
-        'D/Sărbători': hoursByType.sarbatori > 0 ? hoursByType.sarbatori.toFixed(2) : '-',
+        Duminică: hoursByType.duminica > 0 ? hoursByType.duminica.toFixed(2) : '-',
+        Sărbători: hoursByType.sarbatori > 0 ? hoursByType.sarbatori.toFixed(2) : '-',
         Pasager: hoursByType.pasager > 0 ? hoursByType.pasager.toFixed(2) : '-',
         Condus: hoursByType.condus > 0 ? hoursByType.condus.toFixed(2) : '-',
         Utilaj: hoursByType.utilaj > 0 ? hoursByType.utilaj.toFixed(2) : '-',
@@ -321,7 +332,8 @@ const Timesheet = () => {
                       <TableHead className="text-right">Normale</TableHead>
                       <TableHead className="text-right">Noapte</TableHead>
                       <TableHead className="text-right">Sâmbătă</TableHead>
-                      <TableHead className="text-right">D/Sărbători</TableHead>
+                      <TableHead className="text-right">Duminică</TableHead>
+                      <TableHead className="text-right">Sărbători</TableHead>
                       <TableHead className="text-right">Pasager</TableHead>
                       <TableHead className="text-right">Condus</TableHead>
                       <TableHead className="text-right">Utilaj</TableHead>
@@ -350,6 +362,9 @@ const Timesheet = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             {hoursByType.sambata > 0 ? `${hoursByType.sambata.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.duminica > 0 ? `${hoursByType.duminica.toFixed(1)}h` : '-'}
                           </TableCell>
                           <TableCell className="text-right">
                             {hoursByType.sarbatori > 0 ? `${hoursByType.sarbatori.toFixed(1)}h` : '-'}
