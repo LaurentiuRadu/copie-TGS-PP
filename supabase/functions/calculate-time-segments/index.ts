@@ -74,17 +74,31 @@ Deno.serve(async (req) => {
       const isNight = hour >= 22 || hour < 6;
       
       if (isHoliday) {
-        segmentType = isNight ? 'holiday_night' : 'holiday_day';
-        multiplier = 2.0; // 100% spor
+        // Pentru sărbători: 00:00-06:00 = 25% spor, 06:00-24:00 = 100% spor
+        if (hour < 6) {
+          segmentType = 'holiday_night';
+          multiplier = 1.25;
+        } else {
+          segmentType = 'holiday_day';
+          multiplier = 2.0;
+        }
       } else if (isSunday) {
-        segmentType = isNight ? 'weekend_sunday_night' : 'weekend_sunday_day';
-        multiplier = 2.0; // 100% spor
+        // Pentru duminică: 00:00-06:00 = 25% spor, 06:00-24:00 = 100% spor
+        if (hour < 6) {
+          segmentType = 'weekend_sunday_night';
+          multiplier = 1.25;
+        } else {
+          segmentType = 'weekend_sunday_day';
+          multiplier = 2.0;
+        }
       } else if (isSaturday) {
+        // Pentru sâmbătă: tot 50% spor (inclusiv noaptea 22:00-06:00)
         segmentType = isNight ? 'weekend_saturday_night' : 'weekend_saturday_day';
-        multiplier = 1.5; // 50% spor
+        multiplier = 1.5;
       } else {
+        // Zile normale: 06:00-22:00 = 0% spor, 22:00-06:00 = 25% spor
         segmentType = isNight ? 'normal_night' : 'normal_day';
-        multiplier = isNight ? 1.25 : 1.0; // 25% spor pentru noapte
+        multiplier = isNight ? 1.25 : 1.0;
       }
       
       const hours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
