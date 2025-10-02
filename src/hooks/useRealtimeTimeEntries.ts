@@ -17,34 +17,20 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
       .channel('time-entries-changes')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'time_entries',
-        },
-        (payload) => {
-          console.log('New time entry detected:', payload);
-          // Invalidate toate queries legate de time entries
+        { event: 'INSERT', schema: 'public', table: 'time_entries' },
+        () => {
           queryClient.invalidateQueries({ queryKey: ['time-entries'] });
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
           
-          // Notificare subtilă pentru admin
           if (window.location.pathname.includes('/time-entries')) {
-            toast.info('Pontaj nou adăugat', {
-              duration: 3000,
-            });
+            toast.info('Pontaj nou adăugat', { duration: 3000 });
           }
         }
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'time_entries',
-        },
-        (payload) => {
-          console.log('Time entry updated:', payload);
+        { event: 'UPDATE', schema: 'public', table: 'time_entries' },
+        () => {
           queryClient.invalidateQueries({ queryKey: ['time-entries'] });
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
         }
@@ -52,8 +38,7 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'time_entry_segments' },
-        (payload) => {
-          console.log('Time entry segment change:', payload);
+        () => {
           queryClient.invalidateQueries({ queryKey: ['time-entries'] });
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
         }

@@ -40,10 +40,13 @@ export const useAutoDarkMode = () => {
       
       // E noapte dacă ora e înainte de sunrise sau după sunset
       const isNight = currentHour < sunrise || currentHour >= sunset;
+      const newTheme = isNight ? 'dark' : 'light';
       
-      setTheme(isNight ? 'dark' : 'light');
+      if (import.meta.env.DEV) {
+        console.info(`🌓 Auto theme: ${newTheme} (${currentHour}:00, sunrise: ${sunrise}:00, sunset: ${sunset}:00)`);
+      }
       
-      console.log(`🌓 Auto theme: ${isNight ? 'dark' : 'light'} (${currentHour}:00, sunrise: ${sunrise}:00, sunset: ${sunset}:00)`);
+      setTheme(newTheme);
     };
 
     // Verifică imediat

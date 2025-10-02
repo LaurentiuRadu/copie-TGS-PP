@@ -177,7 +177,7 @@ export default function WeeklySchedules() {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Eroare la salvarea programărilor');
-      console.error(error);
+      console.error('Schedule save error:', error);
     }
   });
 
@@ -197,7 +197,7 @@ export default function WeeklySchedules() {
     },
     onError: (error) => {
       toast.error('Eroare la ștergere');
-      console.error(error);
+      console.error('Schedule delete error:', error);
     }
   });
 

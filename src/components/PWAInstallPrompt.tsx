@@ -43,14 +43,11 @@ export function PWAInstallPrompt() {
   const handleInstall = async () => {
     if (!deferredPrompt) return;
 
-    deferredPrompt.prompt();
+    await deferredPrompt.prompt();
     
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log('✅ Utilizatorul a acceptat instalarea PWA');
-    } else {
-      console.log('❌ Utilizatorul a refuzat instalarea PWA');
+    if (import.meta.env.DEV) {
+      const { outcome } = await deferredPrompt.userChoice;
+      console.info(outcome === 'accepted' ? '✅ PWA installed' : '❌ PWA install declined');
     }
 
     setDeferredPrompt(null);

@@ -17,8 +17,7 @@ export const useRealtimeSchedules = (enabled: boolean = true) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'weekly_schedules' },
-        (payload) => {
-          console.log('Weekly schedule change detected:', payload);
+        () => {
           queryClient.invalidateQueries({ queryKey: ['weekly-schedules'] });
           queryClient.invalidateQueries({ queryKey: ['my-schedules'] });
         }
