@@ -123,7 +123,7 @@ const Timesheet = () => {
       .join(', ');
   };
 
-  const calculateHoursByType = (entry: any) => {
+  const calculateHoursByType = (entry: any, username?: string) => {
     const hours = {
       normale: 0,
       noapte: 0,
@@ -153,11 +153,17 @@ const Timesheet = () => {
     const isDriving = notes.toLowerCase().includes('tip: condus');
     const isEquipment = notes.toLowerCase().includes('condus utilaj');
 
-    // Priority 1: If marked as "Condus Utilaj", all REAL hours go to Utilaj
-    if (isEquipment) {
+    // EQUIPMENT_USERS list - cei autorizați să conducă utilaje
+    const EQUIPMENT_USERS = ['costacheflorin', 'costachemarius', 'rusugheorghita'];
+    const isAuthorizedForEquipment = username && EQUIPMENT_USERS.includes(username.toLowerCase());
+
+    // Priority 1: If marked as "Condus Utilaj" AND user is authorized
+    if (isEquipment && isAuthorizedForEquipment) {
       hours.utilaj = realTotalHours;
       return hours;
     }
+    
+    // If marked as equipment but NOT authorized, ignore the marker and treat as normal shift
 
     // Priority 2: If shift type is "Pasager", all REAL hours go to Pasager
     if (isPassenger) {
@@ -198,7 +204,8 @@ const Timesheet = () => {
     if (!entries) return [];
     
     return entries.map((entry) => {
-      const hoursByType = calculateHoursByType(entry);
+      const username = entry.profiles?.username;
+      const hoursByType = calculateHoursByType(entry, username);
       return {
         Angajat: entry.profiles?.full_name || 'Necunoscut',
         Data: format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro }),
@@ -259,7 +266,8 @@ const Timesheet = () => {
       };
     }
     
-    const hours = calculateHoursByType(entry);
+    const username = entry.profiles?.username;
+    const hours = calculateHoursByType(entry, username);
     acc[employeeName].entries += 1;
     acc[employeeName].normale += hours.normale;
     acc[employeeName].noapte += hours.noapte;
