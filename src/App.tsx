@@ -22,6 +22,7 @@ import FaceVerifications from "./pages/FaceVerifications";
 import BulkImport from "./pages/BulkImport";
 import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
+import RecalculateSegments from "./pages/RecalculateSegments";
 
 const App = () => (
   <TooltipProvider>
@@ -127,6 +128,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <WeeklySchedules />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/recalculate-segments"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <RecalculateSegments />
                   </ProtectedRoute>
                 }
               />
