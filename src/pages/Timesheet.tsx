@@ -69,24 +69,30 @@ const Timesheet = () => {
 
   const getSegmentLabel = (type: string) => {
     const labels: { [key: string]: string } = {
-      normal: 'Normal',
-      night: 'Noapte',
-      saturday: 'Sâmbătă',
-      sunday: 'Duminică',
-      holiday: 'Sărbătoare',
+      normal_day: 'Zi',
+      normal_night: 'Noapte',
+      weekend_saturday_day: 'Sâmbătă Zi',
+      weekend_saturday_night: 'Sâmbătă Noapte',
+      weekend_sunday_day: 'Duminică Zi',
+      weekend_sunday_night: 'Duminică Noapte',
+      holiday_day: 'Sărbătoare Zi',
       holiday_night: 'Sărbătoare Noapte',
+      overtime: 'Ore Suplimentare',
     };
     return labels[type] || type;
   };
 
   const getSegmentColor = (type: string) => {
     const colors: { [key: string]: string } = {
-      normal: 'default',
-      night: 'outline',
-      saturday: 'secondary',
-      sunday: 'destructive',
-      holiday: 'destructive',
+      normal_day: 'default',
+      normal_night: 'outline',
+      weekend_saturday_day: 'secondary',
+      weekend_saturday_night: 'secondary',
+      weekend_sunday_day: 'destructive',
+      weekend_sunday_night: 'destructive',
+      holiday_day: 'destructive',
       holiday_night: 'destructive',
+      overtime: 'outline',
     };
     return colors[type] || 'default';
   };
@@ -172,13 +178,14 @@ const Timesheet = () => {
         const realHours = Number(seg.hours_decimal); // REAL hours, not paid
         const type = seg.segment_type;
 
-        if (type === 'normal') {
+        if (type === 'normal_day') {
           hours.normale += realHours;
-        } else if (type === 'night') {
+        } else if (type === 'normal_night') {
           hours.noapte += realHours;
-        } else if (type === 'saturday') {
+        } else if (type === 'weekend_saturday_day' || type === 'weekend_saturday_night') {
           hours.sambata += realHours;
-        } else if (type === 'sunday' || type === 'holiday' || type === 'holiday_night') {
+        } else if (type === 'weekend_sunday_day' || type === 'weekend_sunday_night' || 
+                   type === 'holiday_day' || type === 'holiday_night') {
           hours.sarbatori += realHours;
         }
       });
