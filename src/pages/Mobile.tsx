@@ -597,7 +597,7 @@ const Mobile = () => {
                 <SheetDescription>Opțiuni disponibile</SheetDescription>
               </SheetHeader>
               <div className="mt-6 space-y-4">
-                <Button variant="outline" className="w-full justify-start gap-2">
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/my-time-entries')}>
                   <Clock className="h-4 w-4" />
                   Istoric Timp
                 </Button>
