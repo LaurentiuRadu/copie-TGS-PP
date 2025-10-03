@@ -407,13 +407,13 @@ const UserManagement = () => {
             <div className="hidden md:block">
               <AdminSearchCommand />
             </div>
-            <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  size="sm"
-                  className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
-                >
-                  <UserPlus className="h-4 w-4" />
+          <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                size="sm"
+                className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
+              >
+                <UserPlus className="h-4 w-4" />
                   <span className="hidden md:inline">Adaugă Utilizator</span>
                 </Button>
               </DialogTrigger>
