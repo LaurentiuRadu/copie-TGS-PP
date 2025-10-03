@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
           segmentType = 'night';
           multiplier = 1.25;
         } else {
-          segmentType = 'normal';
+          segmentType = 'normal_day';
           multiplier = 1.0;
         }
       }
