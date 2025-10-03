@@ -2,12 +2,14 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Download, Filter, Plus, LogOut, TrendingUp, Clock, Calendar } from "lucide-react";
+import { Users, Download, Filter, Plus, LogOut, TrendingUp, Clock, Calendar, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminSearchCommand } from "@/components/AdminSearchCommand";
+import { useNavigate } from "react-router-dom";
 
 const Admin = () => {
   const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <SidebarProvider>
@@ -126,6 +128,29 @@ const Admin = () => {
                   <p className="text-lg">Nu există date disponibile</p>
                   <p className="text-sm mt-1">Datele vor apărea aici când angajații încep să ponteze</p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* System Tools */}
+            <Card className="shadow-elegant border-warning/20 bg-gradient-to-br from-warning/5 to-transparent">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-warning" />
+                  Instrumente Sistem
+                </CardTitle>
+                <CardDescription>
+                  Tool-uri administrative pentru mentenanță și recalculare
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={() => navigate('/recalculate-segments')}
+                  variant="outline"
+                  className="w-full justify-start gap-2 border-warning/50 hover:bg-warning/10"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Recalculează Segments Pontaje
+                </Button>
               </CardContent>
             </Card>
 
