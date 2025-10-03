@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { playDoubleNotificationSound } from '@/lib/notificationSound';
+import { toast } from 'sonner';
 
 export const useScheduleNotifications = () => {
   const { user } = useAuth();
@@ -72,8 +74,18 @@ export const useScheduleNotifications = () => {
           table: 'schedule_notifications',
           filter: `user_id=eq.${user.id}`
         },
-        () => {
+        (payload) => {
+          // Invalidează queries pentru a actualiza lista
           queryClient.invalidateQueries({ queryKey: ['schedule-notifications'] });
+          
+          // Redă sunetul de notificare
+          playDoubleNotificationSound();
+          
+          // Arată și un toast cu notificarea
+          toast.info('Programare nouă primită!', {
+            description: 'Verifică notificările pentru detalii.',
+            duration: 5000,
+          });
         }
       )
       .subscribe();
