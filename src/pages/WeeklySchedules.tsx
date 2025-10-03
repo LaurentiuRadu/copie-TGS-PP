@@ -205,22 +205,8 @@ export default function WeeklySchedules() {
       
       if (error) throw error;
 
-      // Create notifications for all employees (ignore duplicates)
-      const notifications = schedules.map(schedule => ({
-        schedule_id: schedule.id,
-        user_id: schedule.user_id
-      }));
-
-      const { error: notifError } = await supabase
-        .from('schedule_notifications')
-        .upsert(notifications, { 
-          onConflict: 'schedule_id,user_id',
-          ignoreDuplicates: true 
-        });
-      
-      if (notifError) {
-        console.error('Error creating notifications:', notifError);
-      }
+      // Notificările sunt create automat de trigger-ul schedule_insert_notification
+      // Nu mai este nevoie să le creăm manual aici
 
       return schedules;
     },
