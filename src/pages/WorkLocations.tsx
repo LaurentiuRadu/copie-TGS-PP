@@ -51,6 +51,7 @@ const WorkLocations = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const resizeObserver = useRef<ResizeObserver | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -103,20 +104,38 @@ const WorkLocations = () => {
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-      // Ensure proper sizing after dialog opens
+      // Ensure proper sizing after dialog opens and during animations
       map.current.on('load', () => {
-        // Force resize twice for reliability
-        setTimeout(() => {
-          map.current?.resize();
-        }, 100);
-        setTimeout(() => {
-          map.current?.resize();
-        }, 300);
+        // Multiple resizes to handle dialog open transition
+        setTimeout(() => map.current?.resize(), 50);
+        setTimeout(() => map.current?.resize(), 150);
+        setTimeout(() => map.current?.resize(), 350);
+        setTimeout(() => map.current?.resize(), 700);
         setMapError('');
       });
 
+      // Also resize once map becomes idle
+      map.current.once('idle', () => {
+        map.current?.resize();
+      });
+
+      // Observe container size changes (e.g., dialog animations, window resize)
+      if (mapContainer.current) {
+        try {
+          resizeObserver.current?.disconnect();
+          resizeObserver.current = new ResizeObserver(() => {
+            map.current?.resize();
+          });
+          resizeObserver.current.observe(mapContainer.current);
+        } catch (e) {
+          // ResizeObserver might be unavailable in very old browsers
+          console.debug('ResizeObserver not available', e);
+        }
+      }
+
       // Surface Mapbox errors (e.g., invalid token)
-      map.current.on('error', () => {
+      map.current.on('error', (ev) => {
+        console.error('Mapbox error', ev);
         setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
       });
 
@@ -132,6 +151,8 @@ const WorkLocations = () => {
 
     return () => {
       clearTimeout(initTimer);
+      resizeObserver.current?.disconnect();
+      resizeObserver.current = null;
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -199,68 +220,76 @@ const WorkLocations = () => {
     });
 
     // Add marker and radius circle for current form location (when adding/editing)
-    if (dialogOpen && map.current.isStyleLoaded()) {
-      const el = document.createElement('div');
-      el.className = 'w-8 h-8 bg-destructive rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse';
-      el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
+    if (dialogOpen) {
+      const addCurrentMarkerAndCircle = () => {
+        const el = document.createElement('div');
+        el.className = 'w-8 h-8 bg-destructive rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse';
+        el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
 
-      const currentMarker = new mapboxgl.Marker(el)
-        .setLngLat([formData.longitude, formData.latitude])
-        .addTo(map.current!);
+        const currentMarker = new mapboxgl.Marker(el)
+          .setLngLat([formData.longitude, formData.latitude])
+          .addTo(map.current!);
 
-      markers.current.push(currentMarker);
+        markers.current.push(currentMarker);
 
-      // Remove existing radius circle if it exists
-      if (map.current.getSource('current-radius')) {
-        if (map.current.getLayer('current-radius-fill')) {
-          map.current.removeLayer('current-radius-fill');
+        // Remove existing radius circle if it exists
+        if (map.current!.getSource('current-radius')) {
+          if (map.current!.getLayer('current-radius-fill')) {
+            map.current!.removeLayer('current-radius-fill');
+          }
+          if (map.current!.getLayer('current-radius-outline')) {
+            map.current!.removeLayer('current-radius-outline');
+          }
+          map.current!.removeSource('current-radius');
         }
-        if (map.current.getLayer('current-radius-outline')) {
-          map.current.removeLayer('current-radius-outline');
-        }
-        map.current.removeSource('current-radius');
+
+        // Add radius circle
+        const circleSource = createGeoJSONCircle(
+          [formData.longitude, formData.latitude],
+          formData.radius_meters
+        );
+        
+        map.current!.addSource('current-radius', circleSource);
+        
+        map.current!.addLayer({
+          id: 'current-radius-fill',
+          type: 'fill',
+          source: 'current-radius',
+          paint: {
+            'fill-color': '#3b82f6',
+            'fill-opacity': 0.2,
+          },
+        });
+        
+        map.current!.addLayer({
+          id: 'current-radius-outline',
+          type: 'line',
+          source: 'current-radius',
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 2,
+          },
+        });
+
+        // Calculate appropriate zoom level based on radius
+        let zoom = 15;
+        if (formData.radius_meters > 10000) zoom = 10;
+        else if (formData.radius_meters > 5000) zoom = 11;
+        else if (formData.radius_meters > 2000) zoom = 12;
+        else if (formData.radius_meters > 1000) zoom = 13;
+        else if (formData.radius_meters > 500) zoom = 14;
+
+        map.current!.flyTo({
+          center: [formData.longitude, formData.latitude],
+          zoom: zoom,
+        });
+      };
+
+      if (map.current.isStyleLoaded()) {
+        addCurrentMarkerAndCircle();
+      } else {
+        map.current.once('style.load', addCurrentMarkerAndCircle);
       }
-
-      // Add radius circle
-      const circleSource = createGeoJSONCircle(
-        [formData.longitude, formData.latitude],
-        formData.radius_meters
-      );
-      
-      map.current.addSource('current-radius', circleSource);
-      
-      map.current.addLayer({
-        id: 'current-radius-fill',
-        type: 'fill',
-        source: 'current-radius',
-        paint: {
-          'fill-color': '#3b82f6',
-          'fill-opacity': 0.2,
-        },
-      });
-      
-      map.current.addLayer({
-        id: 'current-radius-outline',
-        type: 'line',
-        source: 'current-radius',
-        paint: {
-          'line-color': '#3b82f6',
-          'line-width': 2,
-        },
-      });
-
-      // Calculate appropriate zoom level based on radius
-      let zoom = 15;
-      if (formData.radius_meters > 10000) zoom = 10;
-      else if (formData.radius_meters > 5000) zoom = 11;
-      else if (formData.radius_meters > 2000) zoom = 12;
-      else if (formData.radius_meters > 1000) zoom = 13;
-      else if (formData.radius_meters > 500) zoom = 14;
-
-      map.current.flyTo({
-        center: [formData.longitude, formData.latitude],
-        zoom: zoom,
-      });
     }
   }, [locations, formData, dialogOpen]);
 
