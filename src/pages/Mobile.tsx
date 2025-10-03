@@ -547,86 +547,96 @@ const Mobile = () => {
   return (
     <div className="min-h-screen bg-background pb-safe-area-bottom">
       <header 
-        className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border"
+        className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border shadow-sm"
         style={{ paddingTop: `${safeArea.top}px` }}
       >
-        <div className="flex items-center justify-between p-3 xs:p-4 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
-              title="Înapoi"
-            >
-              <ArrowLeft className="h-6 w-6 text-primary" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate(1)}
-              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
-              title="Înainte"
-            >
-              <ArrowRight className="h-6 w-6 text-primary" />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
-            <div className="flex h-8 w-8 xs:h-10 xs:w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
-              <Clock className="h-4 w-4 xs:h-6 xs:w-6 text-primary-foreground" />
-            </div>
-            <div className="min-w-0 hidden xs:block">
-              <h1 className="text-base xs:text-lg font-semibold text-foreground truncate">TimeTrack</h1>
-              <p className="text-xs xs:text-sm text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
-            </div>
-          </div>
-          
-          <RomaniaTimeClock />
-          
-          <ScheduleNotificationBell />
-          
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="touch-target no-select flex-shrink-0">
-                <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <SheetHeader>
-                <SheetTitle>Meniu</SheetTitle>
-                <SheetDescription>Opțiuni disponibile</SheetDescription>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                <SheetClose asChild>
-                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/my-time-entries')}>
-                    <Clock className="h-4 w-4" />
-                    Istoric Timp
-                  </Button>
-                </SheetClose>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Task-uri
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  Proiecte
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/vacations')}>
-                  <CalendarDays className="h-4 w-4" />
-                  Concedii
-                </Button>
-                <Button
-                  variant="outline" 
-                  className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-                  onClick={signOut}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Deconectare
-                </Button>
+        <div className="flex flex-col gap-2 p-3">
+          {/* Prima linie: Logo, nume și notificări */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
+                <Clock className="h-5 w-5 text-primary-foreground" />
               </div>
-            </SheetContent>
-          </Sheet>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base font-semibold text-foreground truncate">TimeTrack</h1>
+                <p className="text-xs text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <ScheduleNotificationBell />
+              
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-10 w-10 touch-target no-select">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                  <SheetHeader>
+                    <SheetTitle>Meniu</SheetTitle>
+                    <SheetDescription>Opțiuni disponibile</SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-4">
+                    <SheetClose asChild>
+                      <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/my-time-entries')}>
+                        <Clock className="h-4 w-4" />
+                        Istoric Timp
+                      </Button>
+                    </SheetClose>
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Task-uri
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <FolderOpen className="h-4 w-4" />
+                      Proiecte
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/vacations')}>
+                      <CalendarDays className="h-4 w-4" />
+                      Concedii
+                    </Button>
+                    <Button
+                      variant="outline" 
+                      className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                      onClick={signOut}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Deconectare
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+          
+          {/* A doua linie: Navigare și oră România */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(-1)}
+                className="h-9 px-3 touch-target border border-primary/30 bg-primary/5 hover:bg-primary/10"
+                title="Înapoi"
+              >
+                <ArrowLeft className="h-4 w-4 text-primary mr-1" />
+                <span className="text-xs">Înapoi</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(1)}
+                className="h-9 px-3 touch-target border border-primary/30 bg-primary/5 hover:bg-primary/10"
+                title="Înainte"
+              >
+                <span className="text-xs">Înainte</span>
+                <ArrowRight className="h-4 w-4 text-primary ml-1" />
+              </Button>
+            </div>
+            
+            <RomaniaTimeClock />
+          </div>
         </div>
       </header>
 
