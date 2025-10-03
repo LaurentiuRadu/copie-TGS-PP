@@ -50,13 +50,7 @@ interface DayData {
   pasagerHours: number;
 }
 
-const mockMonthData: DayData[] = [
-  { date: new Date(2025, 0, 2), normalHours: 8, condusHours: 0, pasagerHours: 0 },
-  { date: new Date(2025, 0, 3), normalHours: 0, condusHours: 7, pasagerHours: 0 },
-  { date: new Date(2025, 0, 6), normalHours: 0, condusHours: 0, pasagerHours: 8 },
-  { date: new Date(2025, 0, 7), normalHours: 8, condusHours: 0, pasagerHours: 0 },
-  { date: new Date(2025, 0, 8), normalHours: 0, condusHours: 6, pasagerHours: 0 },
-];
+// Removed mock data - use real data from DB
 
 const Mobile = () => {
   const { user, signOut, loading } = useAuth();
@@ -322,20 +316,10 @@ const Mobile = () => {
   const canUseEquipment = user?.user_metadata?.username && 
     EQUIPMENT_USERS.includes(user.user_metadata.username.toLowerCase());
   
-  // Debug logging
-  console.log('Username:', user?.user_metadata?.username);
-  console.log('Username lowercase:', user?.user_metadata?.username?.toLowerCase());
-  console.log('Can use equipment:', canUseEquipment);
-  console.log('Active shift:', activeShift);
-  console.log('Active time entry:', activeTimeEntry?.id);
+  // Equipment access check
 
   const handleEquipmentStart = useCallback(async () => {
-    console.log('=== CONDUS UTILAJ START ===');
-    console.log('Active time entry:', activeTimeEntry);
-    console.log('Equipment photo:', equipmentPhoto ? 'Photo present' : 'No photo');
-    
     if (!activeTimeEntry) {
-      console.error('No active time entry!');
       toast.error("Nu există pontaj activ pentru a marca condus utilaj");
       triggerHaptic('error');
       return;
@@ -349,7 +333,6 @@ const Mobile = () => {
 
       // Upload photo if present
       if (equipmentPhoto) {
-        console.log('Uploading equipment photo...');
         try {
           const base64Data = equipmentPhoto.split(',')[1];
           const byteCharacters = atob(base64Data);
@@ -362,26 +345,19 @@ const Mobile = () => {
 
           const fileName = `equipment_${activeTimeEntry.id}_${Date.now()}.jpg`;
           const filePath = `${user?.id}/${fileName}`;
-
-          console.log('Uploading to path:', filePath);
           
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('profile-photos')
             .upload(filePath, blob);
 
-          if (uploadError) {
-            console.error('Upload error:', uploadError);
-            throw uploadError;
-          }
+          if (uploadError) throw uploadError;
 
           const { data: { publicUrl } } = supabase.storage
             .from('profile-photos')
             .getPublicUrl(filePath);
 
           photoUrl = publicUrl;
-          console.log('Photo uploaded successfully:', photoUrl);
         } catch (uploadErr) {
-          console.error('Failed to upload photo:', uploadErr);
           toast.error("Eroare la încărcarea pozei");
         }
       }
@@ -393,10 +369,6 @@ const Mobile = () => {
         ? currentNotes 
         : `${currentNotes} | Condus Utilaj${photoNote}`.trim();
 
-      console.log('Current notes:', currentNotes);
-      console.log('Updated notes:', updatedNotes);
-      console.log('Updating time entry ID:', activeTimeEntry.id);
-
       const { data: updateData, error: updateError } = await supabase
         .from('time_entries')
         .update({ 
@@ -405,23 +377,15 @@ const Mobile = () => {
         .eq('id', activeTimeEntry.id)
         .select();
 
-      console.log('Update response:', { data: updateData, error: updateError });
-
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
       // Update local state
       setActiveTimeEntry({ ...activeTimeEntry, notes: updatedNotes });
       setEquipmentPhoto(null);
       
-      console.log('=== CONDUS UTILAJ SUCCESS ===');
       toast.success("Condus Utilaj marcat cu succes!");
     } catch (error: any) {
-      console.error('=== CONDUS UTILAJ ERROR ===');
-      console.error('Failed to mark equipment:', error);
-      toast.error("Eroare la marcarea utilajului: " + (error.message || 'Unknown error'));
+      toast.error("Eroare la marcarea utilajului");
       triggerHaptic('error');
     }
   }, [activeTimeEntry, equipmentPhoto, user, triggerHaptic]);
@@ -539,22 +503,7 @@ const Mobile = () => {
     }
   };
 
-  const getDayColor = (date: Date) => {
-    const dayData = mockMonthData.find(
-      (d) => format(d.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
-    );
-    
-    if (!dayData) return "";
-    if (dayData.condusHours > 0) return "bg-blue-500/20 hover:bg-blue-500/30";
-    if (dayData.pasagerHours > 0) return "bg-green-500/20 hover:bg-green-500/30";
-    if (dayData.normalHours > 0) return "bg-purple-500/20 hover:bg-purple-500/30";
-    return "";
-  };
-
-  const BREAK_MINUTES = 30;
-  const todayTotalMinutes = 392;
-  const todayWorkedMinutes = Math.max(0, todayTotalMinutes - BREAK_MINUTES);
-  const todayHours = `${Math.floor(todayWorkedMinutes / 60)}h ${todayWorkedMinutes % 60}m`;
+  // Removed unused mock data functions
 
   const formattedTime = useMemo(() => formatTime(shiftSeconds), [shiftSeconds]);
 
@@ -848,16 +797,7 @@ const Mobile = () => {
                   day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
                   day_hidden: "invisible",
                 }}
-                modifiers={{
-                  condus: mockMonthData.filter(d => d.condusHours > 0).map(d => d.date),
-                  pasager: mockMonthData.filter(d => d.pasagerHours > 0).map(d => d.date),
-                  normal: mockMonthData.filter(d => d.normalHours > 0).map(d => d.date),
-                }}
-                modifiersClassNames={{
-                  condus: "bg-blue-500/20 hover:bg-blue-500/30 text-blue-900 dark:text-blue-100 font-semibold",
-                  pasager: "bg-green-500/20 hover:bg-green-500/30 text-green-900 dark:text-green-100 font-semibold",
-                  normal: "bg-purple-500/20 hover:bg-purple-500/30 text-purple-900 dark:text-purple-100 font-semibold",
-                }}
+                // Calendar data from real DB entries
               />
             </div>
             

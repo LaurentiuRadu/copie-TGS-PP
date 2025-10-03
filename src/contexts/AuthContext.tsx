@@ -22,24 +22,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Removed: deriveRoleFromUser, ensureRoleExists, updateActiveSession
-  // All roles must now be explicitly set in user_roles table
-
   useEffect(() => {
-    console.log('[AuthProvider] 🔧 Mounting auth provider');
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('[AuthProvider] 🔔 Auth state changed:', { 
-          event, 
-          hasSession: !!session,
-          userId: session?.user?.id,
-          timestamp: new Date().toISOString() 
-        });
-        
         // Handle SIGNED_OUT immediately
         if (event === 'SIGNED_OUT') {
-          console.warn('[AuthProvider] ⚠️ User signed out detected');
           setSession(null);
           setUser(null);
           setUserRole(null);
@@ -48,9 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Prevent unnecessary re-authentication on TOKEN_REFRESHED
         if (event === 'TOKEN_REFRESHED') {
-          console.log('[AuthProvider] 🔄 Token refreshed, keeping current state');
           setSession(session);
-          // Don't reset user or trigger role fetch again
           return;
         }
         
@@ -69,7 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .maybeSingle()
               .then(({ data: roleData, error }) => {
                 if (error) {
-                  console.error('[AuthProvider] Role fetch error:', error);
                   setUserRole(null);
                   return;
                 }
@@ -101,16 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // THEN check for existing session
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
-        console.log('[AuthProvider] 📝 Initial session check:', { 
-          hasSession: !!session,
-          userId: session?.user?.id 
-        });
         if (session) {
           setSession(session);
           setUser(session.user);
-        } else {
-          // Don't overwrite existing state if listener already populated it
-          // Keep current user/session as-is
         }
 
         if (session?.user) {
@@ -122,23 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .maybeSingle();
             
             if (fetchError) {
-              console.error('[AuthProvider] Role fetch error:', fetchError);
               setUserRole(null);
               return;
             }
             
             setUserRole((roleData?.role as UserRole) ?? null);
           } catch (err) {
-            console.error('[AuthProvider] Role fetch error:', err);
             setUserRole(null);
           }
         }
       })
-      .catch((err) => {
-        console.error('Session fetch error:', err);
-      })
       .finally(() => {
-        console.log('[AuthProvider] ✅ Auth initialization complete');
         setLoading(false);
       });
 
@@ -146,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    console.log('[AuthProvider] 🚪 Manual sign out triggered');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

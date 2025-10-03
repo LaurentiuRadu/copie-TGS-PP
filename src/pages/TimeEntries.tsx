@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Clock, MapPin, Smartphone, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Clock, MapPin, Smartphone } from 'lucide-react';
 import { AppHeader } from '@/components/AppHeader';
+import { useOptimizedTimeEntries } from '@/hooks/useOptimizedTimeEntries';
+import { useRealtimeTimeEntries } from '@/hooks/useRealtimeTimeEntries';
 import {
   Dialog,
   DialogContent,
@@ -16,98 +15,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-interface TimeEntry {
-  id: string;
-  clock_in_time: string;
-  clock_out_time: string | null;
-  clock_in_latitude: number;
-  clock_in_longitude: number;
-  clock_out_latitude: number | null;
-  clock_out_longitude: number | null;
-  clock_in_photo_url: string | null;
-  clock_out_photo_url: string | null;
-  device_id: string | null;
-  notes: string | null;
-  profiles: {
-    full_name: string | null;
-  } | null;
-  time_entry_segments: Array<{
-    segment_type: string;
-    hours_decimal: number;
-    multiplier: number;
-    start_time: string;
-    end_time: string;
-  }>;
-}
-
 const TimeEntries = () => {
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchEntries = async () => {
-    try {
-      setLoading(true);
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const { data, error } = await supabase
-        .from('time_entries')
-        .select(`
-          *,
-          time_entry_segments(*)
-        `)
-        .gte('clock_in_time', startOfDay.toISOString())
-        .lte('clock_in_time', endOfDay.toISOString())
-        .order('clock_in_time', { ascending: false });
-
-      if (error) throw error;
-      
-      // Fetch profiles separately
-      const entriesWithProfiles = await Promise.all(
-        (data || []).map(async (entry) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', entry.user_id)
-            .single();
-          
-          return { ...entry, profiles: profile };
-        })
-      );
-      
-      setEntries(entriesWithProfiles as TimeEntry[]);
-    } catch (error: any) {
-      console.error('Error fetching entries:', error);
-      toast.error('Eroare la încărcarea pontajelor');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEntries();
-  }, [selectedDate]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('time-entries-admin-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, () => {
-        fetchEntries();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entry_segments' }, () => {
-        fetchEntries();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedDate]);
+  const [selectedEntry, setSelectedEntry] = useState<any>(null);
+  
+  // Use optimized hook with batched queries
+  const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
+  
+  // Real-time updates
+  useRealtimeTimeEntries(true);
 
   const getSegmentLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -132,7 +48,7 @@ const TimeEntries = () => {
     return 'bg-green-500/20 text-green-900 dark:text-green-100';
   };
 
-  const calculateTotalHours = (entry: TimeEntry) => {
+  const calculateTotalHours = (entry: any) => {
     if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
       if (!entry.clock_out_time) return 0;
       const duration = new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime();
@@ -142,7 +58,7 @@ const TimeEntries = () => {
     return entry.time_entry_segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
   };
 
-  const calculateWeightedHours = (entry: TimeEntry) => {
+  const calculateWeightedHours = (entry: any) => {
     if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
       return calculateTotalHours(entry);
     }
@@ -188,7 +104,7 @@ const TimeEntries = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {loading ? (
+            {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 Se încarcă...
               </div>
