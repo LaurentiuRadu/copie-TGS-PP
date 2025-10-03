@@ -104,6 +104,10 @@ const WorkLocations = () => {
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+      // Watchers/handles used for cleanup
+      let io: IntersectionObserver | null = null;
+      let resizeInterval: number | undefined = undefined;
+
       // Ensure proper sizing after dialog opens and during animations
       map.current.on('load', () => {
         // Multiple resizes to handle dialog open transition
@@ -132,6 +136,24 @@ const WorkLocations = () => {
           console.debug('ResizeObserver not available', e);
         }
       }
+
+      // Additionally, trigger resize when the container actually becomes visible
+      if (mapContainer.current && 'IntersectionObserver' in window) {
+        io = new IntersectionObserver((entries) => {
+          if (entries[0]?.isIntersecting) {
+            map.current?.resize();
+          }
+        }, { threshold: 0.1 });
+        io.observe(mapContainer.current);
+      }
+
+      // Safety: aggressively resize for the first few seconds to cover any transitions
+      resizeInterval = window.setInterval(() => {
+        map.current?.resize();
+      }, 250);
+      window.setTimeout(() => {
+        if (resizeInterval) window.clearInterval(resizeInterval);
+      }, 3000);
 
       // Surface Mapbox errors (e.g., invalid token)
       map.current.on('error', (ev) => {
