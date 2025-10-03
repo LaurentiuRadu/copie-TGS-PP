@@ -9,7 +9,18 @@ import "./index.css";
 import { registerServiceWorker, isStandalone } from "./lib/registerServiceWorker";
 
 
-registerServiceWorker();
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+} else {
+  // In dev, unregister any existing service workers to avoid caching dev bundles
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister()));
+    // Clear caches that might contain old Vite deps
+    if ('caches' in window) {
+      caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+    }
+  }
+}
 if (import.meta.env.DEV && isStandalone()) {
   console.info('🚀 PWA mode: standalone');
 }
