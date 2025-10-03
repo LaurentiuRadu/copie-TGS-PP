@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -24,7 +24,7 @@ import RecalculateSegments from "./pages/RecalculateSegments";
 const App = () => (
   <TooltipProvider>
     <Toaster />
-    <Sonner />
+    
     <PWAInstallPrompt />
     <Routes>
       <Route path="/" element={<RootRedirect />} />
