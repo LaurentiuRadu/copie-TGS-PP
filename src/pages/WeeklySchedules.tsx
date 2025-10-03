@@ -16,7 +16,7 @@ import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
-
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 
 interface ScheduleEntry {
@@ -481,22 +481,15 @@ export default function WeeklySchedules() {
   }, [schedules, employees]);
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <AdminLayout title="Programare Săptămânală">
+      <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-6 w-6" />
-              Programare Săptămânală
+              Programare
             </CardTitle>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/admin')}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Înapoi la Dashboard
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1057,6 +1050,7 @@ export default function WeeklySchedules() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

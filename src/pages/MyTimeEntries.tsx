@@ -8,7 +8,7 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Clock, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { AppHeader } from '@/components/AppHeader';
+import { EmployeeLayout } from '@/components/layouts/EmployeeLayout';
 
 interface TimeEntry {
   id: string;
@@ -99,14 +99,11 @@ const MyTimeEntries = () => {
   const monthlyWeightedHours = entries.reduce((sum, entry) => sum + calculateWeightedHours(entry), 0);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader title="Pontajele Mele" />
-      
+    <EmployeeLayout title="Pontajele Mele">
       <div className="container mx-auto p-6 space-y-6">
-
-      {/* Monthly Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        {/* Monthly Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Ore Lucrate</CardTitle>
           </CardHeader>
@@ -116,9 +113,9 @@ const MyTimeEntries = () => {
               {format(selectedMonth, 'MMMM yyyy', { locale: ro })}
             </p>
           </CardContent>
-        </Card>
+          </Card>
 
-        <Card>
+          <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Ore Plătite (cu sporuri)</CardTitle>
           </CardHeader>
@@ -126,9 +123,9 @@ const MyTimeEntries = () => {
             <div className="text-3xl font-bold text-primary">{monthlyWeightedHours.toFixed(1)}h</div>
             <p className="text-xs text-muted-foreground mt-1">Echivalent total</p>
           </CardContent>
-        </Card>
+          </Card>
 
-        <Card>
+          <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Bonus Sporuri</CardTitle>
           </CardHeader>
@@ -138,12 +135,12 @@ const MyTimeEntries = () => {
             </div>
             <p className="text-xs text-muted-foreground mt-1">Ore bonus</p>
           </CardContent>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Calendar */}
+          <Card>
           <CardHeader>
             <CardTitle>Selectează Luna</CardTitle>
           </CardHeader>
@@ -156,10 +153,10 @@ const MyTimeEntries = () => {
               className="rounded-md border"
             />
           </CardContent>
-        </Card>
+          </Card>
 
-        {/* Entries List */}
-        <Card className="lg:col-span-2">
+          {/* Entries List */}
+          <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Detalii Pontaje ({entries.length})</CardTitle>
           </CardHeader>
@@ -238,10 +235,10 @@ const MyTimeEntries = () => {
               })
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
-      </div>
-    </div>
+    </EmployeeLayout>
   );
 };
 

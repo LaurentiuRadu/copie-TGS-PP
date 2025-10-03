@@ -5,7 +5,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Clock, MapPin, Smartphone } from 'lucide-react';
-import { AppHeader } from '@/components/AppHeader';
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { useOptimizedTimeEntries } from '@/hooks/useOptimizedTimeEntries';
 import { useRealtimeTimeEntries } from '@/hooks/useRealtimeTimeEntries';
 import {
@@ -70,13 +70,14 @@ const TimeEntries = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader title="Pontaje Detaliate">
+    <AdminLayout 
+      title="Pontaje Detaliate"
+      headerActions={
         <Badge variant="outline" className="text-lg px-4 py-2">
           {format(selectedDate, 'dd MMMM yyyy', { locale: ro })}
         </Badge>
-      </AppHeader>
-      
+      }
+    >
       <div className="container mx-auto p-6 space-y-6">
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -324,7 +325,7 @@ const TimeEntries = () => {
         </DialogContent>
       </Dialog>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

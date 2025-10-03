@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { AppHeader } from '@/components/AppHeader';
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 import {
   Table,
   TableBody,
@@ -282,9 +282,7 @@ const Timesheet = () => {
   }, {});
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader title="Timesheet" />
-
+    <AdminLayout title="Timesheet">
       <div className="container mx-auto p-4 space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -543,7 +541,7 @@ const Timesheet = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

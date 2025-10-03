@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus } from 'lucide-react';
-import { AppHeader } from '@/components/AppHeader';
+import { EmployeeLayout } from '@/components/layouts/EmployeeLayout';
 import { useOptimizedVacations } from '@/hooks/useOptimizedVacations';
 import {
   Dialog,
@@ -128,9 +128,10 @@ const Vacations = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader title="Concedii">
-        {!isAdmin && (
+    <EmployeeLayout 
+      title="Concedii"
+      headerActions={
+        !isAdmin ? (
           <Dialog open={showNewRequest} onOpenChange={setShowNewRequest}>
             <DialogTrigger asChild>
               <Button>
@@ -200,17 +201,17 @@ const Vacations = () => {
               </div>
             </DialogContent>
           </Dialog>
-        )}
-      </AppHeader>
-
-      <div className="container mx-auto p-6 space-y-6">
+        ) : undefined
+      }
+    >
+      <div className="container mx-auto p-4 sm:p-6 space-y-6">
         {/* Requests List */}
         <Card>
-        <CardHeader>
-          <CardTitle>
-            {isAdmin ? 'Toate Cererile' : 'Cererile Mele'} ({requests.length})
-          </CardTitle>
-        </CardHeader>
+          <CardHeader>
+            <CardTitle>
+              {isAdmin ? 'Toate Cererile' : 'Cererile Mele'} ({requests.length})
+            </CardTitle>
+          </CardHeader>
           <CardContent className="space-y-4">
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -287,10 +288,10 @@ const Vacations = () => {
               </Card>
             ))
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </EmployeeLayout>
   );
 };
 

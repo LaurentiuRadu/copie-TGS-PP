@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Plus, Edit, Trash2, LogOut } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { MapPin, Plus, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import mapboxgl from 'mapbox-gl';
@@ -43,7 +41,6 @@ interface WorkLocation {
 }
 
 const WorkLocations = () => {
-  const { signOut } = useAuth();
   const [locations, setLocations] = useState<WorkLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -503,17 +500,20 @@ const WorkLocations = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-6">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold text-foreground">Locații de Lucru</h1>
-            </div>
-            <div className="flex items-center gap-2">
+    <AdminLayout title="Locații de Lucru">
+      <div className="p-6">
+        <Card className="shadow-custom-md">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Locații de Lucru Configurate
+                </CardTitle>
+                <CardDescription>
+                  Gestionează locațiile unde angajații pot face pontaj
+                </CardDescription>
+              </div>
               <Dialog open={dialogOpen} onOpenChange={(open) => {
                 setDialogOpen(open);
                 if (!open) resetForm();
@@ -641,34 +641,9 @@ const WorkLocations = () => {
                   </form>
                 </DialogContent>
               </Dialog>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={signOut}
-                className="gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Deconectare
-              </Button>
             </div>
-          </header>
-
-          <main className="flex-1 overflow-y-auto p-6">
-            <Card className="shadow-custom-md">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5" />
-                      Locații de Lucru Configurate
-                    </CardTitle>
-                    <CardDescription>
-                      Gestionează locațiile unde angajații pot face pontaj
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
                 {loading ? (
                   <div className="text-center py-8">Se încarcă...</div>
                 ) : locations.length === 0 ? (
@@ -732,10 +707,8 @@ const WorkLocations = () => {
                 )}
               </CardContent>
             </Card>
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+          </div>
+        </AdminLayout>
   );
 };
 
