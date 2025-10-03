@@ -1,5 +1,7 @@
 // Service Worker pentru PWA - Offline support și caching
-const CACHE_NAME = 'timetrack-v1';
+// Versiune dinamică bazată pe timestamp pentru actualizări automate
+const CACHE_VERSION = '1.0.0';
+const CACHE_NAME = `timetrack-v${CACHE_VERSION}-${Date.now()}`;
 const OFFLINE_URL = '/';
 
 const urlsToCache = [

@@ -9,17 +9,25 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
+          // Verifică automat pentru actualizări la fiecare oră
+          setInterval(() => {
+            registration.update();
+          }, 60 * 60 * 1000);
+
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  if (import.meta.env.DEV) {
-                    console.info('🔄 New version available');
-                  }
+                  console.info('🔄 Versiune nouă disponibilă - Actualizare automată...');
                   
+                  // Trimite mesaj pentru a activa noul service worker
                   newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  window.location.reload();
+                  
+                  // Așteaptă puțin și reîncarcă pagina
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
                 }
               });
             }
