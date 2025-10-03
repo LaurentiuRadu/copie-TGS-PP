@@ -7,7 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import App from "./App";
 import "./index.css";
 import { registerServiceWorker, isStandalone } from "./lib/registerServiceWorker";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+
 
 registerServiceWorker();
 if (import.meta.env.DEV && isStandalone()) {
@@ -35,7 +35,6 @@ createRoot(document.getElementById("root")!).render(
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <App />
-            <Sonner richColors closeButton />
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
