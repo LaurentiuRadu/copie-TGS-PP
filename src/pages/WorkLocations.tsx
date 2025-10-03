@@ -87,11 +87,23 @@ const WorkLocations = () => {
       return;
     }
 
+    // Try to center on user's location on open (silent, no toasts) when adding new
+    if (!editingLocation && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords: { latitude, longitude } }) => {
+          setFormData((prev) => ({ ...prev, latitude, longitude }));
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+      );
+    }
+
     if (!mapContainer.current || map.current) return;
 
-    // Wait for DOM to be ready and dialog animation to complete
-    const initTimer = setTimeout(() => {
-      if (!mapContainer.current) return;
+    let initTimer: number | undefined;
+
+    const startMap = () => {
+      if (!mapContainer.current || map.current) return;
 
       mapboxgl.accessToken = mapboxToken || MAPBOX_TOKEN;
 
@@ -169,7 +181,22 @@ const WorkLocations = () => {
           longitude: e.lngLat.lng,
         }));
       });
-    }, 100);
+    };
+
+    const waitForVisible = (tries = 20) => {
+      const el = mapContainer.current;
+      if (!el) return;
+      const { clientWidth, clientHeight } = el;
+      if (clientWidth > 0 && clientHeight > 0) {
+        startMap();
+      } else if (tries > 0) {
+        initTimer = window.setTimeout(() => waitForVisible(tries - 1), 100);
+      } else {
+        startMap();
+      }
+    };
+
+    initTimer = window.setTimeout(() => waitForVisible(), 100);
 
     return () => {
       clearTimeout(initTimer);
@@ -597,7 +624,7 @@ const WorkLocations = () => {
                         <p className="text-xs text-muted-foreground">
                           Token-ul se salvează automat. Închide și redeschide dialogul pentru a aplica modificările.
                         </p>
-                        <div ref={mapContainer} className="h-[300px] rounded-lg border bg-muted" />
+                        <div ref={mapContainer} className="relative h-[300px] w-full rounded-lg border bg-muted overflow-hidden" />
                         <p className="text-xs text-muted-foreground">
                           💡 Click pe hartă pentru a seta locația sau folosește butonul "Locația Mea"
                         </p>
