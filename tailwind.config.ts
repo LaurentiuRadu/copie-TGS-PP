@@ -29,6 +29,8 @@ export default {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
+          light: "hsl(var(--primary-light))",
+          dark: "hsl(var(--primary-dark))",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -70,10 +72,12 @@ export default {
         info: "hsl(var(--info))",
       },
       backgroundImage: {
-        'gradient-primary': 'var(--gradient-primary)',
-        'gradient-secondary': 'var(--gradient-secondary)',
+        'gradient-hero': 'var(--gradient-hero)',
+        'gradient-mesh': 'var(--gradient-mesh)',
+        'gradient-glass-card': 'var(--gradient-glass-card)',
+        'gradient-primary-action': 'var(--gradient-primary-action)',
+        'gradient-accent-action': 'var(--gradient-accent-action)',
         'gradient-glass': 'var(--gradient-glass)',
-        'gradient-card': 'var(--gradient-card)',
       },
       boxShadow: {
         'custom-sm': 'var(--shadow-sm)',
@@ -81,6 +85,8 @@ export default {
         'custom-lg': 'var(--shadow-lg)',
         'elegant': 'var(--shadow-elegant)',
         'glow': 'var(--shadow-glow)',
+        'soft': 'var(--shadow-soft)',
+        'elevated': 'var(--shadow-elevated)',
       },
       transitionTimingFunction: {
         'smooth': 'var(--transition-smooth)',
@@ -93,48 +99,62 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
         "pulse-soft": {
-          "0%, 100%": {
-            opacity: "1",
-          },
-          "50%": {
-            opacity: "0.7",
-          },
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
         },
         "slide-up": {
-          from: {
-            transform: "translateY(20px)",
-            opacity: "0",
-          },
-          to: {
-            transform: "translateY(0)",
-            opacity: "1",
-          },
+          from: { transform: "translateY(20px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
         },
         "slide-down": {
-          from: {
-            transform: "translateY(-20px)",
+          from: { transform: "translateY(-20px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "hover-scale": {
+          "0%": { transform: "scale(1)" },
+          "100%": { transform: "scale(1.05)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { 
+            boxShadow: "0 0 20px hsl(var(--primary) / 0.4)",
+            opacity: "1"
+          },
+          "50%": { 
+            boxShadow: "0 0 40px hsl(var(--primary) / 0.6)",
+            opacity: "0.9"
+          },
+        },
+        "slide-up-fade": {
+          from: { 
+            transform: "translateY(30px)", 
             opacity: "0",
+            filter: "blur(4px)"
           },
-          to: {
-            transform: "translateY(0)",
+          to: { 
+            transform: "translateY(0)", 
             opacity: "1",
+            filter: "blur(0)"
           },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        "scale-in": {
+          "0%": { transform: "scale(0.9)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
       },
       animation: {
@@ -143,6 +163,12 @@ export default {
         "pulse-soft": "pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "slide-up": "slide-up 0.3s ease-out",
         "slide-down": "slide-down 0.3s ease-out",
+        "hover-scale": "hover-scale 0.2s ease-out forwards",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "slide-up-fade": "slide-up-fade 0.5s ease-out",
+        "shimmer": "shimmer 2s linear infinite",
+        "float": "float 3s ease-in-out infinite",
+        "scale-in": "scale-in 0.3s ease-out",
       },
     },
   },
