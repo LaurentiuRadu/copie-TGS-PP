@@ -13,10 +13,12 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "react/jsx-runtime": path.resolve(__dirname, "./node_modules/react/jsx-runtime"),
+      "react/jsx-dev-runtime": path.resolve(__dirname, "./node_modules/react/jsx-dev-runtime"),
     },
     dedupe: ["react", "react-dom", "next-themes"],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "next-themes"],
+    include: ["react", "react-dom", "next-themes", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
 }));
