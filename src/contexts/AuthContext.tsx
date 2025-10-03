@@ -40,35 +40,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Verify if current device is the active one
-  const verifyActiveDevice = async (userId: string) => {
-    const deviceFingerprint = generateDeviceFingerprint();
-    
-    const { data, error } = await supabase
-      .from('active_sessions')
-      .select('device_fingerprint')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('[AuthProvider] Error checking active device:', error);
-      return false;
-    }
-
-    // If no active session exists or it's a different device, sign out
-    if (data && data.device_fingerprint !== deviceFingerprint) {
-      console.warn('[AuthProvider] ⚠️ Another device is active. Signing out...');
-      await supabase.auth.signOut();
-      return false;
-    }
-
-    return true;
-  };
-
-  // Update or create active session
+  // Update or create active session - invalidates other devices
   const updateActiveSession = async (userId: string, sessionId: string) => {
     const deviceFingerprint = generateDeviceFingerprint();
     
+    // Delete all other sessions for this user (single device login)
+    await supabase
+      .from('active_sessions')
+      .delete()
+      .eq('user_id', userId)
+      .neq('device_fingerprint', deviceFingerprint);
+    
+    // Create/update session for current device
     await supabase
       .from('active_sessions')
       .upsert({
@@ -125,12 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTimeout(() => {
             const userId = session.user.id;
             
-            // Verify if this device is the active one (only after initial sign-in)
-            if (event === 'SIGNED_IN') {
-              verifyActiveDevice(userId).catch(err =>
-                console.error('[AuthProvider] Device verification failed:', err)
-              );
-            }
             supabase
               .from('user_roles')
               .select('role')
