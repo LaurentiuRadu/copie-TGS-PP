@@ -20,7 +20,7 @@ const TimeEntries = () => {
   const [selectedEntry, setSelectedEntry] = useState<any>(null);
   
   // Use optimized hook with batched queries
-  const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
+  const { data: entries = [], isLoading } = useOptimizedTimeEntries(selectedDate);
   
   // Real-time updates
   useRealtimeTimeEntries(true);
