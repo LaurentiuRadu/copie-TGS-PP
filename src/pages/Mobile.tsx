@@ -573,31 +573,8 @@ const Mobile = () => {
             </div>
           </div>
           
-          {/* A doua linie: Navigare și oră România */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(-1)}
-                className="h-9 px-3 touch-target border border-primary/30 bg-primary/5 hover:bg-primary/10"
-                title="Înapoi"
-              >
-                <ArrowLeft className="h-4 w-4 text-primary mr-1" />
-                <span className="text-xs">Înapoi</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(1)}
-                className="h-9 px-3 touch-target border border-primary/30 bg-primary/5 hover:bg-primary/10"
-                title="Înainte"
-              >
-                <span className="text-xs">Înainte</span>
-                <ArrowRight className="h-4 w-4 text-primary ml-1" />
-              </Button>
-            </div>
-            
+          {/* A doua linie: oră România */}
+          <div className="flex items-center justify-end">
             <RomaniaTimeClock />
           </div>
         </div>
