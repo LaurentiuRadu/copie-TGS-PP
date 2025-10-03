@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { generateDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -23,46 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const deriveRoleFromUser = (u: User): Exclude<UserRole, null> | null => {
-    const email = u.email || (u.user_metadata as any)?.email || "";
-    if (email.endsWith("@company.local")) return 'employee';
-    if (email === 'demoadmin@test.com' || email.endsWith('@tgservices.ro')) return 'admin';
-    return null;
-  };
-
-  const ensureRoleExists = async (u: User, role: Exclude<UserRole, null>) => {
-    try {
-      await supabase
-        .from('user_roles')
-        .insert({ user_id: u.id, role });
-    } catch (e) {
-      // ignore insert errors (duplicate, etc.)
-    }
-  };
-
-  // Update or create active session - invalidates other devices
-  const updateActiveSession = async (userId: string, sessionId: string) => {
-    const deviceFingerprint = generateDeviceFingerprint();
-    
-    // Delete all other sessions for this user (single device login)
-    await supabase
-      .from('active_sessions')
-      .delete()
-      .eq('user_id', userId)
-      .neq('device_fingerprint', deviceFingerprint);
-    
-    // Create/update session for current device
-    await supabase
-      .from('active_sessions')
-      .upsert({
-        user_id: userId,
-        device_fingerprint: deviceFingerprint,
-        session_id: sessionId,
-        last_activity: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,device_fingerprint'
-      });
-  };
+  // Removed: deriveRoleFromUser, ensureRoleExists, updateActiveSession
+  // All roles must now be explicitly set in user_roles table
 
   useEffect(() => {
     console.log('[AuthProvider] 🔧 Mounting auth provider');
@@ -97,13 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Update active session on SIGNED_IN
-          if (event === 'SIGNED_IN') {
-            updateActiveSession(session.user.id, session.access_token).catch(err => 
-              console.error('[AuthProvider] Failed to update active session:', err)
-            );
-          }
-
           // Fetch role without async in callback  
           setTimeout(() => {
             const userId = session.user.id;
@@ -115,45 +69,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .maybeSingle()
               .then(({ data: roleData, error }) => {
                 if (error) {
-                  console.error('Role fetch error:', error);
+                  console.error('[AuthProvider] Role fetch error:', error);
                   setUserRole(null);
                   return;
                 }
 
-                let role = (roleData?.role as UserRole) ?? null;
-                if (!role) {
-                  const derived = deriveRoleFromUser(session.user);
-                  if (derived) {
-                    role = derived;
-                    setUserRole(role);
-                    // Don't await, just fire and forget
-                    ensureRoleExists(session.user, role).catch(() => {});
-                  } else {
-                    setUserRole(null);
-                  }
-                } else {
-                  setUserRole(role);
-                }
+                const role = (roleData?.role as UserRole) ?? null;
+                setUserRole(role);
 
-                // Only redirect on SIGNED_IN event, not on TOKEN_REFRESHED or other events
-                if (event === 'SIGNED_IN') {
-                  // Check current path to avoid unnecessary redirects
+                // Only redirect on SIGNED_IN event
+                if (event === 'SIGNED_IN' && role) {
                   const currentPath = window.location.pathname;
-                  
-                  // Define valid paths for each role
-                  const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules'];
+                  const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/timesheet', '/recalculate-segments'];
                   const employeePaths = ['/mobile', '/my-time-entries', '/vacations'];
                   
                   const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
                                        (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
                   
-                  // Only redirect if user is not on a valid path for their role
                   if (!isOnValidPath) {
-                    if (role === 'admin') {
-                      navigate('/admin');
-                    } else if (role === 'employee') {
-                      navigate('/mobile');
-                    }
+                    navigate(role === 'admin' ? '/admin' : '/mobile');
                   }
                 }
               });
@@ -188,31 +122,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .maybeSingle();
             
             if (fetchError) {
-              console.error('Role fetch error:', fetchError);
-              const derived = deriveRoleFromUser(session.user);
-              setUserRole(derived);
+              console.error('[AuthProvider] Role fetch error:', fetchError);
+              setUserRole(null);
               return;
             }
             
-            let role = (roleData?.role as UserRole) ?? deriveRoleFromUser(session.user);
-            setUserRole(role);
-            
-            // Only try to create role if none exists and we have a derived role
-            if (!roleData && role) {
-              // Check if role already exists before inserting
-              const { data: existingRole } = await supabase
-                .from('user_roles')
-                .select('id')
-                .eq('user_id', session.user.id)
-                .eq('role', role)
-                .maybeSingle();
-              
-              if (!existingRole) {
-                await ensureRoleExists(session.user, role);
-              }
-            }
+            setUserRole((roleData?.role as UserRole) ?? null);
           } catch (err) {
-            console.error('Role fetch error:', err);
+            console.error('[AuthProvider] Role fetch error:', err);
             setUserRole(null);
           }
         }

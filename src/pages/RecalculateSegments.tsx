@@ -4,20 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 
 export default function RecalculateSegments() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const navigate = useNavigate();
 
   const recalculateAllSegments = async () => {
     setIsProcessing(true);
     setResults(null);
     
     try {
-      // Get all complete time entries
       const { data: entries, error: fetchError } = await supabase
         .from('time_entries')
         .select('id, clock_in_time, clock_out_time')
@@ -41,7 +39,6 @@ export default function RecalculateSegments() {
 
       setProgress({ current: 0, total: entries.length });
 
-      // Process each entry
       for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
         setProgress({ current: i + 1, total: entries.length });
@@ -49,7 +46,6 @@ export default function RecalculateSegments() {
         try {
           console.log(`Processing entry ${i + 1}/${entries.length}: ${entry.id}`);
 
-          // Delete existing segments
           const { error: deleteError } = await supabase
             .from('time_entry_segments')
             .delete()
@@ -60,7 +56,6 @@ export default function RecalculateSegments() {
             throw deleteError;
           }
 
-          // Call edge function to recalculate
           const { data: calcData, error: calcError } = await supabase.functions.invoke(
             'calculate-time-segments',
             {
@@ -89,7 +84,6 @@ export default function RecalculateSegments() {
           });
         }
 
-        // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
@@ -110,106 +104,100 @@ export default function RecalculateSegments() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Button 
-          variant="outline" 
-          onClick={() => navigate('/admin')}
-          className="mb-4"
-        >
-          ← Înapoi la Admin
-        </Button>
+    <AdminLayout title="Recalculare Segments">
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Recalculare Segments Pontaje
+              </CardTitle>
+              <CardDescription>
+                Recalculează toate segments-urile pentru pontajele complete.
+                Acest proces va șterge și recrea toate segments-urile existente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={recalculateAllSegments}
+                disabled={isProcessing}
+                size="lg"
+                className="w-full"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Procesare... {progress.current}/{progress.total}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-5 w-5" />
+                    Recalculează Toate Segments-urile
+                  </>
+                )}
+              </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5" />
-              Recalculare Segments Pontaje
-            </CardTitle>
-            <CardDescription>
-              Recalculează toate segments-urile pentru pontajele complete.
-              Acest proces va șterge și recrea toate segments-urile existente.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button
-              onClick={recalculateAllSegments}
-              disabled={isProcessing}
-              size="lg"
-              className="w-full"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Procesare... {progress.current}/{progress.total}
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-5 w-5" />
-                  Recalculează Toate Segments-urile
-                </>
-              )}
-            </Button>
-
-            {isProcessing && (
-              <div className="space-y-2">
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground text-center">
-                  Procesare: {progress.current} / {progress.total}
-                </p>
-              </div>
-            )}
-
-            {results && (
-              <Card className="border-2">
-                <CardHeader>
-                  <CardTitle className="text-lg">Rezultate Procesare</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">{results.total}</div>
-                      <div className="text-sm text-muted-foreground">Total</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 flex items-center justify-center gap-1">
-                        <CheckCircle className="h-5 w-5" />
-                        {results.success.length}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Succes</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600 flex items-center justify-center gap-1">
-                        <XCircle className="h-5 w-5" />
-                        {results.errors.length}
-                      </div>
-                      <div className="text-sm text-muted-foreground">Erori</div>
-                    </div>
+              {isProcessing && (
+                <div className="space-y-2">
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
                   </div>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Procesare: {progress.current} / {progress.total}
+                  </p>
+                </div>
+              )}
 
-                  {results.errors.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm">Erori Detaliate:</h4>
-                      <div className="max-h-40 overflow-y-auto space-y-1">
-                        {results.errors.map((err: any, idx: number) => (
-                          <div key={idx} className="text-xs bg-destructive/10 p-2 rounded">
-                            <span className="font-mono">{err.entry_id}</span>: {err.error}
-                          </div>
-                        ))}
+              {results && (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Rezultate Procesare</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{results.total}</div>
+                        <div className="text-sm text-muted-foreground">Total</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600 flex items-center justify-center gap-1">
+                          <CheckCircle className="h-5 w-5" />
+                          {results.success.length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Succes</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600 flex items-center justify-center gap-1">
+                          <XCircle className="h-5 w-5" />
+                          {results.errors.length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Erori</div>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
+
+                    {results.errors.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm">Erori Detaliate:</h4>
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {results.errors.map((err: any, idx: number) => (
+                            <div key={idx} className="text-xs bg-destructive/10 p-2 rounded">
+                              <span className="font-mono">{err.entry_id}</span>: {err.error}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

@@ -1,12 +1,10 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
-import Landing from "./pages/Landing";
-import Index from "./pages/Index";
 import Mobile from "./pages/Mobile";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
@@ -49,8 +47,6 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route path="/dashboard" element={<Index />} />
-              <Route path="/landing" element={<Landing />} />
               <Route
                 path="/vacations"
                 element={
