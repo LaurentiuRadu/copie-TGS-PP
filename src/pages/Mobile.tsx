@@ -208,12 +208,26 @@ const Mobile = () => {
         .is('clock_out_time', null);
 
       if (existingEntries && existingEntries.length > 0) {
-        // Close all existing active shifts
+        // Close all existing active shifts and calculate segments
         for (const entry of existingEntries) {
+          const clockOutTime = new Date().toISOString();
           await supabase
             .from('time_entries')
-            .update({ clock_out_time: new Date().toISOString() })
+            .update({ clock_out_time: clockOutTime })
             .eq('id', entry.id);
+          
+          // Calculate segments for the closed entry
+          try {
+            await supabase.functions.invoke('calculate-time-segments', {
+              body: {
+                time_entry_id: entry.id,
+                clock_in_time: entry.clock_in_time,
+                clock_out_time: clockOutTime
+              }
+            });
+          } catch (segmentError) {
+            console.error('Failed to calculate segments for auto-closed entry:', segmentError);
+          }
         }
       }
       const position = await getCurrentPosition({
