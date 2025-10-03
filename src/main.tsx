@@ -40,8 +40,6 @@ createRoot(document.getElementById("root")!).render(
           <AuthProvider>
             <App />
           </AuthProvider>
-          <Toaster />
-          <Sonner />
         </ThemeProvider>
       </QueryClientProvider>
     </BrowserRouter>
