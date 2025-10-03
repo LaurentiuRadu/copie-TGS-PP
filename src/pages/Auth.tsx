@@ -26,6 +26,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showAdminTab, setShowAdminTab] = useState(false);
 
   // Employee form
   const [employeeUsername, setEmployeeUsername] = useState("");
@@ -205,7 +206,7 @@ const Auth = () => {
               <Clock className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl">TimeTrack</CardTitle>
+          <h1 className="text-2xl font-semibold">TimeTrack</h1>
           <CardDescription>
             {isSignUp ? "Creează cont nou" : "Autentificare în sistem"}
           </CardDescription>
@@ -218,21 +219,33 @@ const Auth = () => {
             </Alert>
           )}
 
-          <Tabs defaultValue="employee" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger 
-                value="employee" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Angajat
-              </TabsTrigger>
-              <TabsTrigger 
-                value="admin"
-                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground"
-              >
-                Administrator
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value={showAdminTab ? "admin" : "employee"} onValueChange={(val) => setShowAdminTab(val === "admin")} className="w-full">
+            {showAdminTab ? (
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger 
+                  value="employee" 
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Angajat
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="admin"
+                  className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
+                >
+                  Administrator
+                </TabsTrigger>
+              </TabsList>
+            ) : (
+              <div className="mb-6 text-center">
+                <Button
+                  variant="link"
+                  onClick={() => setShowAdminTab(true)}
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Login Administrator →
+                </Button>
+              </div>
+            )}
 
             <TabsContent value="employee" className="border-l-4 border-primary pl-4">
               <form onSubmit={handleEmployeeAuth} className="space-y-4">
@@ -298,7 +311,7 @@ const Auth = () => {
               </form>
             </TabsContent>
 
-            <TabsContent value="admin" className="border-l-4 border-secondary pl-4">
+            <TabsContent value="admin" className="border-l-4 border-accent pl-4">
               <form onSubmit={handleAdminAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="admin-email">Email</Label>
@@ -343,7 +356,7 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={loading}>
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont admin" : "Autentificare admin"}
                 </Button>
               </form>

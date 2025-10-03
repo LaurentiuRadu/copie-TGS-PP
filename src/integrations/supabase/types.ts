@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string
+          id: string
+          last_activity: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint: string
+          id?: string
+          last_activity?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string
+          id?: string
+          last_activity?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       face_verification_logs: {
         Row: {
           created_at: string
@@ -547,6 +574,10 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_old_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

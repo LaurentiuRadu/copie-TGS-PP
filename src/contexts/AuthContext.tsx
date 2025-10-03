@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { generateDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -39,6 +40,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Verify if current device is the active one
+  const verifyActiveDevice = async (userId: string) => {
+    const deviceFingerprint = generateDeviceFingerprint();
+    
+    const { data, error } = await supabase
+      .from('active_sessions')
+      .select('device_fingerprint')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[AuthProvider] Error checking active device:', error);
+      return false;
+    }
+
+    // If no active session exists or it's a different device, sign out
+    if (data && data.device_fingerprint !== deviceFingerprint) {
+      console.warn('[AuthProvider] ⚠️ Another device is active. Signing out...');
+      await supabase.auth.signOut();
+      return false;
+    }
+
+    return true;
+  };
+
+  // Update or create active session
+  const updateActiveSession = async (userId: string, sessionId: string) => {
+    const deviceFingerprint = generateDeviceFingerprint();
+    
+    await supabase
+      .from('active_sessions')
+      .upsert({
+        user_id: userId,
+        device_fingerprint: deviceFingerprint,
+        session_id: sessionId,
+        last_activity: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id,device_fingerprint'
+      });
+  };
+
   useEffect(() => {
     console.log('[AuthProvider] 🔧 Mounting auth provider');
     // Set up auth state listener FIRST
@@ -72,9 +114,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          // Update active session on SIGNED_IN
+          if (event === 'SIGNED_IN') {
+            updateActiveSession(session.user.id, session.access_token).catch(err => 
+              console.error('[AuthProvider] Failed to update active session:', err)
+            );
+          }
+
           // Fetch role without async in callback  
           setTimeout(() => {
             const userId = session.user.id;
+            
+            // Verify if this device is the active one (only after initial sign-in)
+            if (event === 'SIGNED_IN') {
+              verifyActiveDevice(userId).catch(err =>
+                console.error('[AuthProvider] Device verification failed:', err)
+              );
+            }
             supabase
               .from('user_roles')
               .select('role')
