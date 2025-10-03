@@ -82,7 +82,7 @@ const Auth = () => {
           if (roleError) throw roleError;
 
           toast.success("Contul de angajat a fost creat cu succes!");
-          navigate("/mobile");
+          navigate("/mobile", { replace: true });
         }
       } else {
         // Login with username - try both domains with fallback
@@ -118,7 +118,7 @@ const Auth = () => {
           throw signInError;
         }
 
-        navigate("/mobile");
+        navigate("/mobile", { replace: true });
       }
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -167,7 +167,7 @@ const Auth = () => {
           if (roleError) throw roleError;
 
           toast.success("Contul de administrator a fost creat cu succes!");
-          navigate("/admin");
+          navigate("/admin", { replace: true });
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -182,7 +182,7 @@ const Auth = () => {
           throw signInError;
         }
 
-        navigate("/admin");
+        navigate("/admin", { replace: true });
       }
     } catch (err) {
       if (err instanceof z.ZodError) {
