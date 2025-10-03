@@ -22,6 +22,6 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom", "next-themes"],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "next-themes", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    exclude: ["react", "react-dom", "next-themes", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
 }));
