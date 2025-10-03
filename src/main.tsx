@@ -14,6 +14,16 @@ if (import.meta.env.DEV && isStandalone()) {
   console.info('🚀 PWA mode: standalone');
 }
 
+// Diagnostics for React instance
+if (import.meta.env.DEV) {
+  console.log('🔍 React version:', React.version);
+  import('react-dom').then((ReactDOM) => {
+    console.log('🔍 ReactDOM version:', ReactDOM.version);
+  });
+  const renderersCount = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__?.renderers?.size;
+  console.log('🔍 React renderers count:', renderersCount || 0, '(should be 1)');
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
