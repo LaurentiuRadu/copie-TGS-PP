@@ -699,7 +699,12 @@ const Mobile = () => {
                 {activeShift === "condus" && <Car className="h-4 w-4" />}
                 {activeShift === "pasager" && <Users className="h-4 w-4" />}
                 {activeShift === "normal" && <Briefcase className="h-4 w-4" />}
-                <span>Tip: {getShiftTypeLabel(activeShift)}</span>
+                <span>
+                  Tip: {getShiftTypeLabel(activeShift)}
+                  {activeTimeEntry?.notes?.includes('Condus Utilaj') && (
+                    <span className="ml-1 text-yellow-300">+ Utilaj</span>
+                  )}
+                </span>
               </div>
             )}
           </CardContent>
