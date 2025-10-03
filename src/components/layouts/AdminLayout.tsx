@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -38,6 +39,7 @@ export const AdminLayout = ({
             {!title && <div className="flex-1" />}
             <div className="flex items-center gap-3">
               {headerActions}
+              <ScheduleNotificationBell />
               {showLogout && (
                 <Button 
                   variant="outline" 
