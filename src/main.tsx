@@ -8,6 +8,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import App from "./App.tsx";
 import "./index.css";
 import { registerServiceWorker, isStandalone } from "./lib/registerServiceWorker";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Register Service Worker pentru PWA
 registerServiceWorker();
@@ -36,7 +37,9 @@ createRoot(document.getElementById("root")!).render(
     >
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
           <Toaster />
           <Sonner />
         </ThemeProvider>

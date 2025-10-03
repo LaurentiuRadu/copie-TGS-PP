@@ -2,7 +2,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import Mobile from "./pages/Mobile";
@@ -27,9 +26,8 @@ const App = () => (
     <Toaster />
     <Sonner />
     <PWAInstallPrompt />
-    <AuthProvider>
-      <Routes>
-              <Route path="/" element={<RootRedirect />} />
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
               <Route
                 path="/mobile"
@@ -135,10 +133,9 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AuthProvider>
+      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   </TooltipProvider>
 );
 
