@@ -155,15 +155,38 @@ const Mobile = () => {
     checkActiveShift();
   }, [user?.id, loading]);
 
+  // Cronometru optimizat - se oprește când pagina nu e vizibilă
   useEffect(() => {
     let interval: NodeJS.Timeout;
+    let isPageVisible = !document.hidden;
+
+    const handleVisibilityChange = () => {
+      isPageVisible = !document.hidden;
+      
+      // Când pagina devine vizibilă din nou, recalculează timpul
+      if (isPageVisible && activeShift && activeTimeEntry) {
+        const clockInTime = new Date(activeTimeEntry.clock_in_time).getTime();
+        const elapsedSeconds = Math.floor((Date.now() - clockInTime) / 1000);
+        setShiftSeconds(elapsedSeconds);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     if (activeShift) {
       interval = setInterval(() => {
-        setShiftSeconds((prev) => prev + 1);
+        // Update doar când pagina e vizibilă
+        if (isPageVisible) {
+          setShiftSeconds((prev) => prev + 1);
+        }
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [activeShift]);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [activeShift, activeTimeEntry]);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
