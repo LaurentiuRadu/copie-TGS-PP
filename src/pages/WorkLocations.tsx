@@ -139,6 +139,40 @@ const WorkLocations = () => {
     };
   }, [dialogOpen, mapboxToken]);
 
+  // Helper function to create GeoJSON circle
+  const createGeoJSONCircle = (center: [number, number], radiusInMeters: number) => {
+    const points = 64;
+    const coords = {
+      latitude: center[1],
+      longitude: center[0],
+    };
+
+    const km = radiusInMeters / 1000;
+    const ret = [];
+    const distanceX = km / (111.32 * Math.cos((coords.latitude * Math.PI) / 180));
+    const distanceY = km / 110.574;
+
+    for (let i = 0; i < points; i++) {
+      const theta = (i / points) * (2 * Math.PI);
+      const x = distanceX * Math.cos(theta);
+      const y = distanceY * Math.sin(theta);
+      ret.push([coords.longitude + x, coords.latitude + y]);
+    }
+    ret.push(ret[0]);
+
+    return {
+      type: 'geojson' as const,
+      data: {
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Polygon' as const,
+          coordinates: [ret],
+        },
+        properties: {},
+      },
+    };
+  };
+
   // Update markers when locations or formData changes
   useEffect(() => {
     if (!map.current) return;
@@ -162,16 +196,10 @@ const WorkLocations = () => {
         .addTo(map.current!);
 
       markers.current.push(marker);
-
-      // Add radius circle
-      if (map.current?.getSource(`radius-${location.id}`)) {
-        map.current.removeLayer(`radius-${location.id}`);
-        map.current.removeSource(`radius-${location.id}`);
-      }
     });
 
-    // Add marker for current form location (when adding/editing)
-    if (dialogOpen) {
+    // Add marker and radius circle for current form location (when adding/editing)
+    if (dialogOpen && map.current.isStyleLoaded()) {
       const el = document.createElement('div');
       el.className = 'w-8 h-8 bg-destructive rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse';
       el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
@@ -182,9 +210,56 @@ const WorkLocations = () => {
 
       markers.current.push(currentMarker);
 
+      // Remove existing radius circle if it exists
+      if (map.current.getSource('current-radius')) {
+        if (map.current.getLayer('current-radius-fill')) {
+          map.current.removeLayer('current-radius-fill');
+        }
+        if (map.current.getLayer('current-radius-outline')) {
+          map.current.removeLayer('current-radius-outline');
+        }
+        map.current.removeSource('current-radius');
+      }
+
+      // Add radius circle
+      const circleSource = createGeoJSONCircle(
+        [formData.longitude, formData.latitude],
+        formData.radius_meters
+      );
+      
+      map.current.addSource('current-radius', circleSource);
+      
+      map.current.addLayer({
+        id: 'current-radius-fill',
+        type: 'fill',
+        source: 'current-radius',
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.2,
+        },
+      });
+      
+      map.current.addLayer({
+        id: 'current-radius-outline',
+        type: 'line',
+        source: 'current-radius',
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 2,
+        },
+      });
+
+      // Calculate appropriate zoom level based on radius
+      let zoom = 15;
+      if (formData.radius_meters > 10000) zoom = 10;
+      else if (formData.radius_meters > 5000) zoom = 11;
+      else if (formData.radius_meters > 2000) zoom = 12;
+      else if (formData.radius_meters > 1000) zoom = 13;
+      else if (formData.radius_meters > 500) zoom = 14;
+
       map.current.flyTo({
         center: [formData.longitude, formData.latitude],
-        zoom: 15,
+        zoom: zoom,
       });
     }
   }, [locations, formData, dialogOpen]);
