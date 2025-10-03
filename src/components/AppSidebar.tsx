@@ -32,7 +32,6 @@ const employeeMenuItems = [
   { title: "Pontaj", url: "/mobile", icon: Clock },
   { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
   { title: "Concedii", url: "/vacations", icon: Calendar },
-  { title: "Dashboard", url: "/dashboard", icon: Home },
 ];
 
 export function AppSidebar() {

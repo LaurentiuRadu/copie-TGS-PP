@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 
 export default function NotFound() {
   const location = useLocation();
@@ -15,12 +15,12 @@ export default function NotFound() {
       <div className="text-center space-y-4">
         <h1 className="text-6xl font-bold text-primary">404</h1>
         <p className="text-xl text-muted-foreground">Pagina nu a fost găsită</p>
-        <a 
-          href="/" 
+        <Link 
+          to="/" 
           className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
         >
           Înapoi la pagina principală
-        </a>
+        </Link>
       </div>
     </div>
   );
