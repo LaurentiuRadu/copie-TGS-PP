@@ -18,7 +18,10 @@ export type Database = {
         Row: {
           created_at: string | null
           device_fingerprint: string
+          expires_at: string | null
           id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
           last_activity: string | null
           session_id: string
           user_id: string
@@ -26,7 +29,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           device_fingerprint: string
+          expires_at?: string | null
           id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
           last_activity?: string | null
           session_id: string
           user_id: string
@@ -34,7 +40,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           device_fingerprint?: string
+          expires_at?: string | null
           id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
           last_activity?: string | null
           session_id?: string
           user_id?: string
@@ -238,6 +247,72 @@ export type Database = {
           subscription_data?: Json
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      rate_limit_attempts: {
+        Row: {
+          attempt_count: number
+          attempt_type: string
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          identifier: string
+          updated_at: string | null
+          window_start: string
+        }
+        Insert: {
+          attempt_count?: number
+          attempt_type: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier: string
+          updated_at?: string | null
+          window_start?: string
+        }
+        Update: {
+          attempt_count?: number
+          attempt_type?: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier?: string
+          updated_at?: string | null
+          window_start?: string
+        }
+        Relationships: []
+      }
+      rate_limit_config: {
+        Row: {
+          block_duration_minutes: number
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          limit_type: string
+          max_attempts: number
+          updated_at: string | null
+          window_minutes: number
+        }
+        Insert: {
+          block_duration_minutes: number
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          limit_type: string
+          max_attempts: number
+          updated_at?: string | null
+          window_minutes: number
+        }
+        Update: {
+          block_duration_minutes?: number
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          limit_type?: string
+          max_attempts?: number
+          updated_at?: string | null
+          window_minutes?: number
         }
         Relationships: []
       }
@@ -734,6 +809,14 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: { _attempt_type: string; _identifier: string }
+        Returns: Json
+      }
+      cleanup_expired_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       cleanup_old_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -751,6 +834,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      invalidate_user_sessions: {
+        Args: { _reason: string; _user_id: string }
+        Returns: number
       }
       refresh_daily_stats: {
         Args: Record<PropertyKey, never>

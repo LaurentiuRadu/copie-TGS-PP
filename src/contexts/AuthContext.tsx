@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { ForcePasswordChange } from '@/components/ForcePasswordChange';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -142,6 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handlePasswordChanged = () => {
     setMustChangePassword(false);
   };
+
+  // Enable session timeout monitoring
+  useSessionTimeout();
 
   return (
     <AuthContext.Provider value={{ user, session, userRole, loading, signOut }}>

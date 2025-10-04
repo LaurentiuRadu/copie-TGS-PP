@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,19 +6,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Clock, AlertCircle, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { z } from "zod";
+import { 
+  checkPasswordStrength, 
+  getPasswordStrengthColor, 
+  getPasswordStrengthLabel,
+  type PasswordStrength 
+} from "@/lib/passwordValidation";
+import { checkRateLimit, formatResetTime } from "@/lib/rateLimiting";
 
 const employeeSchema = z.object({
   username: z.string().trim().min(3, "Username-ul trebuie să aibă minim 3 caractere").max(50),
-  password: z.string().min(4, "Parola trebuie să aibă minim 4 caractere"),
+  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"),
 });
 
 const adminSchema = z.object({
   email: z.string().trim().email("Email invalid"),
-  password: z.string().min(4, "Parola trebuie să aibă minim 4 caractere"),
+  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"),
 });
 
 const Auth = () => {
@@ -41,18 +49,88 @@ const Auth = () => {
   const [showEmployeePassword, setShowEmployeePassword] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
+  // Password strength
+  const [employeePasswordStrength, setEmployeePasswordStrength] = useState<PasswordStrength | null>(null);
+  const [adminPasswordStrength, setAdminPasswordStrength] = useState<PasswordStrength | null>(null);
+  const [checkingPassword, setCheckingPassword] = useState(false);
+
+  // Rate limiting
+  const [rateLimited, setRateLimited] = useState(false);
+  const [resetTime, setResetTime] = useState<string | null>(null);
+
+  // Check password strength when password changes (debounced)
+  useEffect(() => {
+    if (!isSignUp) return;
+
+    const checkEmployeePassword = async () => {
+      if (employeePassword.length < 12) {
+        setEmployeePasswordStrength(null);
+        return;
+      }
+
+      setCheckingPassword(true);
+      const strength = await checkPasswordStrength(employeePassword);
+      setEmployeePasswordStrength(strength);
+      setCheckingPassword(false);
+    };
+
+    const timer = setTimeout(checkEmployeePassword, 500);
+    return () => clearTimeout(timer);
+  }, [employeePassword, isSignUp]);
+
+  useEffect(() => {
+    if (!isSignUp) return;
+
+    const checkAdminPassword = async () => {
+      if (adminPassword.length < 12) {
+        setAdminPasswordStrength(null);
+        return;
+      }
+
+      setCheckingPassword(true);
+      const strength = await checkPasswordStrength(adminPassword);
+      setAdminPasswordStrength(strength);
+      setCheckingPassword(false);
+    };
+
+    const timer = setTimeout(checkAdminPassword, 500);
+    return () => clearTimeout(timer);
+  }, [adminPassword, isSignUp]);
+
   const handleEmployeeAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setRateLimited(false);
 
     try {
+      // Check rate limit before attempting auth
+      const ipAddress = "employee-" + employeeUsername; // Use username as identifier
+      const rateLimit = await checkRateLimit(ipAddress, 'login');
+      
+      if (!rateLimit.allowed) {
+        setRateLimited(true);
+        setResetTime(rateLimit.reset_at);
+        const timeMsg = formatResetTime(rateLimit.reset_at);
+        throw new Error(`Prea multe încercări de autentificare. Încearcă din nou ${timeMsg}.`);
+      }
+
       const validated = employeeSchema.parse({
         username: employeeUsername,
         password: employeePassword,
       });
 
+      // For signup, validate password strength
       if (isSignUp) {
+        const strength = await checkPasswordStrength(validated.password);
+        if (!strength.isStrong) {
+          throw new Error("Parola nu îndeplinește cerințele de securitate: " + strength.feedback.join(", "));
+        }
+
+        if (strength.isCompromised) {
+          throw new Error("Această parolă a fost compromisă în breșe de securitate. Alege o altă parolă.");
+        }
+
         // For signup, we create an account with username as email (workaround)
         const email = `${validated.username}@company.local`;
         
@@ -137,14 +215,36 @@ const Auth = () => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setRateLimited(false);
 
     try {
+      // Check rate limit before attempting auth
+      const ipAddress = "admin-" + adminEmail;
+      const rateLimit = await checkRateLimit(ipAddress, 'login');
+      
+      if (!rateLimit.allowed) {
+        setRateLimited(true);
+        setResetTime(rateLimit.reset_at);
+        const timeMsg = formatResetTime(rateLimit.reset_at);
+        throw new Error(`Prea multe încercări de autentificare. Încearcă din nou ${timeMsg}.`);
+      }
+
       const validated = adminSchema.parse({
         email: adminEmail,
         password: adminPassword,
       });
 
       if (isSignUp) {
+        // Validate password strength for signup
+        const strength = await checkPasswordStrength(validated.password);
+        if (!strength.isStrong) {
+          throw new Error("Parola nu îndeplinește cerințele de securitate: " + strength.feedback.join(", "));
+        }
+
+        if (strength.isCompromised) {
+          throw new Error("Această parolă a fost compromisă în breșe de securitate. Alege o altă parolă.");
+        }
+
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: validated.email,
           password: validated.password,
@@ -305,7 +405,62 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                {/* Password Strength Indicator for Signup */}
+                {isSignUp && employeePassword.length > 0 && (
+                  <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                    {checkingPassword ? (
+                      <p className="text-sm text-muted-foreground">Se verifică parola...</p>
+                    ) : employeePasswordStrength ? (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Putere parolă:</span>
+                          <span className={`text-sm font-medium ${getPasswordStrengthColor(employeePasswordStrength.score)}`}>
+                            {getPasswordStrengthLabel(employeePasswordStrength.score)}
+                          </span>
+                        </div>
+                        <Progress value={employeePasswordStrength.score} className="h-2" />
+                        {employeePasswordStrength.feedback.length > 0 && (
+                          <ul className="mt-2 space-y-1">
+                            {employeePasswordStrength.feedback.map((msg, idx) => (
+                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-1">
+                                <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>{msg}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {employeePasswordStrength.isCompromised && (
+                          <Alert variant="destructive" className="mt-2">
+                            <ShieldAlert className="h-4 w-4" />
+                            <AlertDescription className="text-xs">
+                              Această parolă a fost compromisă în breșe de securitate!
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Parola trebuie să aibă min. 12 caractere, majuscule, minuscule, cifre și simboluri.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Rate Limit Warning */}
+                {rateLimited && (
+                  <Alert variant="destructive">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertDescription>
+                      Prea multe încercări. Încearcă din nou {formatResetTime(resetTime)}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading || (isSignUp && (!employeePasswordStrength?.isStrong || checkingPassword))}
+                >
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont angajat" : "Autentificare angajat"}
                 </Button>
               </form>
@@ -356,7 +511,62 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={loading}>
+                {/* Password Strength Indicator for Signup */}
+                {isSignUp && adminPassword.length > 0 && (
+                  <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                    {checkingPassword ? (
+                      <p className="text-sm text-muted-foreground">Se verifică parola...</p>
+                    ) : adminPasswordStrength ? (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Putere parolă:</span>
+                          <span className={`text-sm font-medium ${getPasswordStrengthColor(adminPasswordStrength.score)}`}>
+                            {getPasswordStrengthLabel(adminPasswordStrength.score)}
+                          </span>
+                        </div>
+                        <Progress value={adminPasswordStrength.score} className="h-2" />
+                        {adminPasswordStrength.feedback.length > 0 && (
+                          <ul className="mt-2 space-y-1">
+                            {adminPasswordStrength.feedback.map((msg, idx) => (
+                              <li key={idx} className="text-xs text-muted-foreground flex items-start gap-1">
+                                <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                <span>{msg}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {adminPasswordStrength.isCompromised && (
+                          <Alert variant="destructive" className="mt-2">
+                            <ShieldAlert className="h-4 w-4" />
+                            <AlertDescription className="text-xs">
+                              Această parolă a fost compromisă în breșe de securitate!
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Parola trebuie să aibă min. 12 caractere, majuscule, minuscule, cifre și simboluri.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Rate Limit Warning */}
+                {rateLimited && (
+                  <Alert variant="destructive">
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertDescription>
+                      Prea multe încercări. Încearcă din nou {formatResetTime(resetTime)}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Button 
+                  type="submit" 
+                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" 
+                  disabled={loading || (isSignUp && (!adminPasswordStrength?.isStrong || checkingPassword))}
+                >
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont admin" : "Autentificare admin"}
                 </Button>
               </form>
