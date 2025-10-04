@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
 import Mobile from "./pages/Mobile";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
@@ -24,7 +25,7 @@ import ChangePassword from "./pages/ChangePassword";
 const App = () => (
   <TooltipProvider>
     <Toaster />
-    
+    <SessionTimeoutManager />
     <PWAInstallPrompt />
     <Routes>
       <Route path="/" element={<RootRedirect />} />
