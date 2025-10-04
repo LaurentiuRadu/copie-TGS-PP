@@ -1,6 +1,6 @@
 // Service Worker pentru PWA - iOS-Optimized Auto-Update
 // Versiune statică pentru cache consistency (incrementează manual la fiecare deploy)
-const CACHE_VERSION = '1.0.4';
+const CACHE_VERSION = '0610.2025.00001';
 const CACHE_NAME = `timetrack-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
 

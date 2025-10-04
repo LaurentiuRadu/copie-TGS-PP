@@ -1,7 +1,10 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Table } from "lucide-react";
+import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Table, RefreshCw } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { forceRefreshApp, isIOSPWA } from "@/lib/iosPwaUpdate";
+import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -38,6 +42,8 @@ export function AppSidebar() {
   const { open } = useSidebar();
   const { userRole } = useAuth();
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const APP_VERSION = "0610.2025.00001";
 
   useEffect(() => {
     // Setează meniurile bazate pe rol
@@ -47,6 +53,27 @@ export function AppSidebar() {
       setMenuItems(employeeMenuItems);
     }
   }, [userRole]);
+
+  const handleForceUpdate = async () => {
+    setIsRefreshing(true);
+    
+    toast({
+      title: "🔄 Actualizare în curs...",
+      description: "Aplicația se va reîncărca în curând.",
+      duration: 2000,
+    });
+
+    // Așteaptă puțin pentru ca userul să vadă toast-ul
+    setTimeout(async () => {
+      try {
+        await forceRefreshApp();
+      } catch (error) {
+        console.error("Force refresh failed:", error);
+        // Fallback la reload simplu
+        window.location.reload();
+      }
+    }, 1500);
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-sidebar-border">
@@ -92,6 +119,34 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border p-4">
+        <div className="flex flex-col gap-3">
+          <Button
+            onClick={handleForceUpdate}
+            disabled={isRefreshing}
+            variant="outline"
+            size={open ? "default" : "icon"}
+            className="w-full glass-button touch-target-lg hover:glow-primary"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''} ${open ? 'mr-2' : ''}`} />
+            {open && <span>Actualizare</span>}
+          </Button>
+          
+          {open && (
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                Versiune: <span className="font-mono font-semibold text-primary">{APP_VERSION}</span>
+              </p>
+              {isIOSPWA() && (
+                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                  iOS PWA Mode
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
