@@ -781,9 +781,6 @@ const Mobile = () => {
                 <CalendarDays className="h-5 w-5 text-primary" />
                 Calendar Lunar
               </span>
-              <Badge variant="info" className="text-responsive-xs animate-float">
-                Swipe ← →
-              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 xs:space-y-4">

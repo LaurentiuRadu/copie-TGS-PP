@@ -164,7 +164,7 @@ export default {
         "slide-up": "slide-up 0.3s ease-out",
         "slide-down": "slide-down 0.3s ease-out",
         "hover-scale": "hover-scale 0.2s ease-out forwards",
-        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 1s ease-in-out infinite",
         "slide-up-fade": "slide-up-fade 0.5s ease-out",
         "shimmer": "shimmer 2s linear infinite",
         "float": "float 3s ease-in-out infinite",
