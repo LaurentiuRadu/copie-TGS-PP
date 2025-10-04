@@ -74,9 +74,10 @@ export const MobileHeader = ({ safeAreaTop }: MobileHeaderProps) => {
           </Sheet>
 
           {/* TimeTrack + User centru */}
-          <div className="flex flex-col items-center text-center flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-foreground truncate">TimeTrack</h1>
-            <p className="text-xs text-muted-foreground truncate max-w-full">
+          <div className="flex flex-col items-center text-center flex-1 min-w-0 gap-2">
+            <h1 className="text-sm font-bold text-foreground truncate">TimeTrack</h1>
+            <RomaniaTimeClock variant="large" />
+            <p className="text-[10px] text-muted-foreground truncate max-w-full">
               {user?.user_metadata?.full_name || user?.email}
             </p>
           </div>
@@ -85,11 +86,6 @@ export const MobileHeader = ({ safeAreaTop }: MobileHeaderProps) => {
           <div className="flex-shrink-0">
             <ScheduleNotificationBell />
           </div>
-        </div>
-        
-        {/* Rândul 2: Ceas mare centrat */}
-        <div className="flex justify-center items-center py-4 px-3 border-t border-border/30">
-          <RomaniaTimeClock variant="large" />
         </div>
       </div>
     </header>
