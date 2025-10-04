@@ -33,7 +33,7 @@ export const MobileHeader = ({ safeAreaTop }: MobileHeaderProps) => {
         <div className="flex items-center justify-between gap-3 px-3 py-3">
           {/* Meniu stânga cu TimeTrack deasupra */}
           <div className="flex flex-col items-start gap-1 flex-shrink-0">
-            <h1 className="text-sm font-bold text-foreground">TimeTrack</h1>
+            <h1 className="text-xl font-bold text-foreground">TimeTrack</h1>
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-10 w-10 touch-target no-select">
