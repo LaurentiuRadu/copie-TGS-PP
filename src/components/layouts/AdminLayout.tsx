@@ -27,17 +27,17 @@ export const AdminLayout = ({
         <AppSidebar />
         
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border/50 bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 px-6 shadow-sm">
-            <SidebarTrigger />
+          <header className="glass-nav sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-primary/10 shadow-elegant backdrop-blur-xl animate-slide-down px-4 md:px-6">
+            <SidebarTrigger className="touch-target-lg" />
             {title && (
               <div className="flex-1">
-                <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                <h1 className="text-lg md:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                   {title}
                 </h1>
               </div>
             )}
             {!title && <div className="flex-1" />}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {headerActions}
               <ScheduleNotificationBell />
               {showLogout && (
@@ -45,7 +45,7 @@ export const AdminLayout = ({
                   variant="outline" 
                   size="sm" 
                   onClick={signOut}
-                  className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all duration-200"
+                  className="gap-2 glass-button hover:border-destructive hover:text-destructive transition-all duration-200 touch-target-lg"
                 >
                   <LogOut className="h-4 w-4" />
                   <span className="hidden md:inline">Deconectare</span>

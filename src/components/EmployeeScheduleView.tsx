@@ -132,9 +132,9 @@ export function EmployeeScheduleView() {
   });
 
   const renderWeekNavigation = () => (
-    <div className="flex items-center justify-between">
-      <CardTitle className="flex items-center gap-2">
-        <Calendar className="h-5 w-5" />
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <CardTitle className="flex items-center gap-2 text-lg md:text-xl font-semibold">
+        <Calendar className="h-5 w-5 text-primary" />
         Programarea Săptămânii
       </CardTitle>
       <div className="flex items-center gap-2">
@@ -142,6 +142,7 @@ export function EmployeeScheduleView() {
           variant="outline" 
           size="icon"
           onClick={handlePreviousWeek}
+          className="glass-button touch-target-lg"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -150,6 +151,7 @@ export function EmployeeScheduleView() {
             variant="outline" 
             size="sm"
             onClick={handleCurrentWeek}
+            className="glass-button touch-target-lg"
           >
             Săptămâna curentă
           </Button>
@@ -158,6 +160,7 @@ export function EmployeeScheduleView() {
           variant="outline" 
           size="icon"
           onClick={handleNextWeek}
+          className="glass-button touch-target-lg"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -167,8 +170,8 @@ export function EmployeeScheduleView() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6">
+      <Card className="glass-card animate-shimmer">
+        <CardContent className="p-6 md:p-8">
           <p className="text-center text-muted-foreground">Se încarcă...</p>
         </CardContent>
       </Card>
@@ -177,7 +180,7 @@ export function EmployeeScheduleView() {
 
   if (!schedules || schedules.length === 0) {
     return (
-      <Card>
+      <Card className="glass-card shadow-elegant">
         <CardHeader>
           {renderWeekNavigation()}
           <p className="text-sm text-muted-foreground mt-2">
@@ -185,14 +188,16 @@ export function EmployeeScheduleView() {
           </p>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Nu ai programări pentru această săptămână</p>
+          <div className="glass-card p-8 md:p-12 text-center">
+            <p className="text-muted-foreground">Nu ai programări pentru această săptămână</p>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
+    <Card className="glass-card shadow-elegant animate-slide-up-fade">
       <CardHeader>
         {renderWeekNavigation()}
         <p className="text-sm text-muted-foreground mt-2">
@@ -200,61 +205,64 @@ export function EmployeeScheduleView() {
         </p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {schedules.map((schedule) => (
+        <div className="space-y-4">
+          {schedules.map((schedule, index) => (
             <div 
               key={schedule.id} 
-              className="border rounded-lg p-4 space-y-2 bg-accent/50"
+              className="glass-card border-l-4 border-l-primary rounded-lg p-4 space-y-3 hover:scale-[1.02] transition-all duration-300 hover:shadow-glow active:scale-95 animate-slide-up-fade"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-lg">{dayNames[schedule.day_of_week - 1]}</span>
-                <div className="flex gap-2 items-center">
-                  <span className={schedule.shift_type === 'noapte' ? 'text-blue-600 dark:text-blue-400 font-medium text-sm' : 'text-sm'}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <span className="font-semibold text-base md:text-lg text-primary">{dayNames[schedule.day_of_week - 1]}</span>
+                <div className="flex gap-2 items-center flex-wrap">
+                  <span className={schedule.shift_type === 'noapte' ? 'text-info font-medium text-sm' : 'text-sm'}>
                     {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
                   </span>
-                  <span className="text-sm text-muted-foreground">Echipa {schedule.team_id}</span>
+                  <Badge variant="outline" className="text-xs glass-button">
+                    Echipa {schedule.team_id}
+                  </Badge>
                 </div>
               </div>
               
               {schedule.location && (
                 <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground text-sm">📍</span>
-                  <span className="text-sm">{schedule.location}</span>
+                  <span className="text-primary text-sm">📍</span>
+                  <span className="text-sm font-medium">{schedule.location}</span>
                 </div>
               )}
               
               {schedule.activity && (
                 <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground text-sm">🔧</span>
+                  <span className="text-accent text-sm">🔧</span>
                   <span className="text-sm">{schedule.activity}</span>
                 </div>
               )}
               
               {schedule.vehicle && (
                 <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground text-sm">🚗</span>
+                  <span className="text-info text-sm">🚗</span>
                   <span className="text-sm font-medium">{schedule.vehicle}</span>
                 </div>
               )}
               
               {schedule.observations && (
-                <div className="flex items-start gap-2 pt-2 border-t">
-                  <span className="text-muted-foreground text-sm">💬</span>
+                <div className="flex items-start gap-2 pt-2 border-t border-primary/20">
+                  <span className="text-warning text-sm">💬</span>
                   <span className="text-sm text-muted-foreground">{schedule.observations}</span>
                 </div>
               )}
               
               {schedule.teammates && schedule.teammates.length > 0 && (
-                <div className="flex items-start gap-2 pt-2 border-t">
-                  <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div className="flex items-start gap-2 pt-2 border-t border-primary/20 animate-fade-in">
+                  <Users className="h-4 w-4 text-primary mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Colegi în aceeași tură:</p>
-                    <div className="flex flex-wrap gap-1">
+                    <p className="text-xs text-muted-foreground mb-2">Colegi în aceeași tură:</p>
+                    <div className="flex flex-wrap gap-2">
                       {schedule.teammates.map((teammate) => (
                         <Badge 
                           key={teammate.id} 
                           variant="secondary" 
-                          className="text-xs font-normal"
+                          className="text-xs glow-primary touch-target-lg"
                         >
                           {teammate.full_name || teammate.username || 'Fără nume'}
                         </Badge>
@@ -265,16 +273,16 @@ export function EmployeeScheduleView() {
               )}
               
               {schedule.allTeamMembers && schedule.allTeamMembers.length > 0 && (
-                <div className="flex items-start gap-2 pt-2 border-t">
-                  <Users className="h-4 w-4 text-primary mt-0.5" />
+                <div className="flex items-start gap-2 pt-2 border-t border-accent/20 animate-fade-in">
+                  <Users className="h-4 w-4 text-accent mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs font-semibold mb-1">Toți membrii echipei {schedule.team_id}:</p>
-                    <div className="flex flex-wrap gap-1">
+                    <p className="text-xs font-semibold mb-2">Toți membrii echipei {schedule.team_id}:</p>
+                    <div className="flex flex-wrap gap-2">
                       {schedule.allTeamMembers.map((member) => (
                         <Badge 
                           key={member.id} 
                           variant="outline" 
-                          className="text-xs font-normal"
+                          className="text-xs glass-button touch-target-lg"
                         >
                           {member.full_name || member.username || 'Fără nume'}
                         </Badge>

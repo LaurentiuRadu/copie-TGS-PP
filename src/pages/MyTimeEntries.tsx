@@ -100,37 +100,43 @@ const MyTimeEntries = () => {
 
   return (
     <EmployeeLayout title="Pontajele Mele">
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-4 md:p-6 space-y-6 bg-mesh min-h-screen">
         {/* Monthly Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="glass-card elevated-card animate-fade-in hover:scale-105 transition-all duration-300">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ore Lucrate</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Ore Lucrate
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{monthlyTotalHours.toFixed(1)}h</div>
+            <div className="text-3xl md:text-4xl font-bold text-foreground">{monthlyTotalHours.toFixed(1)}h</div>
             <p className="text-xs text-muted-foreground mt-1">
               {format(selectedMonth, 'MMMM yyyy', { locale: ro })}
             </p>
           </CardContent>
           </Card>
 
-          <Card>
+          <Card className="glass-card elevated-card animate-fade-in hover:scale-105 transition-all duration-300" style={{ animationDelay: '100ms' }}>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ore Plătite (cu sporuri)</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Ore Plătite (cu sporuri)
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{monthlyWeightedHours.toFixed(1)}h</div>
+            <div className="text-3xl md:text-4xl font-bold text-primary glow-primary">{monthlyWeightedHours.toFixed(1)}h</div>
             <p className="text-xs text-muted-foreground mt-1">Echivalent total</p>
           </CardContent>
           </Card>
 
-          <Card>
+          <Card className="glass-card elevated-card animate-fade-in hover:scale-105 transition-all duration-300" style={{ animationDelay: '200ms' }}>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Bonus Sporuri</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">
+            <div className="text-3xl md:text-4xl font-bold text-success glow-accent">
               +{(monthlyWeightedHours - monthlyTotalHours).toFixed(1)}h
             </div>
             <p className="text-xs text-muted-foreground mt-1">Ore bonus</p>
@@ -138,11 +144,11 @@ const MyTimeEntries = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Calendar */}
-          <Card>
+          <Card className="glass-card border-primary/20 animate-scale-in">
           <CardHeader>
-            <CardTitle>Selectează Luna</CardTitle>
+            <CardTitle className="text-lg md:text-xl font-semibold">Selectează Luna</CardTitle>
           </CardHeader>
           <CardContent>
             <Calendar
@@ -150,43 +156,51 @@ const MyTimeEntries = () => {
               selected={selectedMonth}
               onSelect={(date) => date && setSelectedMonth(date)}
               locale={ro}
-              className="rounded-md border"
+              className="rounded-md border border-primary/10 glass-card"
             />
           </CardContent>
           </Card>
 
           {/* Entries List */}
-          <Card className="lg:col-span-2">
+          <Card className="glass-card lg:col-span-2 animate-scale-in" style={{ animationDelay: '100ms' }}>
           <CardHeader>
-            <CardTitle>Detalii Pontaje ({entries.length})</CardTitle>
+            <CardTitle className="text-lg md:text-xl font-semibold">Detalii Pontaje ({entries.length})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Se încarcă...</div>
+              <div className="glass-card p-8 text-center animate-shimmer">
+                <div className="text-muted-foreground">Se încarcă...</div>
+              </div>
             ) : entries.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nu există pontaje pentru această lună
+              <div className="glass-card p-8 text-center">
+                <div className="text-muted-foreground">
+                  Nu există pontaje pentru această lună
+                </div>
               </div>
             ) : (
-              entries.map((entry) => {
+              entries.map((entry, entryIndex) => {
                 const totalHours = calculateTotalHours(entry);
                 const weightedHours = calculateWeightedHours(entry);
                 const hasSegments = entry.time_entry_segments?.length > 0;
 
                 return (
-                  <Card key={entry.id} className="bg-accent/50">
+                  <Card 
+                    key={entry.id} 
+                    className="glass-card hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-95 animate-slide-up-fade"
+                    style={{ animationDelay: `${entryIndex * 50}ms` }}
+                  >
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         {/* Header */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-semibold">
+                            <Clock className="w-4 h-4 text-primary" />
+                            <span className="font-semibold text-sm md:text-base">
                               {format(new Date(entry.clock_in_time), 'dd MMM yyyy', { locale: ro })}
                             </span>
                           </div>
                           {!entry.clock_out_time && (
-                            <Badge variant="default" className="bg-green-500">În desfășurare</Badge>
+                            <Badge variant="success" className="animate-glow-pulse">În desfășurare</Badge>
                           )}
                         </div>
 
@@ -198,27 +212,27 @@ const MyTimeEntries = () => {
 
                         {/* Segments Breakdown */}
                         {hasSegments && (
-                          <div className="space-y-2">
+                          <div className="space-y-2 animate-slide-up-fade">
                             <div className="text-sm font-medium flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4" />
+                              <TrendingUp className="w-4 h-4 text-primary" />
                               Breakdown ore:
                             </div>
                             {entry.time_entry_segments.map((seg, idx) => (
                               <div key={idx} className="flex items-center justify-between text-sm pl-6">
                                 <span className="text-muted-foreground">{getSegmentLabel(seg.segment_type)}</span>
                                 <div className="flex items-center gap-2">
-                                  <span>{seg.hours_decimal.toFixed(2)}h</span>
+                                  <span className="font-medium">{seg.hours_decimal.toFixed(2)}h</span>
                                   {seg.multiplier > 1 && (
-                                    <Badge variant="secondary" className="text-xs">
+                                    <Badge variant="info" className="text-xs">
                                       ×{seg.multiplier}
                                     </Badge>
                                   )}
                                 </div>
                               </div>
                             ))}
-                            <div className="pt-2 border-t flex justify-between font-semibold">
+                            <div className="pt-2 border-t border-primary/20 flex justify-between font-semibold">
                               <span>Total plătit:</span>
-                              <span className="text-primary">{weightedHours.toFixed(2)}h</span>
+                              <span className="text-primary glow-primary">{weightedHours.toFixed(2)}h</span>
                             </div>
                           </div>
                         )}
