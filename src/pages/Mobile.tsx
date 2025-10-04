@@ -636,45 +636,32 @@ const Mobile = () => {
           </Card>
         )}
 
-        <Card className={`elevated-card transition-all duration-500 animate-slide-up-fade ${activeShift ? "glass-card border-primary/30 glow-primary" : "glass-card border-primary/10"}`}>
-          <CardHeader className="pb-2 xs:pb-3">
-            <CardTitle className={`text-responsive-lg font-bold flex items-center justify-between gap-2 ${activeShift ? "text-primary" : "text-foreground"}`}>
-              <span className="flex items-center gap-2">
-                {activeShift ? (
-                  <>
-                    <Clock className="h-5 w-5 animate-spin" />
-                    Tură Activă
-                  </>
-                ) : (
-                  "Nicio tură activă"
-                )}
-              </span>
-              {!activeShift && (
-                <span className="text-base text-muted-foreground font-normal truncate">
-                  {user?.user_metadata?.full_name || user?.email}
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className={activeShift ? "space-y-2 xs:space-y-3" : "py-3"}>
-            <div className={`font-black tracking-wider tabular-nums ${activeShift ? "text-responsive-2xl bg-gradient-primary-action bg-clip-text text-transparent animate-glow-pulse" : "text-xl text-muted-foreground"}`}>
-              {formattedTime}
-            </div>
-            {activeShift && (
-              <div className={`flex items-center gap-2 text-responsive-sm font-semibold ${activeShift ? "text-primary" : "text-muted-foreground"}`}>
+        <div className="space-y-2 xs:space-y-3 animate-slide-up-fade mb-3">
+          {activeShift && (
+            <>
+              <div className="flex items-center gap-2 text-primary">
+                <Clock className="h-5 w-5 animate-spin" />
+                <h3 className="text-responsive-lg font-bold">Tură Activă</h3>
+              </div>
+              
+              <div className="font-black tracking-wider tabular-nums text-responsive-2xl bg-gradient-primary-action bg-clip-text text-transparent">
+                {formattedTime}
+              </div>
+              
+              <div className="flex items-center gap-2 text-responsive-sm font-semibold text-primary">
                 {activeShift === "condus" && <Car className="h-5 w-5 animate-float" />}
                 {activeShift === "pasager" && <Users className="h-5 w-5 animate-float" />}
                 {activeShift === "normal" && <Briefcase className="h-5 w-5 animate-float" />}
                 <span>
                   Tip: {getShiftTypeLabel(activeShift)}
                   {activeTimeEntry?.notes?.includes('Condus Utilaj') && (
-                    <span className="ml-1 text-warning animate-glow-pulse">+ Utilaj</span>
+                    <span className="ml-1 text-warning">+ Utilaj</span>
                   )}
                 </span>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </>
+          )}
+        </div>
 
         <Card className="glass-card elevated-card border-primary/10 animate-slide-up-fade" style={{ animationDelay: '0.1s' }}>
           <CardContent className="p-4 xs:p-6">
@@ -683,7 +670,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("condus")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-info to-primary hover:from-primary hover:to-info text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "condus" ? "animate-glow-pulse ring-4 ring-info/50 ring-offset-2" : ""}`}
+                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-info to-primary hover:from-primary hover:to-info text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "condus" ? "ring-4 ring-info/50 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
