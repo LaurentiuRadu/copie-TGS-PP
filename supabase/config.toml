@@ -20,3 +20,12 @@ verify_jwt = true
 
 [functions.update-user]
 verify_jwt = true
+
+[functions.gdpr-delete-user-data]
+verify_jwt = true
+
+[functions.gdpr-export-user-data]
+verify_jwt = true
+
+[functions.cleanup-old-data]
+verify_jwt = false

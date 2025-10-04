@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      data_retention_policies: {
+        Row: {
+          auto_delete_enabled: boolean | null
+          created_at: string | null
+          data_type: string
+          id: string
+          last_cleanup_run: string | null
+          retention_days: number
+          updated_at: string | null
+        }
+        Insert: {
+          auto_delete_enabled?: boolean | null
+          created_at?: string | null
+          data_type: string
+          id?: string
+          last_cleanup_run?: string | null
+          retention_days: number
+          updated_at?: string | null
+        }
+        Update: {
+          auto_delete_enabled?: boolean | null
+          created_at?: string | null
+          data_type?: string
+          id?: string
+          last_cleanup_run?: string | null
+          retention_days?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       face_verification_logs: {
         Row: {
           created_at: string
@@ -90,6 +120,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gdpr_requests: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          request_type: string
+          requested_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type: string
+          requested_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type?: string
+          requested_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       holidays: {
         Row: {
@@ -376,6 +442,45 @@ export type Database = {
           },
         ]
       }
+      user_consents: {
+        Row: {
+          consent_date: string | null
+          consent_given: boolean
+          consent_type: string
+          consent_withdrawn_date: string | null
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          updated_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consent_date?: string | null
+          consent_given?: boolean
+          consent_type: string
+          consent_withdrawn_date?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consent_date?: string | null
+          consent_given?: boolean
+          consent_type?: string
+          consent_withdrawn_date?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_password_tracking: {
         Row: {
           created_at: string | null
@@ -625,6 +730,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_biometric_consent: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       cleanup_old_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
