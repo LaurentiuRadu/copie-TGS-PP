@@ -37,7 +37,7 @@ export const MobileHeader = ({ safeAreaTop }: MobileHeaderProps) => {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right">
+            <SheetContent side="left">
               <SheetHeader>
                 <SheetTitle>Meniu</SheetTitle>
                 <SheetDescription>Opțiuni disponibile</SheetDescription>
