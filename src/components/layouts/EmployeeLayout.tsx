@@ -6,6 +6,8 @@ import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 import { RomaniaTimeClock } from "@/components/RomaniaTimeClock";
+import { UpdateBadge } from "@/components/UpdateBadge";
+import { PasswordExpiryBanner } from "@/components/PasswordExpiryBanner";
 
 interface EmployeeLayoutProps {
   children: ReactNode;
@@ -41,6 +43,7 @@ export const EmployeeLayout = ({
             {!title && <div className="flex-1" />}
             <div className="flex items-center gap-1.5 md:gap-2">
               {headerActions}
+              <UpdateBadge />
               <ScheduleNotificationBell />
               {showLogout && (
                 <Button 
@@ -57,7 +60,10 @@ export const EmployeeLayout = ({
           </header>
 
           <main className="flex-1 overflow-y-auto">
-            {children}
+            <div className="p-2 md:p-4">
+              <PasswordExpiryBanner />
+              {children}
+            </div>
           </main>
         </div>
       </div>

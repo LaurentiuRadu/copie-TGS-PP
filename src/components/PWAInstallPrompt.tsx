@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, X, Share } from "lucide-react";
 import { isStandalone } from "@/lib/registerServiceWorker";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -24,6 +25,7 @@ const isIOSSafari = () => {
 };
 
 export function PWAInstallPrompt() {
+  const { user } = useAuth();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -35,9 +37,16 @@ export function PWAInstallPrompt() {
       return;
     }
 
-    // Verifică dacă utilizatorul a respins deja prompt-ul
+    // Verifică dacă utilizatorul a respins permanent (când era autentificat)
+    const permanentlyDismissed = localStorage.getItem('pwa-install-permanently-dismissed');
+    if (permanentlyDismissed === 'true') {
+      setDismissed(true);
+      return;
+    }
+
+    // Verifică dacă utilizatorul a respins temporar (când nu era autentificat)
     const dismissedTime = localStorage.getItem('pwa-install-dismissed');
-    if (dismissedTime) {
+    if (dismissedTime && !user) {
       const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24);
       // Arată din nou după 7 zile
       if (daysSinceDismissed < 7) {
@@ -93,7 +102,13 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    // Dacă utilizatorul e autentificat, ascunde definitiv
+    if (user) {
+      localStorage.setItem('pwa-install-permanently-dismissed', 'true');
+    } else {
+      // Altfel, ascunde pentru 7 zile
+      localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    }
   };
 
   const handleIOSInstall = () => {
@@ -168,14 +183,15 @@ export function PWAInstallPrompt() {
                       Ok
                     </Button>
                   )}
-                  <Button 
-                    onClick={handleDismiss}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    Mai târziu
-                  </Button>
-                </div>
+                  </div>
+                <Button 
+                  onClick={handleDismiss}
+                  size="sm"
+                  variant="ghost"
+                  className="w-full mt-2"
+                >
+                  Mai târziu
+                </Button>
               </>
             )}
           </div>

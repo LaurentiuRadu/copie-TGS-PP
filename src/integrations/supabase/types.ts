@@ -151,6 +151,30 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          subscription_data: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          subscription_data: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          subscription_data?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedule_notifications: {
         Row: {
           created_at: string
@@ -351,6 +375,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_password_tracking: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_default_password: boolean | null
+          must_change_password: boolean | null
+          password_changed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default_password?: boolean | null
+          must_change_password?: boolean | null
+          password_changed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default_password?: boolean | null
+          must_change_password?: boolean | null
+          password_changed_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

@@ -1,6 +1,6 @@
-// Service Worker pentru PWA - iOS-Optimized Auto-Update
+// Service Worker pentru PWA - iOS-Optimized Auto-Update + Push Notifications
 // Versiune statică pentru cache consistency (incrementează manual la fiecare deploy)
-const CACHE_VERSION = '0610.2025.00001';
+const CACHE_VERSION = '0610.2025.00002';
 const CACHE_NAME = `timetrack-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
 
@@ -159,4 +159,62 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// Push Notification Listener
+self.addEventListener('push', (event) => {
+  console.log('Push notification received:', event);
+  
+  let data = {
+    title: 'TimeTrack',
+    body: 'Ai o notificare nouă',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png'
+  };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
+    vibrate: [200, 100, 200],
+    tag: data.tag || 'timetrack-notification',
+    requireInteraction: data.requireInteraction || false,
+    data: data.data || {},
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Notification Click Handler
+self.addEventListener('notificationclick', (event) => {
+  console.log('Notification clicked:', event);
+  event.notification.close();
+
+  const urlToOpen = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Check if there's already a window open
+        for (const client of clientList) {
+          if (client.url === urlToOpen && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        // Open new window if none exists
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
+  );
 });

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
+import { UpdateBadge } from "@/components/UpdateBadge";
+import { PasswordExpiryBanner } from "@/components/PasswordExpiryBanner";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -39,6 +41,7 @@ export const AdminLayout = ({
             {!title && <div className="flex-1" />}
             <div className="flex items-center gap-2 md:gap-3">
               {headerActions}
+              <UpdateBadge />
               <ScheduleNotificationBell />
               {showLogout && (
                 <Button 
@@ -55,7 +58,10 @@ export const AdminLayout = ({
           </header>
 
           <main className="flex-1 overflow-y-auto">
-            {children}
+            <div className="p-4 md:p-6">
+              <PasswordExpiryBanner />
+              {children}
+            </div>
           </main>
         </div>
       </div>

@@ -23,6 +23,12 @@ export function registerServiceWorker() {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                   console.info('🔄 Versiune nouă disponibilă!');
                   
+                  // Set flag for update badge
+                  localStorage.setItem('new-version-available', 'true');
+                  
+                  // Dispatch custom event for UpdateBadge component
+                  window.dispatchEvent(new CustomEvent('app-update-available'));
+                  
                   // Trimite mesaj pentru a activa noul service worker
                   newWorker.postMessage({ type: 'SKIP_WAITING' });
                   
@@ -38,15 +44,12 @@ export function registerServiceWorker() {
                       duration: 10000,
                     });
                   } else {
-                    // Desktop/Android: reload automat
+                    // Desktop/Android: arată toast cu opțiune de actualizare
                     toast({
-                      title: "Actualizare...",
-                      description: "Aplicația se actualizează automat.",
-                      duration: 2000,
+                      title: "Update Disponibil",
+                      description: "O versiune nouă este disponibilă.",
+                      duration: 5000,
                     });
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 1000);
                   }
                 }
               });

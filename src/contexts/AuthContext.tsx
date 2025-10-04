@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { ForcePasswordChange } from '@/components/ForcePasswordChange';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -105,6 +107,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             
             setUserRole((roleData?.role as UserRole) ?? null);
+
+            // Check if user must change password
+            const { data: passwordData } = await supabase
+              .from('user_password_tracking')
+              .select('must_change_password')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            if (passwordData?.must_change_password) {
+              setMustChangePassword(true);
+            }
           } catch (err) {
             setUserRole(null);
           }
@@ -122,7 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setUserRole(null);
+    setMustChangePassword(false);
     navigate('/auth');
+  };
+
+  const handlePasswordChanged = () => {
+    setMustChangePassword(false);
   };
 
   return (
@@ -135,7 +153,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       ) : (
-        children
+        <>
+          {mustChangePassword && <ForcePasswordChange onPasswordChanged={handlePasswordChanged} />}
+          {children}
+        </>
       )}
     </AuthContext.Provider>
   );

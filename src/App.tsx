@@ -1,5 +1,4 @@
 import { Toaster } from "@/components/ui/toaster";
-
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -20,6 +19,7 @@ import BulkImport from "./pages/BulkImport";
 import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
 import RecalculateSegments from "./pages/RecalculateSegments";
+import ChangePassword from "./pages/ChangePassword";
 
 const App = () => (
   <TooltipProvider>
@@ -29,6 +29,14 @@ const App = () => (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
+              <Route
+                path="/change-password"
+                element={
+                  <ProtectedRoute>
+                    <ChangePassword />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/mobile"
                 element={
