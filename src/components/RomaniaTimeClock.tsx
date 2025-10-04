@@ -19,14 +19,14 @@ export const RomaniaTimeClock = () => {
   const romaniaTime = toZonedTime(time, 'Europe/Bucharest');
   
   return (
-    <div className="flex items-center gap-2 text-foreground bg-card/50 rounded-lg px-3 py-1.5 border border-border">
-      <Clock className="h-4 w-4 text-primary" />
+    <div className="flex items-center gap-1.5 text-foreground bg-card/50 rounded-lg px-2 py-1 border border-border">
+      <Clock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
       <div className="flex flex-col leading-none">
-        <span className="text-sm font-semibold tabular-nums">
+        <span className="text-xs font-semibold tabular-nums">
           {format(romaniaTime, 'HH:mm:ss')}
         </span>
-        <span className="text-xs text-muted-foreground">
-          {format(romaniaTime, 'dd MMM yyyy', { locale: ro })}
+        <span className="text-[10px] text-muted-foreground hidden sm:block">
+          {format(romaniaTime, 'dd MMM', { locale: ro })}
         </span>
       </div>
     </div>
