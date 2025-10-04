@@ -25,16 +25,13 @@ export const RomaniaTimeClock = ({ variant = 'compact' }: RomaniaTimeClockProps)
   
   if (variant === 'large') {
     return (
-      <div className="flex items-center gap-2.5 text-foreground">
-        <Clock className="h-7 w-7 text-primary flex-shrink-0 animate-float" />
-        <div className="flex flex-col leading-tight">
-          <span className="text-3xl font-bold tabular-nums tracking-tight">
-            {format(romaniaTime, 'HH:mm:ss')}
-          </span>
-          <span className="text-base text-muted-foreground mt-1">
-            {format(romaniaTime, 'EEEE, dd MMMM yyyy', { locale: ro })}
-          </span>
-        </div>
+      <div className="flex flex-col items-center text-center leading-tight">
+        <span className="text-2xl font-bold tabular-nums tracking-tight">
+          {format(romaniaTime, 'HH:mm:ss')}
+        </span>
+        <span className="text-sm text-muted-foreground mt-1">
+          {format(romaniaTime, 'EEEE, dd MMMM yyyy', { locale: ro })}
+        </span>
       </div>
     );
   }
