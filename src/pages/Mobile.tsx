@@ -531,20 +531,20 @@ const Mobile = () => {
   const formattedTime = useMemo(() => formatTime(shiftSeconds), [shiftSeconds]);
 
   return (
-    <div className="min-h-screen bg-background pb-safe-area-bottom">
+    <div className="min-h-screen bg-mesh pb-safe-area-bottom">
       <header 
-        className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border shadow-sm"
+        className="sticky top-0 z-20 glass-nav shadow-elegant animate-slide-down"
         style={{ paddingTop: `${safeArea.top}px` }}
       >
         <div className="flex flex-col gap-2 p-3">
           {/* Prima linie: Logo, nume și notificări */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
-                <Clock className="h-5 w-5 text-primary-foreground" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-primary-action flex-shrink-0 shadow-glow animate-float">
+                <Clock className="h-5 w-5 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-base font-semibold text-foreground truncate">TimeTrack</h1>
+                <h1 className="text-base font-bold text-foreground truncate">TimeTrack</h1>
                 <p className="text-xs text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
               </div>
             </div>
@@ -605,20 +605,20 @@ const Mobile = () => {
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
         {!locationEnabled && locationError && (
-          <Card className="border-destructive bg-destructive/10 animate-fade-in">
+          <Card className="glass-card border-destructive/30 glow-primary animate-slide-up-fade">
             <CardContent className="p-3 xs:p-4">
               <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-destructive">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 animate-glow-pulse" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-responsive-xs font-medium">{locationError}</span>
+                  <span className="text-responsive-xs font-semibold">{locationError}</span>
                 </div>
                 <Button 
-                  variant="outline" 
+                  variant="glass" 
                   size="sm" 
                   onClick={requestLocationAccess} 
-                  className="touch-target w-full xs:w-auto"
+                  className="touch-target w-full xs:w-auto hover:scale-105"
                   disabled={isProcessing}
                 >
                   {isProcessing ? "Se verifică..." : "Reîncearcă"}
@@ -628,10 +628,19 @@ const Mobile = () => {
           </Card>
         )}
 
-        <Card className={`shadow-custom-lg transition-all duration-300 animate-fade-in ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
+        <Card className={`elevated-card transition-all duration-500 animate-slide-up-fade ${activeShift ? "glass-card border-primary/30 glow-primary" : "glass-card border-primary/10"}`}>
           <CardHeader className="pb-2 xs:pb-3">
-            <CardTitle className={`text-responsive-lg ${activeShift ? "text-white" : "text-foreground"} flex items-center justify-between gap-2`}>
-              <span>{activeShift ? "Tură Activă" : "Nicio tură activă"}</span>
+            <CardTitle className={`text-responsive-lg font-bold flex items-center justify-between gap-2 ${activeShift ? "text-primary" : "text-foreground"}`}>
+              <span className="flex items-center gap-2">
+                {activeShift ? (
+                  <>
+                    <Clock className="h-5 w-5 animate-spin" />
+                    Tură Activă
+                  </>
+                ) : (
+                  "Nicio tură activă"
+                )}
+              </span>
               {!activeShift && (
                 <span className="text-base text-muted-foreground font-normal truncate">
                   {user?.user_metadata?.full_name || user?.email}
@@ -640,18 +649,18 @@ const Mobile = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className={activeShift ? "space-y-2 xs:space-y-3" : "py-3"}>
-            <div className={`font-bold tracking-wider tabular-nums ${activeShift ? "text-responsive-2xl text-white animate-pulse-soft" : "text-xl text-muted-foreground"}`}>
+            <div className={`font-black tracking-wider tabular-nums ${activeShift ? "text-responsive-2xl bg-gradient-primary-action bg-clip-text text-transparent animate-glow-pulse" : "text-xl text-muted-foreground"}`}>
               {formattedTime}
             </div>
             {activeShift && (
-              <div className={`flex items-center gap-2 text-responsive-sm ${activeShift ? "text-white/90" : "text-muted-foreground"}`}>
-                {activeShift === "condus" && <Car className="h-4 w-4" />}
-                {activeShift === "pasager" && <Users className="h-4 w-4" />}
-                {activeShift === "normal" && <Briefcase className="h-4 w-4" />}
+              <div className={`flex items-center gap-2 text-responsive-sm font-semibold ${activeShift ? "text-primary" : "text-muted-foreground"}`}>
+                {activeShift === "condus" && <Car className="h-5 w-5 animate-float" />}
+                {activeShift === "pasager" && <Users className="h-5 w-5 animate-float" />}
+                {activeShift === "normal" && <Briefcase className="h-5 w-5 animate-float" />}
                 <span>
                   Tip: {getShiftTypeLabel(activeShift)}
                   {activeTimeEntry?.notes?.includes('Condus Utilaj') && (
-                    <span className="ml-1 text-yellow-300">+ Utilaj</span>
+                    <span className="ml-1 text-warning animate-glow-pulse">+ Utilaj</span>
                   )}
                 </span>
               </div>
@@ -659,14 +668,14 @@ const Mobile = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-custom-lg animate-fade-in">
+        <Card className="glass-card elevated-card border-primary/10 animate-slide-up-fade" style={{ animationDelay: '0.1s' }}>
           <CardContent className="p-4 xs:p-6">
             <div className="grid grid-cols-1 gap-2 xs:gap-3">
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("condus")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "ring-4 ring-blue-300 ring-offset-2" : ""}`}
+                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-info to-primary hover:from-primary hover:to-info text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "condus" ? "animate-glow-pulse ring-4 ring-info/50 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -675,7 +684,7 @@ const Mobile = () => {
                   </>
                 ) : (
                   <>
-                    <Car className="h-5 w-5 xs:h-6 xs:w-6" />
+                    <Car className="h-6 w-6 xs:h-7 xs:w-7" />
                     INTRARE CONDUS
                   </>
                 )}
@@ -684,7 +693,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("pasager")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "ring-4 ring-green-300 ring-offset-2" : ""}`}
+                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "pasager" ? "animate-glow-pulse ring-4 ring-success/50 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -693,7 +702,7 @@ const Mobile = () => {
                   </>
                 ) : (
                   <>
-                    <Users className="h-5 w-5 xs:h-6 xs:w-6" />
+                    <Users className="h-6 w-6 xs:h-7 xs:w-7" />
                     INTRARE PASAGER
                   </>
                 )}
@@ -702,7 +711,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("normal")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "ring-4 ring-purple-300 ring-offset-2" : ""}`}
+                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-accent-action hover:brightness-110 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "normal" ? "animate-glow-pulse ring-4 ring-accent/50 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -711,7 +720,7 @@ const Mobile = () => {
                   </>
                 ) : (
                   <>
-                    <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
+                    <Briefcase className="h-6 w-6 xs:h-7 xs:w-7" />
                     INTRARE NORMAL
                   </>
                 )}
@@ -722,9 +731,9 @@ const Mobile = () => {
                   size="lg"
                   onClick={() => setEquipmentDialog(true)}
                   disabled={isProcessing}
-                  className="touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 text-white flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 shadow-lg"
+                  className="touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-warning to-warning/80 hover:from-warning/90 hover:to-warning text-white flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow animate-glow-pulse"
                 >
-                  <Construction className="h-5 w-5 xs:h-6 xs:w-6" />
+                  <Construction className="h-6 w-6 xs:h-7 xs:w-7" />
                   CONDUS UTILAJ
                 </Button>
               )}
@@ -734,8 +743,7 @@ const Mobile = () => {
                   size="lg"
                   onClick={handleShiftEnd}
                   disabled={isProcessing}
-                  variant="destructive"
-                  className="touch-target no-select h-14 xs:h-16 text-responsive-sm flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 mt-2"
+                  className="touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-destructive to-destructive/80 hover:from-destructive/90 hover:to-destructive text-white flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 mt-2 shadow-glow"
                 >
                   {isProcessing ? (
                     <>
@@ -744,7 +752,7 @@ const Mobile = () => {
                     </>
                   ) : (
                     <>
-                      <Clock className="h-5 w-5 xs:h-6 xs:w-6" />
+                      <Clock className="h-6 w-6 xs:h-7 xs:w-7" />
                       IEȘIRE
                     </>
                   )}
@@ -758,11 +766,14 @@ const Mobile = () => {
         <EmployeeScheduleView />
 
         {/* Monthly Calendar */}
-        <Card className="shadow-custom-lg">
+        <Card className="glass-card elevated-card border-primary/10 animate-slide-up-fade" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-responsive-lg flex items-center justify-between">
-              <span>Calendar Lunar</span>
-              <Badge variant="outline" className="text-responsive-xs">
+            <CardTitle className="text-responsive-lg font-bold flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                Calendar Lunar
+              </span>
+              <Badge variant="info" className="text-responsive-xs animate-float">
                 Swipe ← →
               </Badge>
             </CardTitle>
@@ -802,18 +813,18 @@ const Mobile = () => {
             </div>
             
             {/* Legend */}
-            <div className="flex flex-wrap gap-3 xs:gap-4 text-responsive-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded bg-purple-500/30"></div>
-                <span className="text-muted-foreground">Ore Normale</span>
+            <div className="flex flex-wrap gap-3 xs:gap-4 text-responsive-xs font-semibold">
+              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border-accent/20">
+                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded-full bg-gradient-accent-action shadow-sm"></div>
+                <span className="text-foreground">Ore Normale</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded bg-blue-500/30"></div>
-                <span className="text-muted-foreground">Ore Condus</span>
+              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border-info/20">
+                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded-full bg-gradient-to-r from-info to-primary shadow-sm"></div>
+                <span className="text-foreground">Ore Condus</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded bg-green-500/30"></div>
-                <span className="text-muted-foreground">Ore Pasager</span>
+              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border-success/20">
+                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded-full bg-success shadow-sm"></div>
+                <span className="text-foreground">Ore Pasager</span>
               </div>
             </div>
           </CardContent>
@@ -822,38 +833,41 @@ const Mobile = () => {
 
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && handleCancelShiftChange()}>
-        <AlertDialogContent>
+        <AlertDialogContent className="glass-card border-primary/20 animate-scale-in">
           <AlertDialogHeader>
-            <AlertDialogTitle>Schimbare Regim Tură</AlertDialogTitle>
-            <AlertDialogDescription>
-              Ai o tură activă de tip <strong>{getShiftTypeLabel(activeShift)}</strong>. 
-              Vrei să o închizi și să începi o tură nouă de tip <strong>{getShiftTypeLabel(confirmDialog.newType)}</strong>?
+            <AlertDialogTitle className="text-xl font-bold flex items-center gap-2 text-primary">
+              <Clock className="h-6 w-6" />
+              Schimbare Regim Tură
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base leading-relaxed">
+              Ai o tură activă de tip <strong className="text-primary">{getShiftTypeLabel(activeShift)}</strong>. 
+              Vrei să o închizi și să începi o tură nouă de tip <strong className="text-accent">{getShiftTypeLabel(confirmDialog.newType)}</strong>?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelShiftChange}>Anulează</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmShiftChange}>Confirmă Schimbarea</AlertDialogAction>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel onClick={handleCancelShiftChange} className="glass-button">Anulează</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmShiftChange} className="bg-gradient-primary-action hover:scale-105">Confirmă Schimbarea</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Equipment Confirmation Dialog */}
       <AlertDialog open={equipmentDialog} onOpenChange={setEquipmentDialog}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="glass-card border-warning/30 max-w-md animate-scale-in">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
-              <Construction className="h-6 w-6" />
+            <AlertDialogTitle className="flex items-center gap-2 text-warning text-xl font-bold">
+              <Construction className="h-6 w-6 animate-float" />
               Confirmare Condus Utilaj
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
-              <p className="text-base">
-                Ești pe cale să marchezi <strong>Condus Utilaj</strong> pentru pontajul curent.
+              <p className="text-base font-medium">
+                Ești pe cale să marchezi <strong className="text-warning">Condus Utilaj</strong> pentru pontajul curent.
               </p>
-              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-                <p className="text-sm text-orange-800 dark:text-orange-200 font-medium mb-2">
+              <div className="glass-card border-warning/30 rounded-xl p-4 glow-accent">
+                <p className="text-sm font-bold mb-2 text-warning flex items-center gap-1">
                   ⚠️ Atenție
                 </p>
-                <p className="text-sm text-orange-700 dark:text-orange-300">
+                <p className="text-sm leading-relaxed">
                   Această acțiune va marca pontajul ca fiind efectuat cu utilaj de construcție. 
                   Asigură-te că utilizezi utilajul înainte de a confirma.
                 </p>
