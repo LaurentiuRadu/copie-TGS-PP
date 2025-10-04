@@ -1,7 +1,7 @@
-// Service Worker pentru PWA - Offline support și caching optimizat
-// Versiune dinamică bazată pe timestamp pentru actualizări automate
-const CACHE_VERSION = '1.0.3';
-const CACHE_NAME = `timetrack-v${CACHE_VERSION}-${Date.now()}`;
+// Service Worker pentru PWA - iOS-Optimized Auto-Update
+// Versiune statică pentru cache consistency (incrementează manual la fiecare deploy)
+const CACHE_VERSION = '1.0.4';
+const CACHE_NAME = `timetrack-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
 
 // Cache mai multe resurse pentru offline
@@ -31,19 +31,26 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Service Worker
+// Activate Service Worker - Aggressive cache cleanup
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Delete ALL old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
+              console.log('🗑️ Deleting old cache:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // Clear API cache if version changed
+      caches.delete(API_CACHE_NAME).then(() => {
+        console.log('🔄 API cache cleared for fresh start');
+      })
+    ])
   );
   self.clients.claim();
 });
@@ -118,14 +125,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy pentru navegare: Network First
+  // Strategy pentru navegare și HTML: Network First (iOS critical!)
   event.respondWith(
-    fetch(request)
+    fetch(request, {
+      cache: 'no-cache', // Force fresh fetch for HTML
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    })
       .then((response) => {
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, responseToCache);
-        });
+        // Cache doar dacă nu e HTML (pentru offline fallback)
+        if (!request.url.includes('.html') && request.mode === 'navigate') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+        }
         return response;
       })
       .catch(() => {

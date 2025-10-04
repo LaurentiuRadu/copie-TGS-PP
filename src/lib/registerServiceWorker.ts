@@ -1,4 +1,6 @@
-// Register Service Worker pentru PWA functionality
+import { toast } from "@/hooks/use-toast";
+
+// Register Service Worker pentru PWA functionality - iOS Optimized
 export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -9,25 +11,43 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
-          // Verifică automat pentru actualizări la fiecare oră
+          // Verifică pentru actualizări la fiecare 5 minute (iOS needs frequent checks)
           setInterval(() => {
             registration.update();
-          }, 60 * 60 * 1000);
+          }, 5 * 60 * 1000);
 
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.info('🔄 Versiune nouă disponibilă - Actualizare automată...');
+                  console.info('🔄 Versiune nouă disponibilă!');
                   
                   // Trimite mesaj pentru a activa noul service worker
                   newWorker.postMessage({ type: 'SKIP_WAITING' });
                   
-                  // Așteaptă puțin și reîncarcă pagina
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 1000);
+                  // iOS: Afișează toast pentru reload manual (iOS nu permite reload automat în PWA)
+                  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                  const isStandalone = (window.navigator as any).standalone === true || 
+                                      window.matchMedia('(display-mode: standalone)').matches;
+                  
+                  if (isIOS && isStandalone) {
+                    toast({
+                      title: "🎉 Versiune Nouă Disponibilă!",
+                      description: "Închide și redeschide aplicația pentru actualizare.",
+                      duration: 10000,
+                    });
+                  } else {
+                    // Desktop/Android: reload automat
+                    toast({
+                      title: "Actualizare...",
+                      description: "Aplicația se actualizează automat.",
+                      duration: 2000,
+                    });
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
+                  }
                 }
               });
             }

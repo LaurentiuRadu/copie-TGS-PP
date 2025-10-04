@@ -1,8 +1,9 @@
 {
   "name": "TimeTrack - Sistem de Pontaj",
   "short_name": "TimeTrack",
+  "version": "1.0.4",
   "description": "Sistem modern de pontaj cu verificare facială și geolocație",
-  "start_url": "/",
+  "start_url": "/?v=1.0.4",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#32C5DB",
