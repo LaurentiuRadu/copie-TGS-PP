@@ -105,7 +105,7 @@ export function AppSidebar() {
                       end
                       className={({ isActive }) =>
                         isActive
-                          ? "bg-sidebar-accent text-sidebar-primary font-medium"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                           : "!text-white hover:bg-sidebar-accent/50"
                       }
                     >
