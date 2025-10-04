@@ -76,7 +76,7 @@ All colors MUST be HSL.
 
     /* Glass Navigation - Purple theme */
     --sidebar-background: 262 83% 42%;
-    --sidebar-foreground: 270 20% 98%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 262 83% 58%;
     --sidebar-primary-foreground: 270 20% 98%;
     --sidebar-accent: 262 83% 48%;
@@ -138,7 +138,7 @@ All colors MUST be HSL.
     --shadow-elevated: 0 8px 24px hsl(0 0% 0% / 0.4), 0 16px 48px hsl(0 0% 0% / 0.3);
 
     --sidebar-background: 262 47% 8%;
-    --sidebar-foreground: 270 20% 98%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-accent: 262 50% 12%;
     --sidebar-border: 262 40% 12%;
   }
