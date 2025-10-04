@@ -106,7 +106,7 @@ export function AppSidebar() {
                       className={({ isActive }) =>
                         isActive
                           ? "bg-sidebar-accent text-sidebar-primary font-medium"
-                          : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                          : "text-sidebar-foreground opacity-100 hover:bg-sidebar-accent/50"
                       }
                     >
                       <item.icon className="h-4 w-4" />
