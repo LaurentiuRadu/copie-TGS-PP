@@ -41,6 +41,7 @@ import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 import { LocationPermissionsGuide } from "@/components/LocationPermissionsGuide";
+import { MobileHeader } from "@/components/MobileHeader";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -533,76 +534,7 @@ const Mobile = () => {
 
   return (
     <div className="min-h-screen bg-mesh pb-safe-area-bottom">
-      <header 
-        className="sticky top-0 z-20 glass-nav shadow-elegant animate-slide-down"
-        style={{ paddingTop: `${safeArea.top}px` }}
-      >
-        <div className="flex flex-col gap-2 p-3">
-          {/* Prima linie: Logo, nume și notificări */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-primary-action flex-shrink-0 shadow-glow animate-float">
-                <Clock className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-base font-bold text-foreground truncate">TimeTrack</h1>
-                <p className="text-xs text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <ScheduleNotificationBell />
-              
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 touch-target no-select">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right">
-                  <SheetHeader>
-                    <SheetTitle>Meniu</SheetTitle>
-                    <SheetDescription>Opțiuni disponibile</SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-6 space-y-4">
-                    <SheetClose asChild>
-                      <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/my-time-entries')}>
-                        <Clock className="h-4 w-4" />
-                        Istoric Timp
-                      </Button>
-                    </SheetClose>
-                    <Button variant="outline" className="w-full justify-start gap-2">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Task-uri
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start gap-2">
-                      <FolderOpen className="h-4 w-4" />
-                      Proiecte
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/vacations')}>
-                      <CalendarDays className="h-4 w-4" />
-                      Concedii
-                    </Button>
-                    <Button
-                      variant="outline" 
-                      className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-                      onClick={signOut}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Deconectare
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
-          
-          {/* A doua linie: oră România */}
-          <div className="flex items-center justify-end">
-            <RomaniaTimeClock />
-          </div>
-        </div>
-      </header>
+      <MobileHeader safeAreaTop={safeArea.top} />
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
         {!locationEnabled && locationError && (

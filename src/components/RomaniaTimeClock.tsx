@@ -3,8 +3,13 @@ import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { ro } from 'date-fns/locale';
 import { Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export const RomaniaTimeClock = () => {
+interface RomaniaTimeClockProps {
+  variant?: 'compact' | 'large';
+}
+
+export const RomaniaTimeClock = ({ variant = 'compact' }: RomaniaTimeClockProps) => {
   const [time, setTime] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -17,6 +22,22 @@ export const RomaniaTimeClock = () => {
 
   // Convertește ora curentă la timezone-ul României
   const romaniaTime = toZonedTime(time, 'Europe/Bucharest');
+  
+  if (variant === 'large') {
+    return (
+      <div className="flex items-center gap-4 text-foreground">
+        <Clock className="h-10 w-10 text-primary flex-shrink-0 animate-float" />
+        <div className="flex flex-col leading-tight">
+          <span className="text-5xl font-bold tabular-nums tracking-tight">
+            {format(romaniaTime, 'HH:mm:ss')}
+          </span>
+          <span className="text-xl text-muted-foreground mt-1">
+            {format(romaniaTime, 'EEEE, dd MMMM yyyy', { locale: ro })}
+          </span>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex items-center gap-1.5 text-foreground bg-card/50 rounded-lg px-2 py-1 border border-border">
