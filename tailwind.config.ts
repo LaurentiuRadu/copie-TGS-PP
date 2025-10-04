@@ -124,12 +124,12 @@ export default {
         },
         "glow-pulse": {
           "0%, 100%": { 
-            boxShadow: "0 0 20px hsl(var(--primary) / 0.4)",
+            boxShadow: "0 0 12px hsl(var(--primary) / 0.25)",
             opacity: "1"
           },
           "50%": { 
-            boxShadow: "0 0 40px hsl(var(--primary) / 0.6)",
-            opacity: "0.9"
+            boxShadow: "0 0 20px hsl(var(--primary) / 0.35)",
+            opacity: "0.97"
           },
         },
         "slide-up-fade": {
