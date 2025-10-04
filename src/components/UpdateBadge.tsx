@@ -26,7 +26,7 @@ export function UpdateBadge() {
     window.addEventListener("app-update-available", handleUpdateAvailable);
 
     // Check periodically
-    const interval = setInterval(checkForUpdate, 60000); // Check every minute
+    const interval = setInterval(checkForUpdate, 6 * 60 * 60 * 1000); // Check every 6 hours
 
     return () => {
       window.removeEventListener("app-update-available", handleUpdateAvailable);

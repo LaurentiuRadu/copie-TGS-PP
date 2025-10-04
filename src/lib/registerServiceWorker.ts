@@ -11,10 +11,10 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
-          // Verifică pentru actualizări la fiecare 5 minute (iOS needs frequent checks)
+          // Verifică pentru actualizări la fiecare 6 ore
           setInterval(() => {
             registration.update();
-          }, 5 * 60 * 1000);
+          }, 6 * 60 * 60 * 1000);
 
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
