@@ -40,6 +40,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
+import { LocationPermissionsGuide } from "@/components/LocationPermissionsGuide";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -623,6 +624,13 @@ const Mobile = () => {
                 >
                   {isProcessing ? "Se verifică..." : "Reîncearcă"}
                 </Button>
+                <LocationPermissionsGuide 
+                  trigger={
+                    <Button variant="outline" size="sm" className="touch-target">
+                      Ghid Setări
+                    </Button>
+                  }
+                />
               </div>
             </CardContent>
           </Card>
