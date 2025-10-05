@@ -1,5 +1,6 @@
 import { GDPRConsentManager } from "@/components/GDPRConsentManager";
 import { GDPRDataManager } from "@/components/GDPRDataManager";
+import { ActiveSessionsManager } from "@/components/ActiveSessionsManager";
 
 export default function GDPRSettings() {
   return (
@@ -12,6 +13,7 @@ export default function GDPRSettings() {
       </div>
 
       <GDPRConsentManager />
+      <ActiveSessionsManager />
       <GDPRDataManager />
     </div>
   );

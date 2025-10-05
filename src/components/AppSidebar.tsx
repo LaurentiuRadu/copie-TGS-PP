@@ -29,6 +29,7 @@ const adminMenuItems = [
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Import Salariați", url: "/bulk-import", icon: Users },
   { title: "Concedii", url: "/vacations", icon: Calendar },
+  { title: "Setări GDPR", url: "/gdpr-settings", icon: Shield },
 ];
 
 // Meniuri pentru Angajați
@@ -36,6 +37,7 @@ const employeeMenuItems = [
   { title: "Pontaj", url: "/mobile", icon: Clock },
   { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
   { title: "Concedii", url: "/vacations", icon: Calendar },
+  { title: "Setări GDPR", url: "/gdpr-settings", icon: Shield },
 ];
 
 export function AppSidebar() {

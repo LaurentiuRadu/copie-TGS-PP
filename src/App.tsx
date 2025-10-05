@@ -21,6 +21,7 @@ import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
 import RecalculateSegments from "./pages/RecalculateSegments";
 import ChangePassword from "./pages/ChangePassword";
+import GDPRSettings from "./pages/GDPRSettings";
 
 const App = () => (
   <TooltipProvider>
@@ -139,6 +140,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <RecalculateSegments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gdpr-settings"
+                element={
+                  <ProtectedRoute>
+                    <GDPRSettings />
                   </ProtectedRoute>
                 }
               />
