@@ -33,6 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { TimeEntryDetailsDialog } from '@/components/TimeEntryDetailsDialog';
 import { toast } from '@/hooks/use-toast';
 
@@ -45,6 +51,8 @@ const Timesheet = () => {
     to: Date | undefined;
   }>({ from: undefined, to: undefined });
   const [exportEmployee, setExportEmployee] = useState<string>("all");
+  const [isExportingAll, setIsExportingAll] = useState(false);
+  const [monthTotalCount, setMonthTotalCount] = useState<number>(0);
   const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
   const isMobile = useIsMobile();
 
@@ -56,6 +64,26 @@ const Timesheet = () => {
     )) as string[];
     return unique.sort();
   }, [entries]);
+
+  // Get total count for the month
+  useEffect(() => {
+    const fetchMonthCount = async () => {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      
+      const { count, error } = await supabase
+        .from('time_entries')
+        .select('*', { count: 'exact', head: true })
+        .gte('clock_in_time', monthStart.toISOString())
+        .lte('clock_in_time', monthEnd.toISOString());
+      
+      if (!error && count !== null) {
+        setMonthTotalCount(count);
+      }
+    };
+    
+    fetchMonthCount();
+  }, [selectedDate]);
 
   // Realtime subscription for time entries and segments
   useEffect(() => {
@@ -359,6 +387,182 @@ const Timesheet = () => {
     }
   };
 
+  // Helper to prepare export data from entries array
+  const prepareExportDataFromEntries = (entriesToExport: any[]) => {
+    if (!entriesToExport || entriesToExport.length === 0) return [];
+    
+    // Group entries by employee + date
+    const grouped = entriesToExport.reduce((acc, entry) => {
+      const employeeName = entry.profiles?.full_name || 'Necunoscut';
+      const date = format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro });
+      const key = `${employeeName}_${date}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          employeeName,
+          date,
+          entries: [],
+          allNotes: []
+        };
+      }
+      acc[key].entries.push(entry);
+      if (entry.notes) {
+        acc[key].allNotes.push(entry.notes);
+      }
+      return acc;
+    }, {} as Record<string, { employeeName: string; date: string; entries: any[]; allNotes: string[] }>);
+    
+    // Centralize hours for each group
+    return Object.values(grouped).map((group: { employeeName: string; date: string; entries: any[]; allNotes: string[] }) => {
+      const totals = {
+        normale: 0,
+        noapte: 0,
+        sambata: 0,
+        sarbatori: 0,
+        pasager: 0,
+        condus: 0,
+        utilaj: 0,
+        total: 0
+      };
+      
+      let firstClockIn = '';
+      let lastClockOut = '';
+      
+      group.entries.forEach((entry, index) => {
+        const username = entry.profiles?.username;
+        const hours = calculateHoursByType(entry, username);
+        totals.normale += hours.normale;
+        totals.noapte += hours.noapte;
+        totals.sambata += hours.sambata;
+        totals.sarbatori += hours.sarbatori;
+        totals.pasager += hours.pasager;
+        totals.condus += hours.condus;
+        totals.utilaj += hours.utilaj;
+        
+        // Track first clock in and last clock out
+        if (index === 0) {
+          firstClockIn = format(new Date(entry.clock_in_time), 'HH:mm');
+        }
+        if (entry.clock_out_time) {
+          lastClockOut = format(new Date(entry.clock_out_time), 'HH:mm');
+        }
+        
+        // Calculate total hours for this entry
+        totals.total += calculateTotalHours(entry);
+      });
+      
+      return {
+        'Angajat': group.employeeName,
+        'Data': group.date,
+        'Normale': totals.normale > 0 ? totals.normale.toFixed(2) : '-',
+        'Noapte': totals.noapte > 0 ? totals.noapte.toFixed(2) : '-',
+        'Sâmbătă': totals.sambata > 0 ? totals.sambata.toFixed(2) : '-',
+        'Duminica Sarbatori': totals.sarbatori > 0 ? totals.sarbatori.toFixed(2) : '-',
+        'Pasager': totals.pasager > 0 ? totals.pasager.toFixed(2) : '-',
+        'Condus': totals.condus > 0 ? totals.condus.toFixed(2) : '-',
+        'Utilaj': totals.utilaj > 0 ? totals.utilaj.toFixed(2) : '-',
+        'CO': firstClockIn || '-',
+        'CM': lastClockOut || '-',
+        'Observații': group.allNotes.join('; ') || '-',
+        'Total': totals.total.toFixed(2)
+      };
+    });
+  };
+
+  // Export all entries for the month (Excel)
+  const handleExportAllExcel = async () => {
+    try {
+      setIsExportingAll(true);
+      toast({ title: 'Se pregătește exportul...', description: 'Vă rugăm așteptați' });
+      
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      
+      // Fetch all time entries for the month with segments and profiles
+      const { data: allEntries, error: entriesError } = await supabase
+        .from('time_entries')
+        .select(`
+          *,
+          time_entry_segments (*),
+          profiles (id, full_name, username)
+        `)
+        .gte('clock_in_time', monthStart.toISOString())
+        .lte('clock_in_time', monthEnd.toISOString())
+        .order('clock_in_time', { ascending: true });
+      
+      if (entriesError) throw entriesError;
+      
+      if (!allEntries || allEntries.length === 0) {
+        toast({ title: 'Nu există date pentru export', variant: 'destructive' });
+        return;
+      }
+      
+      const data = prepareExportDataFromEntries(allEntries);
+      const filename = `Timesheet_Complet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
+      exportToExcel(data, filename);
+      toast({ 
+        title: 'Export complet finalizat', 
+        description: `${data.length} înregistrări centralizate au fost exportate.` 
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ 
+        title: 'Eroare la export complet', 
+        description: 'Te rugăm să încerci din nou.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
+
+  // Export all entries for the month (CSV)
+  const handleExportAllCSV = async () => {
+    try {
+      setIsExportingAll(true);
+      toast({ title: 'Se pregătește exportul...', description: 'Vă rugăm așteptați' });
+      
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      
+      // Fetch all time entries for the month with segments and profiles
+      const { data: allEntries, error: entriesError } = await supabase
+        .from('time_entries')
+        .select(`
+          *,
+          time_entry_segments (*),
+          profiles (id, full_name, username)
+        `)
+        .gte('clock_in_time', monthStart.toISOString())
+        .lte('clock_in_time', monthEnd.toISOString())
+        .order('clock_in_time', { ascending: true });
+      
+      if (entriesError) throw entriesError;
+      
+      if (!allEntries || allEntries.length === 0) {
+        toast({ title: 'Nu există date pentru export', variant: 'destructive' });
+        return;
+      }
+      
+      const data = prepareExportDataFromEntries(allEntries);
+      const filename = `Timesheet_Complet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
+      exportToCSV(data, filename);
+      toast({ 
+        title: 'Export complet finalizat', 
+        description: `${data.length} înregistrări centralizate au fost exportate.` 
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ 
+        title: 'Eroare la export complet', 
+        description: 'Te rugăm să încerci din nou.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
+
   const monthStart = startOfMonth(selectedDate);
   const monthEnd = endOfMonth(selectedDate);
 
@@ -579,22 +783,48 @@ const Timesheet = () => {
                       </PopoverContent>
                     </Popover>
 
-                    <Badge variant="secondary" className="ml-auto">
-                      {exportDateRange.from || exportEmployee !== "all" 
-                        ? `Export filtrat: ${prepareExportData().length} înregistrări`
-                        : `Export complet: ${entries?.length || 0} înregistrări`
-                      }
-                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="sm" disabled={isExportingAll}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Export complet: {monthTotalCount} înregistrări
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={handleExportAllExcel}
+                          disabled={isExportingAll}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Export complet (Excel)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={handleExportAllCSV}
+                          disabled={isExportingAll}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Export complet (CSV)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Excel
-                    </Button>
+                    {(exportDateRange.from || exportEmployee !== "all") && (
+                      <>
+                        <Badge variant="outline" className="ml-2">
+                          Export filtrat: {prepareExportData().length} înregistrări
+                        </Badge>
 
-                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export CSV
-                    </Button>
+                        <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Export Excel
+                        </Button>
+
+                        <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Export CSV
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
