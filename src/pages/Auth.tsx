@@ -330,7 +330,7 @@ const Auth = () => {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="admin"
-                  className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                 >
                   Administrator
                 </TabsTrigger>
@@ -466,7 +466,7 @@ const Auth = () => {
               </form>
             </TabsContent>
 
-            <TabsContent value="admin" className="border-l-4 border-accent pl-4">
+            <TabsContent value="admin" className="border-l-4 border-primary pl-4">
               <form onSubmit={handleAdminAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="admin-email">Email</Label>
@@ -564,7 +564,7 @@ const Auth = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" 
+                  className="w-full" 
                   disabled={loading || (isSignUp && (!adminPasswordStrength?.isStrong || checkingPassword))}
                 >
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont admin" : "Autentificare admin"}
