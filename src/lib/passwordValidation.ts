@@ -17,9 +17,9 @@ export async function checkPasswordStrength(password: string): Promise<PasswordS
       console.error("Error checking password strength:", error);
       // Return basic validation if API fails
       return {
-        isStrong: password.length >= 12,
-        score: password.length >= 12 ? 80 : 40,
-        feedback: password.length < 12 ? ["Parola trebuie să aibă minimum 12 caractere"] : [],
+        isStrong: password.length >= 6,
+        score: password.length >= 6 ? 80 : 40,
+        feedback: password.length < 6 ? ["Parola trebuie să aibă minimum 6 caractere"] : [],
       };
     }
 

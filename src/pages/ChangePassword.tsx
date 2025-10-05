@@ -29,7 +29,7 @@ const passwordSchema = z.object({
   oldPassword: z.string().min(1, "Parola veche este necesară"),
   newPassword: z
     .string()
-    .min(8, "Parola trebuie să aibă minimum 8 caractere")
+    .min(6, "Parola trebuie să aibă minimum 6 caractere")
     .regex(/[A-Z]/, "Parola trebuie să conțină cel puțin o literă mare")
     .regex(/[0-9]/, "Parola trebuie să conțină cel puțin o cifră"),
   confirmPassword: z.string(),
@@ -245,7 +245,7 @@ export default function ChangePassword() {
                   {isLoading ? "Se schimbă..." : "Schimbă Parola"}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Parola trebuie să aibă cel puțin 8 caractere, o literă mare și o cifră.
+                  Parola trebuie să aibă cel puțin 6 caractere, o literă mare și o cifră.
                 </p>
               </div>
             </form>

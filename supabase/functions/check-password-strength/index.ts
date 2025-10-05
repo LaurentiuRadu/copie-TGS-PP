@@ -67,12 +67,12 @@ function validatePasswordStrength(password: string): PasswordStrength {
   const feedback: string[] = [];
   let score = 0;
 
-  // Length check (minimum 12 characters)
-  if (password.length < 12) {
-    feedback.push("Parola trebuie să aibă minimum 12 caractere");
+  // Length check (minimum 6 characters)
+  if (password.length < 6) {
+    feedback.push("Parola trebuie să aibă minimum 6 caractere");
   } else {
     score += 25;
-    if (password.length >= 16) score += 10;
+    if (password.length >= 12) score += 10; // Bonus pentru 12+ caractere
   }
 
   // Uppercase letters

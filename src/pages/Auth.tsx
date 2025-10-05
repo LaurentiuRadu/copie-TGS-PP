@@ -27,7 +27,7 @@ const employeeLoginSchema = z.object({
 
 const employeeSignUpSchema = z.object({
   username: z.string().trim().min(3, "Username-ul trebuie să aibă minim 3 caractere").max(50),
-  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"), // Validare strictă la sign up
+  password: z.string().min(6, "Parola trebuie să aibă minim 6 caractere"), // Validare strictă la sign up
 });
 
 const adminLoginSchema = z.object({
@@ -37,7 +37,7 @@ const adminLoginSchema = z.object({
 
 const adminSignUpSchema = z.object({
   email: z.string().trim().email("Email invalid"),
-  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"), // Validare strictă la sign up
+  password: z.string().min(6, "Parola trebuie să aibă minim 6 caractere"), // Validare strictă la sign up
 });
 
 const Auth = () => {
