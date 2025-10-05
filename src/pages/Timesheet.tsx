@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TimeEntryDetailsDialog } from '@/components/TimeEntryDetailsDialog';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 const Timesheet = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -331,16 +331,15 @@ const Timesheet = () => {
     try {
       const data = prepareExportData();
       if (data.length === 0) {
-        toast.error('Nu există date pentru export');
+        toast({ title: 'Nu există date pentru export', variant: 'destructive' });
         return;
       }
-      toast.loading('Se generează fișierul Excel...', { id: 'export' });
       const filename = `Timesheet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
       exportToExcel(data, filename);
-      toast.success(`Export Excel finalizat: ${data.length} înregistrări`, { id: 'export' });
+      toast({ title: 'Export Excel finalizat', description: `${data.length} înregistrări au fost exportate.` });
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Eroare la export Excel', { id: 'export' });
+      toast({ title: 'Eroare la export Excel', description: 'Te rugăm să încerci din nou.', variant: 'destructive' });
     }
   };
 
@@ -348,16 +347,15 @@ const Timesheet = () => {
     try {
       const data = prepareExportData();
       if (data.length === 0) {
-        toast.error('Nu există date pentru export');
+        toast({ title: 'Nu există date pentru export', variant: 'destructive' });
         return;
       }
-      toast.loading('Se generează fișierul CSV...', { id: 'export' });
       const filename = `Timesheet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
       exportToCSV(data, filename);
-      toast.success(`Export CSV finalizat: ${data.length} înregistrări`, { id: 'export' });
+      toast({ title: 'Export CSV finalizat', description: `${data.length} înregistrări au fost exportate.` });
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Eroare la export CSV', { id: 'export' });
+      toast({ title: 'Eroare la export CSV', description: 'Te rugăm să încerci din nou.', variant: 'destructive' });
     }
   };
 
