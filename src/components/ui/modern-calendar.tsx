@@ -35,9 +35,9 @@ function ModernCalendar({
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
-        head_row: "flex gap-1 mt-2",
-        head_cell: "text-muted-foreground rounded-md w-10 font-medium text-[0.85rem]",
-        row: "flex w-full mt-1",
+        head_row: "grid grid-cols-8 gap-2 mt-2",
+        head_cell: "text-muted-foreground rounded-md w-10 text-center font-medium text-[0.85rem]",
+        row: "grid grid-cols-8 w-full mt-1",
         cell: cn(
           "relative p-0 text-center text-sm",
           "focus-within:relative focus-within:z-20",
