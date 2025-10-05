@@ -34,8 +34,7 @@ export default defineConfig(({ mode }) => {
     preserveSymlinks: true,
   },
   optimizeDeps: {
-    exclude: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
-    force: true, // Force pre-bundling to ensure single instance
+    force: true, // Force rebundling - single React instance via dedupe
   },
   build: {
     rollupOptions: {
