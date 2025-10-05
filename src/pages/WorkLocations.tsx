@@ -602,7 +602,7 @@ const WorkLocations = () => {
                           <Label className="shrink-0">Hartă</Label>
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="default"
                             size="sm"
                             onClick={useCurrentLocation}
                             className="gap-2 shrink-0 whitespace-nowrap w-full sm:w-auto"
