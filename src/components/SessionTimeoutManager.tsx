@@ -71,12 +71,12 @@ export function SessionTimeoutManager() {
     ];
 
     // Throttle reset to avoid too many calls
-    let throttleTimeout: NodeJS.Timeout;
+    let throttleTimeout: NodeJS.Timeout | null = null;
     const throttledReset = () => {
       if (!throttleTimeout) {
         resetTimeout();
         throttleTimeout = setTimeout(() => {
-          throttleTimeout = undefined as any;
+          throttleTimeout = null;
         }, 60000); // Throttle to once per minute
       }
     };
