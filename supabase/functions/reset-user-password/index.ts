@@ -76,6 +76,23 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Set must_change_password flag in user_password_tracking
+    const { error: trackingError } = await supabaseAdmin
+      .from('user_password_tracking')
+      .upsert(
+        {
+          user_id: userId,
+          must_change_password: true,
+          password_changed_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
+
+    if (trackingError) {
+      console.error('Error updating password tracking:', trackingError)
+      // Don't fail the request, just log the error
+    }
+
     return new Response(
       JSON.stringify({ success: true, message: 'Password reset successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
