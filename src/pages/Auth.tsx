@@ -123,7 +123,7 @@ const Auth = () => {
         setRateLimited(true);
         setResetTime(rateLimit.reset_at);
         const timeMsg = formatResetTime(rateLimit.reset_at);
-        throw new Error(`Prea multe încercări de autentificare. Încearcă din nou ${timeMsg}.`);
+        throw new Error(`Prea multe încercări eșuate (maxim 5). Contul este blocat temporar ${timeMsg}. Contactează administratorul dacă problema persistă.`);
       }
 
       // Folosim schema corectă în funcție de acțiune
@@ -237,7 +237,7 @@ const Auth = () => {
         setRateLimited(true);
         setResetTime(rateLimit.reset_at);
         const timeMsg = formatResetTime(rateLimit.reset_at);
-        throw new Error(`Prea multe încercări de autentificare. Încearcă din nou ${timeMsg}.`);
+        throw new Error(`Prea multe încercări eșuate (maxim 5). Contul este blocat temporar ${timeMsg}. Contactează administratorul dacă problema persistă.`);
       }
 
       // Folosim schema corectă în funcție de acțiune

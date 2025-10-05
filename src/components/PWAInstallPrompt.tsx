@@ -186,8 +186,8 @@ export function PWAInstallPrompt() {
                       Ok
                     </Button>
                   )}
-                  </div>
-                <Button 
+                </div>
+                <Button
                   onClick={handleDismiss}
                   size="sm"
                   variant="ghost"
