@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { ForcePasswordChange } from '@/components/ForcePasswordChange';
+import { GDPRConsentDialog } from '@/components/GDPRConsentDialog';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -23,6 +24,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [needsGDPRConsent, setNeedsGDPRConsent] = useState(false);
+
+  const checkGDPRConsents = async (userId: string): Promise<boolean> => {
+    try {
+      const requiredConsents = ['biometric_data', 'gps_tracking', 'photo_capture', 'data_processing'];
+      
+      const { data: consents, error } = await supabase
+        .from("user_consents")
+        .select("consent_type, consent_given, consent_withdrawn_date")
+        .eq("user_id", userId)
+        .in("consent_type", requiredConsents);
+
+      if (error) {
+        console.error("[AuthContext] Error checking consents:", error);
+        return true; // Assume needs consent on error
+      }
+
+      // Check if all required consents are given and not withdrawn
+      const givenConsents = consents?.filter(c => 
+        c.consent_given && !c.consent_withdrawn_date
+      ).map(c => c.consent_type) || [];
+
+      const needsConsent = requiredConsents.some(
+        required => !givenConsents.includes(required)
+      );
+
+      console.debug("[AuthContext] GDPR consent check:", { needsConsent, givenConsents });
+      return needsConsent;
+    } catch (error) {
+      console.error("[AuthContext] Unexpected error checking consents:", error);
+      return true;
+    }
+  };
+
+  const handleGDPRConsentsGiven = () => {
+    setNeedsGDPRConsent(false);
+  };
 
   useEffect(() => {
     let timeoutRef: NodeJS.Timeout | null = null;
@@ -66,17 +104,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const role = (roleData?.role as UserRole) ?? null;
                 setUserRole(role);
 
-                // Only redirect on SIGNED_IN event
-                if (event === 'SIGNED_IN' && role) {
-                  const currentPath = window.location.pathname;
-                  const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/timesheet', '/recalculate-segments'];
-                  const employeePaths = ['/mobile', '/my-time-entries', '/vacations'];
-                  
-                  const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
-                                       (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
-                  
-                  if (!isOnValidPath) {
-                    navigate(role === 'admin' ? '/admin' : '/mobile');
+                // Check password and GDPR on SIGNED_IN
+                if (event === 'SIGNED_IN') {
+                  // Check password change requirement
+                  supabase
+                    .from('user_password_tracking')
+                    .select('must_change_password')
+                    .eq('user_id', userId)
+                    .maybeSingle()
+                    .then(({ data: passwordData }) => {
+                      if (passwordData?.must_change_password) {
+                        setMustChangePassword(true);
+                      }
+                    });
+
+                  // Check GDPR consents
+                  checkGDPRConsents(userId).then(needsConsent => {
+                    setNeedsGDPRConsent(needsConsent);
+                  });
+
+                  // Redirect logic
+                  if (role) {
+                    const currentPath = window.location.pathname;
+                    const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/timesheet', '/recalculate-segments'];
+                    const employeePaths = ['/mobile', '/my-time-entries', '/vacations'];
+                    
+                    const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
+                                         (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
+                    
+                    if (!isOnValidPath) {
+                      navigate(role === 'admin' ? '/admin' : '/mobile');
+                    }
                   }
                 }
               });
@@ -120,6 +178,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (passwordData?.must_change_password) {
               setMustChangePassword(true);
             }
+
+            // Check GDPR consents
+            const needsConsent = await checkGDPRConsents(session.user.id);
+            setNeedsGDPRConsent(needsConsent);
           } catch (err) {
             setUserRole(null);
           }
@@ -141,6 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
     setUserRole(null);
     setMustChangePassword(false);
+    setNeedsGDPRConsent(false);
     navigate('/auth');
   };
 
@@ -160,7 +223,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ) : (
         <>
           {mustChangePassword && <ForcePasswordChange onPasswordChanged={handlePasswordChanged} />}
-          {children}
+          {!mustChangePassword && needsGDPRConsent && user && (
+            <GDPRConsentDialog 
+              userId={user.id} 
+              onConsentsGiven={handleGDPRConsentsGiven}
+            />
+          )}
+          {!mustChangePassword && !needsGDPRConsent && children}
         </>
       )}
     </AuthContext.Provider>
