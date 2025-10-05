@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+// Removed useNavigate to avoid router dependency inside provider
 import { ForcePasswordChange } from '@/components/ForcePasswordChange';
 import { GDPRConsentDialog } from '@/components/GDPRConsentDialog';
 
@@ -18,7 +18,6 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
@@ -123,19 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setNeedsGDPRConsent(needsConsent);
                   });
 
-                  // Redirect logic
-                  if (role) {
-                    const currentPath = window.location.pathname;
-                    const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/timesheet', '/recalculate-segments'];
-                    const employeePaths = ['/mobile', '/my-time-entries', '/vacations'];
-                    
-                    const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
-                                         (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
-                    
-                    if (!isOnValidPath) {
-                      navigate(role === 'admin' ? '/admin' : '/mobile');
-                    }
-                  }
+                  // Redirect handled by route components (RootRedirect/ProtectedRoute).
                 }
               });
           }, 0);
@@ -195,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
       if (timeoutRef) clearTimeout(timeoutRef);
     };
-  }, [navigate]);
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -204,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserRole(null);
     setMustChangePassword(false);
     setNeedsGDPRConsent(false);
-    navigate('/auth');
+    window.location.replace('/auth');
   };
 
   const handlePasswordChanged = async () => {
