@@ -33,7 +33,7 @@ function WeekNumberCalendar({
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
-        table: "w-full border-collapse",
+        table: "border-collapse",
         head_row: "grid grid-cols-8 gap-2 mt-2",
         head_cell: "text-muted-foreground rounded-md w-10 text-center font-medium text-[0.85rem]",
         row: "grid grid-cols-8 w-full mt-1 gap-2",
