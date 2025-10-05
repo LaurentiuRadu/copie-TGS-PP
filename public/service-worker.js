@@ -1,8 +1,11 @@
 // Service Worker pentru PWA - iOS-Optimized Auto-Update + Push Notifications
 // Versiune statică pentru cache consistency (incrementează manual la fiecare deploy)
-const CACHE_VERSION = '0610.2025.00002';
+const CACHE_VERSION = '0610.2025.00003';
 const CACHE_NAME = `timetrack-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
+
+// CRITICAL: Force invalidate ALL caches on major version change
+const FORCE_CACHE_CLEAR = true;
 
 // Flag pentru a controla skipWaiting
 let shouldSkipWaiting = false;
@@ -45,22 +48,33 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
-      // Delete ALL old caches
+      // FORCE DELETE ALL caches if flag is set
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME) {
-              console.log('🗑️ Deleting old cache:', cacheName);
+            if (FORCE_CACHE_CLEAR || (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME)) {
+              console.log('🗑️ Force deleting cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       }),
-      // Clear API cache if version changed
+      // Clear API cache always
       caches.delete(API_CACHE_NAME).then(() => {
         console.log('🔄 API cache cleared for fresh start');
       })
-    ])
+    ]).then(() => {
+      console.log('✅ All caches cleared, claiming clients');
+      // Notify all clients that cache is cleared
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'CACHE_CLEARED',
+            version: CACHE_VERSION
+          });
+        });
+      });
+    })
   );
   self.clients.claim();
 });

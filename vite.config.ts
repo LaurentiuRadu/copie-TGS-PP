@@ -14,7 +14,12 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    dedupe: ["react", "react-dom"],
+    // CRITICAL: Ensure only ONE React instance exists
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "react/jsx-runtime"],
+    force: true, // Force pre-bundling to ensure single instance
   },
   build: {
     rollupOptions: {

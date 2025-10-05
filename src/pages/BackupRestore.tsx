@@ -3,14 +3,95 @@ import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Upload, Database, AlertTriangle } from "lucide-react";
+import { Download, Upload, Database, AlertTriangle, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function BackupRestore() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearAllData = async () => {
+    setIsClearing(true);
+    try {
+      console.log('🗑️ Starting complete app data clear...');
+      
+      // 1. Clear ALL browser caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log('✅ All caches cleared');
+      }
+      
+      // 2. Clear localStorage
+      localStorage.clear();
+      console.log('✅ localStorage cleared');
+      
+      // 3. Clear sessionStorage
+      sessionStorage.clear();
+      console.log('✅ sessionStorage cleared');
+      
+      // 4. Unregister ALL service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(reg => reg.unregister()));
+        console.log('✅ All service workers unregistered');
+      }
+      
+      // 5. Clear IndexedDB (if used by any libraries)
+      if ('indexedDB' in window) {
+        try {
+          const databases = await indexedDB.databases();
+          await Promise.all(
+            databases.map(db => 
+              new Promise((resolve, reject) => {
+                if (db.name) {
+                  const req = indexedDB.deleteDatabase(db.name);
+                  req.onsuccess = () => resolve(true);
+                  req.onerror = () => reject(req.error);
+                }
+              })
+            )
+          );
+          console.log('✅ IndexedDB cleared');
+        } catch (err) {
+          console.warn('⚠️ Could not clear IndexedDB:', err);
+        }
+      }
+      
+      toast({
+        title: "✅ Toate datele șterse",
+        description: 'Pagina se va reîncărca pentru a aplica modificările...',
+      });
+      
+      // 6. Hard reload after 1 second
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error clearing app data:', error);
+      toast({
+        title: "❌ Eroare",
+        description: 'Eroare la ștergerea datelor aplicației',
+        variant: "destructive",
+      });
+      setIsClearing(false);
+    }
+  };
 
   const handleExportData = async () => {
     setIsExporting(true);
@@ -150,9 +231,10 @@ export default function BackupRestore() {
         </Alert>
 
         <Tabs defaultValue="backup" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="backup">Backup (Export)</TabsTrigger>
             <TabsTrigger value="restore">Restore (Import)</TabsTrigger>
+            <TabsTrigger value="maintenance">Mentenanță</TabsTrigger>
           </TabsList>
 
           <TabsContent value="backup" className="space-y-4">
@@ -251,6 +333,81 @@ export default function BackupRestore() {
                     Format acceptat: JSON (.json)
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="maintenance" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-destructive" />
+                  Ștergere Completă Date Aplicație
+                </CardTitle>
+                <CardDescription>
+                  Șterge toate cache-urile, service workers și datele locale pentru a rezolva probleme de inițializare
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>ATENȚIE</AlertTitle>
+                  <AlertDescription>
+                    Această acțiune va șterge:
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>Toate cache-urile browser (inclusiv service workers)</li>
+                      <li>localStorage și sessionStorage</li>
+                      <li>IndexedDB</li>
+                      <li>Toate sesiunile active</li>
+                    </ul>
+                    <p className="mt-2">Veți fi delogat automat și aplicația se va reîncărca.</p>
+                    <p className="font-bold mt-2">DATELE DIN BAZA DE DATE NU VOR FI AFECTATE!</p>
+                  </AlertDescription>
+                </Alert>
+
+                <div className="bg-muted/50 border rounded-lg p-4 space-y-2">
+                  <h4 className="font-medium text-sm">Când să folosiți această funcție:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Erori de tip "Invalid hook call" sau "dispatcher is null"</li>
+                    <li>• Aplicația nu se încarcă corect după update</li>
+                    <li>• Comportament inconsistent al PWA</li>
+                    <li>• Service Worker blocat sau corupt</li>
+                    <li>• Cache-uri vechi care nu se invalidează</li>
+                  </ul>
+                </div>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full"
+                      disabled={isClearing}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {isClearing ? "Se șterge..." : "Clear All App Data"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmă ștergerea completă?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Această acțiune va șterge toate cache-urile și datele locale ale aplicației.
+                        Veți fi delogat și aplicația se va reîncărca complet.
+                        <br /><br />
+                        <strong>Datele din baza de date NU vor fi afectate.</strong>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Anulează</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleClearAllData}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Da, șterge tot
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           </TabsContent>
