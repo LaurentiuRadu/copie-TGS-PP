@@ -285,17 +285,28 @@ All colors MUST be HSL.
     background: var(--gradient-accent-action);
   }
 
-  /* React Day Picker - Grid Layout Fallback */
+  /* React Day Picker - Grid Layout cu Week Numbers */
   .rdp-head_row,
   .rdp-row {
-    display: grid;
+    display: grid !important;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 0.25rem;
   }
 
   .rdp-with_weeknumber .rdp-head_row,
   .rdp-with_weeknumber .rdp-row {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: auto repeat(7, minmax(0, 1fr)) !important;
+  }
+
+  .rdp-weeknumber {
+    width: 2.25rem;
+    padding: 0.5rem 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .rdp-weekday,

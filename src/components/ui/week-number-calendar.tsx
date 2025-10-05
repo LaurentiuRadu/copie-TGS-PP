@@ -1,23 +1,22 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
-import { getWeek } from "date-fns";
-
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-export type ModernCalendarProps = React.ComponentProps<typeof DayPicker>;
+export type WeekNumberCalendarProps = React.ComponentProps<typeof DayPicker>;
 
-function ModernCalendar({ 
-  className, 
-  classNames, 
-  showOutsideDays = true, 
-  ...props 
-}: ModernCalendarProps) {
+function WeekNumberCalendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  showWeekNumber = true,
+  ...props
+}: WeekNumberCalendarProps) {
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      showWeekNumber
+      showWeekNumber={showWeekNumber}
       formatters={{
         formatWeekNumber: (weekNumber: number) => `S${weekNumber}`,
       }}
@@ -37,7 +36,7 @@ function ModernCalendar({
         table: "w-full border-collapse",
         head_row: "grid grid-cols-8 gap-2 mt-2",
         head_cell: "text-muted-foreground rounded-md w-10 text-center font-medium text-[0.85rem]",
-        row: "grid grid-cols-8 w-full mt-1",
+        row: "grid grid-cols-8 w-full mt-1 gap-2",
         cell: cn(
           "relative p-0 text-center text-sm",
           "focus-within:relative focus-within:z-20",
@@ -71,7 +70,6 @@ function ModernCalendar({
         day_disabled: "text-muted-foreground opacity-30",
         day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
-        // Week number styling
         weeknumber: cn(
           "w-10 h-10 p-0 font-semibold text-xs",
           "flex items-center justify-center",
@@ -81,13 +79,14 @@ function ModernCalendar({
         ...classNames,
       }}
       components={{
-        Chevron: ({ orientation }) => 
+        Chevron: ({ orientation }) =>
           orientation === "left" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />,
       }}
       {...props}
     />
   );
 }
-ModernCalendar.displayName = "ModernCalendar";
 
-export { ModernCalendar };
+WeekNumberCalendar.displayName = "WeekNumberCalendar";
+
+export { WeekNumberCalendar };
