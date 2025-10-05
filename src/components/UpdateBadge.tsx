@@ -13,6 +13,7 @@ import { RefreshCw, Download } from "lucide-react";
 export function UpdateBadge() {
   const [hasUpdate, setHasUpdate] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     // Check for updates on mount
@@ -42,9 +43,13 @@ export function UpdateBadge() {
   };
 
   const handleUpdate = async () => {
+    setIsUpdating(true);
+    console.log('🔄 Starting update process...');
+    
     // Trimite mesaj la service worker să activeze versiunea nouă
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      console.log('📤 SKIP_WAITING message sent to service worker');
       
       // Așteaptă ca noul SW să preia controlul
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -52,10 +57,20 @@ export function UpdateBadge() {
         localStorage.removeItem("new-version-available");
         window.location.reload();
       }, { once: true });
+      
+      // Fallback pentru iOS PWA - forțează reload după 3 secunde
+      setTimeout(() => {
+        console.log('⏱️ Fallback reload triggered after 3s');
+        localStorage.removeItem("new-version-available");
+        window.location.reload();
+      }, 3000);
     } else {
-      // Fallback: reload simplu
-      localStorage.removeItem("new-version-available");
-      window.location.reload();
+      // Fallback: reload simplu după 1 secundă
+      console.log('⚠️ No service worker controller, using fallback reload');
+      setTimeout(() => {
+        localStorage.removeItem("new-version-available");
+        window.location.reload();
+      }, 1000);
     }
   };
 
@@ -93,9 +108,13 @@ export function UpdateBadge() {
           </DialogHeader>
 
           <div className="flex flex-col gap-3 pt-4">
-            <Button onClick={handleUpdate} className="w-full gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Actualizează Acum
+            <Button 
+              onClick={handleUpdate} 
+              disabled={isUpdating}
+              className="w-full gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
+              {isUpdating ? 'Se actualizează...' : 'Actualizează Acum'}
             </Button>
             <Button
               variant="outline"
