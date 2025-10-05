@@ -26,9 +26,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { TimeEntryDetailsDialog } from '@/components/TimeEntryDetailsDialog';
 
 const Timesheet = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedEntry, setSelectedEntry] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
   const isMobile = useIsMobile();
 
@@ -426,7 +429,15 @@ const Timesheet = () => {
             ) : isMobile ? (
               <div className="space-y-3">
                 {filteredEntries.map((entry) => (
-                  <MobileTableCard key={entry.id}>
+                  <div 
+                    key={entry.id}
+                    onClick={() => {
+                      setSelectedEntry(entry);
+                      setDetailsOpen(true);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <MobileTableCard>
                     <MobileTableRow
                       label="Angajat"
                       value={
@@ -468,7 +479,8 @@ const Timesheet = () => {
                         fullWidth
                       />
                     )}
-                  </MobileTableCard>
+                    </MobileTableCard>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -495,7 +507,14 @@ const Timesheet = () => {
                     {filteredEntries.map((entry) => {
                       const hoursByType = calculateHoursByType(entry);
                       return (
-                        <TableRow key={entry.id}>
+                        <TableRow 
+                          key={entry.id}
+                          className="cursor-pointer hover:bg-accent/50 transition-colors"
+                          onClick={() => {
+                            setSelectedEntry(entry);
+                            setDetailsOpen(true);
+                          }}
+                        >
                           <TableCell className="font-medium">
                             {entry.profiles?.full_name || 'Necunoscut'}
                           </TableCell>
@@ -541,6 +560,13 @@ const Timesheet = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Details Dialog */}
+      <TimeEntryDetailsDialog
+        entry={selectedEntry}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
     </AdminLayout>
   );
 };
