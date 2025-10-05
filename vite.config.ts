@@ -34,8 +34,8 @@ export default defineConfig(({ mode }) => {
     preserveSymlinks: false,
   },
   optimizeDeps: {
-    // Exclude React from pre-bundling to prevent duplicate instances
-    exclude: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    force: true,
   },
   build: {
     rollupOptions: {
