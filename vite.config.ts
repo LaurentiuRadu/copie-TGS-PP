@@ -34,12 +34,6 @@ export default defineConfig(({ mode }) => {
     preserveSymlinks: false,
   },
   optimizeDeps: {
-    exclude: mode === "development" ? [
-      "react",
-      "react-dom",
-      "react/jsx-runtime",
-      "react/jsx-dev-runtime"
-    ] : [],
     force: true, // Force rebundling - single React instance via dedupe
   },
   build: {
