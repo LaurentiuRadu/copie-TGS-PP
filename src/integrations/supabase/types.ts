@@ -50,6 +50,42 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          resource_id: string | null
+          resource_type: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          resource_id?: string | null
+          resource_type: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          resource_id?: string | null
+          resource_type?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       data_retention_policies: {
         Row: {
           auto_delete_enabled: boolean | null
@@ -821,6 +857,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      enforce_data_retention: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -838,6 +878,15 @@ export type Database = {
       invalidate_user_sessions: {
         Args: { _reason: string; _user_id: string }
         Returns: number
+      }
+      log_sensitive_data_access: {
+        Args: {
+          _action: string
+          _details?: Json
+          _resource_id: string
+          _resource_type: string
+        }
+        Returns: undefined
       }
       refresh_daily_stats: {
         Args: Record<PropertyKey, never>
