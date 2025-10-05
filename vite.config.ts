@@ -34,7 +34,14 @@ export default defineConfig(({ mode }) => {
     preserveSymlinks: false,
   },
   optimizeDeps: {
-    force: true, // Force rebundling - single React instance via dedupe
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    esbuildOptions: {
+      // Force single React instance in dev
+      alias: {
+        'react': path.resolve(__dirname, './node_modules/react'),
+        'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      },
+    },
   },
   build: {
     rollupOptions: {
