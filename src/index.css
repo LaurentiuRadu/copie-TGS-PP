@@ -284,4 +284,25 @@ All colors MUST be HSL.
   .bg-gradient-accent-action {
     background: var(--gradient-accent-action);
   }
+
+  /* React Day Picker - Grid Layout Fallback */
+  .rdp-head_row,
+  .rdp-row {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .rdp-with_weeknumber .rdp-head_row,
+  .rdp-with_weeknumber .rdp-row {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .rdp-weekday,
+  .rdp-head_cell {
+    text-align: center;
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: hsl(var(--muted-foreground));
+  }
 }
