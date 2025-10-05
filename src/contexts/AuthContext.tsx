@@ -4,9 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { ForcePasswordChange } from '@/components/ForcePasswordChange';
 
-// Pre-initialization check
-console.log('✅ AuthContext module loaded, React hooks available:', typeof useState === 'function');
-
 type UserRole = 'admin' | 'employee' | null;
 
 interface AuthContextType {
@@ -19,21 +16,13 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // CRITICAL: Verify React hooks are available before initializing
-  if (typeof useState !== 'function') {
-    console.error('🚨 CRITICAL: React hooks not available! Multiple React instances detected.');
-    throw new Error('React hooks not available - possible multiple React instances');
-  }
-  
-  console.log('✅ AuthProvider initializing with React hooks...');
-  
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     let timeoutRef: NodeJS.Timeout | null = null;
