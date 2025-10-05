@@ -29,9 +29,9 @@ function PlainCalendar({
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
-        head_row: "flex gap-1",
+        head_row: "grid grid-cols-7 gap-1",
         head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem] text-center",
-        row: "flex w-full mt-2 gap-1",
+        row: "grid grid-cols-7 w-full mt-2 gap-1",
         cell: cn(
           "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
           "[&:has([aria-selected])]:bg-accent",

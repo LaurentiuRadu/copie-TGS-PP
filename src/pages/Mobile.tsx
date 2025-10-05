@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ModernCalendar } from "@/components/ui/modern-calendar";
+import { PlainCalendar } from "@/components/ui/plain-calendar";
 import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays, Construction, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addMonths, subMonths } from "date-fns";
@@ -718,7 +718,7 @@ const Mobile = () => {
           </CardHeader>
           <CardContent className="space-y-3 xs:space-y-4">
             <div className="touch-manipulation">
-              <ModernCalendar
+              <PlainCalendar
                 mode="single"
                 selected={selectedMonth}
                 onSelect={(date) => date && setSelectedMonth(date)}

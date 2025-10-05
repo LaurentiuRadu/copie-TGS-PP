@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ModernCalendar } from '@/components/ui/modern-calendar';
+import { PlainCalendar } from '@/components/ui/plain-calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -151,7 +151,7 @@ const MyTimeEntries = () => {
             <CardTitle className="text-lg md:text-xl font-semibold">Selectează Luna</CardTitle>
           </CardHeader>
           <CardContent>
-            <ModernCalendar
+            <PlainCalendar
               mode="single"
               selected={selectedMonth}
               onSelect={(date) => date && setSelectedMonth(date)}
