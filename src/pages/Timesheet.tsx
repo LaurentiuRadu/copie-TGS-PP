@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ModernCalendar } from '@/components/ui/modern-calendar';
+import { PlainCalendar } from '@/components/ui/plain-calendar';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import {
   Table,
@@ -538,7 +538,7 @@ const Timesheet = () => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="end">
-                    <ModernCalendar
+                    <PlainCalendar
                       mode="single"
                       selected={selectedDate}
                       onSelect={(date) => date && setSelectedDate(date)}
