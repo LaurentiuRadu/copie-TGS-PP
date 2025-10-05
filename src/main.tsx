@@ -129,7 +129,7 @@ if (hook) {
     console.error('Attempting cache clear...');
     
     // Auto-recovery: Clear caches
-    if ('caches' in window && import.meta.env.PROD) {
+    if ('caches' in window) {
       caches.keys().then(keys => {
         Promise.all(keys.map(key => caches.delete(key))).then(() => {
           console.log('✅ Caches cleared. Please reload manually.');
