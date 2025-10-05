@@ -271,4 +271,17 @@ All colors MUST be HSL.
   .text-responsive-2xl {
     font-size: clamp(2rem, 5vw, 3rem);
   }
+
+  /* Gradient action buttons */
+  .bg-gradient-primary {
+    background: var(--gradient-primary-action);
+  }
+
+  .bg-gradient-primary-action {
+    background: var(--gradient-primary-action);
+  }
+
+  .bg-gradient-accent-action {
+    background: var(--gradient-accent-action);
+  }
 }

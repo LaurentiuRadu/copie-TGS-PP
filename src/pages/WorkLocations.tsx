@@ -519,7 +519,7 @@ const WorkLocations = () => {
                 if (!open) resetForm();
               }}>
                 <DialogTrigger asChild>
-                  <Button className="gap-2 bg-gradient-primary">
+                  <Button className="gap-2 bg-gradient-primary-action text-primary-foreground shadow-md">
                     <Plus className="h-4 w-4" />
                     Adaugă Locație
                   </Button>
@@ -654,12 +654,12 @@ const WorkLocations = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nume</TableHead>
-                        <TableHead>Adresă</TableHead>
-                        <TableHead>Coordonate</TableHead>
-                        <TableHead>Rază</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Acțiuni</TableHead>
+                        <TableHead className="text-foreground font-semibold">Nume</TableHead>
+                        <TableHead className="text-foreground font-semibold">Adresă</TableHead>
+                        <TableHead className="text-foreground font-semibold">Coordonate</TableHead>
+                        <TableHead className="text-foreground font-semibold">Rază</TableHead>
+                        <TableHead className="text-foreground font-semibold">Status</TableHead>
+                        <TableHead className="text-right text-foreground font-semibold">Acțiuni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

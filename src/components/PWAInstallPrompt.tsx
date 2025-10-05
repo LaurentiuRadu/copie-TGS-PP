@@ -165,7 +165,7 @@ export function PWAInstallPrompt() {
                     <Button 
                       onClick={handleInstall}
                       size="sm"
-                      className="flex-1 bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                      className="flex-1 bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
                     >
                       Instalează
                     </Button>
@@ -173,7 +173,7 @@ export function PWAInstallPrompt() {
                     <Button 
                       onClick={handleIOSInstall}
                       size="sm"
-                      className="flex-1 bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                      className="flex-1 bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
                     >
                       Vezi cum se instalează
                     </Button>
@@ -181,7 +181,7 @@ export function PWAInstallPrompt() {
                     <Button 
                       onClick={handleDismiss}
                       size="sm"
-                      className="flex-1 bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                      className="flex-1 bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
                     >
                       Ok
                     </Button>

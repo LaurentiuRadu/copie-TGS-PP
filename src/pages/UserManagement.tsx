@@ -913,7 +913,7 @@ const UserManagement = () => {
                                     <Button 
                                       onClick={handleUpdateUser}
                                       disabled={updating || !editFirstName || !editLastName}
-                                      className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                      className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all disabled:opacity-60"
                                     >
                                       {updating ? 'Se actualizează...' : 'Salvează'}
                                     </Button>
@@ -954,7 +954,7 @@ const UserManagement = () => {
                                     <Label htmlFor="new-password">Parola Nouă</Label>
                                     <Input
                                       id="new-password"
-                                      type="text"
+                                      type="password"
                                       placeholder="Introdu parola nouă"
                                       value={newPassword}
                                       onChange={(e) => setNewPassword(e.target.value)}
@@ -981,7 +981,7 @@ const UserManagement = () => {
                                   <Button 
                                     onClick={handleResetPassword}
                                     disabled={resetting || !newPassword || newPassword.length < 6}
-                                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                    className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all disabled:opacity-60"
                                   >
                                     {resetting ? 'Se resetează...' : 'Resetează Parola'}
                                   </Button>
