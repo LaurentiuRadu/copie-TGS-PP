@@ -329,13 +329,12 @@ const Timesheet = () => {
       const monthStart = startOfMonth(selectedDate);
       const nextMonthStart = startOfMonth(addMonths(selectedDate, 1));
       
-      // Fetch all time entries for the month with segments and profiles
-      const { data: allEntries, error: entriesError } = await supabase
+      // Fetch all time entries for the month with segments
+      const { data: timeEntries, error: entriesError } = await supabase
         .from('time_entries')
         .select(`
           *,
-          time_entry_segments (*),
-          profiles (id, full_name, username)
+          time_entry_segments (*)
         `)
         .gte('clock_in_time', monthStart.toISOString())
         .lt('clock_in_time', nextMonthStart.toISOString())
@@ -343,10 +342,26 @@ const Timesheet = () => {
       
       if (entriesError) throw entriesError;
       
-      if (!allEntries || allEntries.length === 0) {
+      if (!timeEntries || timeEntries.length === 0) {
         toast({ title: 'Nu există date pentru export', variant: 'destructive' });
         return;
       }
+      
+      // Fetch profiles for these users
+      const userIds = [...new Set(timeEntries.map(entry => entry.user_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Map profiles to entries
+      const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      const allEntries = timeEntries.map(entry => ({
+        ...entry,
+        profiles: profilesMap.get(entry.user_id)
+      }));
       
       const data = prepareExportDataFromEntries(allEntries);
       const filename = `Timesheet_Complet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
@@ -376,13 +391,12 @@ const Timesheet = () => {
       const monthStart = startOfMonth(selectedDate);
       const nextMonthStart = startOfMonth(addMonths(selectedDate, 1));
       
-      // Fetch all time entries for the month with segments and profiles
-      const { data: allEntries, error: entriesError } = await supabase
+      // Fetch all time entries for the month with segments
+      const { data: timeEntries, error: entriesError } = await supabase
         .from('time_entries')
         .select(`
           *,
-          time_entry_segments (*),
-          profiles (id, full_name, username)
+          time_entry_segments (*)
         `)
         .gte('clock_in_time', monthStart.toISOString())
         .lt('clock_in_time', nextMonthStart.toISOString())
@@ -390,10 +404,26 @@ const Timesheet = () => {
       
       if (entriesError) throw entriesError;
       
-      if (!allEntries || allEntries.length === 0) {
+      if (!timeEntries || timeEntries.length === 0) {
         toast({ title: 'Nu există date pentru export', variant: 'destructive' });
         return;
       }
+      
+      // Fetch profiles for these users
+      const userIds = [...new Set(timeEntries.map(entry => entry.user_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Map profiles to entries
+      const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      const allEntries = timeEntries.map(entry => ({
+        ...entry,
+        profiles: profilesMap.get(entry.user_id)
+      }));
       
       const data = prepareExportDataFromEntries(allEntries);
       const filename = `Timesheet_Complet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
