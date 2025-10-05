@@ -19,14 +19,25 @@ import {
 } from "@/lib/passwordValidation";
 import { checkRateLimit, formatResetTime } from "@/lib/rateLimiting";
 
-const employeeSchema = z.object({
+// Scheme separate pentru Login vs Sign Up
+const employeeLoginSchema = z.object({
   username: z.string().trim().min(3, "Username-ul trebuie să aibă minim 3 caractere").max(50),
-  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"),
+  password: z.string().min(1, "Parola este obligatorie"), // Accept orice parolă la login
 });
 
-const adminSchema = z.object({
+const employeeSignUpSchema = z.object({
+  username: z.string().trim().min(3, "Username-ul trebuie să aibă minim 3 caractere").max(50),
+  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"), // Validare strictă la sign up
+});
+
+const adminLoginSchema = z.object({
   email: z.string().trim().email("Email invalid"),
-  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"),
+  password: z.string().min(1, "Parola este obligatorie"), // Accept orice parolă la login
+});
+
+const adminSignUpSchema = z.object({
+  email: z.string().trim().email("Email invalid"),
+  password: z.string().min(12, "Parola trebuie să aibă minim 12 caractere"), // Validare strictă la sign up
 });
 
 const Auth = () => {
@@ -115,10 +126,10 @@ const Auth = () => {
         throw new Error(`Prea multe încercări de autentificare. Încearcă din nou ${timeMsg}.`);
       }
 
-      const validated = employeeSchema.parse({
-        username: employeeUsername,
-        password: employeePassword,
-      });
+      // Folosim schema corectă în funcție de acțiune
+      const validated = isSignUp 
+        ? employeeSignUpSchema.parse({ username: employeeUsername, password: employeePassword })
+        : employeeLoginSchema.parse({ username: employeeUsername, password: employeePassword });
 
       // For signup, validate password strength
       if (isSignUp) {
@@ -229,10 +240,10 @@ const Auth = () => {
         throw new Error(`Prea multe încercări de autentificare. Încearcă din nou ${timeMsg}.`);
       }
 
-      const validated = adminSchema.parse({
-        email: adminEmail,
-        password: adminPassword,
-      });
+      // Folosim schema corectă în funcție de acțiune
+      const validated = isSignUp
+        ? adminSignUpSchema.parse({ email: adminEmail, password: adminPassword })
+        : adminLoginSchema.parse({ email: adminEmail, password: adminPassword });
 
       if (isSignUp) {
         // Validate password strength for signup
