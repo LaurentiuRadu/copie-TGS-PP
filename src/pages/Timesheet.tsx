@@ -14,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Download, Calendar as CalendarIcon } from 'lucide-react';
+import { Download, Calendar as CalendarIcon, Filter } from 'lucide-react';
 import { useOptimizedTimeEntries } from '@/hooks/useOptimizedTimeEntries';
 import { exportToExcel, exportToCSV } from '@/lib/exportUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TimeEntryDetailsDialog } from '@/components/TimeEntryDetailsDialog';
+import { CustomPeriodExportDialog } from '@/components/CustomPeriodExportDialog';
 import { toast } from '@/hooks/use-toast';
 
 const Timesheet = () => {
@@ -41,6 +42,7 @@ const Timesheet = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [monthTotalCount, setMonthTotalCount] = useState<number>(0);
+  const [customPeriodDialogOpen, setCustomPeriodDialogOpen] = useState(false);
   const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
   const isMobile = useIsMobile();
 
@@ -534,6 +536,15 @@ const Timesheet = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setCustomPeriodDialogOpen(true)}
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Export perioadă...
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -750,6 +761,13 @@ const Timesheet = () => {
         entry={selectedEntry}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+      />
+
+      {/* Custom Period Export Dialog */}
+      <CustomPeriodExportDialog
+        open={customPeriodDialogOpen}
+        onOpenChange={setCustomPeriodDialogOpen}
+        prepareExportDataFromEntries={prepareExportDataFromEntries}
       />
     </AdminLayout>
   );
