@@ -34,7 +34,6 @@ export default defineConfig(({ mode }) => {
     preserveSymlinks: true,
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     exclude: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     force: true, // Force pre-bundling to ensure single instance
   },
