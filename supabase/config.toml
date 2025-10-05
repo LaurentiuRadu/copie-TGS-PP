@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.check-rate-limit]
 verify_jwt = false
+
+[functions.manage-sessions]
+verify_jwt = true
+
+[functions.reset-employee-passwords]
+verify_jwt = true

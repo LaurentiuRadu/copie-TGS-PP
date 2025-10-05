@@ -434,6 +434,33 @@ export type Database = {
           },
         ]
       }
+      session_limits: {
+        Row: {
+          auto_logout_oldest: boolean
+          created_at: string | null
+          id: string
+          max_concurrent_sessions: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_logout_oldest?: boolean
+          created_at?: string | null
+          id?: string
+          max_concurrent_sessions?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_logout_oldest?: boolean
+          created_at?: string | null
+          id?: string
+          max_concurrent_sessions?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           clock_in_latitude: number | null
@@ -849,7 +876,19 @@ export type Database = {
         Args: { _attempt_type: string; _identifier: string }
         Returns: Json
       }
+      check_session_limit: {
+        Args: {
+          _device_fingerprint: string
+          _session_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
       cleanup_expired_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      cleanup_expired_sessions_enhanced: {
         Args: Record<PropertyKey, never>
         Returns: number
       }
