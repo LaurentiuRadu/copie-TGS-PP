@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Download, X, Share } from "lucide-react";
 import { isStandalone } from "@/lib/registerServiceWorker";
-import { useAuth } from "@/contexts/AuthContext";
+import { useContext } from "react";
+import { AuthContext } from "@/contexts/AuthContext";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -25,7 +26,9 @@ const isIOSSafari = () => {
 };
 
 export function PWAInstallPrompt() {
-  const { user } = useAuth();
+  // Use optional auth context - don't throw if not available yet
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user ?? null;
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);

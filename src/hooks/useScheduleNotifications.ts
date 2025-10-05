@@ -52,12 +52,15 @@ export const useScheduleNotifications = () => {
     soundIntervalsRef.current.forEach(interval => clearInterval(interval));
     soundIntervalsRef.current.clear();
 
-    // Creează intervale noi pentru fiecare notificare necitită
-    if (notifications && notifications.length > 0) {
+    // Creează intervale noi pentru fiecare notificare necitită DOAR dacă există notificări
+    if (notifications && notifications.length > 0 && isActive) {
       notifications.forEach((notification) => {
         // Redă sunet la fiecare 2 minute pentru notificările necitite
         const intervalId = setInterval(() => {
-          playDoubleNotificationSound();
+          // Double-check că notificarea încă există
+          if (soundIntervalsRef.current.has(notification.id)) {
+            playDoubleNotificationSound();
+          }
         }, 120000); // 2 minute = 120000ms
 
         soundIntervalsRef.current.set(notification.id, intervalId);
@@ -69,7 +72,7 @@ export const useScheduleNotifications = () => {
       soundIntervalsRef.current.forEach(interval => clearInterval(interval));
       soundIntervalsRef.current.clear();
     };
-  }, [notifications]);
+  }, [notifications, isActive]);
 
   // Mark as read mutation - oprește și sunetul recurent
   const markAsRead = useMutation({

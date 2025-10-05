@@ -48,15 +48,16 @@ export const useMobileShift = (user: any, triggerHaptic: any) => {
     checkActiveShift();
   }, [user?.id]);
 
-  // Timer
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | null = null;
     if (activeShift) {
       interval = setInterval(() => {
         setShiftSeconds((prev) => prev + 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [activeShift]);
 
   const handleShiftStart = useCallback(async (
