@@ -1,5 +1,8 @@
 import { toast } from "@/hooks/use-toast";
 
+// Version check frequency
+const VERSION_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minute
+
 // Register Service Worker pentru PWA functionality - iOS Optimized
 export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
@@ -11,15 +14,23 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
-          // Verifică pentru actualizări la fiecare 6 ore
+          // Verifică pentru actualizări mai des (la fiecare 30 min)
           setInterval(() => {
+            console.log('🔍 Checking for updates...');
             registration.update();
-          }, 6 * 60 * 60 * 1000);
+          }, VERSION_CHECK_INTERVAL);
+          
+          // Check imediat după înregistrare
+          setTimeout(() => registration.update(), 5000);
 
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
+              console.log('🆕 New service worker found, installing...');
+              
               newWorker.addEventListener('statechange', () => {
+                console.log('📊 SW state:', newWorker.state);
+                
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                   console.info('🔄 Versiune nouă disponibilă!');
                   
@@ -29,8 +40,8 @@ export function registerServiceWorker() {
                   // Dispatch custom event for UpdateBadge component
                   window.dispatchEvent(new CustomEvent('app-update-available'));
                   
-                  // Trimite mesaj pentru a activa noul service worker
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  // NU trimitem SKIP_WAITING automat - lăsăm utilizatorul să decidă
+                  // newWorker.postMessage({ type: 'SKIP_WAITING' });
                   
                   // iOS: Afișează toast pentru reload manual (iOS nu permite reload automat în PWA)
                   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -39,16 +50,16 @@ export function registerServiceWorker() {
                   
                   if (isIOS && isStandalone) {
                     toast({
-                      title: "🎉 Versiune Nouă Disponibilă!",
-                      description: "Închide și redeschide aplicația pentru actualizare.",
-                      duration: 10000,
+                      title: "🎉 Versiune Nouă!",
+                      description: "Pentru actualizare: închide complet aplicația (swipe up din App Switcher) și redeschide-o.",
+                      duration: 15000,
                     });
                   } else {
                     // Desktop/Android: arată toast cu opțiune de actualizare
                     toast({
-                      title: "Update Disponibil",
-                      description: "O versiune nouă este disponibilă.",
-                      duration: 5000,
+                      title: "✨ Update Disponibil",
+                      description: "Apasă pe iconița 🔄 pentru a actualiza aplicația.",
+                      duration: 8000,
                     });
                   }
                 }

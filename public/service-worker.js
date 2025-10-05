@@ -4,6 +4,9 @@ const CACHE_VERSION = '0610.2025.00002';
 const CACHE_NAME = `timetrack-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
 
+// Flag pentru a controla skipWaiting
+let shouldSkipWaiting = false;
+
 // Cache mai multe resurse pentru offline
 const urlsToCache = [
   '/',
@@ -21,14 +24,21 @@ const API_CACHE_TIME = 5 * 60 * 1000; // 5 minute
 
 // Install Service Worker
 self.addEventListener('install', (event) => {
+  console.log('🔧 Installing new service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('✅ Cache opened:', CACHE_NAME);
         return cache.addAll(urlsToCache);
       })
+      .then(() => {
+        console.log('✅ All resources cached');
+        // Nu apelăm skipWaiting automat - așteptăm mesaj de la client
+        if (shouldSkipWaiting) {
+          self.skipWaiting();
+        }
+      })
   );
-  self.skipWaiting();
 });
 
 // Activate Service Worker - Aggressive cache cleanup
@@ -157,7 +167,17 @@ self.addEventListener('fetch', (event) => {
 // Handle messages from clients
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('⏭️ SKIP_WAITING received, activating new service worker');
+    shouldSkipWaiting = true;
     self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'CHECK_VERSION') {
+    // Răspunde cu versiunea curentă
+    event.ports[0].postMessage({ 
+      type: 'VERSION_RESPONSE',
+      version: CACHE_VERSION 
+    });
   }
 });
 

@@ -41,28 +41,41 @@ export function UpdateBadge() {
     }
   };
 
-  const handleUpdate = () => {
-    localStorage.removeItem("new-version-available");
-    window.location.reload();
+  const handleUpdate = async () => {
+    // Trimite mesaj la service worker să activeze versiunea nouă
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+      
+      // Așteaptă ca noul SW să preia controlul
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('🔄 New service worker activated, reloading...');
+        localStorage.removeItem("new-version-available");
+        window.location.reload();
+      }, { once: true });
+    } else {
+      // Fallback: reload simplu
+      localStorage.removeItem("new-version-available");
+      window.location.reload();
+    }
   };
 
   if (!hasUpdate) return null;
 
   return (
     <>
-      <div className="relative">
+      <div className="fixed bottom-20 right-4 z-50 md:bottom-4">
         <Button
-          variant="ghost"
+          variant="default"
           size="sm"
           onClick={() => setShowDialog(true)}
-          className="relative h-8 w-8 p-0"
+          className="relative h-10 w-10 p-0 rounded-full shadow-lg animate-pulse bg-primary hover:bg-primary/90"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-5 w-5" />
           <Badge
             variant="destructive"
-            className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
+            className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] rounded-full"
           >
-            1
+            !
           </Badge>
         </Button>
       </div>
