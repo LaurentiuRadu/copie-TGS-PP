@@ -180,7 +180,7 @@ export default function BulkImport() {
                   <Download className="mr-2 h-4 w-4" />
                   Export Username & Parolă
                 </Button>
-                <Button onClick={handleResetPasswords} variant="outline" disabled={loading} className="min-w-[260px]">
+                <Button onClick={handleResetPasswords} variant="destructive" disabled={loading} className="min-w-[260px]">
                   <KeyRound className="mr-2 h-4 w-4" />
                   Resetează parole (123456)
                 </Button>
