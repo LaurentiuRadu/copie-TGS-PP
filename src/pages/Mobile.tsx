@@ -354,6 +354,12 @@ const Mobile = () => {
       return;
     }
 
+    if (!equipmentPhoto) {
+      toast.error("Poza cu utilajul este obligatorie");
+      triggerHaptic('error');
+      return;
+    }
+
     setEquipmentDialog(false);
     triggerHaptic('success');
 
@@ -784,7 +790,7 @@ const Mobile = () => {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Camera className="h-4 w-4" />
-                  Poză utilaj (opțional)
+                  Poză utilaj <span className="text-destructive font-semibold">(obligatoriu)</span>
                 </label>
                 <input
                   type="file"
@@ -814,7 +820,9 @@ const Mobile = () => {
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleEquipmentStart}
-              className="bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700"
+              disabled={!equipmentPhoto}
+              className="bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!equipmentPhoto ? "Încarcă o poză cu utilajul pentru a continua" : ""}
             >
               <Construction className="h-4 w-4 mr-2" />
               Confirmă Utilaj
