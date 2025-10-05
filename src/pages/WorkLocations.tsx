@@ -605,10 +605,10 @@ const WorkLocations = () => {
                             variant="outline"
                             size="sm"
                             onClick={useCurrentLocation}
-                            className="gap-2"
+                            className="gap-2 shrink-0 whitespace-nowrap"
                           >
-                            <MapPin className="h-4 w-4" />
-                            Locația Mea
+                            <MapPin className="h-4 w-4 shrink-0" />
+                            <span className="inline shrink-0">Locația Mea</span>
                           </Button>
                         </div>
                         {mapError && (
