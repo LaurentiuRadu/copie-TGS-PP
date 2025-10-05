@@ -411,7 +411,7 @@ const UserManagement = () => {
             <DialogTrigger asChild>
               <Button 
                 size="sm"
-                className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9 flex-shrink-0"
+                className="gap-2 bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all h-9 flex-shrink-0"
               >
                 <UserPlus className="h-4 w-4 flex-shrink-0" />
                 <span className="hidden sm:inline">Adaugă Utilizator</span>
@@ -461,7 +461,7 @@ const UserManagement = () => {
                     <Label htmlFor="new-user-password">Parolă *</Label>
                     <Input
                       id="new-user-password"
-                      type="text"
+                      type="password"
                       placeholder="Minim 6 caractere"
                       value={newUserPassword}
                       onChange={(e) => setNewUserPassword(e.target.value)}
@@ -500,7 +500,7 @@ const UserManagement = () => {
                   <Button 
                     onClick={handleAddUser}
                     disabled={creating || !newUsername || !newFirstName || !newLastName || !newUserPassword}
-                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                    className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
                   >
                     {creating ? 'Se creează...' : 'Creează Utilizator'}
                   </Button>
@@ -679,7 +679,7 @@ const UserManagement = () => {
                                         <Button 
                                           onClick={handleUpdateUser}
                                           disabled={updating || !editFirstName || !editLastName}
-                                          className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                          className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
                                         >
                                           {updating ? 'Se actualizează...' : 'Salvează'}
                                         </Button>
@@ -719,7 +719,7 @@ const UserManagement = () => {
                                       <Label htmlFor="new-password">Parola Nouă</Label>
                                       <Input
                                         id="new-password"
-                                        type="text"
+                                        type="password"
                                         placeholder="Introdu parola nouă"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
@@ -746,7 +746,7 @@ const UserManagement = () => {
                                     <Button 
                                       onClick={handleResetPassword}
                                       disabled={resetting || !newPassword || newPassword.length < 6}
-                                      className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                      className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
                                     >
                                       {resetting ? 'Se resetează...' : 'Resetează Parola'}
                                     </Button>
