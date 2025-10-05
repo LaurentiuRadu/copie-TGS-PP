@@ -641,67 +641,6 @@ const Timesheet = () => {
           </Card>
         </div>
 
-        {/* Employee Monthly Summary */}
-        {Object.keys(employeeAggregates).length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Sumar Lunar pe Angajat</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.values(employeeAggregates).map((emp: any) => (
-                  <div key={emp.name} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold text-lg">{emp.name}</h3>
-                      <Badge variant="outline">{emp.entries} pontaje</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Normale:</span>
-                        <span className="ml-2 font-medium">{emp.normale.toFixed(1)}h</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Noapte:</span>
-                        <span className="ml-2 font-medium">{emp.noapte.toFixed(1)}h</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Sâmbătă:</span>
-                        <span className="ml-2 font-medium">{emp.sambata.toFixed(1)}h</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">D/Sărbători:</span>
-                        <span className="ml-2 font-medium">{emp.sarbatori.toFixed(1)}h</span>
-                      </div>
-                      {emp.pasager > 0 && (
-                        <div>
-                          <span className="text-muted-foreground">Pasager:</span>
-                          <span className="ml-2 font-medium">{emp.pasager.toFixed(1)}h</span>
-                        </div>
-                      )}
-                      {emp.condus > 0 && (
-                        <div>
-                          <span className="text-muted-foreground">Condus:</span>
-                          <span className="ml-2 font-medium">{emp.condus.toFixed(1)}h</span>
-                        </div>
-                      )}
-                      {emp.utilaj > 0 && (
-                        <div>
-                          <span className="text-muted-foreground">Utilaj:</span>
-                          <span className="ml-2 font-medium">{emp.utilaj.toFixed(1)}h</span>
-                        </div>
-                      )}
-                      <div className="col-span-2 md:col-span-4 pt-2 border-t">
-                        <span className="text-muted-foreground">Total:</span>
-                        <span className="ml-2 font-bold text-lg">{emp.total.toFixed(1)}h</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Filters and Export */}
         <Card>
           <CardHeader>
@@ -975,6 +914,67 @@ const Timesheet = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Employee Monthly Summary */}
+        {Object.keys(employeeAggregates).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Sumar Lunar pe Angajat</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Object.values(employeeAggregates).map((emp: any) => (
+                  <div key={emp.name} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-semibold text-lg">{emp.name}</h3>
+                      <Badge variant="outline">{emp.entries} pontaje</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Normale:</span>
+                        <span className="ml-2 font-medium">{emp.normale.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Noapte:</span>
+                        <span className="ml-2 font-medium">{emp.noapte.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sâmbătă:</span>
+                        <span className="ml-2 font-medium">{emp.sambata.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">D/Sărbători:</span>
+                        <span className="ml-2 font-medium">{emp.sarbatori.toFixed(1)}h</span>
+                      </div>
+                      {emp.pasager > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Pasager:</span>
+                          <span className="ml-2 font-medium">{emp.pasager.toFixed(1)}h</span>
+                        </div>
+                      )}
+                      {emp.condus > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Condus:</span>
+                          <span className="ml-2 font-medium">{emp.condus.toFixed(1)}h</span>
+                        </div>
+                      )}
+                      {emp.utilaj > 0 && (
+                        <div>
+                          <span className="text-muted-foreground">Utilaj:</span>
+                          <span className="ml-2 font-medium">{emp.utilaj.toFixed(1)}h</span>
+                        </div>
+                      )}
+                      <div className="col-span-2 md:col-span-4 pt-2 border-t">
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="ml-2 font-bold text-lg">{emp.total.toFixed(1)}h</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Details Dialog */}
