@@ -204,25 +204,82 @@ const Timesheet = () => {
   };
 
   const prepareExportData = () => {
-    if (!entries) return [];
+    if (!entries || entries.length === 0) return [];
     
-    return entries.map((entry) => {
-      const username = entry.profiles?.username;
-      const hoursByType = calculateHoursByType(entry, username);
+    // Group entries by employee + date
+    const grouped = entries.reduce((acc, entry) => {
+      const employeeName = entry.profiles?.full_name || 'Necunoscut';
+      const date = format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro });
+      const key = `${employeeName}_${date}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          employeeName,
+          date,
+          entries: [],
+          allNotes: []
+        };
+      }
+      acc[key].entries.push(entry);
+      if (entry.notes) {
+        acc[key].allNotes.push(entry.notes);
+      }
+      return acc;
+    }, {} as Record<string, { employeeName: string; date: string; entries: any[]; allNotes: string[] }>);
+    
+    // Centralize hours for each group
+    return Object.values(grouped).map(group => {
+      const totals = {
+        normale: 0,
+        noapte: 0,
+        sambata: 0,
+        sarbatori: 0,
+        pasager: 0,
+        condus: 0,
+        utilaj: 0,
+        total: 0
+      };
+      
+      let firstClockIn = '';
+      let lastClockOut = '';
+      
+      group.entries.forEach((entry, index) => {
+        const username = entry.profiles?.username;
+        const hours = calculateHoursByType(entry, username);
+        totals.normale += hours.normale;
+        totals.noapte += hours.noapte;
+        totals.sambata += hours.sambata;
+        totals.sarbatori += hours.sarbatori;
+        totals.pasager += hours.pasager;
+        totals.condus += hours.condus;
+        totals.utilaj += hours.utilaj;
+        
+        // Track first clock in and last clock out
+        if (index === 0) {
+          firstClockIn = format(new Date(entry.clock_in_time), 'HH:mm');
+        }
+        if (entry.clock_out_time) {
+          lastClockOut = format(new Date(entry.clock_out_time), 'HH:mm');
+        }
+        
+        // Calculate total hours for this entry
+        totals.total += calculateTotalHours(entry);
+      });
+      
       return {
-        Angajat: entry.profiles?.full_name || 'Necunoscut',
-        Data: format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro }),
-        Normale: hoursByType.normale > 0 ? hoursByType.normale.toFixed(2) : '-',
-        Noapte: hoursByType.noapte > 0 ? hoursByType.noapte.toFixed(2) : '-',
-        Sâmbătă: hoursByType.sambata > 0 ? hoursByType.sambata.toFixed(2) : '-',
-        'Duminica Sarbatori': hoursByType.sarbatori > 0 ? hoursByType.sarbatori.toFixed(2) : '-',
-        Pasager: hoursByType.pasager > 0 ? hoursByType.pasager.toFixed(2) : '-',
-        Condus: hoursByType.condus > 0 ? hoursByType.condus.toFixed(2) : '-',
-        Utilaj: hoursByType.utilaj > 0 ? hoursByType.utilaj.toFixed(2) : '-',
-        CO: '-',
-        CM: '-',
-        Observații: entry.notes || '-',
-        Total: calculateTotalHours(entry).toFixed(2),
+        'Angajat': group.employeeName,
+        'Data': group.date,
+        'Normale': totals.normale > 0 ? totals.normale.toFixed(2) : '-',
+        'Noapte': totals.noapte > 0 ? totals.noapte.toFixed(2) : '-',
+        'Sâmbătă': totals.sambata > 0 ? totals.sambata.toFixed(2) : '-',
+        'Duminica Sarbatori': totals.sarbatori > 0 ? totals.sarbatori.toFixed(2) : '-',
+        'Pasager': totals.pasager > 0 ? totals.pasager.toFixed(2) : '-',
+        'Condus': totals.condus > 0 ? totals.condus.toFixed(2) : '-',
+        'Utilaj': totals.utilaj > 0 ? totals.utilaj.toFixed(2) : '-',
+        'CO': firstClockIn || '-',
+        'CM': lastClockOut || '-',
+        'Observații': group.allNotes.join('; ') || '-',
+        'Total': totals.total.toFixed(2)
       };
     });
   };
