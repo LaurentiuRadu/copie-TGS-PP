@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { WeekNumberCalendar } from '@/components/ui/week-number-calendar';
+import { Input } from '@/components/ui/input';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import {
   Table,
@@ -537,13 +537,12 @@ const Timesheet = () => {
                       {format(selectedDate, 'MMMM yyyy', { locale: ro })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <WeekNumberCalendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      locale={ro}
-                      initialFocus
+                  <PopoverContent className="w-auto p-4" align="end">
+                    <Input
+                      type="month"
+                      value={format(selectedDate, 'yyyy-MM')}
+                      onChange={(e) => setSelectedDate(new Date(e.target.value + '-01'))}
+                      className="w-[220px]"
                     />
                   </PopoverContent>
                 </Popover>

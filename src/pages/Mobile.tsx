@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WeekNumberCalendar } from "@/components/ui/week-number-calendar";
+import { Input } from "@/components/ui/input";
 import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays, Construction, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addMonths, subMonths } from "date-fns";
@@ -717,15 +717,12 @@ const Mobile = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 xs:space-y-4">
-            <div className="touch-manipulation">
-              <WeekNumberCalendar
-                mode="single"
-                selected={selectedMonth}
-                onSelect={(date) => date && setSelectedMonth(date)}
-                locale={ro}
-                className="rounded-md border w-full"
-              />
-            </div>
+            <Input
+              type="month"
+              value={format(selectedMonth, 'yyyy-MM')}
+              onChange={(e) => setSelectedMonth(new Date(e.target.value + '-01'))}
+              className="w-full"
+            />
             
             {/* Legend */}
             <div className="flex flex-wrap gap-3 xs:gap-4 text-responsive-xs font-semibold">

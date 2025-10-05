@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { WeekNumberCalendar } from '@/components/ui/week-number-calendar';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -151,12 +151,11 @@ const MyTimeEntries = () => {
             <CardTitle className="text-lg md:text-xl font-semibold">Selectează Luna</CardTitle>
           </CardHeader>
           <CardContent>
-            <WeekNumberCalendar
-              mode="single"
-              selected={selectedMonth}
-              onSelect={(date) => date && setSelectedMonth(date)}
-              locale={ro}
-              className="rounded-md border border-primary/10 glass-card"
+            <Input
+              type="month"
+              value={format(selectedMonth, 'yyyy-MM')}
+              onChange={(e) => setSelectedMonth(new Date(e.target.value + '-01'))}
+              className="w-full max-w-[260px]"
             />
           </CardContent>
           </Card>

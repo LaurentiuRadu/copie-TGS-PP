@@ -285,53 +285,9 @@ All colors MUST be HSL.
     background: var(--gradient-accent-action);
   }
 
-  /* React Day Picker - Fixed width layout with week numbers */
-  .rdp {
-    width: max-content !important;
-    display: inline-block !important;
-  }
-
-  .rdp-month {
-    width: max-content !important;
-  }
-
-  .rdp-table {
-    width: max-content !important;
-  }
-
-  .rdp-head_row {
-    display: grid !important;
-    grid-template-columns: 2.5rem repeat(7, 2.5rem) !important;
-    gap: 0.5rem;
-    width: max-content !important;
-  }
-
-  .rdp-row {
-    display: grid !important;
-    grid-template-columns: 2.5rem repeat(7, 2.5rem) !important;
-    gap: 0.5rem;
-    width: max-content !important;
-  }
-
-  .rdp-weeknumber {
-    width: 2.5rem !important;
-    height: 2.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: hsl(var(--muted-foreground));
-    background: hsl(var(--muted) / 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.375rem 0 0 0.375rem;
-    border-right: 1px solid hsl(var(--border) / 0.5);
-  }
-
-  .rdp-weekday,
-  .rdp-head_cell {
-    text-align: center;
-    font-weight: 400;
-    font-size: 0.8rem;
-    color: hsl(var(--muted-foreground));
+  /* Native date inputs styling */
+  input[type="date"],
+  input[type="month"] {
+    cursor: pointer;
   }
 }
