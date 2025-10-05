@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
+import { SimpleCalendar } from '@/components/ui/simple-calendar';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Clock, MapPin, Smartphone } from 'lucide-react';
@@ -87,12 +87,11 @@ const TimeEntries = () => {
             <CardTitle>Selectează Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
+            <SimpleCalendar
+              value={selectedDate}
+              onChange={(date) => setSelectedDate(date)}
               locale={ro}
-              className="rounded-md border"
+              className="rounded-md border p-3"
             />
           </CardContent>
         </Card>

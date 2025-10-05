@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,8 +11,7 @@ import { ro } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { exportToExcel, exportToCSV } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
-
-type SimpleDateRange = { from?: Date; to?: Date };
+import { SimpleDateRangePicker, type DateRange } from '@/components/ui/simple-date-range-picker';
 
 interface CustomPeriodExportDialogProps {
   open: boolean;
@@ -32,7 +30,7 @@ export function CustomPeriodExportDialog({
   onOpenChange,
   prepareExportDataFromEntries
 }: CustomPeriodExportDialogProps) {
-  const [dateRange, setDateRange] = useState<SimpleDateRange>({ from: undefined, to: undefined });
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [previewCount, setPreviewCount] = useState<number>(0);
@@ -281,27 +279,14 @@ export function CustomPeriodExportDialog({
           {/* Date Range Picker */}
           <div className="space-y-2">
             <Label>Interval de Date (max. 31 zile)</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date-from" className="text-sm text-muted-foreground">De la</Label>
-                <Input
-                  id="date-from"
-                  type="date"
-                  value={dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value ? new Date(e.target.value) : undefined }))}
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="date-to" className="text-sm text-muted-foreground">Până la</Label>
-                <Input
-                  id="date-to"
-                  type="date"
-                  value={dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value ? new Date(e.target.value) : undefined }))}
-                  className="w-full"
-                />
-              </div>
+            <div className="flex justify-center">
+              <SimpleDateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                locale={ro}
+                className="rounded-md border p-3"
+                numberOfMonths={2}
+              />
             </div>
             {dateRange?.from && dateRange?.to && (
               <div className="flex items-center justify-center gap-2">

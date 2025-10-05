@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import type { DateRange } from 'react-day-picker';
+import { SimpleDateRangePicker, type DateRange } from '@/components/ui/simple-date-range-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
@@ -162,20 +161,22 @@ const Vacations = () => {
 
                 <div>
                   <Label>Selectează Perioada</Label>
-                  <Calendar
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    locale={ro}
-                    className="rounded-md border mt-2"
-                    disabled={(date) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return date < today;
-                    }}
-                  />
+                  <div className="flex justify-center mt-2">
+                    <SimpleDateRangePicker
+                      value={dateRange}
+                      onChange={setDateRange}
+                      locale={ro}
+                      className="rounded-md border p-3"
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      numberOfMonths={1}
+                    />
+                  </div>
                   {dateRange?.from && dateRange?.to && (
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-sm text-muted-foreground mt-2 text-center">
                       {differenceInDays(dateRange.to, dateRange.from) + 1} zile selectate
                     </p>
                   )}
