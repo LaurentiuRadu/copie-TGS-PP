@@ -48,10 +48,10 @@ export const AdminLayout = ({
                   variant="outline" 
                   size="sm" 
                   onClick={signOut}
-                  className="gap-2 glass-button hover:border-destructive hover:text-destructive transition-all duration-200 touch-target-lg"
+                  className="gap-2 glass-button hover:border-destructive hover:text-destructive transition-all duration-200 touch-target-lg flex-shrink-0"
                 >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden md:inline">Deconectare</span>
+                  <LogOut className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden sm:inline">Deconectare</span>
                 </Button>
               )}
             </div>

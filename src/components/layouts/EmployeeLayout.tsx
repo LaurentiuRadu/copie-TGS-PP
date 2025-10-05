@@ -50,10 +50,10 @@ export const EmployeeLayout = ({
                   variant="outline" 
                   size="sm" 
                   onClick={signOut}
-                  className="gap-1.5 glass-button hover:border-destructive hover:text-destructive transition-all duration-200 h-8 px-2 md:px-3"
+                  className="gap-1.5 glass-button hover:border-destructive hover:text-destructive transition-all duration-200 h-8 px-2 md:px-3 flex-shrink-0"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span className="hidden md:inline text-xs">Deconectare</span>
+                  <LogOut className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="hidden sm:inline text-xs">Deconectare</span>
                 </Button>
               )}
             </div>

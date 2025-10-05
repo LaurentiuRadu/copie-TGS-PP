@@ -411,11 +411,11 @@ const UserManagement = () => {
             <DialogTrigger asChild>
               <Button 
                 size="sm"
-                className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
+                className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9 flex-shrink-0"
               >
-                <UserPlus className="h-4 w-4" />
-                  <span className="hidden md:inline">Adaugă Utilizator</span>
-                </Button>
+                <UserPlus className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Adaugă Utilizator</span>
+              </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
@@ -482,7 +482,7 @@ const UserManagement = () => {
                     </Select>
                   </div>
                 </div>
-                <DialogFooter className="flex-col sm:flex-row gap-2">
+                <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -512,10 +512,10 @@ const UserManagement = () => {
               size="sm" 
               onClick={loadUsers}
               disabled={loading}
-              className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
+              className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3 flex-shrink-0"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">Reîmprospătează</span>
+              <RefreshCw className={`h-4 w-4 flex-shrink-0 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Reîmprospătează</span>
             </Button>
             <Button 
               variant="outline" 
@@ -663,7 +663,7 @@ const UserManagement = () => {
                                           </div>
                                         </div>
                                       </div>
-                                      <DialogFooter>
+                                      <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                                         <Button
                                           variant="outline"
                                           onClick={() => {
@@ -672,13 +672,14 @@ const UserManagement = () => {
                                             setEditFirstName('');
                                             setEditLastName('');
                                           }}
+                                          className="w-full sm:w-auto"
                                         >
                                           Anulează
                                         </Button>
                                         <Button 
                                           onClick={handleUpdateUser}
                                           disabled={updating || !editFirstName || !editLastName}
-                                          className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                          className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                         >
                                           {updating ? 'Se actualizează...' : 'Salvează'}
                                         </Button>
@@ -730,7 +731,7 @@ const UserManagement = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  <DialogFooter>
+                                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                                     <Button
                                       variant="outline"
                                       onClick={() => {
@@ -738,13 +739,14 @@ const UserManagement = () => {
                                         setSelectedUser(null);
                                         setNewPassword('');
                                       }}
+                                      className="w-full sm:w-auto"
                                     >
                                       Anulează
                                     </Button>
                                     <Button 
                                       onClick={handleResetPassword}
                                       disabled={resetting || !newPassword || newPassword.length < 6}
-                                      className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                      className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                     >
                                       {resetting ? 'Se resetează...' : 'Resetează Parola'}
                                     </Button>
@@ -779,13 +781,14 @@ const UserManagement = () => {
                                       Această acțiune este permanentă și nu poate fi anulată.
                                     </DialogDescription>
                                   </DialogHeader>
-                                  <DialogFooter>
+                                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                                     <Button
                                       variant="outline"
                                       onClick={() => {
                                         setDeleteDialogOpen(false);
                                         setDeletingUser(null);
                                       }}
+                                      className="w-full sm:w-auto"
                                     >
                                       Anulează
                                     </Button>
@@ -793,7 +796,7 @@ const UserManagement = () => {
                                       onClick={handleDeleteUser}
                                       disabled={deleting}
                                       variant="destructive"
-                                      className="shadow-md hover:shadow-lg transition-all"
+                                      className="w-full sm:w-auto shadow-md hover:shadow-lg transition-all"
                                     >
                                       {deleting ? 'Se șterge...' : 'Șterge Definitiv'}
                                     </Button>
