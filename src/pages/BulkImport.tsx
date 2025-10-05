@@ -116,7 +116,18 @@ export default function BulkImport() {
     try {
       const { data, error } = await supabase.functions.invoke('reset-employee-passwords', { body: {} });
       if (error) throw error;
-      toast({ title: 'Parole resetate', description: `Au fost resetate ${data.count} conturi. Omise: ${data.skipped}.` });
+      
+      const messages = [
+        `✅ ${data.count || 0} parole resetate la 123456`,
+        data.rateLimitUnblocked ? "🔓 Rate limiting deblocat pentru toți angajații" : "",
+        "⚠️ Toți angajații trebuie să-și schimbe parola la prima autentificare"
+      ].filter(Boolean).join('\n');
+
+      toast({ 
+        title: 'Parole resetate cu succes', 
+        description: messages,
+        duration: 6000
+      });
     } catch (e) {
       console.error('Reset passwords error:', e);
       toast({ title: 'Eroare', description: e instanceof Error ? e.message : 'A apărut o eroare', variant: 'destructive' });

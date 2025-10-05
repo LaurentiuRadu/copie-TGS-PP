@@ -43,7 +43,22 @@ Deno.serve(async (req) => {
     const results = {
       updated: 0,
       skipped: 0,
+      rateLimitUnblocked: 0,
       errors: [] as { user_id: string; error: string }[],
+    }
+
+    // First, clear ALL rate limiting entries for employees
+    console.log('Clearing rate limiting entries for all employees...')
+    const { error: rateLimitError } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .delete()
+      .like('identifier', 'employee-%')
+
+    if (rateLimitError) {
+      console.error('Error clearing rate limits:', rateLimitError)
+    } else {
+      console.log('Rate limiting entries cleared successfully')
+      results.rateLimitUnblocked = 1 // Flag that rate limits were cleared
     }
 
     for (const userId of userIds) {
@@ -71,6 +86,24 @@ Deno.serve(async (req) => {
           results.errors.push({ user_id: userId, error: updateErr.message })
           continue
         }
+
+        // Mark password as default and must be changed
+        const { error: trackingError } = await supabaseAdmin
+          .from('user_password_tracking')
+          .upsert(
+            {
+              user_id: userId,
+              must_change_password: true,
+              is_default_password: true,
+              password_changed_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id' }
+          )
+
+        if (trackingError) {
+          console.error('Error updating password tracking:', trackingError)
+        }
+
         results.updated += 1
       } catch (err) {
         results.errors.push({ user_id: userId, error: err instanceof Error ? err.message : 'Unknown error' })
@@ -78,7 +111,12 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ count: results.updated, skipped: results.skipped, errors: results.errors }),
+      JSON.stringify({ 
+        count: results.updated, 
+        skipped: results.skipped, 
+        rateLimitUnblocked: results.rateLimitUnblocked > 0,
+        errors: results.errors 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
