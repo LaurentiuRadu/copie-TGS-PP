@@ -1,5 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 
+interface UserProfile {
+  full_name: string;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -44,6 +48,8 @@ Deno.serve(async (req) => {
       updated: 0,
       skipped: 0,
       rateLimitUnblocked: 0,
+      emailsSent: 0,
+      emailsFailed: 0,
       errors: [] as { user_id: string; error: string }[],
     }
 
@@ -105,6 +111,45 @@ Deno.serve(async (req) => {
         }
 
         results.updated += 1
+
+        // Send email notification
+        try {
+          // Get user profile for full name
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('full_name')
+            .eq('id', userId)
+            .single()
+
+          const fullName = (profile as UserProfile)?.full_name || email.split('@')[0]
+          const username = email.split('@')[0]
+
+          // Call send-password-reset-email function
+          const emailResult = await fetch(`${supabaseUrl}/functions/v1/send-password-reset-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              email: email,
+              fullName: fullName,
+              username: username,
+              newPassword: targetPassword,
+            }),
+          })
+
+          if (emailResult.ok) {
+            results.emailsSent += 1
+            console.log(`Email sent successfully to ${email}`)
+          } else {
+            results.emailsFailed += 1
+            console.error(`Failed to send email to ${email}:`, await emailResult.text())
+          }
+        } catch (emailError) {
+          results.emailsFailed += 1
+          console.error(`Error sending email to ${email}:`, emailError)
+        }
       } catch (err) {
         results.errors.push({ user_id: userId, error: err instanceof Error ? err.message : 'Unknown error' })
       }
@@ -115,6 +160,8 @@ Deno.serve(async (req) => {
         count: results.updated, 
         skipped: results.skipped, 
         rateLimitUnblocked: results.rateLimitUnblocked > 0,
+        emailsSent: results.emailsSent,
+        emailsFailed: results.emailsFailed,
         errors: results.errors 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
