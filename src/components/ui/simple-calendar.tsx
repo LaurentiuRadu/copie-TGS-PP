@@ -1,5 +1,6 @@
+import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths, isToday, getWeek } from "date-fns";
 import { ro } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -74,7 +75,10 @@ export function SimpleCalendar({
       </div>
 
       {/* Week days header */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
+      <div className="grid grid-cols-8 gap-1 mb-1">
+        <div className="h-9 w-9 flex items-center justify-center text-xs font-medium text-muted-foreground">
+          S
+        </div>
         {weekDays.map((day, i) => (
           <div
             key={i}
@@ -86,12 +90,40 @@ export function SimpleCalendar({
       </div>
 
       {/* Days grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-8 gap-1">
         {days.map((day, i) => {
           const isSelected = value && isSameDay(day, value);
           const isCurrentMonth = isSameMonth(day, displayMonth);
           const isDisabled = disabled && disabled(day);
           const isTodayDate = isToday(day);
+
+          // Add week number at the start of each week
+          if (i % 7 === 0) {
+            const weekNumber = getWeek(day, { locale, weekStartsOn: 1 });
+            return (
+              <React.Fragment key={`week-${i}`}>
+                <div className="h-9 w-9 flex items-center justify-center text-xs font-medium text-muted-foreground bg-muted/30 rounded-md border-r border-border/50">
+                  {weekNumber}
+                </div>
+                <button
+                  key={i}
+                  onClick={() => handleDateClick(day)}
+                  disabled={isDisabled}
+                  className={cn(
+                    "h-9 w-9 rounded-md text-sm font-normal transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    !isCurrentMonth && "text-muted-foreground/40",
+                    isSelected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                    isTodayDate && !isSelected && "bg-accent/30 font-semibold ring-1 ring-primary/40",
+                    isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                  )}
+                >
+                  {format(day, 'd')}
+                </button>
+              </React.Fragment>
+            );
+          }
 
           return (
             <button
@@ -116,6 +148,3 @@ export function SimpleCalendar({
     </div>
   );
 }
-
-// Add React import
-import * as React from "react";
