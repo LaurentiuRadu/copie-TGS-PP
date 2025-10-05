@@ -118,13 +118,17 @@ export const useMobileShift = (user: any, triggerHaptic: any) => {
 
       if (locError) throw locError;
       if (!locations || locations.length === 0) {
-        toast.error("Nu există locații de lucru configurate");
+        toast.error("⚙️ Nu există locații de lucru configurate.\n\nContactează administratorul.", {
+          duration: 5000,
+        });
         return false;
       }
 
       const nearestLocation = findNearestLocation(currentCoords, locations);
       if (!nearestLocation) {
-        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
+        toast.error("📍 Nu ești în apropierea unei locații de lucru permise.\n\nAsigură-te că ești la locul de muncă și că GPS-ul este activ.", {
+          duration: 6000,
+        });
         return false;
       }
 
@@ -192,13 +196,17 @@ export const useMobileShift = (user: any, triggerHaptic: any) => {
 
       if (locError) throw locError;
       if (!locations || locations.length === 0) {
-        toast.error("Nu există locații de lucru configurate");
+        toast.error("⚙️ Nu există locații de lucru configurate.\n\nContactează administratorul.", {
+          duration: 5000,
+        });
         return false;
       }
 
       const nearestLocation = findNearestLocation(currentCoords, locations);
       if (!nearestLocation) {
-        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
+        toast.error("📍 Nu ești în apropierea unei locații de lucru permise.\n\nAsigură-te că ești la locul de muncă și că GPS-ul este activ.", {
+          duration: 6000,
+        });
         return false;
       }
 

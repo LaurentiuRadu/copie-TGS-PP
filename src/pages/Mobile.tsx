@@ -94,12 +94,12 @@ const Mobile = () => {
     } catch (e: any) {
       setLocationEnabled(false);
       const errorMessage = e.code === 1 
-        ? "Accesul la locație a fost refuzat. Activează permisiunile GPS." 
+        ? "🚫 Accesul la locație refuzat.\n\n📱 Android: Setări → Aplicații → Chrome → Permisiuni → Locație → Permite\n📱 iPhone: Settings → Privacy → Location Services → Safari → While Using" 
         : e.code === 2
-        ? "Nu s-a putut determina locația. Verifică conexiunea GPS."
+        ? "📍 GPS-ul nu funcționează.\n\nActivează GPS-ul din setări și încearcă din nou."
         : e.code === 3
-        ? "Timeout la determinarea locației. Încearcă din nou."
-        : "Locație indisponibilă";
+        ? "⏱️ Timeout la GPS.\n\nVerifică că ești într-o zonă cu semnal bun și încearcă din nou."
+        : "❌ Locație indisponibilă.\n\nActivează GPS-ul și permite accesul la locație.";
       setLocationError(errorMessage);
       triggerHaptic('error');
     }
@@ -201,7 +201,9 @@ const Mobile = () => {
     if (isProcessing) return;
     
     if (!locationEnabled) {
-      toast.error("Locația nu este activată");
+      toast.error("📍 GPS-ul nu este activ!\n\nActivează GPS-ul din setări telefon și permite accesul la locație.", {
+        duration: 5000,
+      });
       triggerHaptic('error');
       return;
     }
@@ -276,7 +278,9 @@ const Mobile = () => {
       const nearestLocation = findNearestLocation(currentCoords, locations);
 
       if (!nearestLocation) {
-        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
+        toast.error("📍 Nu ești în apropierea unei locații de lucru.\n\nDistanța maximă permisă poate fi depășită. Verifică că ești la locul de muncă corect.", {
+          duration: 6000,
+        });
         triggerHaptic('error');
         return;
       }
@@ -436,7 +440,9 @@ const Mobile = () => {
     }
 
     if (!locationEnabled) {
-      toast.error("Locația nu este activată");
+      toast.error("📍 GPS-ul nu este activ!\n\nActivează GPS-ul pentru a termina pontajul.", {
+        duration: 5000,
+      });
       triggerHaptic('error');
       return;
     }
@@ -472,7 +478,9 @@ const Mobile = () => {
       const nearestLocation = findNearestLocation(currentCoords, locations);
 
       if (!nearestLocation) {
-        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
+        toast.error("📍 Nu ești în apropierea unei locații de lucru.\n\nAsigură-te că ești la locația de lucru înainte de a termina pontajul.", {
+          duration: 6000,
+        });
         triggerHaptic('error');
         return;
       }
