@@ -72,19 +72,17 @@ const TimeEntries = () => {
   return (
     <AdminLayout 
       title="Pontaje Detaliate"
-      headerActions={
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {format(selectedDate, 'dd MMMM yyyy', { locale: ro })}
-        </Badge>
-      }
     >
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-3 md:p-6 space-y-4 md:space-y-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Calendar */}
         <Card>
-          <CardHeader>
-            <CardTitle>Selectează Data</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base md:text-lg">Selectează Data</CardTitle>
+            <Badge variant="outline" className="w-fit text-xs md:text-sm px-2 py-1">
+              {format(selectedDate, 'dd MMMM yyyy', { locale: ro })}
+            </Badge>
           </CardHeader>
           <CardContent>
             <SimpleCalendar

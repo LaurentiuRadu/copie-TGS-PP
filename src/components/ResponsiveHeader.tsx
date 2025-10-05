@@ -43,7 +43,7 @@ export function ResponsiveHeader({ title, children, showSearch = false }: Respon
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b border-border/50 bg-card/95 backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 px-3 md:px-6 shadow-sm">
+    <header className="sticky top-0 z-20 flex h-12 md:h-14 items-center gap-2 md:gap-4 border-b border-border/50 bg-card/95 backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 px-2 md:px-6 shadow-sm">
       {/* Desktop Sidebar Toggle */}
       <div className="hidden lg:block">
         <SidebarTrigger />
@@ -112,13 +112,13 @@ export function ResponsiveHeader({ title, children, showSearch = false }: Respon
 
       {/* Title */}
       <div className="flex-1 min-w-0">
-        <h1 className="text-base md:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent truncate">
+        <h1 className="text-sm md:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent truncate">
           {title}
         </h1>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 md:gap-2">
         <ScheduleNotificationBell />
         {children}
       </div>
