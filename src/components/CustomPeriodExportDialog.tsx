@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { PlainCalendar } from '@/components/ui/plain-calendar';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -281,7 +281,7 @@ export function CustomPeriodExportDialog({
           <div className="space-y-2">
             <Label>Interval de Date (max. 31 zile)</Label>
             <div className="flex justify-center">
-              <Calendar
+              <PlainCalendar
                 mode="range"
                 selected={dateRange}
                 onSelect={setDateRange}
