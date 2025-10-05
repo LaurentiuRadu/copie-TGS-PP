@@ -115,9 +115,7 @@ if (import.meta.env.DEV && isStandalone()) {
 
 // CRITICAL: Enhanced diagnostics for React instance
 console.log('🔍 React version:', React.version);
-import('react-dom').then((ReactDOM) => {
-  console.log('🔍 ReactDOM version:', ReactDOM.version);
-});
+// Removed ReactDOM dynamic import to avoid duplicate React instances
 
 // Check for multiple React instances (CRITICAL ERROR)
 const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;

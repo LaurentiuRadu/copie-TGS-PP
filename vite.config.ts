@@ -31,9 +31,11 @@ export default defineConfig(({ mode }) => {
     },
     // CRITICAL: Ensure only ONE React instance exists
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    preserveSymlinks: true,
   },
   optimizeDeps: {
     include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+    exclude: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     force: true, // Force pre-bundling to ensure single instance
   },
   build: {
