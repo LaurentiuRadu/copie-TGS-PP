@@ -12,9 +12,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Download, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Download, Calendar as CalendarIcon } from 'lucide-react';
 import { useOptimizedTimeEntries } from '@/hooks/useOptimizedTimeEntries';
 import { exportToExcel, exportToCSV } from '@/lib/exportUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,13 +26,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,24 +39,10 @@ const Timesheet = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEntry, setSelectedEntry] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [exportDateRange, setExportDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({ from: undefined, to: undefined });
-  const [exportEmployee, setExportEmployee] = useState<string>("all");
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [monthTotalCount, setMonthTotalCount] = useState<number>(0);
   const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
   const isMobile = useIsMobile();
-
-  // Extract unique employees for filter dropdown
-  const employeesList = useMemo(() => {
-    if (!entries) return [];
-    const unique = Array.from(new Set(
-      entries.map(e => e.profiles?.full_name).filter(Boolean)
-    )) as string[];
-    return unique.sort();
-  }, [entries]);
 
   // Get total count for the month
   useEffect(() => {
@@ -253,140 +232,6 @@ const Timesheet = () => {
     return hours;
   };
 
-  const prepareExportData = () => {
-    if (!entries || entries.length === 0) return [];
-    
-    // Apply export filters
-    let dataToExport = [...entries];
-    
-    // Filter by date range
-    if (exportDateRange.from) {
-      dataToExport = dataToExport.filter(entry => {
-        const entryDate = new Date(entry.clock_in_time);
-        const from = exportDateRange.from!;
-        const to = exportDateRange.to || from; // If only one date, use it as both
-        
-        return entryDate >= startOfDay(from) && entryDate <= endOfDay(to);
-      });
-    }
-    
-    // Filter by employee
-    if (exportEmployee && exportEmployee !== "all") {
-      dataToExport = dataToExport.filter(entry => 
-        entry.profiles?.full_name === exportEmployee
-      );
-    }
-    
-    // Group entries by employee + date
-    const grouped = dataToExport.reduce((acc, entry) => {
-      const employeeName = entry.profiles?.full_name || 'Necunoscut';
-      const date = format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro });
-      const key = `${employeeName}_${date}`;
-      
-      if (!acc[key]) {
-        acc[key] = {
-          employeeName,
-          date,
-          entries: [],
-          allNotes: []
-        };
-      }
-      acc[key].entries.push(entry);
-      if (entry.notes) {
-        acc[key].allNotes.push(entry.notes);
-      }
-      return acc;
-    }, {} as Record<string, { employeeName: string; date: string; entries: any[]; allNotes: string[] }>);
-    
-    // Centralize hours for each group
-    return Object.values(grouped).map(group => {
-      const totals = {
-        normale: 0,
-        noapte: 0,
-        sambata: 0,
-        sarbatori: 0,
-        pasager: 0,
-        condus: 0,
-        utilaj: 0,
-        total: 0
-      };
-      
-      let firstClockIn = '';
-      let lastClockOut = '';
-      
-      group.entries.forEach((entry, index) => {
-        const username = entry.profiles?.username;
-        const hours = calculateHoursByType(entry, username);
-        totals.normale += hours.normale;
-        totals.noapte += hours.noapte;
-        totals.sambata += hours.sambata;
-        totals.sarbatori += hours.sarbatori;
-        totals.pasager += hours.pasager;
-        totals.condus += hours.condus;
-        totals.utilaj += hours.utilaj;
-        
-        // Track first clock in and last clock out
-        if (index === 0) {
-          firstClockIn = format(new Date(entry.clock_in_time), 'HH:mm');
-        }
-        if (entry.clock_out_time) {
-          lastClockOut = format(new Date(entry.clock_out_time), 'HH:mm');
-        }
-        
-        // Calculate total hours for this entry
-        totals.total += calculateTotalHours(entry);
-      });
-      
-      return {
-        'Angajat': group.employeeName,
-        'Data': group.date,
-        'Normale': totals.normale > 0 ? totals.normale.toFixed(2) : '-',
-        'Noapte': totals.noapte > 0 ? totals.noapte.toFixed(2) : '-',
-        'Sâmbătă': totals.sambata > 0 ? totals.sambata.toFixed(2) : '-',
-        'Duminica Sarbatori': totals.sarbatori > 0 ? totals.sarbatori.toFixed(2) : '-',
-        'Pasager': totals.pasager > 0 ? totals.pasager.toFixed(2) : '-',
-        'Condus': totals.condus > 0 ? totals.condus.toFixed(2) : '-',
-        'Utilaj': totals.utilaj > 0 ? totals.utilaj.toFixed(2) : '-',
-        'CO': firstClockIn || '-',
-        'CM': lastClockOut || '-',
-        'Observații': group.allNotes.join('; ') || '-',
-        'Total': totals.total.toFixed(2)
-      };
-    });
-  };
-
-  const handleExportExcel = () => {
-    try {
-      const data = prepareExportData();
-      if (data.length === 0) {
-        toast({ title: 'Nu există date pentru export', variant: 'destructive' });
-        return;
-      }
-      const filename = `Timesheet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
-      exportToExcel(data, filename);
-      toast({ title: 'Export Excel finalizat', description: `${data.length} înregistrări au fost exportate.` });
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({ title: 'Eroare la export Excel', description: 'Te rugăm să încerci din nou.', variant: 'destructive' });
-    }
-  };
-
-  const handleExportCSV = () => {
-    try {
-      const data = prepareExportData();
-      if (data.length === 0) {
-        toast({ title: 'Nu există date pentru export', variant: 'destructive' });
-        return;
-      }
-      const filename = `Timesheet_${format(selectedDate, 'MMMM_yyyy', { locale: ro })}`;
-      exportToCSV(data, filename);
-      toast({ title: 'Export CSV finalizat', description: `${data.length} înregistrări au fost exportate.` });
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({ title: 'Eroare la export CSV', description: 'Te rugăm să încerci din nou.', variant: 'destructive' });
-    }
-  };
-
   // Helper to prepare export data from entries array
   const prepareExportDataFromEntries = (entriesToExport: any[]) => {
     if (!entriesToExport || entriesToExport.length === 0) return [];
@@ -476,7 +321,7 @@ const Timesheet = () => {
       toast({ title: 'Se pregătește exportul...', description: 'Vă rugăm așteptați' });
       
       const monthStart = startOfMonth(selectedDate);
-      const monthEnd = endOfMonth(selectedDate);
+      const nextMonthStart = startOfMonth(addMonths(selectedDate, 1));
       
       // Fetch all time entries for the month with segments and profiles
       const { data: allEntries, error: entriesError } = await supabase
@@ -487,7 +332,7 @@ const Timesheet = () => {
           profiles (id, full_name, username)
         `)
         .gte('clock_in_time', monthStart.toISOString())
-        .lte('clock_in_time', monthEnd.toISOString())
+        .lt('clock_in_time', nextMonthStart.toISOString())
         .order('clock_in_time', { ascending: true });
       
       if (entriesError) throw entriesError;
@@ -523,7 +368,7 @@ const Timesheet = () => {
       toast({ title: 'Se pregătește exportul...', description: 'Vă rugăm așteptați' });
       
       const monthStart = startOfMonth(selectedDate);
-      const monthEnd = endOfMonth(selectedDate);
+      const nextMonthStart = startOfMonth(addMonths(selectedDate, 1));
       
       // Fetch all time entries for the month with segments and profiles
       const { data: allEntries, error: entriesError } = await supabase
@@ -534,7 +379,7 @@ const Timesheet = () => {
           profiles (id, full_name, username)
         `)
         .gte('clock_in_time', monthStart.toISOString())
-        .lte('clock_in_time', monthEnd.toISOString())
+        .lt('clock_in_time', nextMonthStart.toISOString())
         .order('clock_in_time', { ascending: true });
       
       if (entriesError) throw entriesError;
@@ -644,14 +489,14 @@ const Timesheet = () => {
         {/* Filters and Export */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <CardTitle>Pontaje Lunare</CardTitle>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <CardTitle>Pontaje Lunare</CardTitle>
+              <div className="flex gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm">
                       <CalendarIcon className="h-4 w-4 mr-2" />
-                      Selectează luna
+                      {format(selectedDate, 'MMMM yyyy', { locale: ro })}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="end">
@@ -664,108 +509,31 @@ const Timesheet = () => {
                     />
                   </PopoverContent>
                 </Popover>
-              </div>
 
-              {/* Export Filters */}
-              <div className="border-t pt-4">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Filtre Export:</span>
-                    {(exportDateRange.from || exportEmployee !== "all") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setExportDateRange({ from: undefined, to: undefined });
-                          setExportEmployee("all");
-                        }}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Resetează
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <Select value={exportEmployee} onValueChange={setExportEmployee}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Toți angajații" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Toți angajații</SelectItem>
-                        {employeesList.map(name => (
-                          <SelectItem key={name} value={name}>{name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-auto">
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {exportDateRange.from ? (
-                            exportDateRange.to && exportDateRange.to !== exportDateRange.from ? (
-                              `${format(exportDateRange.from, 'dd MMM', { locale: ro })} - ${format(exportDateRange.to, 'dd MMM yyyy', { locale: ro })}`
-                            ) : format(exportDateRange.from, 'dd MMM yyyy', { locale: ro })
-                          ) : "Selectează perioada"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <ModernCalendar
-                          mode="range"
-                          selected={exportDateRange}
-                          onSelect={(range: any) => setExportDateRange(range || { from: undefined, to: undefined })}
-                          locale={ro}
-                          numberOfMonths={2}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="sm" disabled={isExportingAll}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Export complet: {monthTotalCount} înregistrări
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          onClick={handleExportAllExcel}
-                          disabled={isExportingAll}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Export complet (Excel)
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={handleExportAllCSV}
-                          disabled={isExportingAll}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Export complet (CSV)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {(exportDateRange.from || exportEmployee !== "all") && (
-                      <>
-                        <Badge variant="outline" className="ml-2">
-                          Export filtrat: {prepareExportData().length} înregistrări
-                        </Badge>
-
-                        <Button variant="outline" size="sm" onClick={handleExportExcel}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Export Excel
-                        </Button>
-
-                        <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Export CSV
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="sm" disabled={isExportingAll}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export complet ({monthTotalCount})
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={handleExportAllExcel}
+                      disabled={isExportingAll}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handleExportAllCSV}
+                      disabled={isExportingAll}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
