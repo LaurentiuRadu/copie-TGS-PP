@@ -6,33 +6,20 @@ import fs from "fs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Clear Vite cache in development to prevent multiple React instances
-  if (mode === "development") {
-    const cacheDir = path.resolve(__dirname, "node_modules/.vite");
-    if (fs.existsSync(cacheDir)) {
-      fs.rmSync(cacheDir, { recursive: true, force: true });
-      console.log("✅ Cleared Vite cache to prevent React instance conflicts");
-    }
-  }
-
   return {
     server: {
       host: "::",
       port: 8080,
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+      // CRITICAL: Ensure only ONE React instance exists
+      dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+      preserveSymlinks: false,
     },
-    // CRITICAL: Ensure only ONE React instance exists
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
-    preserveSymlinks: false,
-  },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
-    force: true,
-  },
   build: {
     rollupOptions: {
       output: {

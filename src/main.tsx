@@ -115,7 +115,17 @@ if (import.meta.env.DEV && isStandalone()) {
 
 // CRITICAL: Enhanced diagnostics for React instance
 console.log('🔍 React version:', React.version);
-// Removed ReactDOM dynamic import to avoid duplicate React instances
+
+// Log Vite module information to detect duplicate React modules
+if (import.meta.env.DEV) {
+  try {
+    const reactModule = (window as any)['__vite_react_module'];
+    console.log('🔍 React module ID:', reactModule?.id || 'not available');
+    console.log('🔍 Vite React chunks:', Object.keys((window as any).__vite_modules || {}).filter(k => k.includes('react')).slice(0, 5));
+  } catch (e) {
+    console.log('⚠️ Could not inspect Vite modules:', e);
+  }
+}
 
 // Check for multiple React instances (CRITICAL ERROR)
 const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -136,6 +146,8 @@ if (hook) {
         });
       });
     }
+  } else {
+    console.log('✅ Single React instance confirmed');
   }
 }
 
