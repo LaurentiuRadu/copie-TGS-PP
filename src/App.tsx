@@ -23,6 +23,7 @@ import WeeklySchedules from "./pages/WeeklySchedules";
 import RecalculateSegments from "./pages/RecalculateSegments";
 import ChangePassword from "./pages/ChangePassword";
 import GDPRSettings from "./pages/GDPRSettings";
+import BackupRestore from "./pages/BackupRestore";
 
 const App = () => (
   <TooltipProvider>
@@ -150,6 +151,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <GDPRSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/backup-restore"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <BackupRestore />
                   </ProtectedRoute>
                 }
               />
