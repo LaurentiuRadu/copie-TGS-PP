@@ -207,8 +207,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     navigate('/auth');
   };
 
-  const handlePasswordChanged = () => {
+  const handlePasswordChanged = async () => {
     setMustChangePassword(false);
+    
+    // Re-check GDPR consents after password change
+    if (user) {
+      const needsConsent = await checkGDPRConsents(user.id);
+      setNeedsGDPRConsent(needsConsent);
+    }
   };
 
   return (
