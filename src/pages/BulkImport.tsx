@@ -120,8 +120,6 @@ export default function BulkImport() {
       const messages = [
         `✅ ${data.count || 0} parole resetate la 123456`,
         data.rateLimitUnblocked ? "🔓 Rate limiting deblocat pentru toți angajații" : "",
-        data.emailsSent ? `📧 ${data.emailsSent} email-uri trimise cu succes` : "",
-        data.emailsFailed ? `⚠️ ${data.emailsFailed} email-uri eșuate` : "",
         "⚠️ Toți angajații trebuie să-și schimbe parola la prima autentificare"
       ].filter(Boolean).join('\n');
 
