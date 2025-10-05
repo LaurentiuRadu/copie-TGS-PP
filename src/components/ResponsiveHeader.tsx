@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Menu, LogOut, RefreshCw } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,8 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 import { forceRefreshApp, isIOSPWA } from "@/lib/iosPwaUpdate";
 import { toast } from "@/hooks/use-toast";
+import { adminMenuItems, employeeMenuItems } from "@/components/AppSidebar";
+import { useNavigate } from "react-router-dom";
 
 interface ResponsiveHeaderProps {
   title: string;
@@ -15,9 +17,11 @@ interface ResponsiveHeaderProps {
 }
 
 export function ResponsiveHeader({ title, children, showSearch = false }: ResponsiveHeaderProps) {
-  const { signOut } = useAuth();
+  const { signOut, userRole } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const APP_VERSION = "0610.2025.00001";
+  const navigate = useNavigate();
+  const menuItems = userRole === 'admin' ? adminMenuItems : employeeMenuItems;
 
   const handleForceUpdate = async () => {
     setIsRefreshing(true);
@@ -58,7 +62,18 @@ export function ResponsiveHeader({ title, children, showSearch = false }: Respon
               <h2 className="font-semibold text-lg">Menu</h2>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
-              {/* Navigation items will be injected here */}
+              {menuItems.map((item) => (
+                <SheetClose asChild key={item.title}>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                    onClick={() => navigate(item.url)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.title}
+                  </Button>
+                </SheetClose>
+              ))}
             </div>
             <div className="p-4 border-t space-y-3">
               <Button

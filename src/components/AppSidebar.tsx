@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 
 // Meniuri pentru Admin
-const adminMenuItems = [
+export const adminMenuItems = [
   { title: "Dashboard", url: "/admin", icon: Home },
   { title: "Gestionare Utilizatori", url: "/user-management", icon: UserCog },
   { title: "Pontaje Detaliate", url: "/time-entries", icon: ClipboardList },
@@ -34,7 +34,7 @@ const adminMenuItems = [
 ];
 
 // Meniuri pentru Angajați
-const employeeMenuItems = [
+export const employeeMenuItems = [
   { title: "Pontaj", url: "/mobile", icon: Clock },
   { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
   { title: "Concedii", url: "/vacations", icon: Calendar },
