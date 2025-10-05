@@ -290,4 +290,30 @@ All colors MUST be HSL.
   input[type="month"] {
     cursor: pointer;
   }
+
+  /* Calendar compact layout - remove excessive spacing */
+  .rdp {
+    width: fit-content !important;
+  }
+  
+  .rdp-month {
+    margin: 0 !important;
+  }
+
+  .rdp-table {
+    width: auto !important;
+    margin: 0 !important;
+  }
+
+  .rdp-tbody {
+    border-spacing: 0 !important;
+  }
+
+  .rdp-row {
+    margin: 0 !important;
+  }
+
+  .rdp-cell {
+    padding: 1px !important;
+  }
 }
