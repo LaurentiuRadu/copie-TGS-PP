@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
     },
     // CRITICAL: Ensure only ONE React instance exists
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
-    preserveSymlinks: true,
+    preserveSymlinks: false,
   },
   optimizeDeps: {
     force: true, // Force rebundling - single React instance via dedupe

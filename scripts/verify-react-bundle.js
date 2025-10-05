@@ -30,9 +30,6 @@ const colors = {
 const REACT_SIGNATURES = [
   '__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED',
   'ReactCurrentDispatcher',
-  'useContext(',
-  'useState(',
-  'useEffect(',
 ];
 
 // Suspicious patterns that indicate bundling issues
@@ -191,13 +188,16 @@ function main() {
   log('   Verdict', colors.cyan + colors.bold);
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', colors.cyan);
 
-  // Check for duplicate React instances
-  const hasMultipleReactFiles = reactFiles.length > 1;
+  // Check for duplicate React runtime instances (ignore hook names in app code)
+  const runtimeReactFiles = reactFiles.filter(f =>
+    f.findings.signatures.some(s => s.signature === 'ReactCurrentDispatcher' || s.signature === '__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED')
+  );
+  const hasMultipleReactFiles = runtimeReactFiles.length > 1;
   const hasHighSignatureCount = totalSignatures > 100; // Threshold for "too many"
   
   if (hasMultipleReactFiles) {
-    log('❌ FAILURE: Multiple React instances detected!', colors.red + colors.bold);
-    log(`   Found React in ${reactFiles.length} different files.`, colors.red);
+    log('❌ FAILURE: Multiple React runtime instances detected!', colors.red + colors.bold);
+    log(`   Found React runtime in ${runtimeReactFiles.length} different files.`, colors.red);
     log(`   This WILL cause "dispatcher is null" errors.\n`, colors.red);
     log('🔧 Recommended fixes:', colors.yellow);
     log('   1. Clear all caches: rm -rf node_modules/.vite node_modules/.cache', colors.yellow);
