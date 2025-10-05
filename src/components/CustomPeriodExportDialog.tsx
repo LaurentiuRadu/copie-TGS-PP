@@ -166,11 +166,11 @@ export function CustomPeriodExportDialog({
     setIsExporting(true);
 
     try {
-      let query = supabase
+      // First, fetch time entries
+      let entriesQuery = supabase
         .from('time_entries')
         .select(`
           *,
-          profiles!inner(id, full_name, username),
           time_entry_segments(*)
         `)
         .gte('clock_in_time', startOfDay(dateRange.from).toISOString())
@@ -179,12 +179,36 @@ export function CustomPeriodExportDialog({
 
       // Filter by employees if specific selection
       if (selectedEmployees.length > 0 && selectedEmployees.length < allEmployees.length) {
-        query = query.in('user_id', selectedEmployees);
+        entriesQuery = entriesQuery.in('user_id', selectedEmployees);
       }
 
-      const { data, error } = await query;
+      const { data: timeEntries, error: entriesError } = await entriesQuery;
 
-      if (error) throw error;
+      if (entriesError) throw entriesError;
+
+      if (!timeEntries || timeEntries.length === 0) {
+        toast({
+          title: 'Nicio înregistrare',
+          description: 'Nu există pontaje în această perioadă.',
+        });
+        return;
+      }
+
+      // Fetch profiles for these users
+      const userIds = [...new Set(timeEntries.map(entry => entry.user_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Map profiles to entries
+      const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      const data = timeEntries.map(entry => ({
+        ...entry,
+        profiles: profilesMap.get(entry.user_id)
+      }));
 
       if (!data || data.length === 0) {
         toast({
@@ -196,6 +220,15 @@ export function CustomPeriodExportDialog({
 
       // Prepare export data
       const exportData = prepareExportDataFromEntries(data);
+
+      if (!exportData || exportData.length === 0) {
+        toast({
+          title: 'Eroare la procesare',
+          description: 'Nu s-au putut procesa datele pentru export.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       // Generate filename
       const fromFormatted = format(dateRange.from, 'dd_MMM', { locale: ro });
@@ -209,22 +242,22 @@ export function CustomPeriodExportDialog({
         exportToCSV(exportData, filename);
       }
 
-      const employeeCount =
-        selectedEmployees.length === 0 || selectedEmployees.length === allEmployees.length
-          ? allEmployees.length
-          : selectedEmployees.length;
+      // Count unique employees in exported data
+      const uniqueEmployees = new Set(data.map(entry => entry.user_id));
+      const actualEmployeeCount = uniqueEmployees.size;
 
       toast({
-        title: 'Export realizat',
-        description: `${data.length} pontaje exportate pentru ${employeeCount} angajați.`,
+        title: 'Export realizat cu succes',
+        description: `${data.length} pontaje pentru ${actualEmployeeCount} angajați.`,
       });
 
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export error:', error);
+      const errorMessage = error?.message || 'Eroare necunoscută';
       toast({
         title: 'Eroare la export',
-        description: 'Te rugăm să încerci din nou.',
+        description: `${errorMessage}. Te rugăm să încerci din nou.`,
         variant: 'destructive',
       });
     } finally {
