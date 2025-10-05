@@ -598,14 +598,14 @@ const WorkLocations = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Hartă (Click pentru a selecta locația)</Label>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
+                          <Label className="shrink-0">Hartă</Label>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={useCurrentLocation}
-                            className="gap-2 shrink-0 whitespace-nowrap"
+                            className="gap-2 shrink-0 whitespace-nowrap w-full sm:w-auto"
                           >
                             <MapPin className="h-4 w-4 shrink-0" />
                             <span className="inline shrink-0">Locația Mea</span>
