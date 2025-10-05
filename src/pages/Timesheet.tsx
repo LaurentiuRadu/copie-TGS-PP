@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ModernCalendar } from '@/components/ui/modern-calendar';
@@ -12,9 +12,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Download, Calendar as CalendarIcon } from 'lucide-react';
+import { Download, Calendar as CalendarIcon, X } from 'lucide-react';
 import { useOptimizedTimeEntries } from '@/hooks/useOptimizedTimeEntries';
 import { exportToExcel, exportToCSV } from '@/lib/exportUtils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,14 +26,35 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { TimeEntryDetailsDialog } from '@/components/TimeEntryDetailsDialog';
 
 const Timesheet = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEntry, setSelectedEntry] = useState<any>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({ from: undefined, to: undefined });
+  const [exportEmployee, setExportEmployee] = useState<string>("all");
   const { data: entries, isLoading } = useOptimizedTimeEntries(selectedDate);
   const isMobile = useIsMobile();
+
+  // Extract unique employees for filter dropdown
+  const employeesList = useMemo(() => {
+    if (!entries) return [];
+    const unique = Array.from(new Set(
+      entries.map(e => e.profiles?.full_name).filter(Boolean)
+    )) as string[];
+    return unique.sort();
+  }, [entries]);
 
   // Realtime subscription for time entries and segments
   useEffect(() => {
@@ -206,8 +227,29 @@ const Timesheet = () => {
   const prepareExportData = () => {
     if (!entries || entries.length === 0) return [];
     
+    // Apply export filters
+    let dataToExport = [...entries];
+    
+    // Filter by date range
+    if (exportDateRange.from) {
+      dataToExport = dataToExport.filter(entry => {
+        const entryDate = new Date(entry.clock_in_time);
+        const from = exportDateRange.from!;
+        const to = exportDateRange.to || from; // If only one date, use it as both
+        
+        return entryDate >= startOfDay(from) && entryDate <= endOfDay(to);
+      });
+    }
+    
+    // Filter by employee
+    if (exportEmployee && exportEmployee !== "all") {
+      dataToExport = dataToExport.filter(entry => 
+        entry.profiles?.full_name === exportEmployee
+      );
+    }
+    
     // Group entries by employee + date
-    const grouped = entries.reduce((acc, entry) => {
+    const grouped = dataToExport.reduce((acc, entry) => {
       const employeeName = entry.profiles?.full_name || 'Necunoscut';
       const date = format(new Date(entry.clock_in_time), 'dd.MM.yyyy', { locale: ro });
       const key = `${employeeName}_${date}`;
@@ -438,9 +480,9 @@ const Timesheet = () => {
         {/* Filters and Export */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <CardTitle>Pontaje Lunare</CardTitle>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <CardTitle>Pontaje Lunare</CardTitle>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -458,16 +500,82 @@ const Timesheet = () => {
                     />
                   </PopoverContent>
                 </Popover>
+              </div>
 
-                <Button variant="outline" size="sm" onClick={handleExportExcel}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Excel
-                </Button>
+              {/* Export Filters */}
+              <div className="border-t pt-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Filtre Export:</span>
+                    {(exportDateRange.from || exportEmployee !== "all") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setExportDateRange({ from: undefined, to: undefined });
+                          setExportEmployee("all");
+                        }}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Resetează
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Select value={exportEmployee} onValueChange={setExportEmployee}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Toți angajații" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toți angajații</SelectItem>
+                        {employeesList.map(name => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-auto">
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                          {exportDateRange.from ? (
+                            exportDateRange.to && exportDateRange.to !== exportDateRange.from ? (
+                              `${format(exportDateRange.from, 'dd MMM', { locale: ro })} - ${format(exportDateRange.to, 'dd MMM yyyy', { locale: ro })}`
+                            ) : format(exportDateRange.from, 'dd MMM yyyy', { locale: ro })
+                          ) : "Selectează perioada"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <ModernCalendar
+                          mode="range"
+                          selected={exportDateRange}
+                          onSelect={(range: any) => setExportDateRange(range || { from: undefined, to: undefined })}
+                          locale={ro}
+                          numberOfMonths={2}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <Badge variant="secondary" className="ml-auto">
+                      {exportDateRange.from || exportEmployee !== "all" 
+                        ? `Export filtrat: ${prepareExportData().length} înregistrări`
+                        : `Export complet: ${entries?.length || 0} înregistrări`
+                      }
+                    </Badge>
+
+                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Excel
+                    </Button>
+
+                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </CardHeader>
