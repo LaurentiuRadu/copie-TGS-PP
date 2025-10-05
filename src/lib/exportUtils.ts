@@ -2,18 +2,17 @@ import * as XLSX from 'xlsx';
 
 interface ExportTimeEntry {
   Angajat: string;
-  Data: string;
-  Normale: string;
-  Noapte: string;
-  Sâmbătă: string;
-  'Duminica Sarbatori': string;
-  Pasager: string;
-  Condus: string;
-  Utilaj: string;
+  Ziua: string;
+  'Ore Zi': string;
+  'Ore Noapte': string;
+  'Ore Sambata': string;
+  'Ore Duminica': string;
+  'Ore Sarbatori': string;
+  'Ore Pasager': string;
+  'Ore Condus': string;
+  'Ore Utilaj': string;
   CO: string;
   CM: string;
-  Observații: string;
-  Total: string;
 }
 
 export const exportToExcel = (data: ExportTimeEntry[], filename: string) => {
@@ -22,18 +21,17 @@ export const exportToExcel = (data: ExportTimeEntry[], filename: string) => {
   // Set column widths
   worksheet['!cols'] = [
     { wch: 20 }, // Angajat
-    { wch: 12 }, // Data
-    { wch: 10 }, // Normale
-    { wch: 10 }, // Noapte
-    { wch: 10 }, // Sâmbătă
-    { wch: 16 }, // Duminica Sarbatori
-    { wch: 10 }, // Pasager
-    { wch: 10 }, // Condus
-    { wch: 10 }, // Utilaj
-    { wch: 8 },  // CO
-    { wch: 8 },  // CM
-    { wch: 30 }, // Observații
-    { wch: 10 }, // Total
+    { wch: 22 }, // Ziua
+    { wch: 10 }, // Ore Zi
+    { wch: 12 }, // Ore Noapte
+    { wch: 12 }, // Ore Sambata
+    { wch: 13 }, // Ore Duminica
+    { wch: 13 }, // Ore Sarbatori
+    { wch: 12 }, // Ore Pasager
+    { wch: 11 }, // Ore Condus
+    { wch: 11 }, // Ore Utilaj
+    { wch: 10 }, // CO
+    { wch: 10 }, // CM
   ];
   
   const workbook = XLSX.utils.book_new();

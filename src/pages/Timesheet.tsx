@@ -162,6 +162,7 @@ const Timesheet = () => {
       normale: 0,
       noapte: 0,
       sambata: 0,
+      duminica: 0,
       sarbatori: 0,
       pasager: 0,
       condus: 0,
@@ -218,15 +219,17 @@ const Timesheet = () => {
         const realHours = Number(seg.hours_decimal); // REAL hours, not paid
         const type = seg.segment_type;
 
-        if (type === 'normal_day') {
+        // Priority: Holidays take precedence over weekends
+        if (type === 'holiday_day' || type === 'holiday_night') {
+          hours.sarbatori += realHours;
+        } else if (type === 'weekend_saturday_day' || type === 'weekend_saturday_night') {
+          hours.sambata += realHours;
+        } else if (type === 'weekend_sunday_day' || type === 'weekend_sunday_night') {
+          hours.duminica += realHours;
+        } else if (type === 'normal_day') {
           hours.normale += realHours;
         } else if (type === 'normal_night') {
           hours.noapte += realHours;
-        } else if (type === 'weekend_saturday_day' || type === 'weekend_saturday_night') {
-          hours.sambata += realHours;
-        } else if (type === 'weekend_sunday_day' || type === 'weekend_sunday_night' || 
-                   type === 'holiday_day' || type === 'holiday_night') {
-          hours.sarbatori += realHours;
         }
       });
     }
@@ -265,6 +268,7 @@ const Timesheet = () => {
         normale: 0,
         noapte: 0,
         sambata: 0,
+        duminica: 0,
         sarbatori: 0,
         pasager: 0,
         condus: 0,
@@ -281,6 +285,7 @@ const Timesheet = () => {
         totals.normale += hours.normale;
         totals.noapte += hours.noapte;
         totals.sambata += hours.sambata;
+        totals.duminica += hours.duminica;
         totals.sarbatori += hours.sarbatori;
         totals.pasager += hours.pasager;
         totals.condus += hours.condus;
@@ -300,18 +305,17 @@ const Timesheet = () => {
       
       return {
         'Angajat': group.employeeName,
-        'Data': group.date,
-        'Normale': totals.normale > 0 ? totals.normale.toFixed(2) : '-',
-        'Noapte': totals.noapte > 0 ? totals.noapte.toFixed(2) : '-',
-        'Sâmbătă': totals.sambata > 0 ? totals.sambata.toFixed(2) : '-',
-        'Duminica Sarbatori': totals.sarbatori > 0 ? totals.sarbatori.toFixed(2) : '-',
-        'Pasager': totals.pasager > 0 ? totals.pasager.toFixed(2) : '-',
-        'Condus': totals.condus > 0 ? totals.condus.toFixed(2) : '-',
-        'Utilaj': totals.utilaj > 0 ? totals.utilaj.toFixed(2) : '-',
-        'CO': firstClockIn || '-',
-        'CM': lastClockOut || '-',
-        'Observații': group.allNotes.join('; ') || '-',
-        'Total': totals.total.toFixed(2)
+        'Ziua': format(new Date(group.entries[0].clock_in_time), 'dd MMMM yyyy', { locale: ro }),
+        'Ore Zi': totals.normale.toFixed(2),
+        'Ore Noapte': totals.noapte.toFixed(2),
+        'Ore Sambata': totals.sambata.toFixed(2),
+        'Ore Duminica': totals.duminica.toFixed(2),
+        'Ore Sarbatori': totals.sarbatori.toFixed(2),
+        'Ore Pasager': totals.pasager.toFixed(2),
+        'Ore Condus': totals.condus.toFixed(2),
+        'Ore Utilaj': totals.utilaj.toFixed(2),
+        'CO': '0.00',
+        'CM': '0.00',
       };
     });
   };
@@ -432,6 +436,7 @@ const Timesheet = () => {
         normale: 0,
         noapte: 0,
         sambata: 0,
+        duminica: 0,
         sarbatori: 0,
         pasager: 0,
         condus: 0,
@@ -446,6 +451,7 @@ const Timesheet = () => {
     acc[employeeName].normale += hours.normale;
     acc[employeeName].noapte += hours.noapte;
     acc[employeeName].sambata += hours.sambata;
+    acc[employeeName].duminica += hours.duminica;
     acc[employeeName].sarbatori += hours.sarbatori;
     acc[employeeName].pasager += hours.pasager;
     acc[employeeName].condus += hours.condus;
@@ -627,7 +633,8 @@ const Timesheet = () => {
                       <TableHead className="text-right">Normale</TableHead>
                       <TableHead className="text-right">Noapte</TableHead>
                       <TableHead className="text-right">Sâmbătă</TableHead>
-                      <TableHead className="text-right">Duminica Sarbatori</TableHead>
+                      <TableHead className="text-right">Duminică</TableHead>
+                      <TableHead className="text-right">Sărbători</TableHead>
                       <TableHead className="text-right">Pasager</TableHead>
                       <TableHead className="text-right">Condus</TableHead>
                       <TableHead className="text-right">Utilaj</TableHead>
@@ -663,6 +670,9 @@ const Timesheet = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             {hoursByType.sambata > 0 ? `${hoursByType.sambata.toFixed(1)}h` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {hoursByType.duminica > 0 ? `${hoursByType.duminica.toFixed(1)}h` : '-'}
                           </TableCell>
                           <TableCell className="text-right">
                             {hoursByType.sarbatori > 0 ? `${hoursByType.sarbatori.toFixed(1)}h` : '-'}
@@ -722,7 +732,11 @@ const Timesheet = () => {
                         <span className="ml-2 font-medium">{emp.sambata.toFixed(1)}h</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">D/Sărbători:</span>
+                        <span className="text-muted-foreground">Duminică:</span>
+                        <span className="ml-2 font-medium">{emp.duminica.toFixed(1)}h</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sărbători:</span>
                         <span className="ml-2 font-medium">{emp.sarbatori.toFixed(1)}h</span>
                       </div>
                       {emp.pasager > 0 && (
