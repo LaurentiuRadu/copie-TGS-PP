@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_sessions: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string
+          expires_at: string | null
+          id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
+          last_activity: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint: string
+          expires_at?: string | null
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_activity?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string
+          expires_at?: string | null
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_activity?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          resource_id: string | null
+          resource_type: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          resource_id?: string | null
+          resource_type: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          resource_id?: string | null
+          resource_type?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_retention_policies: {
+        Row: {
+          auto_delete_enabled: boolean | null
+          created_at: string | null
+          data_type: string
+          id: string
+          last_cleanup_run: string | null
+          retention_days: number
+          updated_at: string | null
+        }
+        Insert: {
+          auto_delete_enabled?: boolean | null
+          created_at?: string | null
+          data_type: string
+          id?: string
+          last_cleanup_run?: string | null
+          retention_days: number
+          updated_at?: string | null
+        }
+        Update: {
+          auto_delete_enabled?: boolean | null
+          created_at?: string | null
+          data_type?: string
+          id?: string
+          last_cleanup_run?: string | null
+          retention_days?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       face_verification_logs: {
         Row: {
           created_at: string
@@ -63,6 +165,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gdpr_requests: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          request_type: string
+          requested_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type: string
+          requested_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          request_type?: string
+          requested_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       holidays: {
         Row: {
@@ -121,6 +259,96 @@ export type Database = {
           reference_photo_url?: string | null
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          subscription_data: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          subscription_data: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          subscription_data?: Json
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rate_limit_attempts: {
+        Row: {
+          attempt_count: number
+          attempt_type: string
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          identifier: string
+          updated_at: string | null
+          window_start: string
+        }
+        Insert: {
+          attempt_count?: number
+          attempt_type: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier: string
+          updated_at?: string | null
+          window_start?: string
+        }
+        Update: {
+          attempt_count?: number
+          attempt_type?: string
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          identifier?: string
+          updated_at?: string | null
+          window_start?: string
+        }
+        Relationships: []
+      }
+      rate_limit_config: {
+        Row: {
+          block_duration_minutes: number
+          created_at: string | null
+          enabled: boolean | null
+          id: string
+          limit_type: string
+          max_attempts: number
+          updated_at: string | null
+          window_minutes: number
+        }
+        Insert: {
+          block_duration_minutes: number
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          limit_type: string
+          max_attempts: number
+          updated_at?: string | null
+          window_minutes: number
+        }
+        Update: {
+          block_duration_minutes?: number
+          created_at?: string | null
+          enabled?: boolean | null
+          id?: string
+          limit_type?: string
+          max_attempts?: number
+          updated_at?: string | null
+          window_minutes?: number
         }
         Relationships: []
       }
@@ -205,6 +433,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      session_limits: {
+        Row: {
+          auto_logout_oldest: boolean
+          created_at: string | null
+          id: string
+          max_concurrent_sessions: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_logout_oldest?: boolean
+          created_at?: string | null
+          id?: string
+          max_concurrent_sessions?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_logout_oldest?: boolean
+          created_at?: string | null
+          id?: string
+          max_concurrent_sessions?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       time_entries: {
         Row: {
@@ -324,6 +579,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_consents: {
+        Row: {
+          consent_date: string | null
+          consent_given: boolean
+          consent_type: string
+          consent_withdrawn_date: string | null
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          updated_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consent_date?: string | null
+          consent_given?: boolean
+          consent_type: string
+          consent_withdrawn_date?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consent_date?: string | null
+          consent_given?: boolean
+          consent_type?: string
+          consent_withdrawn_date?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_password_tracking: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_default_password: boolean | null
+          must_change_password: boolean | null
+          password_changed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default_password?: boolean | null
+          must_change_password?: boolean | null
+          password_changed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default_password?: boolean | null
+          must_change_password?: boolean | null
+          password_changed_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -547,6 +868,38 @@ export type Database = {
       }
     }
     Functions: {
+      check_biometric_consent: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      check_rate_limit: {
+        Args: { _attempt_type: string; _identifier: string }
+        Returns: Json
+      }
+      check_session_limit: {
+        Args: {
+          _device_fingerprint: string
+          _session_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
+      cleanup_expired_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      cleanup_expired_sessions_enhanced: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      cleanup_old_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      enforce_data_retention: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -561,9 +914,26 @@ export type Database = {
         }
         Returns: boolean
       }
+      invalidate_user_sessions: {
+        Args: { _reason: string; _user_id: string }
+        Returns: number
+      }
+      log_sensitive_data_access: {
+        Args: {
+          _action: string
+          _details?: Json
+          _resource_id: string
+          _resource_type: string
+        }
+        Returns: undefined
+      }
       refresh_daily_stats: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      user_in_team: {
+        Args: { _team_id: string; _user_id: string; _week_start: string }
+        Returns: boolean
       }
     }
     Enums: {
