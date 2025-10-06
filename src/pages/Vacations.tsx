@@ -8,8 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus } from 'lucide-react';
-import { AppHeader } from '@/components/AppHeader';
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Plus } from 'lucide-react';
 import { useOptimizedVacations } from '@/hooks/useOptimizedVacations';
 import {
   Dialog,
@@ -27,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AdminLayout } from '@/components/AdminLayout';
 
 interface VacationRequest {
   id: string;
@@ -128,9 +128,10 @@ const Vacations = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader title="Concedii">
-        {!isAdmin && (
+    <AdminLayout 
+      title="Concedii"
+      actions={
+        !isAdmin && (
           <Dialog open={showNewRequest} onOpenChange={setShowNewRequest}>
             <DialogTrigger asChild>
               <Button>
@@ -200,9 +201,9 @@ const Vacations = () => {
               </div>
             </DialogContent>
           </Dialog>
-        )}
-      </AppHeader>
-
+        )
+      }
+    >
       <div className="container mx-auto p-6 space-y-6">
         {/* Requests List */}
         <Card>
@@ -290,7 +291,7 @@ const Vacations = () => {
         </CardContent>
       </Card>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

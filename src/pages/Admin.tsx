@@ -1,43 +1,13 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Download, Filter, Plus, LogOut, TrendingUp, Clock, Calendar } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { AdminSearchCommand } from "@/components/AdminSearchCommand";
+import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar } from "lucide-react";
 import { MigrationTestPanel } from "@/components/MigrationTestPanel";
+import { AdminLayout } from "@/components/AdminLayout";
 
 const Admin = () => {
-  const { signOut } = useAuth();
-
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background via-background to-muted/20">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border/50 bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 px-6 shadow-sm">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Admin Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <AdminSearchCommand />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={signOut}
-                className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all duration-200"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden md:inline">Deconectare</span>
-              </Button>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-y-auto p-6 space-y-6">
+    <AdminLayout title="Admin Dashboard">
+      <div className="p-6 space-y-6">
             {/* Migration Test Panel */}
             <MigrationTestPanel />
 
@@ -162,10 +132,8 @@ const Admin = () => {
                 </CardContent>
               </Card>
             </div>
-          </main>
-        </div>
       </div>
-    </SidebarProvider>
+    </AdminLayout>
   );
 };
 

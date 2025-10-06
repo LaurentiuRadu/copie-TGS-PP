@@ -1,5 +1,3 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Key, LogOut, RefreshCw, Search, Filter, UserPlus, Edit, Trash2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { RefreshCw, UserPlus, Edit, Trash2, Users, Search, Filter, Key } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { AdminSearchCommand } from "@/components/AdminSearchCommand";
 import { MobileTableCard, MobileTableRow } from "@/components/MobileTableCard";
-import { ResponsiveHeader } from "@/components/ResponsiveHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AdminLayout } from "@/components/AdminLayout";
 
 interface User {
   id: string;
@@ -27,7 +23,6 @@ interface User {
 }
 
 const UserManagement = () => {
-  const { signOut } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -398,25 +393,20 @@ const UserManagement = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background via-background to-muted/20">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <ResponsiveHeader title="Gestionare Utilizatori" showSearch>
-            <div className="hidden md:block">
-              <AdminSearchCommand />
-            </div>
-            <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  size="sm"
-                  className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span className="hidden md:inline">Adaugă Utilizator</span>
-                </Button>
-              </DialogTrigger>
+    <AdminLayout 
+      title="Gestionare Utilizatori"
+      actions={
+        <>
+          <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                size="sm"
+                className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
+              >
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden md:inline">Adaugă Utilizator</span>
+              </Button>
+            </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Adaugă Utilizator Nou</DialogTitle>
@@ -504,31 +494,23 @@ const UserManagement = () => {
                   >
                     {creating ? 'Se creează...' : 'Creează Utilizator'}
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={loadUsers}
-              disabled={loading}
-              className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">Reîmprospătează</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={signOut}
-              className="hidden md:flex gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all"
-            >
-              <LogOut className="h-4 w-4" />
-              Deconectare
-            </Button>
-          </ResponsiveHeader>
-
-          <main className="flex-1 overflow-y-auto p-3 md:p-6">
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={loadUsers}
+            disabled={loading}
+            className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden md:inline">Reîmprospătează</span>
+          </Button>
+        </>
+      }
+    >
+      <div className="p-3 md:p-6">
             <Card className="shadow-elegant border-primary/10 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-glass opacity-30 pointer-events-none" />
               <CardHeader className="relative">
@@ -1045,10 +1027,8 @@ const UserManagement = () => {
                 )}
               </CardContent>
             </Card>
-          </main>
-        </div>
       </div>
-    </SidebarProvider>
+    </AdminLayout>
   );
 };
 

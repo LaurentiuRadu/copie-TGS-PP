@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { startOfWeek, endOfWeek, eachDayOfInterval, format, addWeeks, subWeeks, startOfMonth, endOfMonth } from "date-fns";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, addWeeks, subWeeks, startOfMonth } from "date-fns";
 import { ro } from "date-fns/locale";
-import { Table as TableIcon, ChevronLeft, ChevronRight, Download, Calendar as CalendarIcon, RefreshCw, FileSpreadsheet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Calendar as CalendarIcon, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useWeeklyTimesheets, DailyTimesheet } from "@/hooks/useDailyTimesheets";
@@ -17,6 +17,7 @@ import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar } from "@/components/ui/calendar";
 import { exportToPayrollCSV } from "@/lib/exportUtils";
+import { AdminLayout } from "@/components/AdminLayout";
 
 type TimesheetEntry = {
   userId: string;
@@ -253,16 +254,8 @@ const Timesheet = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <TableIcon className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Timesheet</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Pontaje săptămânale pentru toți angajații
-        </p>
-      </div>
+    <AdminLayout title="Timesheet">
+      <div className="container mx-auto p-6 max-w-7xl">
 
       <Card>
         <CardHeader>
@@ -410,7 +403,8 @@ const Timesheet = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

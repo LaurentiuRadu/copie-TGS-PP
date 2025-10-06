@@ -5,9 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Download, KeyRound } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import * as XLSX from 'xlsx';
+import { AdminLayout } from "@/components/AdminLayout";
 
 const EMPLOYEES = [
   { fullName: "ABABEI CIPRIAN", username: "ababeiciprian", isAdmin: false },
@@ -127,20 +126,8 @@ export default function BulkImport() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-6">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold text-foreground">Import Salariați</h1>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-y-auto p-6">
-            <div className="container mx-auto max-w-4xl">
+    <AdminLayout title="Import Salariați">
+      <div className="container mx-auto max-w-4xl p-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Import Salariați</CardTitle>
@@ -219,9 +206,6 @@ export default function BulkImport() {
                 </CardContent>
               </Card>
             </div>
-          </main>
-        </div>
-      </div>
-    </SidebarProvider>
+    </AdminLayout>
   );
 }

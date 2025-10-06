@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
-import { ro } from 'date-fns/locale';
-import { Clock, MapPin, Smartphone, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
-import { AppHeader } from '@/components/AppHeader';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { ro } from "date-fns/locale";
+import { Clock, MapPin, Smartphone } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
+import { AdminLayout } from "@/components/AdminLayout";
 
 interface TimeEntry {
   id: string;
@@ -140,13 +140,7 @@ const TimeEntries = () => {
 
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader title="Pontaje Detaliate">
-        <Badge variant="outline" className="text-lg px-4 py-2">
-          {format(selectedDate, 'dd MMMM yyyy', { locale: ro })}
-        </Badge>
-      </AppHeader>
-      
+    <AdminLayout title="Pontaje Detaliate">
       <div className="container mx-auto p-6 space-y-6">
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -390,7 +384,7 @@ const TimeEntries = () => {
         </DialogContent>
       </Dialog>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

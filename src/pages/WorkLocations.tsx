@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,12 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Plus, Edit, Trash2, LogOut } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { MapPin, Plus, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { AdminLayout } from "@/components/AdminLayout";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoibGF1cmVudGl1cmFkdSIsImEiOiJjbWc4MGtpb2owMjYzMmtxdWRrZG50NnV2In0._eXA5o4wir9a25cJhvX5VQ';
 
@@ -43,7 +41,6 @@ interface WorkLocation {
 }
 
 const WorkLocations = () => {
-  const { signOut } = useAuth();
   const [locations, setLocations] = useState<WorkLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -350,27 +347,19 @@ const WorkLocations = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-6">
-            <SidebarTrigger />
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold text-foreground">Locații de Lucru</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Dialog open={dialogOpen} onOpenChange={(open) => {
-                setDialogOpen(open);
-                if (!open) resetForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2 bg-gradient-primary">
-                    <Plus className="h-4 w-4" />
-                    Adaugă Locație
-                  </Button>
-                </DialogTrigger>
+    <AdminLayout 
+      title="Locații de Lucru"
+      actions={
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) resetForm();
+        }}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 bg-gradient-primary">
+              <Plus className="h-4 w-4" />
+              Adaugă Locație
+            </Button>
+          </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
@@ -488,19 +477,9 @@ const WorkLocations = () => {
                   </form>
                 </DialogContent>
               </Dialog>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={signOut}
-                className="gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Deconectare
-              </Button>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-y-auto p-6">
+      }
+    >
+      <div className="p-6">
             <Card className="shadow-custom-md">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -579,10 +558,8 @@ const WorkLocations = () => {
                 )}
               </CardContent>
             </Card>
-          </main>
-        </div>
       </div>
-    </SidebarProvider>
+    </AdminLayout>
   );
 };
 
