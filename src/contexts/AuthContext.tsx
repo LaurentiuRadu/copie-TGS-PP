@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { PasswordChangeDialog } from '@/components/PasswordChangeDialog';
 import { GDPRConsentDialog } from '@/components/GDPRConsentDialog';
 import { checkUserConsents } from '@/lib/gdprHelpers';
+import { iosStorage } from '@/lib/iosStorage';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -26,6 +27,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [needsGDPRConsent, setNeedsGDPRConsent] = useState(false);
   const navigate = useNavigate();
+
+  // Chei pentru backup tokenuri în IndexedDB (iOS PWA)
+  const SB_AUTH_KEY = `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`;
+  const TOKEN_KEY_REFRESH = 'pwa_auth_refresh_token';
+  const TOKEN_KEY_ACCESS = 'pwa_auth_access_token';
 
   const deriveRoleFromUser = (u: User): Exclude<UserRole, null> | null => {
     const email = u.email || (u.user_metadata as any)?.email || "";
@@ -71,6 +77,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Încercare de restaurare sesiune din backup (iOS Firefox PWA)
+    (async () => {
+      try {
+        await iosStorage.init();
+        const refreshToken = await iosStorage.getItem(TOKEN_KEY_REFRESH);
+        const accessToken = await iosStorage.getItem(TOKEN_KEY_ACCESS);
+        const hasLocal = !!localStorage.getItem(SB_AUTH_KEY);
+        if (refreshToken && !hasLocal) {
+          console.log('[AuthProvider] ♻️ Restoring session from backup tokens');
+          const { data, error } = await supabase.auth.setSession({
+            refresh_token: refreshToken,
+            access_token: accessToken || '',
+          });
+          if (error) {
+            console.warn('[AuthProvider] Could not restore session from tokens:', error.message);
+          } else if (data.session) {
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        }
+      } catch (e) {
+        console.warn('[AuthProvider] Backup restore skipped:', e);
+      }
+    })();
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -87,6 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null);
           setUser(null);
           setUserRole(null);
+          // Curăță backup tokenuri
+          iosStorage.removeItem(TOKEN_KEY_ACCESS).catch(() => {});
+          iosStorage.removeItem(TOKEN_KEY_REFRESH).catch(() => {});
           return;
         }
         
@@ -100,6 +134,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Backup tokenuri pentru iOS Firefox PWA
+        if (session?.access_token && session?.refresh_token) {
+          iosStorage.setItem(TOKEN_KEY_ACCESS, session.access_token).catch(() => {});
+          iosStorage.setItem(TOKEN_KEY_REFRESH, session.refresh_token).catch(() => {});
+        }
 
         if (session?.user) {
           // Fetch role without async in callback  
