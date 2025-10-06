@@ -61,6 +61,9 @@ const mockMonthData: DayData[] = [
   { date: new Date(2025, 0, 8), normalHours: 0, condusHours: 6, pasagerHours: 0 },
 ];
 
+import { Battery } from "lucide-react";
+import { useBatteryOptimization } from "@/hooks/useBatteryOptimization";
+
 const Mobile = () => {
   const { user, signOut, loading } = useAuth();
   const [activeShift, setActiveShift] = useState<ShiftType>(null);
@@ -91,6 +94,7 @@ const Mobile = () => {
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
+  const { batteryInfo } = useBatteryOptimization();
   useAutoDarkMode(); // Auto switch theme based on time of day
   useRealtimeTimeEntries(true); // Real-time updates pentru pontaje
   
@@ -399,6 +403,27 @@ const Mobile = () => {
       return;
     }
 
+    // PROTECȚIE BATERIE - Blocare pontaj ieșire dacă bateria e critică
+    if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+      toast.error(
+        `⚠️ Baterie critică (${Math.round(batteryInfo.level * 100)}%)! Conectează dispozitivul la încărcare pentru a închide pontajul.`,
+        {
+          description: 'Această măsură previne situații în care nu se poate salva corect pontajul.',
+          duration: 8000,
+        }
+      );
+      triggerHaptic('error');
+      return;
+    }
+
+    // Avertizare baterie scăzută (dar permite continuarea)
+    if (batteryInfo.isLowBattery && !batteryInfo.charging) {
+      toast.warning(
+        `Baterie scăzută (${Math.round(batteryInfo.level * 100)}%). Recomandăm conectarea la încărcare.`,
+        { duration: 5000 }
+      );
+    }
+
     setIsProcessing(true);
     triggerHaptic('medium');
     
@@ -489,7 +514,7 @@ const Mobile = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [activeTimeEntry, locationEnabled, isProcessing, triggerHaptic, lastClickTime, user]);
+  }, [activeTimeEntry, locationEnabled, isProcessing, triggerHaptic, lastClickTime, user, batteryInfo]);
 
   const getShiftTypeLabel = (type: ShiftType) => {
     switch (type) {

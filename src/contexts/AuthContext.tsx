@@ -114,8 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     // iOS PWA: Verificare suplimentară la focus (când utilizatorul revine în app)
     const handleFocus = async () => {
       console.log('[AuthProvider] 🎯 App focused, verifying session...');
@@ -141,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
     // Încercare de restaurare sesiune din backup (iOS Firefox PWA)

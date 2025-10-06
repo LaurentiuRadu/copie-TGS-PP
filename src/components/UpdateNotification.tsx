@@ -5,65 +5,77 @@ import { RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { isIOSPWA, forceRefreshApp, activateWaitingServiceWorker } from '@/lib/iosPwaUpdate';
 import { iosStorage } from '@/lib/iosStorage';
+import { useBatteryOptimization } from '@/hooks/useBatteryOptimization';
+import { useUpdateNotifications } from '@/hooks/useUpdateNotifications';
 
 const APP_VERSION_KEY = 'app_version';
-const CURRENT_VERSION = Date.now().toString(); // Folosește timestamp ca versiune
+const CURRENT_VERSION = Date.now().toString();
 
 export function UpdateNotification() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [updateType, setUpdateType] = useState<'pwa' | 'ios'>('pwa');
+  
+  const { batteryInfo, getRecommendedPollingInterval } = useBatteryOptimization();
+  const { hasUpdate: notificationHasUpdate } = useUpdateNotifications();
 
   useEffect(() => {
     const checkVersion = async () => {
-      // Verifică versiunea salvată
       const savedVersion = await iosStorage.getItem(APP_VERSION_KEY);
-      
       if (!savedVersion) {
-        // Prima deschidere, salvează versiunea
         await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
       }
     };
-
     checkVersion();
 
     if ('serviceWorker' in navigator) {
-      // Verifică dacă există un update disponibil
       navigator.serviceWorker.ready.then((reg) => {
         setRegistration(reg);
 
-        // Verifică pentru actualizări la fiecare 5 secunde (mai agresiv)
+        // Interval adaptiv bazat pe baterie
+        const updateCheckInterval = () => {
+          const interval = getRecommendedPollingInterval();
+          console.log(`[UpdateNotification] Using ${interval}ms interval (battery: ${Math.round(batteryInfo.level * 100)}%, charging: ${batteryInfo.charging})`);
+          return interval;
+        };
+
         const checkForUpdates = () => {
+          // Nu verifica dacă bateria e critică și nu e în încărcare
+          if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+            console.log('[UpdateNotification] Skipping check - critical battery');
+            return;
+          }
+          
           reg.update().catch((err) => {
             console.debug('Update check failed:', err);
           });
         };
 
-        // Verificare inițială
         checkForUpdates();
 
-        // Verificare periodică mai frecventă
-        const interval = setInterval(checkForUpdates, 5000);
+        // Interval dinamic care se ajustează pe baterie
+        let intervalId = setInterval(checkForUpdates, updateCheckInterval());
+        
+        // Reajustează intervalul când se schimbă bateria
+        const batteryChangeInterval = setInterval(() => {
+          clearInterval(intervalId);
+          intervalId = setInterval(checkForUpdates, updateCheckInterval());
+        }, 30000); // Verifică la 30s dacă trebuie schimbat intervalul
 
-        // Cleanup
-        return () => clearInterval(interval);
+        return () => {
+          clearInterval(intervalId);
+          clearInterval(batteryChangeInterval);
+        };
       });
 
-      // Listen pentru updatefound
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // Un nou service worker a preluat controlul
         if (!showUpdate) {
           setShowUpdate(true);
           setUpdateType('pwa');
-          toast.info('Actualizare disponibilă! 🎉', {
-            description: 'O nouă versiune a aplicației este gata de instalare.',
-            duration: 10000,
-          });
         }
       });
     }
 
-    // Check pentru waiting worker la mount
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((reg) => {
         if (reg?.waiting) {
@@ -74,37 +86,62 @@ export function UpdateNotification() {
       });
     }
 
-    // Pentru iOS PWA - verificare periodică forțată
+    // Pentru iOS PWA - verificare adaptivă
     if (isIOSPWA()) {
-      const iosCheckInterval = setInterval(async () => {
-        try {
-          const reg = await navigator.serviceWorker.getRegistration();
-          if (reg?.waiting || reg?.installing) {
-            setShowUpdate(true);
-            setUpdateType('ios');
-            setRegistration(reg);
+      let iosCheckInterval: NodeJS.Timeout;
+      
+      const setupIOSCheck = () => {
+        const interval = getRecommendedPollingInterval();
+        
+        iosCheckInterval = setInterval(async () => {
+          if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+            return;
           }
-        } catch (error) {
-          console.debug('iOS update check failed:', error);
-        }
-      }, 3000); // Verificare la fiecare 3 secunde pe iOS
+          
+          try {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg?.waiting || reg?.installing) {
+              setShowUpdate(true);
+              setUpdateType('ios');
+              setRegistration(reg);
+            }
+          } catch (error) {
+            console.debug('iOS update check failed:', error);
+          }
+        }, interval);
+      };
 
-      return () => clearInterval(iosCheckInterval);
+      setupIOSCheck();
+      
+      // Reajustează intervalul când bateria se schimbă
+      const batteryMonitor = setInterval(() => {
+        clearInterval(iosCheckInterval);
+        setupIOSCheck();
+      }, 30000);
+
+      return () => {
+        clearInterval(iosCheckInterval);
+        clearInterval(batteryMonitor);
+      };
     }
-  }, [showUpdate]);
+  }, [showUpdate, batteryInfo, getRecommendedPollingInterval]);
+
+  // Arată automat update dacă hook-ul de notificări a detectat unul
+  useEffect(() => {
+    if (notificationHasUpdate && !showUpdate) {
+      setShowUpdate(true);
+    }
+  }, [notificationHasUpdate, showUpdate]);
 
   const handleUpdate = async () => {
     if (isIOSPWA() && updateType === 'ios') {
-      // Pentru iOS PWA, folosește forceRefreshApp
       toast.info('Se actualizează aplicația...');
       await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
       await forceRefreshApp();
     } else if (registration?.waiting) {
-      // Pentru PWA standard
       toast.info('Se instalează actualizarea...');
       activateWaitingServiceWorker();
     } else {
-      // Fallback: doar reîncarcă pagina
       toast.info('Se reîncarcă aplicația...');
       window.location.reload();
     }
@@ -122,6 +159,11 @@ export function UpdateNotification() {
             <p className="text-xs text-muted-foreground mt-1">
               O nouă versiune a aplicației este pregătită. {isIOSPWA() ? 'Apasă pentru a actualiza complet aplicația iOS.' : 'Apasă pentru a actualiza.'}
             </p>
+            {batteryInfo.isLowBattery && !batteryInfo.charging && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                ⚠️ Baterie scăzută ({Math.round(batteryInfo.level * 100)}%) - conectați la încărcare
+              </p>
+            )}
             <div className="flex gap-2 mt-3">
               <Button
                 size="sm"
