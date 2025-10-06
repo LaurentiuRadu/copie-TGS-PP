@@ -230,7 +230,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('[Migration] Starting historical timesheet migration...');
+    // Parse request body for optional parameters
+    const body = await req.json().catch(() => ({}));
+    const processLast24h = body.process_last_24h || false;
+    
+    console.log(`[Migration] Starting timesheet migration (last 24h: ${processLast24h})...`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -249,13 +253,24 @@ Deno.serve(async (req) => {
     const holidayDates = new Set(holidays?.map((h: any) => h.date) || []);
     console.log(`[Migration] Loaded ${holidayDates.size} holidays`);
 
-    // 2. Fetch all complete time entries
+    // 2. Fetch complete time entries (filtered by last 24h if needed)
     console.log('[Migration] Fetching complete time entries...');
-    const { data: timeEntries, error: entriesError } = await supabase
+    let query = supabase
       .from('time_entries')
       .select('id, user_id, clock_in_time, clock_out_time, notes')
       .not('clock_out_time', 'is', null)
       .order('clock_in_time', { ascending: true });
+    
+    // If processing last 24h, filter entries clocked out in last 30h (24h + 6h buffer)
+    // This ensures we capture shifts spanning the "timesheet day" boundary (06:00 AM)
+    if (processLast24h) {
+      const cutoffTime = new Date();
+      cutoffTime.setHours(cutoffTime.getHours() - 30);
+      query = query.gte('clock_out_time', cutoffTime.toISOString());
+      console.log(`[Migration] Filtering entries with clock_out >= ${cutoffTime.toISOString()}`);
+    }
+    
+    const { data: timeEntries, error: entriesError } = await query;
 
     if (entriesError) {
       throw new Error(`Failed to fetch time entries: ${entriesError.message}`);
