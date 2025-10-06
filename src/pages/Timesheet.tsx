@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
 import { cn } from "@/lib/utils";
+import { PayrollExportDialog } from "@/components/PayrollExportDialog";
 
 type EmployeeTimesheetData = {
   userId: string;
@@ -178,11 +179,11 @@ const Timesheet = () => {
   return (
     <AdminLayout title="Timesheet - Payroll">
       <div className="container mx-auto p-6 max-w-7xl space-y-4">
-        {/* Search Bar */}
+        {/* Header with Search and Export */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex-1 w-full sm:w-auto">
                 <Input
                   placeholder="Căutați angajat după nume sau poziție..."
                   value={searchQuery}
@@ -190,8 +191,19 @@ const Timesheet = () => {
                   className="max-w-md"
                 />
               </div>
-              <div className="text-sm font-medium">
-                {filteredEmployees.length} din {employeeData.length} angajați!
+              <div className="flex items-center gap-3">
+                <div className="text-sm font-medium whitespace-nowrap">
+                  {filteredEmployees.length} din {employeeData.length} angajați
+                </div>
+                <PayrollExportDialog 
+                  allTimesheets={allTimesheets || []}
+                  employees={employeeData.map(e => ({
+                    id: e.userId,
+                    name: e.userName,
+                    totalHours: e.totalHours
+                  }))}
+                  currentMonth={currentMonth}
+                />
               </div>
             </div>
           </CardHeader>
