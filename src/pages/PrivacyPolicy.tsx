@@ -1,19 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Database, Eye, Lock, FileText, AlertTriangle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { AdminLayout } from "@/components/AdminLayout";
 
 export default function PrivacyPolicy() {
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Shield className="h-8 w-8 text-primary" />
-          <h1 className="text-4xl font-bold">Politica de Confidențialitate</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Ultimă actualizare: {new Date().toLocaleDateString('ro-RO')}
-        </p>
-      </div>
+    <AdminLayout title="Politica de Confidențialitate">
+      <div className="space-y-6">
 
       <Card className="mb-6">
         <CardHeader>
@@ -343,5 +336,6 @@ export default function PrivacyPolicy() {
         </CardContent>
       </Card>
     </div>
+    </AdminLayout>
   );
 }

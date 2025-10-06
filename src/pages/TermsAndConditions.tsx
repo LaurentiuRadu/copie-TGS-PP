@@ -1,19 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { AdminLayout } from "@/components/AdminLayout";
 
 export default function TermsAndConditions() {
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <FileText className="h-8 w-8 text-primary" />
-          <h1 className="text-4xl font-bold">Termeni și Condiții</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Ultimă actualizare: {new Date().toLocaleDateString('ro-RO')}
-        </p>
-      </div>
+    <AdminLayout title="Termeni și Condiții">
+      <div className="space-y-6">
 
       <Card className="mb-6">
         <CardHeader>
@@ -250,5 +243,6 @@ export default function TermsAndConditions() {
         </p>
       </div>
     </div>
+    </AdminLayout>
   );
 }
