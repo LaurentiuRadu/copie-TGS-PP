@@ -6,6 +6,7 @@ import { PasswordChangeDialog } from '@/components/PasswordChangeDialog';
 import { GDPRConsentDialog } from '@/components/GDPRConsentDialog';
 import { checkUserConsents } from '@/lib/gdprHelpers';
 import { iosStorage } from '@/lib/iosStorage';
+import { generateDeviceFingerprint } from '@/lib/deviceFingerprint';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 
 type UserRole = 'admin' | 'employee' | null;
@@ -28,6 +29,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [needsGDPRConsent, setNeedsGDPRConsent] = useState(false);
   const navigate = useNavigate();
+
+  // Monitorizează sesiunea pentru a detecta delogări de pe alte dispozitive
+  useSessionMonitor(user?.id, !!user);
 
   // Monitorizează sesiunea pentru delogare automată de pe alte dispozitive
   useSessionMonitor(user?.id, !loading && !!user);
@@ -146,9 +150,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (session?.user) {
-          // Fetch role without async in callback  
-          setTimeout(() => {
+          // Înregistrează sesiunea activă și verifică limite
+          const sessionId = generateDeviceFingerprint();
+          const deviceFingerprint = generateDeviceFingerprint();
+          
+          setTimeout(async () => {
             const userId = session.user.id;
+            
+            // Verifică limita de sesiuni și înregistrează sesiunea
+            try {
+              // Verifică dacă există deja o sesiune activă pentru acest device
+              const { data: existingSession } = await supabase
+                .from('active_sessions')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('session_id', sessionId)
+                .eq('device_fingerprint', deviceFingerprint)
+                .maybeSingle();
+              
+              if (!existingSession) {
+                // Verifică limita înainte de a insera
+                const { data: limitCheck } = await supabase.rpc('check_session_limit', {
+                  _user_id: userId,
+                  _session_id: sessionId,
+                  _device_fingerprint: deviceFingerprint
+                });
+                
+                const limitResult = limitCheck as { allowed?: boolean };
+                
+                if (limitResult?.allowed) {
+                  // Înregistrează noua sesiune
+                  await supabase
+                    .from('active_sessions')
+                    .insert({
+                      user_id: userId,
+                      session_id: sessionId,
+                      device_fingerprint: deviceFingerprint,
+                      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                    });
+                }
+              } else {
+                // Actualizează ultima activitate
+                await supabase
+                  .from('active_sessions')
+                  .update({ last_activity: new Date().toISOString() })
+                  .eq('id', existingSession.id);
+              }
+            } catch (error) {
+              console.error('[AuthContext] Session registration error:', error);
+            }
             supabase
               .from('user_roles')
               .select('role')
