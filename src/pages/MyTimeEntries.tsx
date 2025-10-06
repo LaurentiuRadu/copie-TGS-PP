@@ -1,198 +1,317 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Clock, TrendingUp } from 'lucide-react';
-import { toast } from 'sonner';
+import { Clock, Calendar as CalendarIcon, Moon, Sun, Sunset, Gift, Car, Users as PassengerIcon, Wrench, TrendingUp, CalendarDays } from 'lucide-react';
 import { AppHeader } from '@/components/AppHeader';
+import { useOptimizedMyTimeEntries } from '@/hooks/useOptimizedTimeEntries';
+import { useMyDailyTimesheets } from '@/hooks/useDailyTimesheets';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface TimeEntry {
-  id: string;
-  clock_in_time: string;
-  clock_out_time: string | null;
-  time_entry_segments: Array<{
-    segment_type: string;
-    hours_decimal: number;
-    multiplier: number;
-  }>;
-}
+// Helper pentru a extrage tipul de tură din notes
+const getShiftTypeFromNotes = (notes: string | null): string => {
+  if (!notes) return 'Normal';
+  const match = notes.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
+  return match ? match[1] : 'Normal';
+};
 
 const MyTimeEntries = () => {
   const { user } = useAuth();
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
-  const [loading, setLoading] = useState(true);
+  
+  // Fetch time entries și daily timesheets
+  const { data: timeEntries = [], isLoading: entriesLoading } = useOptimizedMyTimeEntries(user?.id, selectedMonth);
+  const { data: dailyTimesheets = [], isLoading: timesheetsLoading } = useMyDailyTimesheets(user?.id, selectedMonth);
+  
+  const loading = entriesLoading || timesheetsLoading;
 
-  const fetchEntries = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      const start = startOfMonth(selectedMonth);
-      const end = endOfMonth(selectedMonth);
+  // Calculează totalurile pe tipuri din daily_timesheets
+  const monthlyStats = dailyTimesheets.reduce((acc, day) => ({
+    total: acc.total + (day.hours_regular || 0) + (day.hours_night || 0) + (day.hours_saturday || 0) + 
+           (day.hours_sunday || 0) + (day.hours_holiday || 0) + (day.hours_driving || 0) + 
+           (day.hours_passenger || 0) + (day.hours_equipment || 0),
+    regular: acc.regular + (day.hours_regular || 0),
+    night: acc.night + (day.hours_night || 0),
+    saturday: acc.saturday + (day.hours_saturday || 0),
+    sunday: acc.sunday + (day.hours_sunday || 0),
+    holiday: acc.holiday + (day.hours_holiday || 0),
+    driving: acc.driving + (day.hours_driving || 0),
+    passenger: acc.passenger + (day.hours_passenger || 0),
+    equipment: acc.equipment + (day.hours_equipment || 0),
+    days: acc.days + 1,
+  }), { total: 0, regular: 0, night: 0, saturday: 0, sunday: 0, holiday: 0, driving: 0, passenger: 0, equipment: 0, days: 0 });
 
-      const { data, error } = await supabase
-        .from('time_entries')
-        .select(`
-          *,
-          time_entry_segments(*)
-        `)
-        .eq('user_id', user.id)
-        .gte('clock_in_time', start.toISOString())
-        .lte('clock_in_time', end.toISOString())
-        .order('clock_in_time', { ascending: false });
-
-      if (error) throw error;
-      setEntries(data || []);
-    } catch (error: any) {
-      console.error('Error fetching entries:', error);
-      toast.error('Eroare la încărcarea pontajelor');
-    } finally {
-      setLoading(false);
+  // Generare luni pentru dropdown
+  const generateMonthOptions = () => {
+    const options = [];
+    const today = new Date();
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      options.push({
+        value: date.toISOString(),
+        label: format(date, 'MMMM yyyy', { locale: ro })
+      });
     }
+    return options;
   };
 
-  useEffect(() => {
-    fetchEntries();
-  }, [selectedMonth, user]);
-
-  const getSegmentLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      normal_day: 'Regular',
-      normal_night: 'Noapte',
-      saturday: 'Sâmbătă',
-      sunday: 'Duminică',
-      holiday: 'Sărbătoare',
-    };
-    return labels[type] || type;
-  };
-
-  const calculateTotalHours = (entry: TimeEntry) => {
-    if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
-      if (!entry.clock_out_time) return 0;
-      const duration = new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime();
-      return duration / (1000 * 60 * 60);
-    }
-    
-    return entry.time_entry_segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
-  };
-
-  const monthlyTotalHours = entries.reduce((sum, entry) => sum + calculateTotalHours(entry), 0);
+  const monthOptions = generateMonthOptions();
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader title="Pontajele Mele" />
       
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-4 md:p-6 space-y-6">
+        {/* Month Selector */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+            <Select
+              value={selectedMonth.toISOString()}
+              onValueChange={(value) => setSelectedMonth(new Date(value))}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {dailyTimesheets.length} zile lucrate
+          </div>
+        </div>
 
-      {/* Monthly Summary */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Ore Lucrate</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">{monthlyTotalHours.toFixed(1)}h</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {format(selectedMonth, 'MMMM yyyy', { locale: ro })}
-          </p>
-        </CardContent>
-      </Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Total Ore */}
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Total Ore
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl md:text-3xl font-bold text-primary">{monthlyStats.total.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {monthlyStats.days} zile lucrate
+              </p>
+            </CardContent>
+          </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
+          {/* Ore Regulate */}
+          {monthlyStats.regular > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Sun className="h-4 w-4 text-amber-500" />
+                  Ore Regulate
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{monthlyStats.regular.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Multiplicator 1.0x</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Noapte */}
+          {monthlyStats.night > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Moon className="h-4 w-4 text-blue-400" />
+                  Ore Noapte
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-400">{monthlyStats.night.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Multiplicator 1.25x</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Sâmbătă */}
+          {monthlyStats.saturday > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Sunset className="h-4 w-4 text-orange-500" />
+                  Ore Sâmbătă
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-500">{monthlyStats.saturday.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Multiplicator 1.5x</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Duminică */}
+          {monthlyStats.sunday > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-purple-500" />
+                  Ore Duminică
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-500">{monthlyStats.sunday.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Multiplicator 2.0x</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Sărbătoare */}
+          {monthlyStats.holiday > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-red-500" />
+                  Ore Sărbătoare
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-500">{monthlyStats.holiday.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Multiplicator 2.0x</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Condus */}
+          {monthlyStats.driving > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Car className="h-4 w-4 text-green-500" />
+                  Ore Condus
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-500">{monthlyStats.driving.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Ture speciale</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Pasager */}
+          {monthlyStats.passenger > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <PassengerIcon className="h-4 w-4 text-cyan-500" />
+                  Ore Pasager
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-cyan-500">{monthlyStats.passenger.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Ture speciale</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Ore Utilaj */}
+          {monthlyStats.equipment > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-slate-500" />
+                  Ore Utilaj
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-500">{monthlyStats.equipment.toFixed(1)}h</div>
+                <p className="text-xs text-muted-foreground mt-1">Ture speciale</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Detailed Time Entries */}
         <Card>
           <CardHeader>
-            <CardTitle>Selectează Luna</CardTitle>
+            <CardTitle>Pontaje Detaliate ({timeEntries.length})</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedMonth}
-              onSelect={(date) => date && setSelectedMonth(date)}
-              locale={ro}
-              className="rounded-md border"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Entries List */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Detalii Pontaje ({entries.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">Se încarcă...</div>
-            ) : entries.length === 0 ? (
+            ) : timeEntries.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 Nu există pontaje pentru această lună
               </div>
             ) : (
-              entries.map((entry) => {
-                const totalHours = calculateTotalHours(entry);
-                const hasSegments = entry.time_entry_segments?.length > 0;
+              timeEntries.map((entry) => {
+                const shiftType = getShiftTypeFromNotes(entry.notes);
+                const totalHours = entry.time_entry_segments?.reduce((sum, seg) => sum + seg.hours_decimal, 0) || 0;
 
                 return (
                   <Card key={entry.id} className="bg-accent/50">
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         {/* Header */}
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                             <span className="font-semibold">
                               {format(new Date(entry.clock_in_time), 'dd MMM yyyy', { locale: ro })}
                             </span>
                           </div>
-                          {!entry.clock_out_time && (
-                            <Badge variant="default" className="bg-green-500">În desfășurare</Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {shiftType}
+                            </Badge>
+                            {!entry.clock_out_time && (
+                              <Badge variant="default" className="bg-green-500 text-xs">Activ</Badge>
+                            )}
+                          </div>
                         </div>
 
                         {/* Time Range */}
-                        <div className="text-sm text-muted-foreground">
-                          {format(new Date(entry.clock_in_time), 'HH:mm')}
-                          {entry.clock_out_time && ` - ${format(new Date(entry.clock_out_time), 'HH:mm')}`}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {format(new Date(entry.clock_in_time), 'HH:mm')}
+                            {entry.clock_out_time && ` - ${format(new Date(entry.clock_out_time), 'HH:mm')}`}
+                          </span>
+                          <span className="font-semibold text-primary">
+                            {totalHours.toFixed(2)}h
+                          </span>
                         </div>
 
-                        {/* Segments Breakdown */}
-                        {hasSegments && (
-                          <div className="space-y-2">
-                            <div className="text-sm font-medium flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4" />
-                              Breakdown ore:
-                            </div>
+                        {/* Segments (if available) */}
+                        {entry.time_entry_segments && entry.time_entry_segments.length > 0 && (
+                          <div className="pt-2 border-t space-y-1">
+                            <div className="text-xs font-medium text-muted-foreground mb-2">Detalii:</div>
                             {entry.time_entry_segments.map((seg, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-sm pl-6">
-                                <span className="text-muted-foreground">{getSegmentLabel(seg.segment_type)}</span>
-                                <span>{seg.hours_decimal.toFixed(2)}h</span>
+                              <div key={idx} className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground capitalize">{seg.segment_type.replace('_', ' ')}</span>
+                                <span className="font-mono">{seg.hours_decimal.toFixed(2)}h × {seg.multiplier}x</span>
                               </div>
                             ))}
-                            <div className="pt-2 border-t flex justify-between font-semibold">
-                              <span>Total:</span>
-                              <span className="text-primary">{totalHours.toFixed(2)}h</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {!hasSegments && entry.clock_out_time && (
-                          <div className="text-sm text-muted-foreground">
-                            Total: {totalHours.toFixed(2)}h (fără segmentare)
                           </div>
                         )}
                       </div>
-                     </CardContent>
+                    </CardContent>
                   </Card>
                 );
               })
             )}
           </CardContent>
         </Card>
-      </div>
       </div>
     </div>
   );
