@@ -2,12 +2,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar } from "lucide-react";
 import { MigrationTestPanel } from "@/components/MigrationTestPanel";
+import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
 import { AdminLayout } from "@/components/AdminLayout";
 
 const Admin = () => {
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="p-6 space-y-6">
+            {/* Time Segment Debug Panel */}
+            <TimeSegmentDebugPanel />
+            
             {/* Migration Test Panel */}
             <MigrationTestPanel />
 

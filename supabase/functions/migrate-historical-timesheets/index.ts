@@ -32,22 +32,33 @@ interface Shift {
 }
 
 /**
- * Găsește următorul moment critic de segmentare (00:00, 06:00, 22:00)
+ * Găsește următorul moment critic de segmentare (00:00, 06:00, 06:01, 22:00)
+ * ✅ FIXED: Adăugat 06:01 pentru a detecta corect tranziția Sâmbătă/Duminică/Sărbătoare
  */
 function getNextCriticalTime(currentTime: Date): Date {
   const result = new Date(currentTime);
   const h = result.getHours();
   const m = result.getMinutes();
-  const minutes = h * 60 + m;
+  const s = result.getSeconds();
+  const totalSeconds = h * 3600 + m * 60 + s;
 
   // Boundaries must be STRICTLY after currentTime to avoid zero-length segments
-  if (minutes < 6 * 60) {
-    result.setHours(6, 0, 0, 0); // today 06:00
+  
+  // Before 06:00 → go to 06:00
+  if (totalSeconds < 6 * 3600) {
+    result.setHours(6, 0, 0, 0);
     return result;
   }
-
-  if (minutes < 22 * 60) {
-    result.setHours(22, 0, 0, 0); // today 22:00
+  
+  // At 06:00:00 exactly → go to 06:01:00 (critical for Saturday/Sunday/Holiday transitions)
+  if (totalSeconds === 6 * 3600) {
+    result.setHours(6, 1, 0, 0);
+    return result;
+  }
+  
+  // Between 06:00:01 and 22:00 → go to 22:00
+  if (totalSeconds < 22 * 3600) {
+    result.setHours(22, 0, 0, 0);
     return result;
   }
 
