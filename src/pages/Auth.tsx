@@ -201,12 +201,7 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-hero flex items-start justify-center p-4 pt-8">
       <Card className="w-full max-w-md shadow-elegant border-primary/20">
         <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary shadow-lg">
-              <Clock className="h-10 w-10 text-primary-foreground animate-pulse-soft" />
-            </div>
-          </div>
-          <CardTitle className={`text-3xl font-bold ${activeTab === "admin" ? "bg-gradient-secondary" : "bg-gradient-primary"} bg-clip-text text-transparent`}>
+          <CardTitle className={`text-3xl font-bold ${activeTab === "admin" ? "text-white" : "bg-gradient-primary bg-clip-text text-transparent"}`}>
             TimeTrack
           </CardTitle>
           <CardDescription className="text-base">
@@ -304,7 +299,7 @@ const Auth = () => {
             <TabsContent value="admin" className="space-y-1">
               <form onSubmit={handleAdminAuth} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="admin-email">Email</Label>
+                  <Label htmlFor="admin-email" className="text-white">Email</Label>
                   <Input
                     id="admin-email"
                     type="email"
@@ -317,7 +312,7 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="admin-password">Parolă</Label>
+                  <Label htmlFor="admin-password" className="text-white">Parolă</Label>
                   <div className="relative">
                     <Input
                       id="admin-password"
