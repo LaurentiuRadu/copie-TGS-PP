@@ -25,6 +25,7 @@ interface Shift {
   endTime: string;
   employeeId: string;
   notes?: string;
+  shiftType?: string; // condus, pasager, utilaj, normal
 }
 
 /**
@@ -120,6 +121,7 @@ function determineHoursType(
 
 /**
  * Segmentează o tură de lucru în pontaje zilnice separate
+ * ✅ LOGICĂ NOUĂ: Respectă tipul de tură (Condus/Pasager/Utilaj/Normal)
  */
 function segmentShiftIntoTimesheets(
   shift: Shift,
@@ -128,6 +130,10 @@ function segmentShiftIntoTimesheets(
   const start = new Date(shift.startTime);
   const end = new Date(shift.endTime);
   const timesheets: TimesheetEntry[] = [];
+  
+  // ✅ Detectează tipul de tură din notes (default: 'normal')
+  const shiftType = shift.shiftType || 'normal';
+  console.log(`[Segment] Processing shift type: ${shiftType}`);
   
   let currentSegmentStart = new Date(start);
   
@@ -140,8 +146,23 @@ function segmentShiftIntoTimesheets(
     // Calculează ore pentru acest segment
     const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
     
-    // Determină tipul de ore bazat pe ziua săptămânii și interval orar
-    const hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
+    // ✅ LOGICĂ NOUĂ: Determină coloana bazat pe tipul de tură
+    let hoursType: string;
+    
+    if (shiftType === 'condus') {
+      hoursType = 'hours_driving';  // Toate orele → Condus
+      console.log(`[Segment] → hours_driving (${hoursInSegment}h)`);
+    } else if (shiftType === 'pasager') {
+      hoursType = 'hours_passenger';  // Toate orele → Pasager
+      console.log(`[Segment] → hours_passenger (${hoursInSegment}h)`);
+    } else if (shiftType === 'utilaj') {
+      hoursType = 'hours_equipment';  // Toate orele → Utilaj
+      console.log(`[Segment] → hours_equipment (${hoursInSegment}h)`);
+    } else {
+      // Doar pentru "normal" → fragmentare bazată pe timp
+      hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
+      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [time-based]`);
+    }
     
     // Găsește sau creează pontaj pentru această zi
     const workDate = currentSegmentStart.toISOString().split('T')[0];
@@ -241,7 +262,12 @@ Deno.serve(async (req) => {
 
     const { user_id, clock_in_time, clock_out_time, notes } = await req.json();
 
-    console.log('Processing shift:', { user_id, clock_in_time, clock_out_time });
+    console.log('Processing shift:', { user_id, clock_in_time, clock_out_time, notes });
+
+    // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
+    const shiftTypeMatch = notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
+    const shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+    console.log(`[Main] Detected shift type: ${shiftType}`);
 
     // Fetch holidays
     const { data: holidays } = await supabase
@@ -255,7 +281,8 @@ Deno.serve(async (req) => {
       startTime: clock_in_time,
       endTime: clock_out_time,
       employeeId: user_id,
-      notes
+      notes,
+      shiftType  // ✅ Pasează tipul de tură
     };
 
     // Segment shift into daily timesheets

@@ -28,6 +28,7 @@ interface Shift {
   clock_in_time: string;
   clock_out_time: string;
   notes?: string;
+  shiftType?: string; // condus, pasager, utilaj, normal
 }
 
 /**
@@ -124,6 +125,7 @@ function determineHoursType(
 /**
  * Segment a shift into daily timesheets with proper hour classification
  * Handles shifts that span multiple days and classifies hours correctly
+ * ✅ LOGICĂ NOUĂ: Respectă tipul de tură (Condus/Pasager/Utilaj/Normal)
  */
 function segmentShiftIntoTimesheets(
   shift: Shift,
@@ -132,6 +134,10 @@ function segmentShiftIntoTimesheets(
   const timesheets: TimesheetEntry[] = [];
   const shiftStart = new Date(shift.clock_in_time);
   const shiftEnd = new Date(shift.clock_out_time);
+
+  // ✅ Detectează tipul de tură din notes (default: 'normal')
+  const shiftType = shift.shiftType || 'normal';
+  console.log(`[Migrate Segment] Processing shift type: ${shiftType}`);
 
   let currentTime = new Date(shiftStart);
 
@@ -144,7 +150,20 @@ function segmentShiftIntoTimesheets(
 
     if (roundedHours > 0) {
       const workDate = currentTime.toISOString().split('T')[0];
-      const hoursType = determineHoursType(currentTime, segmentEnd, holidayDates);
+      
+      // ✅ LOGICĂ NOUĂ: Determină coloana bazat pe tipul de tură
+      let hoursType: string;
+      
+      if (shiftType === 'condus') {
+        hoursType = 'hours_driving';  // Toate orele → Condus
+      } else if (shiftType === 'pasager') {
+        hoursType = 'hours_passenger';  // Toate orele → Pasager
+      } else if (shiftType === 'utilaj') {
+        hoursType = 'hours_equipment';  // Toate orele → Utilaj
+      } else {
+        // Doar pentru "normal" → fragmentare bazată pe timp
+        hoursType = determineHoursType(currentTime, segmentEnd, holidayDates);
+      }
 
       let existingEntry = timesheets.find((entry) => entry.work_date === workDate);
 
@@ -329,11 +348,16 @@ Deno.serve(async (req) => {
 
     for (const entry of timeEntries) {
       try {
+        // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
+        const shiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
+        const shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+        
         const shift: Shift = {
           user_id: entry.user_id,
           clock_in_time: entry.clock_in_time,
           clock_out_time: entry.clock_out_time,
           notes: entry.notes,
+          shiftType  // ✅ Pasează tipul de tură
         };
 
         const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
