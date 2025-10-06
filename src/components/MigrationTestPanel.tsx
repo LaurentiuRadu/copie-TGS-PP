@@ -15,7 +15,7 @@ export const MigrationTestPanel = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('migrate-historical-timesheets', {
-        body: { force: true }
+        body: { process_last_24h: true }
       });
 
       if (error) throw error;
@@ -104,11 +104,11 @@ export const MigrationTestPanel = () => {
               <span className="text-sm font-medium">Migrare finalizată</span>
             </div>
             <div className="bg-muted/50 p-3 rounded-lg text-xs font-mono space-y-1">
-              <div>✅ Procesate: {results.processed || 0} time entries</div>
-              <div>✅ Generate: {results.created || 0} daily timesheets</div>
-              {results.errors?.length > 0 && (
+              <div>✅ Procesate: {results?.stats?.processed ?? 0} time entries</div>
+              <div>✅ Generate: {results?.stats?.generated ?? 0} daily timesheets</div>
+              {typeof results?.stats?.errors === 'number' && results.stats.errors > 0 && (
                 <div className="text-destructive">
-                  ❌ Erori: {results.errors.length}
+                  ❌ Erori: {results.stats.errors}
                 </div>
               )}
             </div>
