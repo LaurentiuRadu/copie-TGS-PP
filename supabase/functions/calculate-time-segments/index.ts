@@ -29,8 +29,18 @@ interface Shift {
 }
 
 /**
+ * Găsește următorul midnight (00:00) - folosit pentru condus/pasager/utilaj
+ */
+function getNextMidnight(currentTime: Date): Date {
+  const result = new Date(currentTime);
+  result.setDate(result.getDate() + 1);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+/**
  * Găsește următorul moment critic de segmentare (00:00, 06:00, 06:01, 22:00)
- * ✅ FIXED: Adăugat 06:01 pentru a detecta corect tranziția Sâmbătă/Duminică/Sărbătoare
+ * Folosit DOAR pentru turele "normal"
  */
 function getNextCriticalTime(currentTime: Date): Date {
   const result = new Date(currentTime);
@@ -132,7 +142,9 @@ function determineHoursType(
 
 /**
  * Segmentează o tură de lucru în pontaje zilnice separate
- * ✅ LOGICĂ NOUĂ: Respectă tipul de tură (Condus/Pasager/Utilaj/Normal)
+ * ✅ REGULI:
+ * - Pentru condus/pasager/utilaj: segmentare DOAR la 00:00 (midnight)
+ * - Pentru normal: segmentare complexă la 00:00, 06:00, 22:00
  */
 function segmentShiftIntoTimesheets(
   shift: Shift,
@@ -142,35 +154,43 @@ function segmentShiftIntoTimesheets(
   const end = new Date(shift.endTime);
   const timesheets: TimesheetEntry[] = [];
   
-  // ✅ Detectează tipul de tură din notes (default: 'normal')
   const shiftType = shift.shiftType || 'normal';
   console.log(`[Segment] Processing shift type: ${shiftType}`);
   
+  // ✅ LOGICĂ DIFERITĂ pentru tipuri speciale vs normal
+  const isSpecialShift = ['condus', 'pasager', 'utilaj'].includes(shiftType);
+  
   let currentSegmentStart = new Date(start);
   
-  // Procesează tura în segmente până la sfârșit
   while (currentSegmentStart < end) {
-    // Determină sfârșitul acestui segment
-    const nextCriticalTime = getNextCriticalTime(currentSegmentStart);
-    const currentSegmentEnd = nextCriticalTime < end ? nextCriticalTime : end;
+    let currentSegmentEnd: Date;
     
-    // Calculează ore pentru acest segment
+    if (isSpecialShift) {
+      // ✅ Pentru condus/pasager/utilaj: segmentare DOAR la midnight
+      const nextMidnight = getNextMidnight(currentSegmentStart);
+      currentSegmentEnd = nextMidnight < end ? nextMidnight : end;
+    } else {
+      // ✅ Pentru normal: segmentare complexă (00:00, 06:00, 22:00)
+      const nextCriticalTime = getNextCriticalTime(currentSegmentStart);
+      currentSegmentEnd = nextCriticalTime < end ? nextCriticalTime : end;
+    }
+    
     const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
     
-    // ✅ LOGICĂ NOUĂ: Determină coloana bazat pe tipul de tură
+    // Determină tipul de ore
     let hoursType: string;
     
     if (shiftType === 'condus') {
-      hoursType = 'hours_driving';  // Toate orele → Condus
-      console.log(`[Segment] → hours_driving (${hoursInSegment}h)`);
+      hoursType = 'hours_driving';
+      console.log(`[Segment] → hours_driving (${hoursInSegment}h) [daily]`);
     } else if (shiftType === 'pasager') {
-      hoursType = 'hours_passenger';  // Toate orele → Pasager
-      console.log(`[Segment] → hours_passenger (${hoursInSegment}h)`);
+      hoursType = 'hours_passenger';
+      console.log(`[Segment] → hours_passenger (${hoursInSegment}h) [daily]`);
     } else if (shiftType === 'utilaj') {
-      hoursType = 'hours_equipment';  // Toate orele → Utilaj
-      console.log(`[Segment] → hours_equipment (${hoursInSegment}h)`);
+      hoursType = 'hours_equipment';
+      console.log(`[Segment] → hours_equipment (${hoursInSegment}h) [daily]`);
     } else {
-      // Doar pentru "normal" → fragmentare bazată pe timp
+      // Pentru "normal" → fragmentare bazată pe timp
       hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
       console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [time-based]`);
     }
@@ -211,6 +231,9 @@ function segmentShiftIntoTimesheets(
     t.hours_saturday = Math.round(t.hours_saturday * 100) / 100;
     t.hours_sunday = Math.round(t.hours_sunday * 100) / 100;
     t.hours_holiday = Math.round(t.hours_holiday * 100) / 100;
+    t.hours_passenger = Math.round(t.hours_passenger * 100) / 100;
+    t.hours_driving = Math.round(t.hours_driving * 100) / 100;
+    t.hours_equipment = Math.round(t.hours_equipment * 100) / 100;
   });
   
   return timesheets;
