@@ -197,16 +197,18 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-start justify-center p-4 pt-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-              <Clock className="h-8 w-8 text-primary-foreground" />
+    <div className="min-h-screen bg-gradient-hero flex items-start justify-center p-4 pt-8">
+      <Card className="w-full max-w-md shadow-elegant border-primary/20">
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary shadow-lg">
+              <Clock className="h-10 w-10 text-primary-foreground animate-pulse-soft" />
             </div>
           </div>
-          <CardTitle className="text-2xl">TimeTrack</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            TimeTrack
+          </CardTitle>
+          <CardDescription className="text-base">
             {isSignUp ? "Creează cont nou" : "Autentificare în sistem"}
           </CardDescription>
         </CardHeader>
@@ -219,22 +221,22 @@ const Auth = () => {
           )}
 
           <Tabs defaultValue="employee" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted">
               <TabsTrigger 
                 value="employee" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground transition-all"
               >
                 Angajat
               </TabsTrigger>
               <TabsTrigger 
                 value="admin"
-                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground"
+                className="data-[state=active]:bg-gradient-secondary data-[state=active]:text-secondary-foreground transition-all"
               >
                 Administrator
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="employee" className="border-l-4 border-primary pl-4">
+            <TabsContent value="employee" className="space-y-1">
               <form onSubmit={handleEmployeeAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="employee-username">Username</Label>
@@ -292,13 +294,13 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90 transition-all shadow-md" disabled={loading}>
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont angajat" : "Autentificare angajat"}
                 </Button>
               </form>
             </TabsContent>
 
-            <TabsContent value="admin" className="border-l-4 border-secondary pl-4">
+            <TabsContent value="admin" className="space-y-1">
               <form onSubmit={handleAdminAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="admin-email">Email</Label>
@@ -343,21 +345,21 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full bg-gradient-secondary hover:opacity-90 transition-all shadow-md" disabled={loading}>
                   {loading ? "Se procesează..." : isSignUp ? "Creează cont admin" : "Autentificare admin"}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
 
-          <div className="mt-4 text-center">
+          <div className="mt-6 text-center">
             <Button
               variant="link"
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setError(null);
               }}
-              className="text-sm"
+              className="text-sm text-primary hover:text-primary/80 transition-colors"
             >
               {isSignUp ? "Am deja cont" : "Creează cont nou"}
             </Button>

@@ -17,9 +17,11 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 40% 10%;
 
+    /* Culoare Principală 1: Cyan Modern */
     --primary: 189 85% 55%;
     --primary-foreground: 0 0% 100%;
 
+    /* Culoare Principală 2: Gri-Albastru Închis Modern */
     --secondary: 220 60% 15%;
     --secondary-foreground: 0 0% 100%;
 
@@ -36,25 +38,19 @@ All colors MUST be HSL.
     --input: 210 30% 90%;
     --ring: 189 85% 55%;
 
-    --success: 142 76% 45%;
-    --warning: 38 92% 50%;
-    --info: 210 100% 60%;
-
     --radius: 0.75rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(189 85% 55%), hsl(210 100% 60%));
-    --gradient-secondary: linear-gradient(135deg, hsl(220 60% 15%), hsl(220 40% 25%));
-    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.1), hsl(0 0% 100% / 0.05));
-    --gradient-card: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted) / 0.3));
+    /* Gradiente folosind cele 2 culori principale */
+    --gradient-primary: linear-gradient(135deg, hsl(189 85% 55%), hsl(189 90% 45%));
+    --gradient-secondary: linear-gradient(135deg, hsl(220 60% 15%), hsl(220 55% 25%));
+    --gradient-hero: linear-gradient(135deg, hsl(189 85% 55%) 0%, hsl(220 60% 15%) 100%);
     
     --shadow-sm: 0 2px 8px -2px hsl(189 85% 55% / 0.1);
     --shadow-md: 0 4px 16px -4px hsl(189 85% 55% / 0.15);
     --shadow-lg: 0 8px 24px -6px hsl(189 85% 55% / 0.2);
     --shadow-elegant: 0 10px 40px -10px hsl(189 85% 55% / 0.25);
-    --shadow-glow: 0 0 30px hsl(189 85% 55% / 0.3);
     
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 220 60% 15%;
     --sidebar-foreground: 210 30% 90%;
