@@ -137,7 +137,6 @@ function segmentShiftIntoTimesheets(
 
   // ✅ Detectează tipul de tură din notes (default: 'normal')
   const shiftType = shift.shiftType || 'normal';
-  console.log(`[Migrate Segment] Processing shift type: ${shiftType}`);
 
   let currentTime = new Date(shiftStart);
 
@@ -343,7 +342,7 @@ Deno.serve(async (req) => {
     console.log(`[Migration] Found ${timeEntries.length} complete time entries`);
 
     // 3. Process in BATCHES to avoid CPU timeout
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 3; // ✅ Redus pentru a evita CPU timeout
     const totalBatches = Math.ceil(timeEntries.length / BATCH_SIZE);
     
     let totalProcessedCount = 0;
@@ -356,8 +355,6 @@ Deno.serve(async (req) => {
       const batchStart = batchIndex * BATCH_SIZE;
       const batchEnd = Math.min(batchStart + BATCH_SIZE, timeEntries.length);
       const batch = timeEntries.slice(batchStart, batchEnd);
-      
-      console.log(`[Migration] Processing batch ${batchIndex + 1}/${totalBatches} (entries ${batchStart + 1}-${batchEnd})...`);
 
       try {
         const batchTimesheets: TimesheetEntry[] = [];
@@ -400,7 +397,6 @@ Deno.serve(async (req) => {
 
         // 4. Aggregate batch timesheets by employee_id + work_date
         if (batchTimesheets.length > 0) {
-          console.log(`[Migration] Aggregating ${batchTimesheets.length} timesheet entries from batch ${batchIndex + 1}...`);
           
           const aggregatedMap = new Map<string, TimesheetEntry>();
           
@@ -434,10 +430,8 @@ Deno.serve(async (req) => {
           }
           
           const aggregatedTimesheets = Array.from(aggregatedMap.values());
-          console.log(`[Migration] Batch ${batchIndex + 1}: Aggregated into ${aggregatedTimesheets.length} unique timesheets`);
 
           // 5. Upsert batch timesheets to database
-          console.log(`[Migration] Batch ${batchIndex + 1}: Upserting ${aggregatedTimesheets.length} timesheets...`);
           const { error: upsertError } = await supabase
             .from('daily_timesheets')
             .upsert(aggregatedTimesheets, {
@@ -447,11 +441,7 @@ Deno.serve(async (req) => {
           if (upsertError) {
             throw new Error(`Batch ${batchIndex + 1} upsert failed: ${upsertError.message}`);
           }
-          
-          console.log(`[Migration] Batch ${batchIndex + 1}: Successfully upserted ${aggregatedTimesheets.length} timesheets`);
         }
-
-        console.log(`[Migration] Batch ${batchIndex + 1}/${totalBatches} completed. Progress: ${totalProcessedCount}/${timeEntries.length} entries processed`);
 
       } catch (batchError) {
         console.error(`[Migration] Batch ${batchIndex + 1} failed:`, batchError);
