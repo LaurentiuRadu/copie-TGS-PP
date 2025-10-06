@@ -150,18 +150,19 @@ function segmentShiftIntoTimesheets(
     if (roundedHours > 0) {
       const workDate = currentTime.toISOString().split('T')[0];
       
-      // ✅ LOGICĂ NOUĂ: Determină coloana bazat pe tipul de tură
-      let hoursType: string;
+      // ✅ LOGICĂ CORECTATĂ: Determină tipul de ore bazat pe ziua săptămânii ȘI tipul de tură
+      // Mai întâi, determinăm coloana bazată pe ziua săptămânii (saturday/sunday/holiday/night/regular)
+      const timeBasedHoursType = determineHoursType(currentTime, segmentEnd, holidayDates);
+      
+      // Apoi, determinăm coloana suplimentară bazată pe tipul turei (doar pentru condus/pasager/utilaj)
+      let shiftBasedHoursType: string | null = null;
       
       if (shiftType === 'condus') {
-        hoursType = 'hours_driving';  // Toate orele → Condus
+        shiftBasedHoursType = 'hours_driving';
       } else if (shiftType === 'pasager') {
-        hoursType = 'hours_passenger';  // Toate orele → Pasager
+        shiftBasedHoursType = 'hours_passenger';
       } else if (shiftType === 'utilaj') {
-        hoursType = 'hours_equipment';  // Toate orele → Utilaj
-      } else {
-        // Doar pentru "normal" → fragmentare bazată pe timp
-        hoursType = determineHoursType(currentTime, segmentEnd, holidayDates);
+        shiftBasedHoursType = 'hours_equipment';
       }
 
       let existingEntry = timesheets.find((entry) => entry.work_date === workDate);
@@ -185,8 +186,15 @@ function segmentShiftIntoTimesheets(
         timesheets.push(existingEntry);
       }
 
-      (existingEntry as any)[hoursType] = 
-        ((existingEntry as any)[hoursType] as number) + roundedHours;
+      // ✅ Adăugăm orele în coloana bazată pe timp (saturday/sunday/holiday/night/regular)
+      (existingEntry as any)[timeBasedHoursType] = 
+        ((existingEntry as any)[timeBasedHoursType] as number) + roundedHours;
+      
+      // ✅ SUPLIMENTAR: Dacă este tură specială (condus/pasager/utilaj), adăugăm orele și în coloana specifică
+      if (shiftBasedHoursType) {
+        (existingEntry as any)[shiftBasedHoursType] = 
+          ((existingEntry as any)[shiftBasedHoursType] as number) + roundedHours;
+      }
 
       // Round all values to 2 decimals
       existingEntry.hours_regular = Math.round(existingEntry.hours_regular * 100) / 100;
