@@ -347,18 +347,59 @@ Deno.serve(async (req) => {
 
     console.log(`[Migration] Processed ${processedCount} entries, generated ${generatedCount} timesheets`);
 
-    // 4. Upsert all timesheets into database
+    // 4. Aggregate timesheets by employee_id + work_date before upserting
+    // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+    // which occurs when multiple shifts generate timesheets for the same employee + date
     if (allTimesheets.length > 0) {
+      console.log(`[Migration] Aggregating ${allTimesheets.length} timesheet entries...`);
+      
+      const aggregatedMap = new Map<string, TimesheetEntry>();
+      
+      for (const sheet of allTimesheets) {
+        const key = `${sheet.employee_id}_${sheet.work_date}`;
+        
+        if (aggregatedMap.has(key)) {
+          // Sum hours with existing entry for same employee + date
+          const existing = aggregatedMap.get(key)!;
+          existing.hours_regular += sheet.hours_regular;
+          existing.hours_night += sheet.hours_night;
+          existing.hours_saturday += sheet.hours_saturday;
+          existing.hours_sunday += sheet.hours_sunday;
+          existing.hours_holiday += sheet.hours_holiday;
+          existing.hours_passenger += sheet.hours_passenger;
+          existing.hours_driving += sheet.hours_driving;
+          existing.hours_equipment += sheet.hours_equipment;
+          existing.hours_leave += sheet.hours_leave;
+          existing.hours_medical_leave += sheet.hours_medical_leave;
+          
+          // Combine notes if both exist
+          if (sheet.notes && existing.notes) {
+            existing.notes = `${existing.notes}; ${sheet.notes}`;
+          } else if (sheet.notes) {
+            existing.notes = sheet.notes;
+          }
+        } else {
+          // First entry for this employee + date combination
+          aggregatedMap.set(key, { ...sheet });
+        }
+      }
+      
+      const aggregatedTimesheets = Array.from(aggregatedMap.values());
+      console.log(`[Migration] Aggregated into ${aggregatedTimesheets.length} unique timesheets`);
+
+      // 5. Upsert aggregated timesheets to database
       console.log('[Migration] Upserting timesheets to database...');
       const { error: upsertError } = await supabase
         .from('daily_timesheets')
-        .upsert(allTimesheets, {
+        .upsert(aggregatedTimesheets, {
           onConflict: 'employee_id,work_date',
         });
 
       if (upsertError) {
         throw new Error(`Failed to upsert timesheets: ${upsertError.message}`);
       }
+      
+      console.log(`[Migration] Successfully upserted ${aggregatedTimesheets.length} timesheets`);
     }
 
     console.log('[Migration] Migration completed successfully!');
