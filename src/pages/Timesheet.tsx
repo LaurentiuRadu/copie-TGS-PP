@@ -65,6 +65,27 @@ const Timesheet = () => {
     selectedUser === 'all' ? undefined : selectedUser
   );
 
+  // Debug logging
+  console.log('[Timesheet Debug] Week range:', {
+    weekStart: weekStart.toISOString().split('T')[0],
+    weekEnd: weekEnd.toISOString().split('T')[0],
+    timesheetsCount: timesheets?.length || 0,
+    usersCount: users?.length || 0,
+  });
+
+  if (timesheets && timesheets.length > 0) {
+    const oct5Data = timesheets.filter(t => t.work_date === '2025-10-05');
+    console.log('[Timesheet Debug] Data for 2025-10-05:', {
+      count: oct5Data.length,
+      employees: oct5Data.map(t => ({
+        name: (t.profiles as any)?.full_name,
+        total: t.hours_regular + t.hours_night + t.hours_saturday + t.hours_sunday + 
+               t.hours_holiday + t.hours_passenger + t.hours_driving + t.hours_equipment +
+               t.hours_leave + t.hours_medical_leave
+      }))
+    });
+  }
+
   const formatHours = (hours: number): string => {
     if (hours === 0) return '-';
     return `${hours.toFixed(1)}h`;
@@ -95,6 +116,22 @@ const Timesheet = () => {
         sheet.hours_leave +
         sheet.hours_medical_leave;
     }, 0);
+
+    const dayStr = day.toISOString().split('T')[0];
+    if (dayStr === '2025-10-05' && totalHours > 0) {
+      console.log('[Timesheet Debug] calculateDayHours for Oct 5:', {
+        userId,
+        sheetsCount: sheets.length,
+        totalHours,
+        sheets: sheets.map(s => ({
+          hours_sunday: s.hours_sunday,
+          hours_driving: s.hours_driving,
+          total: s.hours_regular + s.hours_night + s.hours_saturday + s.hours_sunday + 
+                 s.hours_holiday + s.hours_passenger + s.hours_driving + s.hours_equipment +
+                 s.hours_leave + s.hours_medical_leave
+        }))
+      });
+    }
 
     return formatHours(totalHours);
   };
@@ -129,12 +166,22 @@ const Timesheet = () => {
       ? users 
       : users.filter(u => u.id === selectedUser);
 
+    console.log('[Timesheet Debug] Generating data for users:', relevantUsers.length);
+
     return relevantUsers.map(user => {
       const [monday, tuesday, wednesday, thursday, friday, saturday, sunday] = weekDays.map(day =>
         calculateDayHours(user.id, day)
       );
 
       const total = calculateWeekTotalHours(user.id);
+
+      // Log users with hours on Sunday (Oct 5)
+      if (sunday !== '-') {
+        console.log('[Timesheet Debug] User with Sunday hours:', {
+          name: user.full_name,
+          sunday
+        });
+      }
 
       return {
         userId: user.id,
