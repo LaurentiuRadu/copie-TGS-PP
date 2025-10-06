@@ -41,6 +41,7 @@ import { TardinessReasonDialog } from "@/components/TardinessReasonDialog";
 import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
 import { useTardinessCheck } from "@/hooks/useTardinessCheck";
 import { UpdateNotification } from "@/components/UpdateNotification";
+import { ClockInConfirmationCard } from "@/components/ClockInConfirmationCard";
 
 type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
 
@@ -73,6 +74,14 @@ const Mobile = () => {
   const [tardinessDialog, setTardinessDialog] = useState<{ open: boolean; delayMinutes: number; scheduledTime: string } | null>(null);
   const [showReminderAlert, setShowReminderAlert] = useState(true);
   const [pendingTardinessEntry, setPendingTardinessEntry] = useState<any>(null);
+  const [confirmationCard, setConfirmationCard] = useState<{
+    show: boolean;
+    type: "clock-in" | "clock-out";
+    timestamp: string;
+    locationName: string;
+    locationDistance: number;
+    shiftType?: string;
+  } | null>(null);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -290,11 +299,21 @@ const Mobile = () => {
       
       triggerHaptic('success');
       
+      // Show confirmation card with details
+      setConfirmationCard({
+        show: true,
+        type: "clock-in",
+        timestamp: entry.clock_in_time,
+        locationName: nearestLocation.name,
+        locationDistance: nearestLocation.distance,
+        shiftType: getShiftTypeLabel(type),
+      });
+      
       // Enhanced toast message for shift changes
       if (previousShiftType && previousShiftType !== type) {
-        toast.success(`Tură ${getShiftTypeLabel(previousShiftType)} închisă. Tură ${getShiftTypeLabel(type)} începută la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+        toast.success(`Tură ${getShiftTypeLabel(previousShiftType)} închisă. Tură ${getShiftTypeLabel(type)} începută`);
       } else {
-        toast.success(`Pontaj început la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+        toast.success(`Pontaj început cu succes`);
       }
       
     } catch (error: any) {
@@ -397,7 +416,17 @@ const Mobile = () => {
       }
 
       triggerHaptic('success');
-      toast.success(`Pontaj terminat la ${nearestLocation.name} (${Math.round(nearestLocation.distance)}m)`);
+      
+      // Show confirmation card with details
+      setConfirmationCard({
+        show: true,
+        type: "clock-out",
+        timestamp: clockOutTime,
+        locationName: nearestLocation.name,
+        locationDistance: nearestLocation.distance,
+      });
+      
+      toast.success(`Pontaj terminat cu succes`);
       setActiveShift(null);
       setShiftSeconds(0);
       setActiveTimeEntry(null);
@@ -775,6 +804,18 @@ const Mobile = () => {
 
       {/* Update Notification */}
       <UpdateNotification />
+
+      {/* Clock In/Out Confirmation Card */}
+      {confirmationCard?.show && (
+        <ClockInConfirmationCard
+          type={confirmationCard.type}
+          timestamp={confirmationCard.timestamp}
+          locationName={confirmationCard.locationName}
+          locationDistance={confirmationCard.locationDistance}
+          shiftType={confirmationCard.shiftType}
+          onClose={() => setConfirmationCard(null)}
+        />
+      )}
     </div>
   );
 };
