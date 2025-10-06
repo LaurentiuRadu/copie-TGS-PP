@@ -17,15 +17,19 @@ interface ExportTimeEntry {
   'Notițe': string;
 }
 
-interface PayrollExportEntry {
-  'Nume': string;
+interface PayrollDailyExportEntry {
+  'Angajat': string;
+  'Ziua': string;
   'Ore Zi': string;
   'Ore Noapte': string;
-  'Ore Weekend': string;
+  'Ore Sâmbătă': string;
+  'Ore Duminică': string;
+  'Ore Sărbători': string;
   'Ore Pasager': string;
   'Ore Condus': string;
-  'Ore Concediu': string;
-  'Total Ore': string;
+  'Ore Utilaj': string;
+  'CO': string;
+  'CM': string;
 }
 
 interface DailyTimesheetForExport {
@@ -153,6 +157,15 @@ export const exportToPayrollCSV = (
     return `${year}-${month}-${day}`;
   };
 
+  // Helper function to format date as DD.MM.YYYY
+  const formatDateDD_MM_YYYY = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
   const startDateStr = formatDateForComparison(startDate);
   const endDateStr = formatDateForComparison(endDate);
 
@@ -172,120 +185,27 @@ export const exportToPayrollCSV = (
     throw new Error('Nu există date pentru intervalul selectat');
   }
 
-  // 2. Aggregate per employee (sum hours over interval)
-  const aggregatedMap = new Map<string, {
-    name: string;
-    oreZi: number;
-    oreNoapte: number;
-    oreWeekend: number;
-    orePasager: number;
-    oreCondus: number;
-    oreConcediu: number;
-  }>();
-  
-  filteredData.forEach(entry => {
-    const employeeName = entry.profiles?.full_name || entry.profiles?.username || 'Unknown';
-    
-    if (!aggregatedMap.has(employeeName)) {
-      aggregatedMap.set(employeeName, {
-        name: employeeName,
-        oreZi: 0,
-        oreNoapte: 0,
-        oreWeekend: 0,
-        orePasager: 0,
-        oreCondus: 0,
-        oreConcediu: 0
-      });
-    }
-    
-    const agg = aggregatedMap.get(employeeName)!;
-    
-    // Calculate aggregations based on rules:
-    // Ore Zi = hours_regular + hours_equipment
-    // Ore Weekend = hours_saturday + hours_sunday + hours_holiday
-    // Ore Concediu = hours_leave + hours_medical_leave
-    agg.oreZi += entry.hours_regular + entry.hours_equipment;
-    agg.oreNoapte += entry.hours_night;
-    agg.oreWeekend += entry.hours_saturday + entry.hours_sunday + entry.hours_holiday;
-    agg.orePasager += entry.hours_passenger;
-    agg.oreCondus += entry.hours_driving;
-    agg.oreConcediu += entry.hours_leave + entry.hours_medical_leave;
-  });
-  
-  // 3. Validate and warn (non-blocking)
-  const warnings: string[] = [];
-  filteredData.forEach(entry => {
-    const total = 
-      entry.hours_regular + entry.hours_night + entry.hours_saturday +
-      entry.hours_sunday + entry.hours_holiday + entry.hours_passenger +
-      entry.hours_driving + entry.hours_equipment + entry.hours_leave +
-      entry.hours_medical_leave;
-    
-    if (total > 24) {
-      warnings.push(`${entry.profiles?.full_name}: ${total}h > 24h pe ${entry.work_date}`);
-    }
-    if (total < 0) {
-      warnings.push(`${entry.profiles?.full_name}: ${total}h < 0 pe ${entry.work_date}`);
-    }
-  });
+  // 2. Export daily (one row per employee per day) - NO AGGREGATION!
+  const exportData: PayrollDailyExportEntry[] = filteredData.map(entry => ({
+    'Angajat': entry.profiles?.full_name || entry.profiles?.username || 'Unknown',
+    'Ziua': formatDateDD_MM_YYYY(entry.work_date),
+    'Ore Zi': formatRomanianNumber(entry.hours_regular),
+    'Ore Noapte': formatRomanianNumber(entry.hours_night),
+    'Ore Sâmbătă': formatRomanianNumber(entry.hours_saturday),
+    'Ore Duminică': formatRomanianNumber(entry.hours_sunday),
+    'Ore Sărbători': formatRomanianNumber(entry.hours_holiday),
+    'Ore Pasager': formatRomanianNumber(entry.hours_passenger),
+    'Ore Condus': formatRomanianNumber(entry.hours_driving),
+    'Ore Utilaj': formatRomanianNumber(entry.hours_equipment),
+    'CO': formatRomanianNumber(entry.hours_leave),
+    'CM': formatRomanianNumber(entry.hours_medical_leave),
+  }));
 
-  if (warnings.length > 0) {
-    console.warn('[Payroll Export] Avertismente:', warnings);
-  }
-
-  // 4. Format data for export with Romanian numbers
-  const exportData: PayrollExportEntry[] = Array.from(aggregatedMap.values()).map(row => {
-    const total = 
-      row.oreZi +
-      row.oreNoapte +
-      row.oreWeekend +
-      row.orePasager +
-      row.oreCondus +
-      row.oreConcediu;
-    
-    return {
-      'Nume': row.name,
-      'Ore Zi': formatRomanianNumber(row.oreZi),
-      'Ore Noapte': formatRomanianNumber(row.oreNoapte),
-      'Ore Weekend': formatRomanianNumber(row.oreWeekend),
-      'Ore Pasager': formatRomanianNumber(row.orePasager),
-      'Ore Condus': formatRomanianNumber(row.oreCondus),
-      'Ore Concediu': formatRomanianNumber(row.oreConcediu),
-      'Total Ore': formatRomanianNumber(total)
-    };
-  });
-
-  // 5. Generate CSV with Romanian separator
+  // 3. Generate CSV with Romanian separator (semicolon)
   const ws = XLSX.utils.json_to_sheet(exportData);
   const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
   
-  // 6. Add metadata header
-  const formatDate = (date: Date) => date.toLocaleDateString('ro-RO', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric' 
-  });
-  
-  const formatDateTime = (date: Date) => date.toLocaleString('ro-RO', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  
-  const now = new Date();
-  const header = `==== RAPORT PONTAJE TIMETRACK ====
-Perioada export: ${formatDate(startDate)} - ${formatDate(endDate)}
-Data export: ${formatDateTime(now)}
-Total angajați: ${aggregatedMap.size}
-
-`;
-  
-  const csvWithHeader = header + csv;
-  
-  // 7. Download file
-  // Helper function to format date as DD.MM.YYYY
+  // 4. Download file (NO metadata header!)
   const formatDateRO = (date: Date): string => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -293,12 +213,12 @@ Total angajați: ${aggregatedMap.size}
     return `${day}.${month}.${year}`;
   };
 
-  // Generate filename based on date range
   const isSameDay = startDateStr === endDateStr;
   const filename = isSameDay 
     ? `raport-${formatDateRO(startDate)}.csv`
     : `raport-${formatDateRO(startDate)}-${formatDateRO(endDate)}.csv`;
-  const blob = new Blob(['\ufeff' + csvWithHeader], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
+  
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;
