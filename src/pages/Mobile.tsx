@@ -30,7 +30,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from 'react-router-dom';
-import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useSafeArea } from "@/hooks/useSafeArea";
 import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
@@ -76,18 +75,6 @@ const Mobile = () => {
   
   // Monitor active time entry for notifications
   const { hasActiveEntry, activeEntry: monitoredEntry, elapsed: monitoredElapsed } = useActiveTimeEntry(user?.id);
-
-  useSwipeGesture({
-    onSwipeLeft: useCallback(() => {
-      setSelectedMonth(prev => addMonths(prev, 1));
-      triggerHaptic('light');
-    }, [triggerHaptic]),
-    onSwipeRight: useCallback(() => {
-      setSelectedMonth(prev => subMonths(prev, 1));
-      triggerHaptic('light');
-    }, [triggerHaptic]),
-    threshold: 75
-  });
 
   const requestLocationAccess = useCallback(async () => {
     try {
@@ -629,12 +616,7 @@ const Mobile = () => {
         {/* Monthly Calendar */}
         <Card className="shadow-custom-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-responsive-lg flex items-center justify-between">
-              <span>Calendar Lunar</span>
-              <Badge variant="outline" className="text-responsive-xs">
-                Swipe ← →
-              </Badge>
-            </CardTitle>
+            <CardTitle className="text-responsive-lg">Calendar Lunar</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 xs:space-y-4">
             <div className="touch-manipulation">
