@@ -28,11 +28,11 @@ export function ClockInConfirmationCard({
     // Trigger animation
     setTimeout(() => setIsVisible(true), 10);
 
-    // Auto-close after 4 seconds
+    // Auto-close after 5 seconds
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onClose, 300); // Wait for animation to complete
-    }, 4000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [onClose]);
