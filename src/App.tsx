@@ -25,14 +25,18 @@ import GDPRAdmin from "./pages/GDPRAdmin";
 import Timesheet from "./pages/Timesheet";
 import GDPRSettings from "./pages/GDPRSettings";
 import Settings from "./pages/Settings";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import { GDPRConsentAlert } from "./components/GDPRConsentAlert";
 
 const App = () => (
   <TooltipProvider>
-    <Toaster />
-    <Sonner />
-    <PWAInstallPrompt />
-    <AuthProvider>
-      <Routes>
+      <Toaster />
+      <Sonner />
+      <PWAInstallPrompt />
+      <AuthProvider>
+        <GDPRConsentAlert />
+        <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
               <Route
@@ -156,7 +160,12 @@ const App = () => (
                     <Settings />
                   </ProtectedRoute>
                 }
-              />
+          />
+          
+          {/* Public GDPR Pages */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
+          
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

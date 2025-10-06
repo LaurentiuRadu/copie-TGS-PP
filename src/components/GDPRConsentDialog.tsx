@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -11,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Shield, Loader2 } from "lucide-react";
+import { Shield, Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 interface GDPRConsentDialogProps {
@@ -44,9 +45,10 @@ const requiredConsents = [
 
 export function GDPRConsentDialog({ userId, onConsentsGiven }: GDPRConsentDialogProps) {
   const [consents, setConsents] = useState<Record<string, boolean>>({});
+  const [acceptedPolicy, setAcceptedPolicy] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const allConsentsGiven = requiredConsents.every(consent => consents[consent.type]);
+  const allConsentsGiven = requiredConsents.every(consent => consents[consent.type]) && acceptedPolicy;
 
   const handleSubmit = async () => {
     if (!allConsentsGiven) {
@@ -94,10 +96,21 @@ export function GDPRConsentDialog({ userId, onConsentsGiven }: GDPRConsentDialog
             <Shield className="h-6 w-6 text-primary" />
             <AlertDialogTitle className="text-2xl">Consimțăminte GDPR Obligatorii</AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="text-base">
-            Pentru a utiliza aplicația de pontaj, este necesar să accepți procesarea următoarelor 
-            date personale conform GDPR. Aceste consimțăminte sunt obligatorii pentru funcționarea 
-            aplicației.
+          <AlertDialogDescription className="text-base space-y-2">
+            <p>
+              Pentru a utiliza aplicația de pontaj, este necesar să accepți procesarea următoarelor 
+              date personale conform GDPR. Aceste consimțăminte sunt obligatorii pentru funcționarea 
+              aplicației.
+            </p>
+            <div className="flex items-center gap-2 text-sm">
+              <Link to="/privacy-policy" target="_blank" className="text-primary hover:underline flex items-center gap-1">
+                Politica de Confidențialitate <ExternalLink className="h-3 w-3" />
+              </Link>
+              <span>•</span>
+              <Link to="/terms" target="_blank" className="text-primary hover:underline flex items-center gap-1">
+                Termeni și Condiții <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -133,13 +146,36 @@ export function GDPRConsentDialog({ userId, onConsentsGiven }: GDPRConsentDialog
           ))}
         </div>
 
-        <div className="p-4 bg-muted/30 rounded-lg border text-sm">
-          <p className="font-medium mb-2">Notă:</p>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>Poți retrage consimțămintele oricând din setările contului</li>
-            <li>Retragerea consimțămintelor va afecta funcționalitatea aplicației</li>
-            <li>Datele tale vor fi procesate conform politicii de confidențialitate</li>
-          </ul>
+        <div className="space-y-3">
+          <div className="flex items-start space-x-3 p-4 border-2 border-primary/50 rounded-lg bg-primary/5">
+            <Checkbox
+              id="accept-policy"
+              checked={acceptedPolicy}
+              onCheckedChange={(checked) => setAcceptedPolicy(checked as boolean)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <Label
+                htmlFor="accept-policy"
+                className="text-sm font-semibold cursor-pointer leading-tight"
+              >
+                Am citit și accept Politica de Confidențialitate și Termenii și Condițiile *
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Acest acord este obligatoriu pentru a utiliza aplicația
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/30 rounded-lg border text-sm">
+            <p className="font-medium mb-2">Notă Importantă:</p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>Poți retrage consimțămintele oricând din Setări GDPR & Confidențialitate</li>
+              <li>Retragerea consimțămintelor va face imposibilă utilizarea aplicației de pontaj</li>
+              <li>Datele tale vor fi procesate exclusiv conform politicii de confidențialitate</li>
+              <li>Ai dreptul la acces, rectificare, ștergere și portabilitate date</li>
+            </ul>
+          </div>
         </div>
 
         <AlertDialogFooter>

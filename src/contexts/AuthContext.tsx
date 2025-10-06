@@ -3,6 +3,8 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { PasswordChangeDialog } from '@/components/PasswordChangeDialog';
+import { GDPRConsentDialog } from '@/components/GDPRConsentDialog';
+import { checkUserConsents } from '@/lib/gdprHelpers';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
+  const [needsGDPRConsent, setNeedsGDPRConsent] = useState(false);
   const navigate = useNavigate();
 
   const deriveRoleFromUser = (u: User): Exclude<UserRole, null> | null => {
@@ -117,6 +120,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   })
                   .catch((err: any) => console.error('Password tracking check error:', err));
 
+                // Check GDPR consents - only for employees, not admins
+                if (role === 'employee') {
+                  checkUserConsents(userId)
+                    .then((hasConsents) => {
+                      if (!hasConsents) {
+                        setNeedsGDPRConsent(true);
+                      }
+                    })
+                    .catch((err) => console.error('GDPR consent check error:', err));
+                }
+
                 // Only redirect on SIGNED_IN event, not on TOKEN_REFRESHED or other events
                 if (event === 'SIGNED_IN') {
                   // Check current path to avoid unnecessary redirects
@@ -189,6 +203,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (pwData?.must_change_password) {
               setNeedsPasswordChange(true);
             }
+
+            // Check GDPR consents - only for employees
+            if (role === 'employee') {
+              const hasConsents = await checkUserConsents(session.user.id);
+              if (!hasConsents) {
+                setNeedsGDPRConsent(true);
+              }
+            }
             
             // Only try to create role if none exists and we have a derived role
             if (!roleData && role) {
@@ -249,6 +271,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               window.location.reload();
             }}
           />
+          {user && needsGDPRConsent && (
+            <GDPRConsentDialog
+              userId={user.id}
+              onConsentsGiven={() => {
+                setNeedsGDPRConsent(false);
+                window.location.reload();
+              }}
+            />
+          )}
         </>
       )}
     </AuthContext.Provider>
