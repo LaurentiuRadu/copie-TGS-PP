@@ -26,6 +26,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [activeTab, setActiveTab] = useState<"employee" | "admin">("employee");
 
   // Employee form
   const [employeeUsername, setEmployeeUsername] = useState("");
@@ -205,7 +206,7 @@ const Auth = () => {
               <Clock className="h-10 w-10 text-primary-foreground animate-pulse-soft" />
             </div>
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+          <CardTitle className={`text-3xl font-bold ${activeTab === "admin" ? "bg-gradient-secondary" : "bg-gradient-primary"} bg-clip-text text-transparent`}>
             TimeTrack
           </CardTitle>
           <CardDescription className="text-base">
@@ -220,7 +221,7 @@ const Auth = () => {
             </Alert>
           )}
 
-          <Tabs defaultValue="employee" className="w-full">
+          <Tabs defaultValue="employee" className="w-full" onValueChange={(value) => setActiveTab(value as "employee" | "admin")}>
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted">
               <TabsTrigger 
                 value="employee" 
@@ -359,7 +360,7 @@ const Auth = () => {
                 setIsSignUp(!isSignUp);
                 setError(null);
               }}
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
+              className={`text-sm ${activeTab === "admin" ? "text-secondary hover:text-secondary/80" : "text-primary hover:text-primary/80"} transition-colors`}
             >
               {isSignUp ? "Am deja cont" : "Creează cont nou"}
             </Button>
