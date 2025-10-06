@@ -42,6 +42,7 @@ import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
 import { useTardinessCheck } from "@/hooks/useTardinessCheck";
 import { UpdateNotification } from "@/components/UpdateNotification";
 import { ClockInConfirmationCard } from "@/components/ClockInConfirmationCard";
+import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 
 type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
 
@@ -85,6 +86,7 @@ const Mobile = () => {
     longitude: number;
     shiftType?: string;
   } | null>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -534,6 +536,21 @@ const Mobile = () => {
   const todayWorkedMinutes = Math.max(0, todayTotalMinutes - BREAK_MINUTES);
   const todayHours = `${Math.floor(todayWorkedMinutes / 60)}h ${todayWorkedMinutes % 60}m`;
 
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setShowLogoutDialog(false);
+    toast.success("La revedere! 👋 Te așteptăm înapoi!", {
+      duration: 3000,
+    });
+    // Small delay to show the toast
+    setTimeout(() => {
+      signOut();
+    }, 500);
+  };
+
   const formattedTime = useMemo(() => formatTime(shiftSeconds), [shiftSeconds]);
 
   return (
@@ -574,10 +591,10 @@ const Mobile = () => {
             </Button>
           </div>
           <div className="p-4 border-t">
-            <Button
+            <Button 
               variant="outline" 
               className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-              onClick={signOut}
+              onClick={handleLogoutClick}
             >
               <LogOut className="h-4 w-4" />
               Deconectare
@@ -852,6 +869,13 @@ const Mobile = () => {
           onClose={() => setConfirmationCard(null)}
         />
       )}
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleLogoutConfirm}
+      />
     </div>
   );
 };

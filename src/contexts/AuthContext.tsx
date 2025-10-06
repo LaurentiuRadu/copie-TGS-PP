@@ -66,16 +66,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!document.hidden) {
         console.log('[AuthProvider] 👁️ App became visible, checking session...');
         try {
+          // Try to get session from Supabase first
           const { data: { session } } = await supabase.auth.getSession();
+          
           if (session) {
             console.log('[AuthProvider] ✅ Session still valid after visibility change');
             setSession(session);
             setUser(session.user);
           } else {
-            console.warn('[AuthProvider] ⚠️ No session found after visibility change');
-            setSession(null);
-            setUser(null);
-            setUserRole(null);
+            // If no session, try to restore from backup tokens (iOS)
+            console.log('[AuthProvider] 🔄 No session found, attempting restore from backup...');
+            const refreshToken = await iosStorage.getItem(TOKEN_KEY_REFRESH);
+            const accessToken = await iosStorage.getItem(TOKEN_KEY_ACCESS);
+            
+            if (refreshToken && accessToken) {
+              console.log('[AuthProvider] 🔓 Restoring session from backup tokens');
+              const { data, error } = await supabase.auth.setSession({
+                refresh_token: refreshToken,
+                access_token: accessToken,
+              });
+              
+              if (!error && data.session) {
+                console.log('[AuthProvider] ✅ Session restored successfully');
+                setSession(data.session);
+                setUser(data.session.user);
+              } else {
+                console.warn('[AuthProvider] ⚠️ Could not restore session:', error?.message);
+                // Only clear if tokens are truly invalid
+                if (error?.message?.includes('invalid') || error?.message?.includes('expired')) {
+                  await iosStorage.removeItem(TOKEN_KEY_ACCESS);
+                  await iosStorage.removeItem(TOKEN_KEY_REFRESH);
+                  setSession(null);
+                  setUser(null);
+                  setUserRole(null);
+                }
+              }
+            } else {
+              console.warn('[AuthProvider] ⚠️ No backup tokens available');
+              setSession(null);
+              setUser(null);
+              setUserRole(null);
+            }
           }
         } catch (error) {
           console.error('[AuthProvider] ❌ Error checking session on visibility change:', error);
@@ -84,6 +115,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // iOS PWA: Verificare suplimentară la focus (când utilizatorul revine în app)
+    const handleFocus = async () => {
+      console.log('[AuthProvider] 🎯 App focused, verifying session...');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          // Try backup restore
+          const refreshToken = await iosStorage.getItem(TOKEN_KEY_REFRESH);
+          if (refreshToken) {
+            console.log('[AuthProvider] 🔄 Attempting session restore on focus...');
+            const { data, error } = await supabase.auth.refreshSession({
+              refresh_token: refreshToken,
+            });
+            if (!error && data.session) {
+              console.log('[AuthProvider] ✅ Session restored on focus');
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[AuthProvider] ❌ Error on focus check:', error);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
 
     // Încercare de restaurare sesiune din backup (iOS Firefox PWA)
     (async () => {
@@ -362,12 +420,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
   const signOut = async () => {
     console.log('[AuthProvider] 🚪 Manual sign out triggered');
-    await supabase.auth.signOut();
+    
+    // Cleanup session data
+    try {
+      await supabase.auth.signOut();
+      await iosStorage.removeItem(TOKEN_KEY_ACCESS);
+      await iosStorage.removeItem(TOKEN_KEY_REFRESH);
+    } catch (error) {
+      console.error('[AuthProvider] Error during sign out:', error);
+    }
+    
     setUser(null);
     setSession(null);
     setUserRole(null);
