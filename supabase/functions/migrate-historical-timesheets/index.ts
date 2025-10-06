@@ -32,6 +32,7 @@ interface Shift {
 
 /**
  * Get the next critical time boundary (00:00, 06:00, 22:00)
+ * Used to segment work shifts into proper timesheet days (06:01 AM - 06:00 AM)
  */
 function getNextCriticalTime(currentTime: Date): Date {
   const next = new Date(currentTime);
@@ -58,7 +59,10 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 }
 
 /**
- * Determine the hours type for a time segment
+ * Determine the hours type for a time segment based on:
+ * - Day of week (weekday, Saturday, Sunday)
+ * - Time of day (06:00-22:00 = day, 22:00-06:00 = night)
+ * - Holidays
  */
 function determineHoursType(
   segmentStart: Date,
@@ -107,6 +111,7 @@ function determineHoursType(
 
 /**
  * Segment a shift into daily timesheets with proper hour classification
+ * Handles shifts that span multiple days and classifies hours correctly
  */
 function segmentShiftIntoTimesheets(
   shift: Shift,
@@ -168,7 +173,7 @@ function segmentShiftIntoTimesheets(
 }
 
 /**
- * Validate a timesheet entry
+ * Validate a timesheet entry for logical consistency
  */
 function validateTimesheet(timesheet: TimesheetEntry): string[] {
   const errors: string[] = [];
@@ -224,6 +229,18 @@ function validateTimesheet(timesheet: TimesheetEntry): string[] {
 
 // ============ MAIN MIGRATION LOGIC ============
 
+/**
+ * Edge Function: migrate-historical-timesheets
+ * 
+ * Purpose: Process time_entries and populate daily_timesheets for payroll export
+ * 
+ * Usage:
+ * 1. Full migration (initial run): POST with empty body or { "process_last_24h": false }
+ * 2. Daily cron job: POST with { "process_last_24h": true }
+ * 
+ * Daily cron runs at 06:15 AM to ensure timesheets are ready by 08:00 AM for payroll.
+ * Processes entries from the "timesheet day" (06:01 AM previous day - 06:00 AM current day)
+ */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -234,7 +251,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const processLast24h = body.process_last_24h || false;
     
-    console.log(`[Migration] Starting timesheet migration (last 24h: ${processLast24h})...`);
+    console.log(`[Migration] Starting timesheet migration (last 24h mode: ${processLast24h})...`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -253,16 +270,18 @@ Deno.serve(async (req) => {
     const holidayDates = new Set(holidays?.map((h: any) => h.date) || []);
     console.log(`[Migration] Loaded ${holidayDates.size} holidays`);
 
-    // 2. Fetch complete time entries (filtered by last 24h if needed)
+    // 2. Fetch complete time entries with optional date filtering
     console.log('[Migration] Fetching complete time entries...');
+    
+    // Build query with optional date filter for daily cron job
     let query = supabase
       .from('time_entries')
       .select('id, user_id, clock_in_time, clock_out_time, notes')
       .not('clock_out_time', 'is', null)
       .order('clock_in_time', { ascending: true });
     
-    // If processing last 24h, filter entries clocked out in last 30h (24h + 6h buffer)
-    // This ensures we capture shifts spanning the "timesheet day" boundary (06:00 AM)
+    // For daily cron: process entries from last 30 hours (24h + 6h buffer for timesheet day logic)
+    // Timesheet day = 06:01 AM - 06:00 AM next day
     if (processLast24h) {
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() - 30);
