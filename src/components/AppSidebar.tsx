@@ -5,6 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { forceRefreshApp, isIOSPWA } from "@/lib/iosPwaUpdate";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
 import {
   Sidebar,
   SidebarContent,
@@ -43,10 +45,13 @@ const employeeMenuItems = [
 
 export function AppSidebar() {
   const { open } = useSidebar();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const APP_VERSION = "0610.2025.00001";
+  
+  // Monitor pontaj activ pentru badge notification
+  const { hasActiveEntry } = useActiveTimeEntry(user?.id);
 
   useEffect(() => {
     // Setează meniurile bazate pe rol
@@ -99,24 +104,45 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className={({ isActive }) =>
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                          : "!text-white hover:bg-sidebar-accent/50"
-                      }
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {menuItems.map((item) => {
+                const isPontajMenu = item.url === '/mobile';
+                const showBadge = isPontajMenu && hasActiveEntry;
+                
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className={({ isActive }) =>
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                            : "!text-white hover:bg-sidebar-accent/50"
+                        }
+                      >
+                        <div className="relative">
+                          <item.icon className="h-4 w-4" />
+                          {showBadge && (
+                            <Badge 
+                              className="absolute -top-1 -right-1 h-2 w-2 p-0 bg-red-500 animate-pulse"
+                              variant="destructive"
+                            />
+                          )}
+                        </div>
+                        <span>{item.title}</span>
+                        {showBadge && open && (
+                          <Badge 
+                            variant="destructive" 
+                            className="ml-auto animate-pulse text-xs"
+                          >
+                            Activ
+                          </Badge>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

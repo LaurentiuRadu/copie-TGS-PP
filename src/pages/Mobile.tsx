@@ -39,6 +39,8 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
+import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
+import { ActiveShiftAlert } from "@/components/ActiveShiftAlert";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -73,6 +75,9 @@ const Mobile = () => {
   const { triggerHaptic } = useHapticFeedback();
   useAutoDarkMode(); // Auto switch theme based on time of day
   useRealtimeTimeEntries(true); // Real-time updates pentru pontaje
+  
+  // Monitor active time entry for notifications
+  const { hasActiveEntry, activeEntry: monitoredEntry, elapsed: monitoredElapsed } = useActiveTimeEntry(user?.id);
 
   useSwipeGesture({
     onSwipeLeft: useCallback(() => {
@@ -506,6 +511,15 @@ const Mobile = () => {
       </header>
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
+        {/* Active Shift Alert - Persistent notification */}
+        {activeTimeEntry && (
+          <ActiveShiftAlert 
+            clockInTime={activeTimeEntry.clock_in_time}
+            shiftType={activeShift || 'normal'}
+            className="animate-fade-in"
+          />
+        )}
+        
         {!locationEnabled && locationError && (
           <Card className="border-destructive bg-destructive/10 animate-fade-in">
             <CardContent className="p-3 xs:p-4">
