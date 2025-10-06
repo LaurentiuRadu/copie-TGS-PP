@@ -56,6 +56,12 @@ const Timesheet = () => {
         .order('full_name', { ascending: true });
 
       if (error) throw error;
+      
+      console.log('[Timesheet Debug] Loaded users:', {
+        count: data.length,
+        users: data.map(u => ({ id: u.id, name: u.full_name }))
+      });
+      
       return data;
     },
   });
@@ -166,9 +172,18 @@ const Timesheet = () => {
       ? users 
       : users.filter(u => u.id === selectedUser);
 
-    console.log('[Timesheet Debug] Generating data for users:', relevantUsers.length);
+    console.log('[Timesheet Debug] Generating data for users:', {
+      totalUsers: relevantUsers.length,
+      usersWithDataOnOct5: timesheets
+        .filter(t => t.work_date === '2025-10-05')
+        .map(t => ({ 
+          id: t.employee_id, 
+          name: (t.profiles as any)?.full_name,
+          inUsersList: relevantUsers.some(u => u.id === t.employee_id)
+        }))
+    });
 
-    return relevantUsers.map(user => {
+    const result = relevantUsers.map(user => {
       const [monday, tuesday, wednesday, thursday, friday, saturday, sunday] = weekDays.map(day =>
         calculateDayHours(user.id, day)
       );
@@ -196,6 +211,16 @@ const Timesheet = () => {
         total,
       };
     });
+    
+    // Filter to only show users with hours in this week
+    const filteredResult = result.filter(entry => entry.total !== '-');
+    console.log('[Timesheet Debug] After filtering:', {
+      beforeFilter: result.length,
+      afterFilter: filteredResult.length,
+      filteredOut: result.length - filteredResult.length
+    });
+    
+    return filteredResult;
   };
 
   const timesheetData = generateTimesheetData();
