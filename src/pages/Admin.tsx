@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Download, Filter, Plus, LogOut, TrendingUp, Clock, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminSearchCommand } from "@/components/AdminSearchCommand";
+import { MigrationTestPanel } from "@/components/MigrationTestPanel";
 
 const Admin = () => {
   const { signOut } = useAuth();
@@ -37,6 +38,9 @@ const Admin = () => {
           </header>
 
           <main className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Migration Test Panel */}
+            <MigrationTestPanel />
+
             {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-primary/20">
