@@ -15,6 +15,8 @@ import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { SimpleDateRangePicker } from '@/components/ui/simple-date-range-picker';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 
@@ -492,14 +494,30 @@ export default function WeeklySchedules() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <Label>Săptămâna (Nr. {weekNumber})</Label>
-              <Input
-                type="date"
-                value={selectedWeek}
-                onChange={(e) => {
-                  setSelectedWeek(e.target.value);
-                  setFormData(prev => ({ ...prev, week_start_date: e.target.value }));
-                }}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {selectedWeek ? format(new Date(selectedWeek), "dd MMM yyyy", { locale: ro }) : "Selectează săptămâna"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <SimpleDateRangePicker
+                    selected={{ 
+                      from: new Date(selectedWeek), 
+                      to: addDays(new Date(selectedWeek), 6) 
+                    }}
+                    onSelect={(range) => {
+                      if (range?.from) {
+                        const weekStart = format(startOfWeek(range.from, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                        setSelectedWeek(weekStart);
+                        setFormData(prev => ({ ...prev, week_start_date: weekStart }));
+                      }
+                    }}
+                    disabled={(date) => date > new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex-1 min-w-[200px]">
               <Label>Echipa</Label>
