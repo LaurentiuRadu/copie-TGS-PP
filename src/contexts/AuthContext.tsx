@@ -46,6 +46,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     console.log('[AuthProvider] 🔧 Mounting auth provider');
+    
+    // Listener pentru când aplicația devine vizibilă din nou (important pentru iOS)
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('[AuthProvider] 👁️ App became visible, checking session...');
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log('[AuthProvider] ✅ Session still valid after visibility change');
+            setSession(session);
+            setUser(session.user);
+          } else {
+            console.warn('[AuthProvider] ⚠️ No session found after visibility change');
+            setSession(null);
+            setUser(null);
+            setUserRole(null);
+          }
+        } catch (error) {
+          console.error('[AuthProvider] ❌ Error checking session on visibility change:', error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -240,7 +265,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const signOut = async () => {

@@ -31,9 +31,23 @@ export const useActiveTimeEntry = (userId: string | undefined) => {
       return data as ActiveTimeEntry | null;
     },
     enabled: !!userId,
-    refetchInterval: 5 * 60 * 1000, // Verifică la fiecare 5 minute
+    refetchInterval: 30 * 1000, // Verifică la fiecare 30 secunde pentru iOS
     refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
+
+  // Listener pentru când aplicația devine vizibilă din nou (crucial pentru iOS)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && userId) {
+        console.log('[useActiveTimeEntry] App became visible, refetching active entry...');
+        refetch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [userId, refetch]);
 
   // Calcul elapsed time
   const getElapsedTime = () => {
