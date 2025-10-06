@@ -355,7 +355,7 @@ const Auth = () => {
                 setIsSignUp(!isSignUp);
                 setError(null);
               }}
-              className={`text-sm ${activeTab === "admin" ? "text-secondary hover:text-secondary/80" : "text-primary hover:text-primary/80"} transition-colors`}
+              className={`text-sm ${activeTab === "admin" ? "text-white hover:text-white/80" : "text-primary hover:text-primary/80"} transition-colors`}
             >
               {isSignUp ? "Am deja cont" : "Creează cont nou"}
             </Button>
