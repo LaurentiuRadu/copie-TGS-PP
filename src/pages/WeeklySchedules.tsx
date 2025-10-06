@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SimpleDateRangePicker } from '@/components/ui/simple-date-range-picker';
+import { AdminLayout } from '@/components/AdminLayout';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 
@@ -481,8 +482,9 @@ export default function WeeklySchedules() {
   }, [schedules, employees]);
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card>
+    <AdminLayout title="Programare Săptămânală">
+      <div className="container mx-auto p-6">
+        <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-6 w-6" />
@@ -1063,6 +1065,7 @@ export default function WeeklySchedules() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
