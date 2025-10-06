@@ -166,7 +166,7 @@ function segmentShiftIntoTimesheets(
     }
     
     // Adaugă orele la tipul corect
-    existingTimesheet[hoursType] += hoursInSegment;
+    (existingTimesheet as any)[hoursType] += hoursInSegment;
     
     // Avansează la următorul segment
     currentSegmentStart = new Date(currentSegmentEnd);

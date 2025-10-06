@@ -3,6 +3,9 @@ project_id = "hbwkufaksipsqipqdqcv"
 [functions.calculate-time-segments]
 verify_jwt = true
 
+[functions.migrate-historical-timesheets]
+verify_jwt = true
+
 [functions.list-users]
 verify_jwt = true
 
