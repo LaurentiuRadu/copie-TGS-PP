@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays, Construction, Camera } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addMonths, subMonths } from "date-fns";
 import { ro } from "date-fns/locale";
@@ -18,7 +18,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-  SheetClose,
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -40,8 +39,6 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
-import { LocationPermissionsGuide } from "@/components/LocationPermissionsGuide";
-import { MobileHeader } from "@/components/MobileHeader";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -52,7 +49,13 @@ interface DayData {
   pasagerHours: number;
 }
 
-// Removed mock data - use real data from DB
+const mockMonthData: DayData[] = [
+  { date: new Date(2025, 0, 2), normalHours: 8, condusHours: 0, pasagerHours: 0 },
+  { date: new Date(2025, 0, 3), normalHours: 0, condusHours: 7, pasagerHours: 0 },
+  { date: new Date(2025, 0, 6), normalHours: 0, condusHours: 0, pasagerHours: 8 },
+  { date: new Date(2025, 0, 7), normalHours: 8, condusHours: 0, pasagerHours: 0 },
+  { date: new Date(2025, 0, 8), normalHours: 0, condusHours: 6, pasagerHours: 0 },
+];
 
 const Mobile = () => {
   const { user, signOut, loading } = useAuth();
@@ -65,8 +68,6 @@ const Mobile = () => {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; newType: ShiftType }>({ open: false, newType: null });
-  const [equipmentDialog, setEquipmentDialog] = useState(false);
-  const [equipmentPhoto, setEquipmentPhoto] = useState<string | null>(null);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -94,12 +95,12 @@ const Mobile = () => {
     } catch (e: any) {
       setLocationEnabled(false);
       const errorMessage = e.code === 1 
-        ? "🚫 Accesul la locație refuzat.\n\n📱 Android: Setări → Aplicații → Chrome → Permisiuni → Locație → Permite\n📱 iPhone: Settings → Privacy → Location Services → Safari → While Using" 
+        ? "Accesul la locație a fost refuzat. Activează permisiunile GPS." 
         : e.code === 2
-        ? "📍 GPS-ul nu funcționează.\n\nActivează GPS-ul din setări și încearcă din nou."
+        ? "Nu s-a putut determina locația. Verifică conexiunea GPS."
         : e.code === 3
-        ? "⏱️ Timeout la GPS.\n\nVerifică că ești într-o zonă cu semnal bun și încearcă din nou."
-        : "❌ Locație indisponibilă.\n\nActivează GPS-ul și permite accesul la locație.";
+        ? "Timeout la determinarea locației. Încearcă din nou."
+        : "Locație indisponibilă";
       setLocationError(errorMessage);
       triggerHaptic('error');
     }
@@ -157,38 +158,15 @@ const Mobile = () => {
     checkActiveShift();
   }, [user?.id, loading]);
 
-  // Cronometru optimizat - se oprește când pagina nu e vizibilă
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    let isPageVisible = !document.hidden;
-
-    const handleVisibilityChange = () => {
-      isPageVisible = !document.hidden;
-      
-      // Când pagina devine vizibilă din nou, recalculează timpul
-      if (isPageVisible && activeShift && activeTimeEntry) {
-        const clockInTime = new Date(activeTimeEntry.clock_in_time).getTime();
-        const elapsedSeconds = Math.floor((Date.now() - clockInTime) / 1000);
-        setShiftSeconds(elapsedSeconds);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     if (activeShift) {
       interval = setInterval(() => {
-        // Update doar când pagina e vizibilă
-        if (isPageVisible) {
-          setShiftSeconds((prev) => prev + 1);
-        }
+        setShiftSeconds((prev) => prev + 1);
       }, 1000);
     }
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [activeShift, activeTimeEntry]);
+    return () => clearInterval(interval);
+  }, [activeShift]);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -201,9 +179,7 @@ const Mobile = () => {
     if (isProcessing) return;
     
     if (!locationEnabled) {
-      toast.error("📍 GPS-ul nu este activ!\n\nActivează GPS-ul din setări telefon și permite accesul la locație.", {
-        duration: 5000,
-      });
+      toast.error("Locația nu este activată");
       triggerHaptic('error');
       return;
     }
@@ -229,26 +205,12 @@ const Mobile = () => {
         .is('clock_out_time', null);
 
       if (existingEntries && existingEntries.length > 0) {
-        // Close all existing active shifts and calculate segments
+        // Close all existing active shifts
         for (const entry of existingEntries) {
-          const clockOutTime = new Date().toISOString();
           await supabase
             .from('time_entries')
-            .update({ clock_out_time: clockOutTime })
+            .update({ clock_out_time: new Date().toISOString() })
             .eq('id', entry.id);
-          
-          // Calculate segments for the closed entry
-          try {
-            await supabase.functions.invoke('calculate-time-segments', {
-              body: {
-                time_entry_id: entry.id,
-                clock_in_time: entry.clock_in_time,
-                clock_out_time: clockOutTime
-              }
-            });
-          } catch (segmentError) {
-            console.error('Failed to calculate segments for auto-closed entry:', segmentError);
-          }
         }
       }
       const position = await getCurrentPosition({
@@ -278,9 +240,7 @@ const Mobile = () => {
       const nearestLocation = findNearestLocation(currentCoords, locations);
 
       if (!nearestLocation) {
-        toast.error("📍 Nu ești în apropierea unei locații de lucru.\n\nDistanța maximă permisă poate fi depășită. Verifică că ești la locul de muncă corect.", {
-          duration: 6000,
-        });
+        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
         triggerHaptic('error');
         return;
       }
@@ -340,102 +300,6 @@ const Mobile = () => {
     triggerHaptic('light');
   }, [triggerHaptic]);
 
-  // Users allowed to use equipment button
-  const EQUIPMENT_USERS = ['ababeiciprian', 'costachemarius', 'costacheflorin', 'rusugheorghita'];
-  const canUseEquipment = user?.user_metadata?.username && 
-    EQUIPMENT_USERS.includes(user.user_metadata.username.toLowerCase());
-  
-  // Equipment access check
-
-  const handleEquipmentStart = useCallback(async () => {
-    if (!activeTimeEntry) {
-      toast.error("Nu există pontaj activ pentru a marca condus utilaj");
-      triggerHaptic('error');
-      return;
-    }
-
-    if (!equipmentPhoto) {
-      toast.error("Poza cu utilajul este obligatorie");
-      triggerHaptic('error');
-      return;
-    }
-
-    setEquipmentDialog(false);
-    triggerHaptic('success');
-
-    try {
-      let photoUrl = null;
-
-      // Upload photo if present
-      if (equipmentPhoto) {
-        try {
-          const base64Data = equipmentPhoto.split(',')[1];
-          const byteCharacters = atob(base64Data);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-          const fileName = `equipment_${activeTimeEntry.id}_${Date.now()}.jpg`;
-          const filePath = `${user?.id}/${fileName}`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('profile-photos')
-            .upload(filePath, blob);
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('profile-photos')
-            .getPublicUrl(filePath);
-
-          photoUrl = publicUrl;
-        } catch (uploadErr) {
-          toast.error("Eroare la încărcarea pozei");
-        }
-      }
-
-      // Update time entry with equipment marker
-      const currentNotes = activeTimeEntry.notes || '';
-      const photoNote = photoUrl ? ` [Poză: ${photoUrl}]` : '';
-      const updatedNotes = currentNotes.includes('Condus Utilaj') 
-        ? currentNotes 
-        : `${currentNotes} | Condus Utilaj${photoNote}`.trim();
-
-      const { data: updateData, error: updateError } = await supabase
-        .from('time_entries')
-        .update({ 
-          notes: updatedNotes,
-        })
-        .eq('id', activeTimeEntry.id)
-        .select();
-
-      if (updateError) throw updateError;
-
-      // Update local state
-      setActiveTimeEntry({ ...activeTimeEntry, notes: updatedNotes });
-      setEquipmentPhoto(null);
-      
-      toast.success("Condus Utilaj marcat cu succes!");
-    } catch (error: any) {
-      toast.error("Eroare la marcarea utilajului");
-      triggerHaptic('error');
-    }
-  }, [activeTimeEntry, equipmentPhoto, user, triggerHaptic]);
-
-  const handleEquipmentPhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setEquipmentPhoto(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  }, []);
-
   const handleShiftEnd = useCallback(async () => {
     if (isProcessing) return;
     
@@ -446,9 +310,7 @@ const Mobile = () => {
     }
 
     if (!locationEnabled) {
-      toast.error("📍 GPS-ul nu este activ!\n\nActivează GPS-ul pentru a termina pontajul.", {
-        duration: 5000,
-      });
+      toast.error("Locația nu este activată");
       triggerHaptic('error');
       return;
     }
@@ -484,9 +346,7 @@ const Mobile = () => {
       const nearestLocation = findNearestLocation(currentCoords, locations);
 
       if (!nearestLocation) {
-        toast.error("📍 Nu ești în apropierea unei locații de lucru.\n\nAsigură-te că ești la locația de lucru înainte de a termina pontajul.", {
-          duration: 6000,
-        });
+        toast.error("Nu te afli în apropierea niciunei locații de lucru permise");
         triggerHaptic('error');
         return;
       }
@@ -542,81 +402,168 @@ const Mobile = () => {
     }
   };
 
-  // Removed unused mock data functions
+  const getDayColor = (date: Date) => {
+    const dayData = mockMonthData.find(
+      (d) => format(d.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
+    );
+    
+    if (!dayData) return "";
+    if (dayData.condusHours > 0) return "bg-blue-500/20 hover:bg-blue-500/30";
+    if (dayData.pasagerHours > 0) return "bg-green-500/20 hover:bg-green-500/30";
+    if (dayData.normalHours > 0) return "bg-purple-500/20 hover:bg-purple-500/30";
+    return "";
+  };
+
+  const BREAK_MINUTES = 30;
+  const todayTotalMinutes = 392;
+  const todayWorkedMinutes = Math.max(0, todayTotalMinutes - BREAK_MINUTES);
+  const todayHours = `${Math.floor(todayWorkedMinutes / 60)}h ${todayWorkedMinutes % 60}m`;
 
   const formattedTime = useMemo(() => formatTime(shiftSeconds), [shiftSeconds]);
 
   return (
-    <div className="min-h-screen bg-mesh pb-safe-area-bottom">
-      <MobileHeader safeAreaTop={safeArea.top} />
+    <div className="min-h-screen bg-background pb-safe-area-bottom">
+      <header 
+        className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border"
+        style={{ paddingTop: `${safeArea.top}px` }}
+      >
+        <div className="flex items-center justify-between p-3 xs:p-4 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
+              title="Înapoi"
+            >
+              <ArrowLeft className="h-6 w-6 text-primary" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(1)}
+              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
+              title="Înainte"
+            >
+              <ArrowRight className="h-6 w-6 text-primary" />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
+            <div className="flex h-8 w-8 xs:h-10 xs:w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
+              <Clock className="h-4 w-4 xs:h-6 xs:w-6 text-primary-foreground" />
+            </div>
+            <div className="min-w-0 hidden xs:block">
+              <h1 className="text-base xs:text-lg font-semibold text-foreground truncate">TimeTrack</h1>
+              <p className="text-xs xs:text-sm text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
+            </div>
+          </div>
+          
+          <RomaniaTimeClock />
+          
+          <ScheduleNotificationBell />
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="touch-target no-select flex-shrink-0">
+                <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+              <SheetHeader>
+                <SheetTitle>Meniu</SheetTitle>
+                <SheetDescription>Opțiuni disponibile</SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 space-y-4">
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <Clock className="h-4 w-4" />
+                  Istoric Timp
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Task-uri
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Proiecte
+                </Button>
+                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/vacations')}>
+                  <CalendarDays className="h-4 w-4" />
+                  Concedii
+                </Button>
+                <Button
+                  variant="outline" 
+                  className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+                  onClick={signOut}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Deconectare
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </header>
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
         {!locationEnabled && locationError && (
-          <Card className="glass-card border-destructive/30 glow-primary animate-slide-up-fade">
+          <Card className="border-destructive bg-destructive/10 animate-fade-in">
             <CardContent className="p-3 xs:p-4">
               <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-destructive">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 animate-glow-pulse" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-responsive-xs font-semibold">{locationError}</span>
+                  <span className="text-responsive-xs font-medium">{locationError}</span>
                 </div>
                 <Button 
-                  variant="glass" 
+                  variant="outline" 
                   size="sm" 
                   onClick={requestLocationAccess} 
-                  className="touch-target w-full xs:w-auto hover:scale-105"
+                  className="touch-target w-full xs:w-auto"
                   disabled={isProcessing}
                 >
                   {isProcessing ? "Se verifică..." : "Reîncearcă"}
                 </Button>
-                <LocationPermissionsGuide 
-                  trigger={
-                    <Button variant="outline" size="sm" className="touch-target">
-                      Ghid Setări
-                    </Button>
-                  }
-                />
               </div>
             </CardContent>
           </Card>
         )}
 
-        <div className="space-y-2 xs:space-y-3 animate-slide-up-fade mb-3">
-          {activeShift && (
-            <>
-              <div className="flex items-center gap-2 text-primary">
-                <Clock className="h-5 w-5 animate-spin" />
-                <h3 className="text-responsive-lg font-bold">Tură Activă</h3>
-              </div>
-              
-              <div className="font-black tracking-wider tabular-nums text-responsive-2xl bg-gradient-primary-action bg-clip-text text-transparent">
-                {formattedTime}
-              </div>
-              
-              <div className="flex items-center gap-2 text-responsive-sm font-semibold text-primary">
-                {activeShift === "condus" && <Car className="h-5 w-5 animate-float" />}
-                {activeShift === "pasager" && <Users className="h-5 w-5 animate-float" />}
-                {activeShift === "normal" && <Briefcase className="h-5 w-5 animate-float" />}
-                <span>
-                  Tip: {getShiftTypeLabel(activeShift)}
-                  {activeTimeEntry?.notes?.includes('Condus Utilaj') && (
-                    <span className="ml-1 text-warning">+ Utilaj</span>
-                  )}
+        <Card className={`shadow-custom-lg transition-all duration-300 animate-fade-in ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
+          <CardHeader className="pb-2 xs:pb-3">
+            <CardTitle className={`text-responsive-lg ${activeShift ? "text-white" : "text-foreground"} flex items-center justify-between gap-2`}>
+              <span>{activeShift ? "Tură Activă" : "Nicio tură activă"}</span>
+              {!activeShift && (
+                <span className="text-base text-muted-foreground font-normal truncate">
+                  {user?.user_metadata?.full_name || user?.email}
                 </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className={activeShift ? "space-y-2 xs:space-y-3" : "py-3"}>
+            <div className={`font-bold tracking-wider tabular-nums ${activeShift ? "text-responsive-2xl text-white animate-pulse-soft" : "text-xl text-muted-foreground"}`}>
+              {formattedTime}
+            </div>
+            {activeShift && (
+              <div className={`flex items-center gap-2 text-responsive-sm ${activeShift ? "text-white/90" : "text-muted-foreground"}`}>
+                {activeShift === "condus" && <Car className="h-4 w-4" />}
+                {activeShift === "pasager" && <Users className="h-4 w-4" />}
+                {activeShift === "normal" && <Briefcase className="h-4 w-4" />}
+                <span>Tip: {getShiftTypeLabel(activeShift)}</span>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <Card className="glass-card elevated-card border-primary/10 animate-slide-up-fade" style={{ animationDelay: '0.1s' }}>
+        <Card className="shadow-custom-lg animate-fade-in">
           <CardContent className="p-4 xs:p-6">
             <div className="grid grid-cols-1 gap-2 xs:gap-3">
               <Button
                 size="lg"
                 onClick={() => handleShiftStart("condus")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-info to-primary hover:from-primary hover:to-info text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "condus" ? "ring-4 ring-info/50 ring-offset-2" : ""}`}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "ring-4 ring-blue-300 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -625,7 +572,7 @@ const Mobile = () => {
                   </>
                 ) : (
                   <>
-                    <Car className="h-6 w-6 xs:h-7 xs:w-7" />
+                    <Car className="h-5 w-5 xs:h-6 xs:w-6" />
                     INTRARE CONDUS
                   </>
                 )}
@@ -634,7 +581,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("pasager")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "pasager" ? "animate-glow-pulse ring-4 ring-success/50 ring-offset-2" : ""}`}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "ring-4 ring-green-300 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -643,7 +590,7 @@ const Mobile = () => {
                   </>
                 ) : (
                   <>
-                    <Users className="h-6 w-6 xs:h-7 xs:w-7" />
+                    <Users className="h-5 w-5 xs:h-6 xs:w-6" />
                     INTRARE PASAGER
                   </>
                 )}
@@ -652,7 +599,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("normal")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-accent-action hover:brightness-110 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow ${activeShift === "normal" ? "animate-glow-pulse ring-4 ring-accent/50 ring-offset-2" : ""}`}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "ring-4 ring-purple-300 ring-offset-2" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -661,30 +608,19 @@ const Mobile = () => {
                   </>
                 ) : (
                   <>
-                    <Briefcase className="h-6 w-6 xs:h-7 xs:w-7" />
+                    <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
                     INTRARE NORMAL
                   </>
                 )}
               </Button>
-              
-              {activeShift && canUseEquipment && (
-                <Button
-                  size="lg"
-                  onClick={() => setEquipmentDialog(true)}
-                  disabled={isProcessing}
-                  className="touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-warning to-warning/80 hover:from-warning/90 hover:to-warning text-white flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-glow animate-glow-pulse"
-                >
-                  <Construction className="h-6 w-6 xs:h-7 xs:w-7" />
-                  CONDUS UTILAJ
-                </Button>
-              )}
               
               {activeShift && (
                 <Button
                   size="lg"
                   onClick={handleShiftEnd}
                   disabled={isProcessing}
-                  className="touch-target-lg no-select h-16 xs:h-18 text-responsive-sm font-bold bg-gradient-to-r from-destructive to-destructive/80 hover:from-destructive/90 hover:to-destructive text-white flex items-center justify-center gap-2 xs:gap-3 transition-all duration-300 hover:scale-105 active:scale-95 mt-2 shadow-glow"
+                  variant="destructive"
+                  className="touch-target no-select h-14 xs:h-16 text-responsive-sm flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 mt-2"
                 >
                   {isProcessing ? (
                     <>
@@ -693,7 +629,7 @@ const Mobile = () => {
                     </>
                   ) : (
                     <>
-                      <Clock className="h-6 w-6 xs:h-7 xs:w-7" />
+                      <Clock className="h-5 w-5 xs:h-6 xs:w-6" />
                       IEȘIRE
                     </>
                   )}
@@ -707,36 +643,71 @@ const Mobile = () => {
         <EmployeeScheduleView />
 
         {/* Monthly Calendar */}
-        <Card className="glass-card elevated-card border-primary/10 animate-slide-up-fade" style={{ animationDelay: '0.2s' }}>
+        <Card className="shadow-custom-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-responsive-lg font-bold flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Calendar Lunar
-              </span>
+            <CardTitle className="text-responsive-lg flex items-center justify-between">
+              <span>Calendar Lunar</span>
+              <Badge variant="outline" className="text-responsive-xs">
+                Swipe ← →
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 xs:space-y-4">
-            <Input
-              type="month"
-              value={format(selectedMonth, 'yyyy-MM')}
-              onChange={(e) => setSelectedMonth(new Date(e.target.value + '-01'))}
-              className="w-full"
-            />
+            <div className="touch-manipulation">
+              <Calendar
+                mode="single"
+                selected={selectedMonth}
+                onSelect={(date) => date && setSelectedMonth(date)}
+                locale={ro}
+                className="rounded-md border w-full"
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center",
+                  caption_label: "text-responsive-sm font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 touch-target",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex",
+                  head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                  row: "flex w-full mt-2",
+                  cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 touch-target",
+                  day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md touch-target",
+                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  day_today: "bg-accent text-accent-foreground",
+                  day_outside: "text-muted-foreground opacity-50",
+                  day_disabled: "text-muted-foreground opacity-50",
+                  day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                  day_hidden: "invisible",
+                }}
+                modifiers={{
+                  condus: mockMonthData.filter(d => d.condusHours > 0).map(d => d.date),
+                  pasager: mockMonthData.filter(d => d.pasagerHours > 0).map(d => d.date),
+                  normal: mockMonthData.filter(d => d.normalHours > 0).map(d => d.date),
+                }}
+                modifiersClassNames={{
+                  condus: "bg-blue-500/20 hover:bg-blue-500/30 text-blue-900 dark:text-blue-100 font-semibold",
+                  pasager: "bg-green-500/20 hover:bg-green-500/30 text-green-900 dark:text-green-100 font-semibold",
+                  normal: "bg-purple-500/20 hover:bg-purple-500/30 text-purple-900 dark:text-purple-100 font-semibold",
+                }}
+              />
+            </div>
             
             {/* Legend */}
-            <div className="flex flex-wrap gap-3 xs:gap-4 text-responsive-xs font-semibold">
-              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border-accent/20">
-                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded-full bg-gradient-accent-action shadow-sm"></div>
-                <span className="text-foreground">Ore Normale</span>
+            <div className="flex flex-wrap gap-3 xs:gap-4 text-responsive-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded bg-purple-500/30"></div>
+                <span className="text-muted-foreground">Ore Normale</span>
               </div>
-              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border-info/20">
-                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded-full bg-gradient-to-r from-info to-primary shadow-sm"></div>
-                <span className="text-foreground">Ore Condus</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded bg-blue-500/30"></div>
+                <span className="text-muted-foreground">Ore Condus</span>
               </div>
-              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border-success/20">
-                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded-full bg-success shadow-sm"></div>
-                <span className="text-foreground">Ore Pasager</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 xs:w-4 xs:h-4 rounded bg-green-500/30"></div>
+                <span className="text-muted-foreground">Ore Pasager</span>
               </div>
             </div>
           </CardContent>
@@ -745,85 +716,17 @@ const Mobile = () => {
 
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && handleCancelShiftChange()}>
-        <AlertDialogContent className="glass-card border-primary/20 animate-scale-in">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-bold flex items-center gap-2 text-primary">
-              <Clock className="h-6 w-6" />
-              Schimbare Regim Tură
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-base leading-relaxed">
-              Ai o tură activă de tip <strong className="text-primary">{getShiftTypeLabel(activeShift)}</strong>. 
-              Vrei să o închizi și să începi o tură nouă de tip <strong className="text-accent">{getShiftTypeLabel(confirmDialog.newType)}</strong>?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel onClick={handleCancelShiftChange} className="glass-button">Anulează</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmShiftChange} className="bg-gradient-primary-action hover:scale-105">Confirmă Schimbarea</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Equipment Confirmation Dialog */}
-      <AlertDialog open={equipmentDialog} onOpenChange={setEquipmentDialog}>
-        <AlertDialogContent className="glass-card border-warning/30 max-w-md animate-scale-in">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-warning text-xl font-bold">
-              <Construction className="h-6 w-6 animate-float" />
-              Confirmare Condus Utilaj
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p className="text-base font-medium">
-                Ești pe cale să marchezi <strong className="text-warning">Condus Utilaj</strong> pentru pontajul curent.
-              </p>
-              <div className="glass-card border-warning/30 rounded-xl p-4 glow-accent">
-                <p className="text-sm font-bold mb-2 text-warning flex items-center gap-1">
-                  ⚠️ Atenție
-                </p>
-                <p className="text-sm leading-relaxed">
-                  Această acțiune va marca pontajul ca fiind efectuat cu utilaj de construcție. 
-                  Asigură-te că utilizezi utilajul înainte de a confirma.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Camera className="h-4 w-4" />
-                  Poză utilaj <span className="text-destructive font-semibold">(obligatoriu)</span>
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleEquipmentPhotoCapture}
-                  className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
-                />
-                {equipmentPhoto && (
-                  <div className="mt-2">
-                    <img 
-                      src={equipmentPhoto} 
-                      alt="Equipment" 
-                      className="w-full h-32 object-cover rounded-md border"
-                    />
-                  </div>
-                )}
-              </div>
+            <AlertDialogTitle>Schimbare Regim Tură</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ai o tură activă de tip <strong>{getShiftTypeLabel(activeShift)}</strong>. 
+              Vrei să o închizi și să începi o tură nouă de tip <strong>{getShiftTypeLabel(confirmDialog.newType)}</strong>?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setEquipmentDialog(false);
-              setEquipmentPhoto(null);
-            }}>
-              Anulează
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleEquipmentStart}
-              disabled={!equipmentPhoto}
-              className="bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={!equipmentPhoto ? "Încarcă o poză cu utilajul pentru a continua" : ""}
-            >
-              <Construction className="h-4 w-4 mr-2" />
-              Confirmă Utilaj
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={handleCancelShiftChange}>Anulează</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmShiftChange}>Confirmă Schimbarea</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

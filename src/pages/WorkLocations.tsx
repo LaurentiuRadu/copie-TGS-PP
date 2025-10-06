@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Plus, Edit, Trash2 } from "lucide-react";
+import { MapPin, Plus, Edit, Trash2, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import mapboxgl from 'mapbox-gl';
@@ -41,6 +43,7 @@ interface WorkLocation {
 }
 
 const WorkLocations = () => {
+  const { signOut } = useAuth();
   const [locations, setLocations] = useState<WorkLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -48,7 +51,6 @@ const WorkLocations = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
-  const resizeObserver = useRef<ResizeObserver | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -84,23 +86,11 @@ const WorkLocations = () => {
       return;
     }
 
-    // Try to center on user's location on open (silent, no toasts) when adding new
-    if (!editingLocation && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        ({ coords: { latitude, longitude } }) => {
-          setFormData((prev) => ({ ...prev, latitude, longitude }));
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
-      );
-    }
-
     if (!mapContainer.current || map.current) return;
 
-    let initTimer: number | undefined;
-
-    const startMap = () => {
-      if (!mapContainer.current || map.current) return;
+    // Wait for DOM to be ready and dialog animation to complete
+    const initTimer = setTimeout(() => {
+      if (!mapContainer.current) return;
 
       mapboxgl.accessToken = mapboxToken || MAPBOX_TOKEN;
 
@@ -113,60 +103,20 @@ const WorkLocations = () => {
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-      // Watchers/handles used for cleanup
-      let io: IntersectionObserver | null = null;
-      let resizeInterval: number | undefined = undefined;
-
-      // Ensure proper sizing after dialog opens and during animations
+      // Ensure proper sizing after dialog opens
       map.current.on('load', () => {
-        // Multiple resizes to handle dialog open transition
-        setTimeout(() => map.current?.resize(), 50);
-        setTimeout(() => map.current?.resize(), 150);
-        setTimeout(() => map.current?.resize(), 350);
-        setTimeout(() => map.current?.resize(), 700);
+        // Force resize twice for reliability
+        setTimeout(() => {
+          map.current?.resize();
+        }, 100);
+        setTimeout(() => {
+          map.current?.resize();
+        }, 300);
         setMapError('');
       });
 
-      // Also resize once map becomes idle
-      map.current.once('idle', () => {
-        map.current?.resize();
-      });
-
-      // Observe container size changes (e.g., dialog animations, window resize)
-      if (mapContainer.current) {
-        try {
-          resizeObserver.current?.disconnect();
-          resizeObserver.current = new ResizeObserver(() => {
-            map.current?.resize();
-          });
-          resizeObserver.current.observe(mapContainer.current);
-        } catch (e) {
-          // ResizeObserver might be unavailable in very old browsers
-          console.debug('ResizeObserver not available', e);
-        }
-      }
-
-      // Additionally, trigger resize when the container actually becomes visible
-      if (mapContainer.current && 'IntersectionObserver' in window) {
-        io = new IntersectionObserver((entries) => {
-          if (entries[0]?.isIntersecting) {
-            map.current?.resize();
-          }
-        }, { threshold: 0.1 });
-        io.observe(mapContainer.current);
-      }
-
-      // Safety: aggressively resize for the first few seconds to cover any transitions
-      resizeInterval = window.setInterval(() => {
-        map.current?.resize();
-      }, 250);
-      window.setTimeout(() => {
-        if (resizeInterval) window.clearInterval(resizeInterval);
-      }, 3000);
-
       // Surface Mapbox errors (e.g., invalid token)
-      map.current.on('error', (ev) => {
-        console.error('Mapbox error', ev);
+      map.current.on('error', () => {
         setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
       });
 
@@ -178,67 +128,16 @@ const WorkLocations = () => {
           longitude: e.lngLat.lng,
         }));
       });
-    };
-
-    const waitForVisible = (tries = 20) => {
-      const el = mapContainer.current;
-      if (!el) return;
-      const { clientWidth, clientHeight } = el;
-      if (clientWidth > 0 && clientHeight > 0) {
-        startMap();
-      } else if (tries > 0) {
-        initTimer = window.setTimeout(() => waitForVisible(tries - 1), 100);
-      } else {
-        startMap();
-      }
-    };
-
-    initTimer = window.setTimeout(() => waitForVisible(), 100);
+    }, 100);
 
     return () => {
       clearTimeout(initTimer);
-      resizeObserver.current?.disconnect();
-      resizeObserver.current = null;
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
   }, [dialogOpen, mapboxToken]);
-
-  // Helper function to create GeoJSON circle
-  const createGeoJSONCircle = (center: [number, number], radiusInMeters: number) => {
-    const points = 64;
-    const coords = {
-      latitude: center[1],
-      longitude: center[0],
-    };
-
-    const km = radiusInMeters / 1000;
-    const ret = [];
-    const distanceX = km / (111.32 * Math.cos((coords.latitude * Math.PI) / 180));
-    const distanceY = km / 110.574;
-
-    for (let i = 0; i < points; i++) {
-      const theta = (i / points) * (2 * Math.PI);
-      const x = distanceX * Math.cos(theta);
-      const y = distanceY * Math.sin(theta);
-      ret.push([coords.longitude + x, coords.latitude + y]);
-    }
-    ret.push(ret[0]);
-
-    return {
-      type: 'geojson' as const,
-      data: {
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [ret],
-        },
-        properties: {},
-      },
-    };
-  };
 
   // Update markers when locations or formData changes
   useEffect(() => {
@@ -263,79 +162,30 @@ const WorkLocations = () => {
         .addTo(map.current!);
 
       markers.current.push(marker);
+
+      // Add radius circle
+      if (map.current?.getSource(`radius-${location.id}`)) {
+        map.current.removeLayer(`radius-${location.id}`);
+        map.current.removeSource(`radius-${location.id}`);
+      }
     });
 
-    // Add marker and radius circle for current form location (when adding/editing)
+    // Add marker for current form location (when adding/editing)
     if (dialogOpen) {
-      const addCurrentMarkerAndCircle = () => {
-        const el = document.createElement('div');
-        el.className = 'w-8 h-8 bg-destructive rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse';
-        el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
+      const el = document.createElement('div');
+      el.className = 'w-8 h-8 bg-destructive rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse';
+      el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>';
 
-        const currentMarker = new mapboxgl.Marker(el)
-          .setLngLat([formData.longitude, formData.latitude])
-          .addTo(map.current!);
+      const currentMarker = new mapboxgl.Marker(el)
+        .setLngLat([formData.longitude, formData.latitude])
+        .addTo(map.current!);
 
-        markers.current.push(currentMarker);
+      markers.current.push(currentMarker);
 
-        // Remove existing radius circle if it exists
-        if (map.current!.getSource('current-radius')) {
-          if (map.current!.getLayer('current-radius-fill')) {
-            map.current!.removeLayer('current-radius-fill');
-          }
-          if (map.current!.getLayer('current-radius-outline')) {
-            map.current!.removeLayer('current-radius-outline');
-          }
-          map.current!.removeSource('current-radius');
-        }
-
-        // Add radius circle
-        const circleSource = createGeoJSONCircle(
-          [formData.longitude, formData.latitude],
-          formData.radius_meters
-        );
-        
-        map.current!.addSource('current-radius', circleSource);
-        
-        map.current!.addLayer({
-          id: 'current-radius-fill',
-          type: 'fill',
-          source: 'current-radius',
-          paint: {
-            'fill-color': '#3b82f6',
-            'fill-opacity': 0.2,
-          },
-        });
-        
-        map.current!.addLayer({
-          id: 'current-radius-outline',
-          type: 'line',
-          source: 'current-radius',
-          paint: {
-            'line-color': '#3b82f6',
-            'line-width': 2,
-          },
-        });
-
-        // Calculate appropriate zoom level based on radius
-        let zoom = 15;
-        if (formData.radius_meters > 10000) zoom = 10;
-        else if (formData.radius_meters > 5000) zoom = 11;
-        else if (formData.radius_meters > 2000) zoom = 12;
-        else if (formData.radius_meters > 1000) zoom = 13;
-        else if (formData.radius_meters > 500) zoom = 14;
-
-        map.current!.flyTo({
-          center: [formData.longitude, formData.latitude],
-          zoom: zoom,
-        });
-      };
-
-      if (map.current.isStyleLoaded()) {
-        addCurrentMarkerAndCircle();
-      } else {
-        map.current.once('style.load', addCurrentMarkerAndCircle);
-      }
+      map.current.flyTo({
+        center: [formData.longitude, formData.latitude],
+        zoom: 15,
+      });
     }
   }, [locations, formData, dialogOpen]);
 
@@ -500,26 +350,23 @@ const WorkLocations = () => {
   };
 
   return (
-    <AdminLayout title="Locații de Lucru">
-      <div className="p-6">
-        <Card className="shadow-custom-md">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Locații de Lucru Configurate
-                </CardTitle>
-                <CardDescription>
-                  Gestionează locațiile unde angajații pot face pontaj
-                </CardDescription>
-              </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-6">
+            <SidebarTrigger />
+            <div className="flex-1">
+              <h1 className="text-lg font-semibold text-foreground">Locații de Lucru</h1>
+            </div>
+            <div className="flex items-center gap-2">
               <Dialog open={dialogOpen} onOpenChange={(open) => {
                 setDialogOpen(open);
                 if (!open) resetForm();
               }}>
                 <DialogTrigger asChild>
-                  <Button className="gap-2 bg-gradient-primary-action text-primary-foreground shadow-md">
+                  <Button className="gap-2 bg-gradient-primary">
                     <Plus className="h-4 w-4" />
                     Adaugă Locație
                   </Button>
@@ -598,17 +445,17 @@ const WorkLocations = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:justify-between">
-                          <Label className="shrink-0">Hartă</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Hartă (Click pentru a selecta locația)</Label>
                           <Button
                             type="button"
-                            variant="default"
+                            variant="outline"
                             size="sm"
                             onClick={useCurrentLocation}
-                            className="gap-2 shrink-0 whitespace-nowrap w-full sm:w-auto"
+                            className="gap-2"
                           >
-                            <MapPin className="h-4 w-4 shrink-0" />
-                            <span className="inline shrink-0">Locația Mea</span>
+                            <MapPin className="h-4 w-4" />
+                            Locația Mea
                           </Button>
                         </div>
                         {mapError && (
@@ -624,7 +471,7 @@ const WorkLocations = () => {
                         <p className="text-xs text-muted-foreground">
                           Token-ul se salvează automat. Închide și redeschide dialogul pentru a aplica modificările.
                         </p>
-                        <div ref={mapContainer} className="relative h-[300px] w-full rounded-lg border bg-muted overflow-hidden" />
+                        <div ref={mapContainer} className="h-[300px] rounded-lg border bg-muted" />
                         <p className="text-xs text-muted-foreground">
                           💡 Click pe hartă pentru a seta locația sau folosește butonul "Locația Mea"
                         </p>
@@ -641,9 +488,34 @@ const WorkLocations = () => {
                   </form>
                 </DialogContent>
               </Dialog>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={signOut}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Deconectare
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent>
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-6">
+            <Card className="shadow-custom-md">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      Locații de Lucru Configurate
+                    </CardTitle>
+                    <CardDescription>
+                      Gestionează locațiile unde angajații pot face pontaj
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
                 {loading ? (
                   <div className="text-center py-8">Se încarcă...</div>
                 ) : locations.length === 0 ? (
@@ -654,12 +526,12 @@ const WorkLocations = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="text-foreground font-semibold">Nume</TableHead>
-                        <TableHead className="text-foreground font-semibold">Adresă</TableHead>
-                        <TableHead className="text-foreground font-semibold">Coordonate</TableHead>
-                        <TableHead className="text-foreground font-semibold">Rază</TableHead>
-                        <TableHead className="text-foreground font-semibold">Status</TableHead>
-                        <TableHead className="text-right text-foreground font-semibold">Acțiuni</TableHead>
+                        <TableHead>Nume</TableHead>
+                        <TableHead>Adresă</TableHead>
+                        <TableHead>Coordonate</TableHead>
+                        <TableHead>Rază</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Acțiuni</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -707,8 +579,10 @@ const WorkLocations = () => {
                 )}
               </CardContent>
             </Card>
-          </div>
-        </AdminLayout>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
 

@@ -8,40 +8,33 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Professional Navy & Teal Theme - Light Mode */
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --background: 210 40% 98%;
+    --foreground: 220 40% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 40% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 220 40% 10%;
 
-    /* Primary: Professional Navy Blue */
-    --primary: 217 91% 25%;
-    --primary-light: 217 91% 35%;
-    --primary-dark: 217 91% 18%;
-    --primary-foreground: 210 20% 98%;
+    --primary: 189 85% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Steel Blue */
-    --secondary: 215 25% 27%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 220 60% 15%;
+    --secondary-foreground: 0 0% 100%;
 
-    /* Soft Muted */
-    --muted: 214 32% 91%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 30% 94%;
+    --muted-foreground: 220 20% 45%;
 
-    /* Accent: Professional Teal */
-    --accent: 181 65% 38%;
+    --accent: 189 85% 55%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 270 20% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 262 30% 88%;
-    --input: 262 30% 88%;
-    --ring: 262 83% 58%;
+    --border: 210 30% 90%;
+    --input: 210 30% 90%;
+    --ring: 189 85% 55%;
 
     --success: 142 76% 45%;
     --warning: 38 92% 50%;
@@ -49,42 +42,30 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
-    /* PROFESSIONAL NAVY & TEAL GRADIENTS */
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 25% / 0.08), hsl(181 65% 38% / 0.06));
-    --gradient-mesh: radial-gradient(at 0% 0%, hsl(217 91% 25% / 0.12) 0px, transparent 50%), 
-                     radial-gradient(at 100% 0%, hsl(181 65% 38% / 0.08) 0px, transparent 50%),
-                     radial-gradient(at 100% 100%, hsl(217 91% 35% / 0.1) 0px, transparent 50%),
-                     radial-gradient(at 0% 100%, hsl(181 65% 45% / 0.08) 0px, transparent 50%);
-    --gradient-glass-card: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(0 0% 100% / 0.7));
-    --gradient-primary-action: linear-gradient(135deg, hsl(217 91% 25%), hsl(217 91% 35%));
-    --gradient-accent-action: linear-gradient(135deg, hsl(181 65% 38%), hsl(181 65% 48%));
-    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.25), hsl(0 0% 100% / 0.1));
+    --gradient-primary: linear-gradient(135deg, hsl(189 85% 55%), hsl(210 100% 60%));
+    --gradient-secondary: linear-gradient(135deg, hsl(220 60% 15%), hsl(220 40% 25%));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.1), hsl(0 0% 100% / 0.05));
+    --gradient-card: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted) / 0.3));
     
-    /* 3D SHADOW SYSTEM - Professional theme */
-    --shadow-sm: 0 2px 8px -2px hsl(217 91% 25% / 0.08);
-    --shadow-md: 0 4px 16px -4px hsl(217 91% 25% / 0.12);
-    --shadow-lg: 0 8px 32px -8px hsl(217 91% 25% / 0.16);
-    --shadow-elegant: 0 12px 48px -12px hsl(217 91% 25% / 0.2);
-    --shadow-glow: 0 0 32px hsl(181 65% 38% / 0.25), 0 0 64px hsl(181 65% 48% / 0.15);
-    --shadow-soft: 0 2px 16px hsl(222 47% 11% / 0.04), 0 0 0 1px hsl(222 47% 11% / 0.02);
-    --shadow-elevated: 0 8px 24px hsl(222 47% 11% / 0.08), 0 16px 48px hsl(222 47% 11% / 0.08);
+    --shadow-sm: 0 2px 8px -2px hsl(189 85% 55% / 0.1);
+    --shadow-md: 0 4px 16px -4px hsl(189 85% 55% / 0.15);
+    --shadow-lg: 0 8px 24px -6px hsl(189 85% 55% / 0.2);
+    --shadow-elegant: 0 10px 40px -10px hsl(189 85% 55% / 0.25);
+    --shadow-glow: 0 0 30px hsl(189 85% 55% / 0.3);
     
-    /* SMOOTH TRANSITIONS */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    --transition-elastic: all 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    /* Glass Navigation - Professional theme */
-    --sidebar-background: 217 91% 25%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 181 65% 38%;
+    --sidebar-background: 220 60% 15%;
+    --sidebar-foreground: 210 30% 90%;
+    --sidebar-primary: 189 85% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 91% 35%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 181 65% 38%;
+    --sidebar-accent: 220 50% 20%;
+    --sidebar-accent-foreground: 210 30% 90%;
+    --sidebar-border: 220 40% 20%;
+    --sidebar-ring: 189 85% 55%;
 
-    /* Safe area insets */
+    /* Safe area insets for notch/Dynamic Island support */
     --safe-area-inset-top: env(safe-area-inset-top);
     --safe-area-inset-right: env(safe-area-inset-right);
     --safe-area-inset-bottom: env(safe-area-inset-bottom);
@@ -92,55 +73,42 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Professional Navy & Teal Theme - Dark Mode */
-    --background: 222 47% 11%;
-    --foreground: 210 20% 98%;
+    --background: 220 40% 8%;
+    --foreground: 210 30% 90%;
 
-    --card: 220 40% 16%;
-    --card-foreground: 210 20% 98%;
+    --card: 220 35% 12%;
+    --card-foreground: 210 30% 90%;
 
-    --popover: 220 40% 16%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 220 35% 12%;
+    --popover-foreground: 210 30% 90%;
 
-    --primary: 217 91% 45%;
-    --primary-light: 217 91% 55%;
-    --primary-dark: 217 91% 35%;
+    --primary: 189 85% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 25% 35%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 220 50% 18%;
+    --secondary-foreground: 210 30% 90%;
 
-    --muted: 215 25% 22%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 40% 15%;
+    --muted-foreground: 210 20% 60%;
 
-    --accent: 181 65% 48%;
+    --accent: 189 85% 55%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 50%;
-    --destructive-foreground: 270 20% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 215 25% 28%;
-    --input: 215 25% 28%;
-    --ring: 181 65% 48%;
+    --border: 220 40% 18%;
+    --input: 220 40% 18%;
+    --ring: 189 85% 55%;
 
-    --gradient-hero: linear-gradient(135deg, hsl(217 91% 45% / 0.12), hsl(181 65% 48% / 0.08));
-    --gradient-mesh: radial-gradient(at 0% 0%, hsl(217 91% 45% / 0.15) 0px, transparent 50%), 
-                     radial-gradient(at 100% 0%, hsl(181 65% 48% / 0.1) 0px, transparent 50%),
-                     radial-gradient(at 100% 100%, hsl(217 91% 55% / 0.12) 0px, transparent 50%),
-                     radial-gradient(at 0% 100%, hsl(181 65% 55% / 0.1) 0px, transparent 50%);
-    --gradient-glass-card: linear-gradient(135deg, hsl(220 40% 16% / 0.9), hsl(220 40% 14% / 0.7));
-    --gradient-primary-action: linear-gradient(135deg, hsl(217 91% 45%), hsl(217 91% 55%));
-    --gradient-accent-action: linear-gradient(135deg, hsl(181 65% 48%), hsl(181 65% 58%));
-    --gradient-glass: linear-gradient(135deg, hsl(220 40% 16% / 0.5), hsl(220 40% 14% / 0.3));
-
-    --shadow-glow: 0 0 40px hsl(181 65% 48% / 0.4), 0 0 80px hsl(181 65% 58% / 0.2);
-    --shadow-soft: 0 2px 16px hsl(0 0% 0% / 0.3), 0 0 0 1px hsl(215 25% 28% / 0.5);
-    --shadow-elevated: 0 8px 24px hsl(0 0% 0% / 0.4), 0 16px 48px hsl(0 0% 0% / 0.3);
-
-    --sidebar-background: 222 47% 8%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-accent: 220 40% 14%;
-    --sidebar-border: 215 25% 20%;
+    --sidebar-background: 220 60% 10%;
+    --sidebar-foreground: 210 30% 90%;
+    --sidebar-primary: 189 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 50% 15%;
+    --sidebar-accent-foreground: 210 30% 90%;
+    --sidebar-border: 220 40% 15%;
+    --sidebar-ring: 189 85% 55%;
   }
 }
 
@@ -165,72 +133,9 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* GLASSMORPHISM 3.0 EFFECTS */
-  .glass-card {
-    background: var(--gradient-glass-card);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid hsl(var(--border) / 0.2);
-    box-shadow: var(--shadow-soft), inset 0 1px 0 0 hsl(0 0% 100% / 0.1);
-  }
-
-  .glass-nav {
-    background: hsl(var(--card) / 0.6);
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-    border-bottom: 1px solid hsl(var(--border) / 0.3);
-  }
-
-  .glass-button {
-    background: var(--gradient-glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.3);
-    transition: var(--transition-smooth);
-  }
-
-  .glass-button:hover {
-    background: var(--gradient-primary-action);
-    box-shadow: var(--shadow-glow);
-    transform: translateY(-2px);
-  }
-
-  /* GRADIENT MESH BACKGROUNDS */
-  .bg-mesh {
-    background: var(--gradient-mesh);
-  }
-
-  .bg-hero {
-    background: var(--gradient-hero);
-  }
-
-  /* 3D DEPTH EFFECTS */
-  .elevated-card {
-    box-shadow: var(--shadow-elevated);
-    transition: var(--transition-smooth);
-  }
-
-  .elevated-card:hover {
-    box-shadow: var(--shadow-elevated), var(--shadow-glow);
-    transform: translateY(-4px) scale(1.01);
-  }
-
-  /* GLOW EFFECTS */
-  .glow-primary {
-    box-shadow: 0 0 24px hsl(var(--primary) / 0.4);
-  }
-
-  .glow-accent {
-    box-shadow: 0 0 24px hsl(var(--accent) / 0.4);
-  }
-
   /* Touch-friendly minimum sizes */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
-  }
-
-  .touch-target-lg {
-    @apply min-h-[56px] min-w-[56px];
   }
 
   /* Smooth scrolling for mobile */
@@ -270,50 +175,5 @@ All colors MUST be HSL.
 
   .text-responsive-2xl {
     font-size: clamp(2rem, 5vw, 3rem);
-  }
-
-  /* Gradient action buttons */
-  .bg-gradient-primary {
-    background: var(--gradient-primary-action);
-  }
-
-  .bg-gradient-primary-action {
-    background: var(--gradient-primary-action);
-  }
-
-  .bg-gradient-accent-action {
-    background: var(--gradient-accent-action);
-  }
-
-  /* Native date inputs styling */
-  input[type="date"],
-  input[type="month"] {
-    cursor: pointer;
-  }
-
-  /* Calendar compact layout - remove excessive spacing */
-  .rdp {
-    width: fit-content !important;
-  }
-  
-  .rdp-month {
-    margin: 0 !important;
-  }
-
-  .rdp-table {
-    width: auto !important;
-    margin: 0 !important;
-  }
-
-  .rdp-tbody {
-    border-spacing: 0 !important;
-  }
-
-  .rdp-row {
-    margin: 0 !important;
-  }
-
-  .rdp-cell {
-    padding: 1px !important;
   }
 }

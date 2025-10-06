@@ -1,67 +1,90 @@
-import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar, RefreshCw } from "lucide-react";
+import { Users, Download, Filter, Plus, LogOut, TrendingUp, Clock, Calendar } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { AdminSearchCommand } from "@/components/AdminSearchCommand";
-import { useNavigate } from "react-router-dom";
 
 const Admin = () => {
-  const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   return (
-    <AdminLayout
-      title="Admin Dashboard"
-      headerActions={<AdminSearchCommand />}
-    >
-      <div className="p-4 md:p-6 space-y-8 bg-mesh min-h-full animate-slide-up-fade">
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-gradient-to-br from-background via-background to-muted/20">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col">
+          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b border-border/50 bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 px-6 shadow-sm">
+            <SidebarTrigger />
+            <div className="flex-1">
+              <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Admin Dashboard
+              </h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <AdminSearchCommand />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={signOut}
+                className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all duration-200"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden md:inline">Deconectare</span>
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Stats Cards */}
-            <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              <Card className="glass-card elevated-card shadow-glow hover:scale-105 transition-all duration-300 animate-slide-up-fade touch-target-lg">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Angajați</CardTitle>
-                  <Users className="h-5 w-5 text-primary" />
+                  <Users className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl md:text-4xl font-bold text-foreground">-</div>
+                  <div className="text-2xl font-bold">-</div>
                   <p className="text-xs text-muted-foreground">
                     Activi în sistem
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card elevated-card shadow-glow hover:scale-105 transition-all duration-300 animate-slide-up-fade touch-target-lg" style={{ animationDelay: '100ms' }}>
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-success/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Prezenti Astăzi</CardTitle>
-                  <Clock className="h-5 w-5 text-success" />
+                  <Clock className="h-4 w-4 text-success" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl md:text-4xl font-bold text-success glow-accent">-</div>
+                  <div className="text-2xl font-bold">-</div>
                   <p className="text-xs text-muted-foreground">
                     Pontați în prezent
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card elevated-card shadow-glow hover:scale-105 transition-all duration-300 animate-slide-up-fade touch-target-lg" style={{ animationDelay: '200ms' }}>
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-warning/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Cereri Concediu</CardTitle>
-                  <Calendar className="h-5 w-5 text-warning" />
+                  <Calendar className="h-4 w-4 text-warning" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl md:text-4xl font-bold text-warning">-</div>
+                  <div className="text-2xl font-bold">-</div>
                   <p className="text-xs text-muted-foreground">
                     În așteptare aprobare
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card elevated-card shadow-glow hover:scale-105 transition-all duration-300 animate-slide-up-fade touch-target-lg" style={{ animationDelay: '300ms' }}>
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-info/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Performanță</CardTitle>
-                  <TrendingUp className="h-5 w-5 text-info" />
+                  <TrendingUp className="h-4 w-4 text-info" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl md:text-4xl font-bold text-info">-</div>
+                  <div className="text-2xl font-bold">-</div>
                   <p className="text-xs text-muted-foreground">
                     Media ore lucrate/zi
                   </p>
@@ -70,99 +93,75 @@ const Admin = () => {
             </div>
 
             {/* Team Overview Card */}
-            <Card className="glass-card animate-scale-in overflow-hidden">
-              <CardHeader>
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <Card className="shadow-elegant border-primary/10 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-glass opacity-50 pointer-events-none" />
+              <CardHeader className="relative">
+                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-xl md:text-2xl bg-gradient-primary bg-clip-text text-transparent font-bold">
+                    <CardTitle className="flex items-center gap-2 text-xl">
                       <Users className="h-6 w-6 text-primary" />
                       Echipa - Monitorizare Timp Real
                     </CardTitle>
-                    <CardDescription className="mt-1 text-base">Status și activitate angajați</CardDescription>
+                    <CardDescription className="mt-1">Status și activitate angajați</CardDescription>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" className="glass-button gap-2 touch-target-lg">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="gap-2 hover:bg-accent transition-all">
                       <Filter className="h-4 w-4" />
                       Filtrează
                     </Button>
-                    <Button variant="outline" size="sm" className="glass-button gap-2 touch-target-lg">
+                    <Button variant="outline" size="sm" className="gap-2 hover:bg-accent transition-all">
                       <Download className="h-4 w-4" />
                       Export
                     </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={() => navigate('/user-management')}
-                      className="gap-2 bg-gradient-primary-action shadow-glow hover:shadow-elegant touch-target-lg"
-                    >
+                    <Button size="sm" className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all">
                       <Plus className="h-4 w-4" />
                       Angajat Nou
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="glass-card p-8 md:p-12 text-center">
-                  <Users className="h-12 w-12 mx-auto mb-3 text-primary animate-float" />
-                  <p className="text-base md:text-lg font-medium">Nu există date disponibile</p>
-                  <p className="text-sm text-muted-foreground mt-1">Datele vor apărea aici când angajații încep să ponteze</p>
+              <CardContent className="relative">
+                <div className="text-center py-12 text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-lg">Nu există date disponibile</p>
+                  <p className="text-sm mt-1">Datele vor apărea aici când angajații încep să ponteze</p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* System Tools */}
-            <Card className="glass-card border-warning/20 shadow-soft animate-scale-in">
-              <CardHeader>
-                <CardTitle className="text-lg md:text-xl flex items-center gap-2 text-warning font-semibold">
-                  <RefreshCw className="h-5 w-5" />
-                  Instrumente Sistem
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Tool-uri administrative pentru mentenanță și recalculare
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  onClick={() => navigate('/recalculate-segments')}
-                  variant="outline"
-                  className="w-full justify-start gap-2 glass-button border-warning/30 hover:border-warning touch-target-lg"
-                >
-                  <RefreshCw className="h-4 w-4 text-warning" />
-                  Recalculează Segments Pontaje
-                </Button>
-              </CardContent>
-            </Card>
-
-            <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2">
               {/* Recent Activity */}
-              <Card className="glass-card elevated-card animate-fade-in">
+              <Card className="shadow-custom-md border-primary/5">
                 <CardHeader>
-                  <CardTitle className="text-lg md:text-xl font-semibold">Activitate Recentă</CardTitle>
-                  <CardDescription className="text-base">Ultimele acțiuni ale echipei</CardDescription>
+                  <CardTitle className="text-lg">Activitate Recentă</CardTitle>
+                  <CardDescription>Ultimele acțiuni ale echipei</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="glass-card p-8 md:p-12 text-center">
-                    <Clock className="h-10 w-10 mx-auto mb-3 text-primary opacity-50" />
-                    <p className="text-muted-foreground text-sm md:text-base">Nu există activități recente</p>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Clock className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p>Nu există activități recente</p>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Quick Stats */}
-              <Card className="glass-card elevated-card animate-fade-in" style={{ animationDelay: '100ms' }}>
+              <Card className="shadow-custom-md border-primary/5">
                 <CardHeader>
-                  <CardTitle className="text-lg md:text-xl font-semibold">Statistici Rapide</CardTitle>
-                  <CardDescription className="text-base">Rezumat săptămâna curentă</CardDescription>
+                  <CardTitle className="text-lg">Statistici Rapide</CardTitle>
+                  <CardDescription>Rezumat săptămâna curentă</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="glass-card p-8 md:p-12 text-center">
-                    <TrendingUp className="h-10 w-10 mx-auto mb-3 text-info opacity-50" />
-                    <p className="text-muted-foreground text-sm md:text-base">Nu există date disponibile</p>
+                  <div className="text-center py-12 text-muted-foreground">
+                    <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p>Nu există date disponibile</p>
                   </div>
                 </CardContent>
               </Card>
             </div>
+          </main>
+        </div>
       </div>
-    </AdminLayout>
+    </SidebarProvider>
   );
 };
 

@@ -76,19 +76,24 @@ Deno.serve(async (req) => {
     }
 
     const fullName = `${firstName} ${lastName}`;
+    // Generate username from full name (lowercase, no spaces)
+    const username = `${firstName}${lastName}`.toLowerCase().replace(/\s+/g, '');
 
-    console.log(`Updating user ${userId}: fullName="${fullName}"`);
+    console.log(`Updating user ${userId}: fullName="${fullName}", username="${username}"`);
 
-    // Update only full_name, username remains unchanged
-    const { error: updateError } = await supabaseClient
+    // Use upsert to handle both insert and update cases
+    const { error: upsertError } = await supabaseClient
       .from('profiles')
-      .update({ 
-        full_name: fullName
-      })
-      .eq('id', userId);
+      .upsert({ 
+        id: userId,
+        full_name: fullName,
+        username: username
+      }, {
+        onConflict: 'id'
+      });
 
-    if (updateError) {
-      console.error('Error updating user profile:', updateError);
+    if (upsertError) {
+      console.error('Error upserting user profile:', upsertError);
       return new Response(
         JSON.stringify({ error: 'Failed to update user profile' }),
         { 
@@ -98,7 +103,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`User ${userId} updated successfully: ${fullName}`);
+    console.log(`User ${userId} updated successfully: ${fullName} (${username})`);
 
     return new Response(
       JSON.stringify({ 

@@ -1,10 +1,12 @@
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
-import { SessionTimeoutManager } from "@/components/SessionTimeoutManager";
-import { UpdateBadge } from "@/components/UpdateBadge";
+import Landing from "./pages/Landing";
+import Index from "./pages/Index";
 import Mobile from "./pages/Mobile";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
@@ -14,34 +16,21 @@ import WorkLocations from "./pages/WorkLocations";
 import RootRedirect from "./pages/RootRedirect";
 import TimeEntries from "./pages/TimeEntries";
 import MyTimeEntries from "./pages/MyTimeEntries";
-import Timesheet from "./pages/Timesheet";
 import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 import BulkImport from "./pages/BulkImport";
 import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
-import RecalculateSegments from "./pages/RecalculateSegments";
-import ChangePassword from "./pages/ChangePassword";
-import GDPRSettings from "./pages/GDPRSettings";
-import BackupRestore from "./pages/BackupRestore";
 
 const App = () => (
   <TooltipProvider>
     <Toaster />
-    <SessionTimeoutManager />
+    <Sonner />
     <PWAInstallPrompt />
-    <UpdateBadge />
-    <Routes>
-      <Route path="/" element={<RootRedirect />} />
+    <AuthProvider>
+      <Routes>
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/change-password"
-                element={
-                  <ProtectedRoute>
-                    <ChangePassword />
-                  </ProtectedRoute>
-                }
-              />
               <Route
                 path="/mobile"
                 element={
@@ -58,10 +47,12 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/dashboard" element={<Index />} />
+              <Route path="/landing" element={<Landing />} />
               <Route
                 path="/vacations"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRole="employee">
                     <Vacations />
                   </ProtectedRoute>
                 }
@@ -87,14 +78,6 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="employee">
                     <MyTimeEntries />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/timesheet"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <Timesheet />
                   </ProtectedRoute>
                 }
               />
@@ -138,33 +121,10 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/recalculate-segments"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <RecalculateSegments />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gdpr-settings"
-                element={
-                  <ProtectedRoute>
-                    <GDPRSettings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/backup-restore"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <BackupRestore />
-                  </ProtectedRoute>
-                }
-              />
-      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AuthProvider>
   </TooltipProvider>
 );
 

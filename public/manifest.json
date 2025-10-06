@@ -1,21 +1,14 @@
 {
   "name": "TimeTrack - Sistem de Pontaj",
   "short_name": "TimeTrack",
-  "version": "0610.2025.00003",
   "description": "Sistem modern de pontaj cu verificare facială și geolocație",
-  "start_url": "/?v=0610.2025.00003",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#32C5DB",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",

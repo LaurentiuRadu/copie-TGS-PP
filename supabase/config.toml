@@ -20,27 +20,3 @@ verify_jwt = true
 
 [functions.update-user]
 verify_jwt = true
-
-[functions.gdpr-delete-user-data]
-verify_jwt = true
-
-[functions.gdpr-export-user-data]
-verify_jwt = true
-
-[functions.cleanup-old-data]
-verify_jwt = false
-
-[functions.check-password-strength]
-verify_jwt = false
-
-[functions.check-rate-limit]
-verify_jwt = false
-
-[functions.manage-sessions]
-verify_jwt = true
-
-[functions.reset-employee-passwords]
-verify_jwt = true
-
-[functions.send-password-reset-email]
-verify_jwt = false

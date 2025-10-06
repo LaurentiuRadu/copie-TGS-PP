@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SimpleDateRangePicker, type DateRange } from '@/components/ui/simple-date-range-picker';
+import { Calendar } from '@/components/ui/calendar';
+import type { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus } from 'lucide-react';
-import { EmployeeLayout } from '@/components/layouts/EmployeeLayout';
+import { AppHeader } from '@/components/AppHeader';
 import { useOptimizedVacations } from '@/hooks/useOptimizedVacations';
 import {
   Dialog,
@@ -127,10 +128,9 @@ const Vacations = () => {
   };
 
   return (
-    <EmployeeLayout 
-      title="Concedii"
-      headerActions={
-        !isAdmin ? (
+    <div className="min-h-screen bg-background">
+      <AppHeader title="Concedii">
+        {!isAdmin && (
           <Dialog open={showNewRequest} onOpenChange={setShowNewRequest}>
             <DialogTrigger asChild>
               <Button>
@@ -161,22 +161,20 @@ const Vacations = () => {
 
                 <div>
                   <Label>Selectează Perioada</Label>
-                  <div className="flex justify-center mt-2">
-                    <SimpleDateRangePicker
-                      value={dateRange}
-                      onChange={setDateRange}
-                      locale={ro}
-                      className="rounded-md border p-3"
-                      disabled={(date) => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return date < today;
-                      }}
-                      numberOfMonths={1}
-                    />
-                  </div>
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    locale={ro}
+                    className="rounded-md border mt-2"
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today;
+                    }}
+                  />
                   {dateRange?.from && dateRange?.to && (
-                    <p className="text-sm text-muted-foreground mt-2 text-center">
+                    <p className="text-sm text-muted-foreground mt-2">
                       {differenceInDays(dateRange.to, dateRange.from) + 1} zile selectate
                     </p>
                   )}
@@ -202,17 +200,17 @@ const Vacations = () => {
               </div>
             </DialogContent>
           </Dialog>
-        ) : undefined
-      }
-    >
-      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+        )}
+      </AppHeader>
+
+      <div className="container mx-auto p-6 space-y-6">
         {/* Requests List */}
         <Card>
-          <CardHeader>
-            <CardTitle>
-              {isAdmin ? 'Toate Cererile' : 'Cererile Mele'} ({requests.length})
-            </CardTitle>
-          </CardHeader>
+        <CardHeader>
+          <CardTitle>
+            {isAdmin ? 'Toate Cererile' : 'Cererile Mele'} ({requests.length})
+          </CardTitle>
+        </CardHeader>
           <CardContent className="space-y-4">
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -289,10 +287,10 @@ const Vacations = () => {
               </Card>
             ))
           )}
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
       </div>
-    </EmployeeLayout>
+    </div>
   );
 };
 

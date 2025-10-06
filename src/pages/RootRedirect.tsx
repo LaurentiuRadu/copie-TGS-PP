@@ -22,8 +22,8 @@ const RootRedirect = () => {
   if (userRole === "admin") return <Navigate to="/admin" replace />;
   if (userRole === "employee") return <Navigate to="/mobile" replace />;
 
-  // Default fallback: go to admin (ProtectedRoute will reroute employees to /mobile)
-  return <Navigate to="/admin" replace />;
+  // Default fallback
+  return <Navigate to="/dashboard" replace />;
 };
 
 export default RootRedirect;

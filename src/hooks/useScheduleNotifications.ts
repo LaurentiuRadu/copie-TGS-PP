@@ -1,17 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { playDoubleNotificationSound } from '@/lib/notificationSound';
-import { toast } from 'sonner';
-import { useAppActivity } from './useAppActivity';
 
 export const useScheduleNotifications = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [unreadCount, setUnreadCount] = useState(0);
-  const soundIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  const { isActive } = useAppActivity();
 
   // Fetch notifications
   const { data: notifications } = useQuery({
@@ -43,47 +38,14 @@ export const useScheduleNotifications = () => {
     enabled: !!user
   });
 
-  // Update unread count și gestionează sunetele recurente
+  // Update unread count
   useEffect(() => {
-    const newUnreadCount = notifications?.length || 0;
-    setUnreadCount(newUnreadCount);
+    setUnreadCount(notifications?.length || 0);
+  }, [notifications]);
 
-    // Curăță toate intervalele existente
-    soundIntervalsRef.current.forEach(interval => clearInterval(interval));
-    soundIntervalsRef.current.clear();
-
-    // Creează intervale noi pentru fiecare notificare necitită DOAR dacă există notificări
-    if (notifications && notifications.length > 0 && isActive) {
-      notifications.forEach((notification) => {
-        // Redă sunet la fiecare 2 minute pentru notificările necitite
-        const intervalId = setInterval(() => {
-          // Double-check că notificarea încă există
-          if (soundIntervalsRef.current.has(notification.id)) {
-            playDoubleNotificationSound();
-          }
-        }, 120000); // 2 minute = 120000ms
-
-        soundIntervalsRef.current.set(notification.id, intervalId);
-      });
-    }
-
-    // Cleanup când componenta se demontează sau notificările se schimbă
-    return () => {
-      soundIntervalsRef.current.forEach(interval => clearInterval(interval));
-      soundIntervalsRef.current.clear();
-    };
-  }, [notifications, isActive]);
-
-  // Mark as read mutation - oprește și sunetul recurent
+  // Mark as read mutation
   const markAsRead = useMutation({
     mutationFn: async (notificationId: string) => {
-      // Oprește intervalul de sunet pentru notificarea respectivă
-      const intervalId = soundIntervalsRef.current.get(notificationId);
-      if (intervalId) {
-        clearInterval(intervalId);
-        soundIntervalsRef.current.delete(notificationId);
-      }
-
       const { error } = await supabase
         .from('schedule_notifications')
         .update({ read_at: new Date().toISOString() })
@@ -96,55 +58,30 @@ export const useScheduleNotifications = () => {
     }
   });
 
-  // Realtime subscription - optimizat pentru baterie
+  // Realtime subscription
   useEffect(() => {
     if (!user) return;
 
-    let pollInterval: NodeJS.Timeout | null = null;
-    let channel: any = null;
-
-    const setupRealtime = () => {
-      // Cleanup existing
-      if (pollInterval) clearInterval(pollInterval);
-      if (channel) supabase.removeChannel(channel);
-
-      if (isActive) {
-        // Când activ: realtime complet
-        channel = supabase
-          .channel('schedule-notifications-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'schedule_notifications',
-              filter: `user_id=eq.${user.id}`
-            },
-            (payload) => {
-              queryClient.invalidateQueries({ queryKey: ['schedule-notifications'] });
-              playDoubleNotificationSound();
-              toast.info('Programare nouă primită!', {
-                description: 'Verifică notificările pentru detalii.',
-                duration: 5000,
-              });
-            }
-          )
-          .subscribe();
-      } else {
-        // Când inactiv: polling la 1 minut
-        pollInterval = setInterval(() => {
+    const channel = supabase
+      .channel('schedule-notifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'schedule_notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {
           queryClient.invalidateQueries({ queryKey: ['schedule-notifications'] });
-        }, 60000);
-      }
-    };
-
-    setupRealtime();
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (pollInterval) clearInterval(pollInterval);
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [user, queryClient, isActive]);
+  }, [user, queryClient]);
 
   return {
     notifications,

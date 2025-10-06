@@ -1,9 +1,4 @@
-import { toast } from "@/hooks/use-toast";
-
-// Version check frequency
-const VERSION_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minute
-
-// Register Service Worker pentru PWA functionality - iOS Optimized
+// Register Service Worker pentru PWA functionality
 export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -14,54 +9,17 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
-          // Verifică pentru actualizări mai des (la fiecare 30 min)
-          setInterval(() => {
-            console.log('🔍 Checking for updates...');
-            registration.update();
-          }, VERSION_CHECK_INTERVAL);
-          
-          // Check imediat după înregistrare
-          setTimeout(() => registration.update(), 5000);
-
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
-              console.log('🆕 New service worker found, installing...');
-              
               newWorker.addEventListener('statechange', () => {
-                console.log('📊 SW state:', newWorker.state);
-                
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.info('🔄 Versiune nouă disponibilă!');
-                  
-                  // Set flag for update badge
-                  localStorage.setItem('new-version-available', 'true');
-                  
-                  // Dispatch custom event for UpdateBadge component
-                  window.dispatchEvent(new CustomEvent('app-update-available'));
-                  
-                  // NU trimitem SKIP_WAITING automat - lăsăm utilizatorul să decidă
-                  // newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  
-                  // iOS: Afișează toast pentru reload manual (iOS nu permite reload automat în PWA)
-                  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-                  const isStandalone = (window.navigator as any).standalone === true || 
-                                      window.matchMedia('(display-mode: standalone)').matches;
-                  
-                  if (isIOS && isStandalone) {
-                    toast({
-                      title: "🎉 Versiune Nouă!",
-                      description: "Pentru actualizare: închide complet aplicația (swipe up din App Switcher) și redeschide-o.",
-                      duration: 15000,
-                    });
-                  } else {
-                    // Desktop/Android: arată toast cu opțiune de actualizare
-                    toast({
-                      title: "✨ Update Disponibil",
-                      description: "Apasă pe iconița 🔄 pentru a actualiza aplicația.",
-                      duration: 8000,
-                    });
+                  if (import.meta.env.DEV) {
+                    console.info('🔄 New version available');
                   }
+                  
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  window.location.reload();
                 }
               });
             }

@@ -1,179 +1,76 @@
-// Service Worker pentru PWA - iOS-Optimized Auto-Update + Push Notifications
-// Versiune statică pentru cache consistency (incrementează manual la fiecare deploy)
-const CACHE_VERSION = '0610.2025.00004';
-const CACHE_NAME = `timetrack-v${CACHE_VERSION}`;
+// Service Worker pentru PWA - Offline support și caching
+const CACHE_NAME = 'timetrack-v1';
 const OFFLINE_URL = '/';
 
-// CRITICAL: Force invalidate ALL caches on major version change
-const FORCE_CACHE_CLEAR = true;
-
-// Flag pentru a controla skipWaiting
-let shouldSkipWaiting = false;
-
-// Cache mai multe resurse pentru offline
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
   '/icon-192.png',
-  '/icon-512.png',
-  '/mobile',
-  '/admin'
+  '/icon-512.png'
 ];
-
-// Cache pentru API responses (cu expirare)
-const API_CACHE_NAME = 'api-cache-v1';
-const API_CACHE_TIME = 5 * 60 * 1000; // 5 minute
 
 // Install Service Worker
 self.addEventListener('install', (event) => {
-  console.log('🔧 Installing new service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('✅ Cache opened:', CACHE_NAME);
+        console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
-      .then(() => {
-        console.log('✅ All resources cached');
-        // Nu apelăm skipWaiting automat - așteptăm mesaj de la client
-        if (shouldSkipWaiting) {
-          self.skipWaiting();
-        }
-      })
   );
+  self.skipWaiting();
 });
 
-// Activate Service Worker - Aggressive cache cleanup
+// Activate Service Worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    Promise.all([
-      // FORCE DELETE ALL caches if flag is set
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (FORCE_CACHE_CLEAR || (cacheName !== CACHE_NAME && cacheName !== API_CACHE_NAME)) {
-              console.log('🗑️ Force deleting cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      }),
-      // Clear API cache always
-      caches.delete(API_CACHE_NAME).then(() => {
-        console.log('🔄 API cache cleared for fresh start');
-      })
-    ]).then(() => {
-      console.log('✅ All caches cleared, claiming clients');
-      // Notify all clients that cache is cleared
-      return self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'CACHE_CLEARED',
-            version: CACHE_VERSION
-          });
-        });
-      });
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
     })
   );
   self.clients.claim();
 });
 
-// Fetch Strategy: Network First cu cache inteligent
+// Fetch Strategy: Network First, falling back to Cache
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
   // Skip cross-origin requests
-  if (!request.url.startsWith(self.location.origin)) {
+  if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Strategy pentru API calls Supabase
-  if (url.hostname.includes('supabase')) {
-    event.respondWith(
-      caches.open(API_CACHE_NAME).then(async (cache) => {
-        try {
-          const response = await fetch(request);
-          
-          // Cache doar GET requests success
-          if (request.method === 'GET' && response.ok) {
-            const responseToCache = response.clone();
-            const headers = new Headers(responseToCache.headers);
-            headers.append('sw-cache-time', Date.now().toString());
-            
-            const cachedResponse = new Response(responseToCache.body, {
-              status: responseToCache.status,
-              statusText: responseToCache.statusText,
-              headers: headers
-            });
-            
-            cache.put(request, cachedResponse);
-          }
-          
-          return response;
-        } catch (error) {
-          // Fallback la cache doar dacă e fresh (< 5 min)
-          const cached = await cache.match(request);
-          if (cached) {
-            const cacheTime = cached.headers.get('sw-cache-time');
-            if (cacheTime && (Date.now() - parseInt(cacheTime)) < API_CACHE_TIME) {
-              return cached;
-            }
-          }
-          throw error;
-        }
-      })
-    );
-    return;
-  }
-
-  // Strategy pentru resurse statice: Cache First
-  if (request.destination === 'style' || 
-      request.destination === 'script' || 
-      request.destination === 'image' ||
-      request.destination === 'font') {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        
-        return fetch(request).then((response) => {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-          return response;
-        });
-      })
-    );
-    return;
-  }
-
-  // Strategy pentru navegare și HTML: Network First (iOS critical!)
   event.respondWith(
-    fetch(request, {
-      cache: 'no-cache', // Force fresh fetch for HTML
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    })
+    fetch(event.request)
       .then((response) => {
-        // Cache doar dacă nu e HTML (pentru offline fallback)
-        if (!request.url.includes('.html') && request.mode === 'navigate') {
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-        }
+        // Clone the response before caching
+        const responseToCache = response.clone();
+        
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
         return response;
       })
       .catch(() => {
-        return caches.match(request).then((response) => {
-          if (response) return response;
-          if (request.mode === 'navigate') {
-            return caches.match(OFFLINE_URL);
-          }
-        });
+        // If network fails, try to get from cache
+        return caches.match(event.request)
+          .then((response) => {
+            if (response) {
+              return response;
+            }
+            
+            // If no cache, return offline page
+            if (event.request.mode === 'navigate') {
+              return caches.match(OFFLINE_URL);
+            }
+          });
       })
   );
 });
@@ -181,74 +78,6 @@ self.addEventListener('fetch', (event) => {
 // Handle messages from clients
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('⏭️ SKIP_WAITING received, activating new service worker');
-    shouldSkipWaiting = true;
     self.skipWaiting();
   }
-  
-  if (event.data && event.data.type === 'CHECK_VERSION') {
-    // Răspunde cu versiunea curentă
-    event.ports[0].postMessage({ 
-      type: 'VERSION_RESPONSE',
-      version: CACHE_VERSION 
-    });
-  }
-});
-
-// Push Notification Listener
-self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
-  
-  let data = {
-    title: 'TimeTrack',
-    body: 'Ai o notificare nouă',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png'
-  };
-
-  if (event.data) {
-    try {
-      data = event.data.json();
-    } catch (e) {
-      data.body = event.data.text();
-    }
-  }
-
-  const options = {
-    body: data.body,
-    icon: data.icon || '/icon-192.png',
-    badge: data.badge || '/icon-192.png',
-    vibrate: [200, 100, 200],
-    tag: data.tag || 'timetrack-notification',
-    requireInteraction: data.requireInteraction || false,
-    data: data.data || {},
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
-});
-
-// Notification Click Handler
-self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
-  event.notification.close();
-
-  const urlToOpen = event.notification.data?.url || '/';
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Check if there's already a window open
-        for (const client of clientList) {
-          if (client.url === urlToOpen && 'focus' in client) {
-            return client.focus();
-          }
-        }
-        // Open new window if none exists
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
-      })
-  );
 });

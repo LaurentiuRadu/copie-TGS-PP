@@ -10,13 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, ArrowLeft } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useNavigate } from 'react-router-dom';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
+
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 
 interface ScheduleEntry {
@@ -49,7 +48,6 @@ const AVAILABLE_VEHICLES = [
 
 export default function WeeklySchedules() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   useRealtimeSchedules(true);
   const [selectedWeek, setSelectedWeek] = useState(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [selectedTeam, setSelectedTeam] = useState('E1');
@@ -205,8 +203,15 @@ export default function WeeklySchedules() {
       
       if (error) throw error;
 
-      // Notificările sunt create automat de trigger-ul schedule_insert_notification
-      // Nu mai este nevoie să le creăm manual aici
+      // Create notifications for all employees
+      const notifications = schedules.map(schedule => ({
+        schedule_id: schedule.id,
+        user_id: schedule.user_id
+      }));
+
+      await supabase
+        .from('schedule_notifications')
+        .insert(notifications);
 
       return schedules;
     },
@@ -474,16 +479,13 @@ export default function WeeklySchedules() {
   }, [schedules, employees]);
 
   return (
-    <AdminLayout title="Programare Săptămânală">
-      <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-6 w-6" />
-              Programare
-            </CardTitle>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-6 w-6" />
+            Programare Săptămânală
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filters */}
@@ -1043,7 +1045,6 @@ export default function WeeklySchedules() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
-    </AdminLayout>
+    </div>
   );
 }

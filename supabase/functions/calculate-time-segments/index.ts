@@ -73,12 +73,9 @@ Deno.serve(async (req) => {
       const hour = current.getHours();
       const isNight = hour >= 22 || hour < 6;
       
-      // Calculate actual worked hours for this segment (REAL hours, not paid hours)
-      const actualHours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
-      
       if (isHoliday) {
         // Pentru sărbători: 00:00-06:00 = 25% spor, 06:00-24:00 = 100% spor
-        if (isNight) {
+        if (hour < 6) {
           segmentType = 'holiday_night';
           multiplier = 1.25;
         } else {
@@ -87,7 +84,7 @@ Deno.serve(async (req) => {
         }
       } else if (isSunday) {
         // Pentru duminică: 00:00-06:00 = 25% spor, 06:00-24:00 = 100% spor
-        if (isNight) {
+        if (hour < 6) {
           segmentType = 'weekend_sunday_night';
           multiplier = 1.25;
         } else {
@@ -95,32 +92,22 @@ Deno.serve(async (req) => {
           multiplier = 2.0;
         }
       } else if (isSaturday) {
-        // Pentru sâmbătă: tot 50% spor (ziua și noaptea)
-        if (isNight) {
-          segmentType = 'weekend_saturday_night';
-          multiplier = 1.5;
-        } else {
-          segmentType = 'weekend_saturday_day';
-          multiplier = 1.5;
-        }
+        // Pentru sâmbătă: tot 50% spor (inclusiv noaptea 22:00-06:00)
+        segmentType = isNight ? 'weekend_saturday_night' : 'weekend_saturday_day';
+        multiplier = 1.5;
       } else {
         // Zile normale: 06:00-22:00 = 0% spor, 22:00-06:00 = 25% spor
-        if (isNight) {
-          segmentType = 'normal_night';
-          multiplier = 1.25;
-        } else {
-          segmentType = 'normal_day';
-          multiplier = 1.0;
-        }
+        segmentType = isNight ? 'normal_night' : 'normal_day';
+        multiplier = isNight ? 1.25 : 1.0;
       }
       
-      // IMPORTANT: hours_decimal contains REAL/ACTUAL hours worked
-      // To get paid hours: hours_decimal × multiplier
+      const hours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
+      
       segments.push({
         segment_type: segmentType,
         start_time: current.toISOString(),
         end_time: segmentEnd.toISOString(),
-        hours_decimal: Math.round(actualHours * 100) / 100,
+        hours_decimal: Math.round(hours * 100) / 100,
         multiplier
       });
       

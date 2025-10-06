@@ -407,15 +407,15 @@ const UserManagement = () => {
             <div className="hidden md:block">
               <AdminSearchCommand />
             </div>
-          <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                size="sm"
-                className="gap-2 bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all h-9 flex-shrink-0"
-              >
-                <UserPlus className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">Adaugă Utilizator</span>
-              </Button>
+            <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  size="sm"
+                  className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden md:inline">Adaugă Utilizator</span>
+                </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
@@ -461,7 +461,7 @@ const UserManagement = () => {
                     <Label htmlFor="new-user-password">Parolă *</Label>
                     <Input
                       id="new-user-password"
-                      type="password"
+                      type="text"
                       placeholder="Minim 6 caractere"
                       value={newUserPassword}
                       onChange={(e) => setNewUserPassword(e.target.value)}
@@ -482,7 +482,7 @@ const UserManagement = () => {
                     </Select>
                   </div>
                 </div>
-                <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                <DialogFooter className="flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -500,7 +500,7 @@ const UserManagement = () => {
                   <Button 
                     onClick={handleAddUser}
                     disabled={creating || !newUsername || !newFirstName || !newLastName || !newUserPassword}
-                    className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
+                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                   >
                     {creating ? 'Se creează...' : 'Creează Utilizator'}
                   </Button>
@@ -512,10 +512,10 @@ const UserManagement = () => {
               size="sm" 
               onClick={loadUsers}
               disabled={loading}
-              className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3 flex-shrink-0"
+              className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
             >
-              <RefreshCw className={`h-4 w-4 flex-shrink-0 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Reîmprospătează</span>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline">Reîmprospătează</span>
             </Button>
             <Button 
               variant="outline" 
@@ -663,7 +663,7 @@ const UserManagement = () => {
                                           </div>
                                         </div>
                                       </div>
-                                      <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                                      <DialogFooter>
                                         <Button
                                           variant="outline"
                                           onClick={() => {
@@ -672,14 +672,13 @@ const UserManagement = () => {
                                             setEditFirstName('');
                                             setEditLastName('');
                                           }}
-                                          className="w-full sm:w-auto"
                                         >
                                           Anulează
                                         </Button>
                                         <Button 
                                           onClick={handleUpdateUser}
                                           disabled={updating || !editFirstName || !editLastName}
-                                          className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
+                                          className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                         >
                                           {updating ? 'Se actualizează...' : 'Salvează'}
                                         </Button>
@@ -719,7 +718,7 @@ const UserManagement = () => {
                                       <Label htmlFor="new-password">Parola Nouă</Label>
                                       <Input
                                         id="new-password"
-                                        type="password"
+                                        type="text"
                                         placeholder="Introdu parola nouă"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
@@ -731,7 +730,7 @@ const UserManagement = () => {
                                       </p>
                                     </div>
                                   </div>
-                                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                                  <DialogFooter>
                                     <Button
                                       variant="outline"
                                       onClick={() => {
@@ -739,14 +738,13 @@ const UserManagement = () => {
                                         setSelectedUser(null);
                                         setNewPassword('');
                                       }}
-                                      className="w-full sm:w-auto"
                                     >
                                       Anulează
                                     </Button>
                                     <Button 
                                       onClick={handleResetPassword}
                                       disabled={resetting || !newPassword || newPassword.length < 6}
-                                      className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all"
+                                      className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                     >
                                       {resetting ? 'Se resetează...' : 'Resetează Parola'}
                                     </Button>
@@ -781,14 +779,13 @@ const UserManagement = () => {
                                       Această acțiune este permanentă și nu poate fi anulată.
                                     </DialogDescription>
                                   </DialogHeader>
-                                  <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+                                  <DialogFooter>
                                     <Button
                                       variant="outline"
                                       onClick={() => {
                                         setDeleteDialogOpen(false);
                                         setDeletingUser(null);
                                       }}
-                                      className="w-full sm:w-auto"
                                     >
                                       Anulează
                                     </Button>
@@ -796,7 +793,7 @@ const UserManagement = () => {
                                       onClick={handleDeleteUser}
                                       disabled={deleting}
                                       variant="destructive"
-                                      className="w-full sm:w-auto shadow-md hover:shadow-lg transition-all"
+                                      className="shadow-md hover:shadow-lg transition-all"
                                     >
                                       {deleting ? 'Se șterge...' : 'Șterge Definitiv'}
                                     </Button>
@@ -913,7 +910,7 @@ const UserManagement = () => {
                                     <Button 
                                       onClick={handleUpdateUser}
                                       disabled={updating || !editFirstName || !editLastName}
-                                      className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+                                      className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                     >
                                       {updating ? 'Se actualizează...' : 'Salvează'}
                                     </Button>
@@ -954,7 +951,7 @@ const UserManagement = () => {
                                     <Label htmlFor="new-password">Parola Nouă</Label>
                                     <Input
                                       id="new-password"
-                                      type="password"
+                                      type="text"
                                       placeholder="Introdu parola nouă"
                                       value={newPassword}
                                       onChange={(e) => setNewPassword(e.target.value)}
@@ -981,7 +978,7 @@ const UserManagement = () => {
                                   <Button 
                                     onClick={handleResetPassword}
                                     disabled={resetting || !newPassword || newPassword.length < 6}
-                                    className="w-full sm:w-auto bg-gradient-primary-action text-primary-foreground shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+                                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
                                   >
                                     {resetting ? 'Se resetează...' : 'Resetează Parola'}
                                   </Button>

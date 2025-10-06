@@ -9,7 +9,6 @@ import { ro } from "date-fns/locale";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AdminLayout } from "@/components/layouts/AdminLayout";
 
 interface FaceVerificationLog {
   id: string;
@@ -130,132 +129,139 @@ export default function FaceVerifications() {
   };
 
   return (
-    <AdminLayout title="Verificări Faciale">
-      <div className="p-6 space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Filtre</CardTitle>
-            <CardDescription>Filtrează verificările după tip și status</CardDescription>
-          </CardHeader>
-          <CardContent className="flex gap-4">
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Tip verificare" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toate Tipurile</SelectItem>
-                <SelectItem value="enrollment">Înrolare</SelectItem>
-                <SelectItem value="clock_in">Intrare</SelectItem>
-                <SelectItem value="clock_out">Ieșire</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="container mx-auto py-8 space-y-8">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Istoricul Verificărilor Faciale</h1>
+          <p className="text-muted-foreground mt-2">
+            Monitorizare completă a tuturor verificărilor faciale
+          </p>
+        </div>
+      </div>
 
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toate Statusurile</SelectItem>
-                <SelectItem value="success">Succes</SelectItem>
-                <SelectItem value="failed">Eșuat</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtre</CardTitle>
+          <CardDescription>Filtrează verificările după tip și status</CardDescription>
+        </CardHeader>
+        <CardContent className="flex gap-4">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tip verificare" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toate Tipurile</SelectItem>
+              <SelectItem value="enrollment">Înrolare</SelectItem>
+              <SelectItem value="clock_in">Intrare</SelectItem>
+              <SelectItem value="clock_out">Ieșire</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Verificări Recente</CardTitle>
-            <CardDescription>
-              {verifications?.length || 0} verificări găsite
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p>Se încarcă...</p>
-            ) : verifications && verifications.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utilizator</TableHead>
-                    <TableHead>Tip</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Scor Calitate</TableHead>
-                    <TableHead>Scor Potrivire</TableHead>
-                    <TableHead>Dată</TableHead>
-                    <TableHead>Motiv Eșec</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {verifications.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={log.photo_url} />
-                            <AvatarFallback>
-                              {log.profiles?.full_name?.[0] || "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">
-                              {log.profiles?.full_name || "Necunoscut"}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {log.profiles?.username}
-                            </div>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toate Statusurile</SelectItem>
+              <SelectItem value="success">Succes</SelectItem>
+              <SelectItem value="failed">Eșuat</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Verificări Recente</CardTitle>
+          <CardDescription>
+            {verifications?.length || 0} verificări găsite
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p>Se încarcă...</p>
+          ) : verifications && verifications.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Utilizator</TableHead>
+                  <TableHead>Tip</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Scor Calitate</TableHead>
+                  <TableHead>Scor Potrivire</TableHead>
+                  <TableHead>Dată</TableHead>
+                  <TableHead>Motiv Eșec</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {verifications.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={log.photo_url} />
+                          <AvatarFallback>
+                            {log.profiles?.full_name?.[0] || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">
+                            {log.profiles?.full_name || "Necunoscut"}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {log.profiles?.username}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getVerificationTypeIcon(log.verification_type)}
-                          {getVerificationTypeLabel(log.verification_type)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(log)}</TableCell>
-                      <TableCell>
-                        {log.quality_score !== null ? (
-                          <span className={log.quality_score >= 0.7 ? "text-green-600" : "text-orange-600"}>
-                            {(log.quality_score * 100).toFixed(0)}%
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {log.match_score !== null ? (
-                          <span className={log.match_score >= 0.7 ? "text-green-600" : "text-red-600"}>
-                            {(log.match_score * 100).toFixed(0)}%
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(log.created_at), "PPp", { locale: ro })}
-                      </TableCell>
-                      <TableCell>
-                        {log.failure_reason ? (
-                          <span className="text-sm text-destructive">
-                            {log.failure_reason}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                Nu există verificări înregistrate
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </AdminLayout>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getVerificationTypeIcon(log.verification_type)}
+                        {getVerificationTypeLabel(log.verification_type)}
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(log)}</TableCell>
+                    <TableCell>
+                      {log.quality_score !== null ? (
+                        <span className={log.quality_score >= 0.7 ? "text-green-600" : "text-orange-600"}>
+                          {(log.quality_score * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {log.match_score !== null ? (
+                        <span className={log.match_score >= 0.7 ? "text-green-600" : "text-red-600"}>
+                          {(log.match_score * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(log.created_at), "PPp", { locale: ro })}
+                    </TableCell>
+                    <TableCell>
+                      {log.failure_reason ? (
+                        <span className="text-sm text-destructive">
+                          {log.failure_reason}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              Nu există verificări înregistrate
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

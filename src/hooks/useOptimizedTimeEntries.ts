@@ -17,7 +17,6 @@ interface TimeEntry {
   user_id: string;
   profiles: {
     full_name: string | null;
-    username: string | null;
   } | null;
   time_entry_segments: Array<{
     segment_type: string;
@@ -54,7 +53,7 @@ export const useOptimizedTimeEntries = (selectedDate: Date) => {
       const userIds = [...new Set(data.map(e => e.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, username')
+        .select('id, full_name')
         .in('id', userIds);
 
       const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
