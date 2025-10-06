@@ -24,22 +24,22 @@ export const AppHeader = ({ userName, showBackButton = false, children }: AppHea
     <header className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border shadow-sm">
       <div className="flex items-center justify-between p-3 xs:p-4 gap-3">
         {/* Left: Menu or Back button */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-14 justify-center">
           {shouldShowBack ? (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
-              className="h-10 w-10 flex-shrink-0"
+              className="h-14 w-14 flex-shrink-0"
               title="Înapoi"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-7 w-7" />
             </Button>
           ) : (
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0">
-                  <Menu className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="h-14 w-14 flex-shrink-0">
+                  <Menu className="h-7 w-7" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64">
@@ -50,17 +50,17 @@ export const AppHeader = ({ userName, showBackButton = false, children }: AppHea
         </div>
         
         {/* Center: Clock, Date, and User Name */}
-        <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+        <div className="flex-1 flex flex-col items-center justify-center min-w-0 gap-1">
           <RomaniaTimeClock />
           {userName && (
-            <span className="text-xs text-muted-foreground mt-1 truncate max-w-full">
+            <span className="text-sm text-muted-foreground truncate max-w-full font-medium">
               {userName}
             </span>
           )}
         </div>
         
         {/* Right: Notifications */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-14 justify-center">
           <ScheduleNotificationBell />
         </div>
       </div>
