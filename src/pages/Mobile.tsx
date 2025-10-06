@@ -673,7 +673,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("condus")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "ring-4 ring-blue-300 ring-offset-2" : ""}`}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "animate-glow-blue border-2 border-blue-400" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -691,7 +691,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("pasager")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "ring-4 ring-green-300 ring-offset-2" : ""}`}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "animate-glow-green border-2 border-green-400" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -709,7 +709,7 @@ const Mobile = () => {
                 size="lg"
                 onClick={() => handleShiftStart("normal")}
                 disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "ring-4 ring-purple-300 ring-offset-2" : ""}`}
+                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "animate-glow-purple border-2 border-purple-400" : ""}`}
               >
                 {isProcessing ? (
                   <>
@@ -729,7 +729,7 @@ const Mobile = () => {
                   size="lg"
                   onClick={() => handleShiftStart("utilaj")}
                   disabled={!locationEnabled || isProcessing}
-                  className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "utilaj" ? "ring-4 ring-orange-300 ring-offset-2" : ""}`}
+                  className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "utilaj" ? "animate-glow-orange border-2 border-orange-400" : ""}`}
                 >
                   {isProcessing ? (
                     <>
