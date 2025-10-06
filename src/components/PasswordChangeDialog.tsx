@@ -11,8 +11,7 @@ import { z } from "zod";
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Introdu parola actuală"),
   newPassword: z.string()
-    .min(6, "Parola trebuie să aibă minim 6 caractere")
-    .max(10, "Parola trebuie să aibă maxim 10 caractere"),
+    .min(6, "Parola trebuie să aibă minim 6 caractere"),
   confirmPassword: z.string()
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: "Parolele nu se potrivesc",
@@ -122,7 +121,7 @@ export function PasswordChangeDialog({ open, onSuccess }: PasswordChangeDialogPr
             Schimbare Obligatorie a Parolei
           </DialogTitle>
           <DialogDescription>
-            Pentru securitatea contului tău, trebuie să schimbi parola din 123456 în una personalizată (6-10 caractere).
+            Pentru securitatea contului tău, trebuie să schimbi parola din 123456 în una personalizată (minim 6 caractere).
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +145,7 @@ export function PasswordChangeDialog({ open, onSuccess }: PasswordChangeDialogPr
             <Label htmlFor="newPassword">
               Parola nouă
               <span className="text-xs text-muted-foreground ml-2">
-                ({newPassword.length}/10 caractere)
+                ({newPassword.length} caractere)
               </span>
             </Label>
             <Input
@@ -154,7 +153,7 @@ export function PasswordChangeDialog({ open, onSuccess }: PasswordChangeDialogPr
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Minimum 6, maximum 10 caractere"
+              placeholder="Minimum 6 caractere"
               disabled={loading}
             />
             {errors.newPassword && (
