@@ -224,8 +224,83 @@ function segmentShiftIntoTimesheets(
     currentSegmentStart = new Date(currentSegmentEnd);
   }
   
-  // Rotunjește toate orele la 2 zecimale
+  // ✅ DEDUCERE AUTOMATĂ PAUZĂ: 30 minute (0.5 ore) din fiecare zi
   timesheets.forEach(t => {
+    // Calculează totalul de ore lucrate în ziua respectivă
+    const totalHours = 
+      t.hours_regular + t.hours_night + t.hours_saturday + 
+      t.hours_sunday + t.hours_holiday + t.hours_passenger + 
+      t.hours_driving + t.hours_equipment;
+    
+    // Dedu 0.5 ore (30 min) doar dacă au lucrat cel puțin 30 minute
+    if (totalHours >= 0.5) {
+      const BREAK_HOURS = 0.5; // 30 minute
+      
+      // Deduce pauza prioritar din hours_regular, apoi din alte categorii
+      if (t.hours_regular >= BREAK_HOURS) {
+        t.hours_regular -= BREAK_HOURS;
+        console.log(`[Break] Deducere pauză 30 min din hours_regular pentru ${t.work_date}`);
+      } else if (t.hours_regular > 0) {
+        // Dacă hours_regular < 30 min, deduce ce există și restul din alte categorii
+        let remainingBreak = BREAK_HOURS - t.hours_regular;
+        t.hours_regular = 0;
+        
+        // Încearcă să deduci din hours_night
+        if (t.hours_night > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_night, remainingBreak);
+          t.hours_night -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        // Dacă mai rămâne, deduce din hours_driving
+        if (t.hours_driving > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_driving, remainingBreak);
+          t.hours_driving -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        // Dacă mai rămâne, deduce din hours_passenger
+        if (t.hours_passenger > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_passenger, remainingBreak);
+          t.hours_passenger -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        // Dacă mai rămâne, deduce din hours_equipment
+        if (t.hours_equipment > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_equipment, remainingBreak);
+          t.hours_equipment -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        console.log(`[Break] Deducere pauză 30 min din multiple categorii pentru ${t.work_date}`);
+      } else {
+        // Dacă nu există hours_regular, deduce din alte categorii (condus/pasager/utilaj)
+        let remainingBreak = BREAK_HOURS;
+        
+        if (t.hours_driving > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_driving, remainingBreak);
+          t.hours_driving -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        if (t.hours_passenger > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_passenger, remainingBreak);
+          t.hours_passenger -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        if (t.hours_equipment > 0 && remainingBreak > 0) {
+          const deduction = Math.min(t.hours_equipment, remainingBreak);
+          t.hours_equipment -= deduction;
+          remainingBreak -= deduction;
+        }
+        
+        console.log(`[Break] Deducere pauză 30 min din ore speciale pentru ${t.work_date}`);
+      }
+    }
+    
+    // Rotunjește toate orele la 2 zecimale
     t.hours_regular = Math.round(t.hours_regular * 100) / 100;
     t.hours_night = Math.round(t.hours_night * 100) / 100;
     t.hours_saturday = Math.round(t.hours_saturday * 100) / 100;
