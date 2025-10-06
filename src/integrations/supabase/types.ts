@@ -294,6 +294,36 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_settings: {
+        Row: {
+          clock_out_reminder_enabled: boolean | null
+          clock_out_reminder_hours: number | null
+          created_at: string | null
+          id: string
+          schedule_changes_enabled: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          clock_out_reminder_enabled?: boolean | null
+          clock_out_reminder_hours?: number | null
+          created_at?: string | null
+          id?: string
+          schedule_changes_enabled?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          clock_out_reminder_enabled?: boolean | null
+          clock_out_reminder_hours?: number | null
+          created_at?: string | null
+          id?: string
+          schedule_changes_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -525,6 +555,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      tardiness_reports: {
+        Row: {
+          actual_clock_in_time: string
+          admin_notes: string | null
+          created_at: string | null
+          delay_minutes: number
+          id: string
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scheduled_start_time: string
+          status: string
+          time_entry_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_clock_in_time: string
+          admin_notes?: string | null
+          created_at?: string | null
+          delay_minutes: number
+          id?: string
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_start_time: string
+          status?: string
+          time_entry_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_clock_in_time?: string
+          admin_notes?: string | null
+          created_at?: string | null
+          delay_minutes?: number
+          id?: string
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_start_time?: string
+          status?: string
+          time_entry_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tardiness_reports_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       time_entries: {
         Row: {

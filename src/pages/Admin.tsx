@@ -4,6 +4,7 @@ import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar } from "luci
 import { MigrationTestPanel } from "@/components/MigrationTestPanel";
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
 import { AdminLayout } from "@/components/AdminLayout";
+import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 
 const Admin = () => {
   return (
@@ -14,6 +15,9 @@ const Admin = () => {
             
             {/* Migration Test Panel */}
             <MigrationTestPanel />
+
+            {/* Tardiness Reports Manager */}
+            <TardinessReportsManager />
 
             {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

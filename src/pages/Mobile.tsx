@@ -38,6 +38,9 @@ import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
 import { ActiveShiftAlert } from "@/components/ActiveShiftAlert";
 import { AppHeader } from "@/components/AppHeader";
+import { TardinessReasonDialog } from "@/components/TardinessReasonDialog";
+import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
+import { useTardinessCheck } from "@/hooks/useTardinessCheck";
 
 type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
 
@@ -67,6 +70,9 @@ const Mobile = () => {
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; newType: ShiftType }>({ open: false, newType: null });
+  const [tardinessDialog, setTardinessDialog] = useState<{ open: boolean; delayMinutes: number; scheduledTime: string } | null>(null);
+  const [showReminderAlert, setShowReminderAlert] = useState(true);
+  const [pendingTardinessEntry, setPendingTardinessEntry] = useState<any>(null);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -75,6 +81,9 @@ const Mobile = () => {
   
   // Monitor active time entry for notifications
   const { hasActiveEntry, activeEntry: monitoredEntry, elapsed: monitoredElapsed } = useActiveTimeEntry(user?.id);
+  
+  // Check for tardiness when clocking in
+  const tardinessInfo = useTardinessCheck(user?.id, !activeShift);
 
   const requestLocationAccess = useCallback(async () => {
     try {
@@ -268,6 +277,17 @@ const Mobile = () => {
       setActiveTimeEntry(entry);
       setActiveShift(type);
       setShiftSeconds(0);
+      
+      // Check if tardiness needs to be reported
+      if (tardinessInfo.isLate && tardinessInfo.scheduledTime) {
+        setPendingTardinessEntry(entry);
+        setTardinessDialog({
+          open: true,
+          delayMinutes: tardinessInfo.delayMinutes,
+          scheduledTime: tardinessInfo.scheduledTime,
+        });
+      }
+      
       triggerHaptic('success');
       
       // Enhanced toast message for shift changes
@@ -408,6 +428,32 @@ const Mobile = () => {
     return username && allowedUsernames.includes(username.toLowerCase());
   }, [user]);
 
+  const handleTardinessReasonSubmit = useCallback(async (reason: string) => {
+    if (!tardinessDialog || !pendingTardinessEntry || !user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('tardiness_reports')
+        .insert({
+          user_id: user.id,
+          time_entry_id: pendingTardinessEntry.id,
+          scheduled_start_time: tardinessDialog.scheduledTime,
+          actual_clock_in_time: pendingTardinessEntry.clock_in_time,
+          delay_minutes: tardinessDialog.delayMinutes,
+          reason: reason,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast.success('Justificarea a fost trimisă spre aprobare');
+      setPendingTardinessEntry(null);
+    } catch (error: any) {
+      console.error('Error submitting tardiness reason:', error);
+      toast.error('Eroare la trimiterea justificării');
+    }
+  }, [tardinessDialog, pendingTardinessEntry, user]);
+
   const getDayColor = (date: Date) => {
     const dayData = mockMonthData.find(
       (d) => format(d.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
@@ -490,6 +536,16 @@ const Mobile = () => {
               setShiftSeconds(0);
               setActiveTimeEntry(null);
             }}
+          />
+        )}
+
+        {/* Clock Out Reminder Alert */}
+        {activeTimeEntry && showReminderAlert && (
+          <ClockOutReminderAlert
+            clockInTime={activeTimeEntry.clock_in_time}
+            onClockOut={handleShiftEnd}
+            onDismiss={() => setShowReminderAlert(false)}
+            reminderHours={10}
           />
         )}
         
@@ -734,6 +790,17 @@ const Mobile = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Tardiness Reason Dialog */}
+      {tardinessDialog && (
+        <TardinessReasonDialog
+          open={tardinessDialog.open}
+          onClose={() => setTardinessDialog(null)}
+          onSubmit={handleTardinessReasonSubmit}
+          delayMinutes={tardinessDialog.delayMinutes}
+          scheduledTime={tardinessDialog.scheduledTime}
+        />
+      )}
     </div>
   );
 };
