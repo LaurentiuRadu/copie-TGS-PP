@@ -21,6 +21,9 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
         () => {
           queryClient.invalidateQueries({ queryKey: ['time-entries'] });
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['my-daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['weekly-timesheets'] });
           
           if (window.location.pathname.includes('/time-entries')) {
             toast.info('Pontaj nou adăugat', { duration: 3000 });
@@ -33,6 +36,9 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
         () => {
           queryClient.invalidateQueries({ queryKey: ['time-entries'] });
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
+          queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['my-daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['weekly-timesheets'] });
         }
       )
       .on(
@@ -41,6 +47,15 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
         () => {
           queryClient.invalidateQueries({ queryKey: ['time-entries'] });
           queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_timesheets' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['my-daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['weekly-timesheets'] });
         }
       )
       .subscribe();

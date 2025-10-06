@@ -86,6 +86,71 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_timesheets: {
+        Row: {
+          created_at: string
+          employee_id: string
+          hours_driving: number | null
+          hours_equipment: number | null
+          hours_holiday: number | null
+          hours_leave: number | null
+          hours_medical_leave: number | null
+          hours_night: number | null
+          hours_passenger: number | null
+          hours_regular: number | null
+          hours_saturday: number | null
+          hours_sunday: number | null
+          id: string
+          notes: string | null
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          hours_driving?: number | null
+          hours_equipment?: number | null
+          hours_holiday?: number | null
+          hours_leave?: number | null
+          hours_medical_leave?: number | null
+          hours_night?: number | null
+          hours_passenger?: number | null
+          hours_regular?: number | null
+          hours_saturday?: number | null
+          hours_sunday?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          hours_driving?: number | null
+          hours_equipment?: number | null
+          hours_holiday?: number | null
+          hours_leave?: number | null
+          hours_medical_leave?: number | null
+          hours_night?: number | null
+          hours_passenger?: number | null
+          hours_regular?: number | null
+          hours_saturday?: number | null
+          hours_sunday?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_timesheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_retention_policies: {
         Row: {
           auto_delete_enabled: boolean | null

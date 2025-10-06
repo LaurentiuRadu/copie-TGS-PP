@@ -1,182 +1,118 @@
 import * as XLSX from 'xlsx';
 
 interface ExportTimeEntry {
-  Angajat: string;
-  Data: string;
-  Intrare: string;
-  Ieșire: string;
-  Regular: string;
-  Noapte: string;
-  Sâmbătă: string;
-  Duminică: string;
-  Sărbătoare: string;
-  Pasager: string;
-  Condus: string;
-  Utilaj: string;
-  CO: string;
-  CM: string;
-  TOTAL: string;
+  'Angajat': string;
+  'Data': string;
+  'Ore Normale': string;
+  'Ore Noapte': string;
+  'Ore Sâmbătă': string;
+  'Ore Duminică': string;
+  'Ore Sărbători': string;
+  'Ore Pasager': string;
+  'Ore Șofat': string;
+  'Ore Echipament': string;
+  'Ore Concediu': string;
+  'Ore Medical': string;
+  'Total Ore': string;
+  'Notițe': string;
 }
 
-interface TimeEntrySegment {
-  segment_type: string;
-  hours_decimal: number;
-}
-
-interface TimeEntryForExport {
-  profiles?: { full_name?: string | null; username?: string | null } | null;
-  clock_in_time: string;
-  clock_out_time: string | null;
-  notes?: string | null;
-  time_entry_segments?: TimeEntrySegment[];
+interface DailyTimesheetForExport {
+  employee_id: string;
+  work_date: string;
+  hours_regular: number;
+  hours_night: number;
+  hours_saturday: number;
+  hours_sunday: number;
+  hours_holiday: number;
+  hours_passenger: number;
+  hours_driving: number;
+  hours_equipment: number;
+  hours_leave: number;
+  hours_medical_leave: number;
+  notes: string | null;
+  profiles?: {
+    username: string | null;
+    full_name: string | null;
+  };
 }
 
 const formatHours = (hours: number): string => {
-  return `${hours.toFixed(1).replace('.', ',')}h`;
+  return `${hours.toFixed(1)}h`;
 };
 
-const mapHoursToCategories = (entry: TimeEntryForExport) => {
-  const notes = entry.notes || '';
-  const segments = entry.time_entry_segments || [];
-  
-  // Calculate total hours from segments
-  const totalHours = segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
-  
-  // Initialize all categories to 0
-  const categories = {
-    regular: 0,
-    noapte: 0,
-    sambata: 0,
-    duminica: 0,
-    sarbatoare: 0,
-    pasager: 0,
-    condus: 0,
-    utilaj: 0,
-    co: 0,
-    cm: 0,
+const mapTimesheetToExportRow = (entry: DailyTimesheetForExport): ExportTimeEntry => {
+  const totalHours = 
+    entry.hours_regular +
+    entry.hours_night +
+    entry.hours_saturday +
+    entry.hours_sunday +
+    entry.hours_holiday +
+    entry.hours_passenger +
+    entry.hours_driving +
+    entry.hours_equipment +
+    entry.hours_leave +
+    entry.hours_medical_leave;
+
+  return {
+    'Angajat': entry.profiles?.full_name || entry.profiles?.username || 'Unknown',
+    'Data': new Date(entry.work_date).toLocaleDateString('ro-RO'),
+    'Ore Normale': formatHours(entry.hours_regular),
+    'Ore Noapte': formatHours(entry.hours_night),
+    'Ore Sâmbătă': formatHours(entry.hours_saturday),
+    'Ore Duminică': formatHours(entry.hours_sunday),
+    'Ore Sărbători': formatHours(entry.hours_holiday),
+    'Ore Pasager': formatHours(entry.hours_passenger),
+    'Ore Șofat': formatHours(entry.hours_driving),
+    'Ore Echipament': formatHours(entry.hours_equipment),
+    'Ore Concediu': formatHours(entry.hours_leave),
+    'Ore Medical': formatHours(entry.hours_medical_leave),
+    'Total Ore': formatHours(totalHours),
+    'Notițe': entry.notes || ''
   };
-  
-  // Check if notes specify a manual category
-  if (notes.includes('Tip: Condus')) {
-    categories.condus = totalHours;
-  } else if (notes.includes('Tip: Pasager')) {
-    categories.pasager = totalHours;
-  } else if (notes.includes('Tip: Utilaj')) {
-    categories.utilaj = totalHours;
-  } else {
-    // Distribute hours based on automatic segments
-    segments.forEach(seg => {
-      switch (seg.segment_type) {
-        case 'normal_day':
-          categories.regular += seg.hours_decimal;
-          break;
-        case 'normal_night':
-          categories.noapte += seg.hours_decimal;
-          break;
-        case 'saturday':
-          categories.sambata += seg.hours_decimal;
-          break;
-        case 'sunday':
-          categories.duminica += seg.hours_decimal;
-          break;
-        case 'holiday':
-          categories.sarbatoare += seg.hours_decimal;
-          break;
-      }
-    });
-  }
-  
-  return categories;
 };
 
-export const exportToExcel = (data: TimeEntryForExport[], filename: string) => {
-  const exportData: ExportTimeEntry[] = data.map(entry => {
-    const categories = mapHoursToCategories(entry);
-    const totalHours = Object.values(categories).reduce((sum, h) => sum + h, 0);
-    
-    return {
-      Angajat: entry.profiles?.full_name || entry.profiles?.username || 'Necunoscut',
-      Data: new Date(entry.clock_in_time).toLocaleDateString('ro-RO'),
-      Intrare: new Date(entry.clock_in_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
-      Ieșire: entry.clock_out_time 
-        ? new Date(entry.clock_out_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
-        : '-',
-      Regular: formatHours(categories.regular),
-      Noapte: formatHours(categories.noapte),
-      Sâmbătă: formatHours(categories.sambata),
-      Duminică: formatHours(categories.duminica),
-      Sărbătoare: formatHours(categories.sarbatoare),
-      Pasager: formatHours(categories.pasager),
-      Condus: formatHours(categories.condus),
-      Utilaj: formatHours(categories.utilaj),
-      CO: formatHours(categories.co),
-      CM: formatHours(categories.cm),
-      TOTAL: formatHours(totalHours),
-    };
-  });
-  
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
+export const exportToExcel = (data: DailyTimesheetForExport[], filename: string = 'pontaje.xlsx') => {
+  const exportData: ExportTimeEntry[] = data.map(entry => mapTimesheetToExportRow(entry));
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
   
   // Set column widths
-  worksheet['!cols'] = [
+  const colWidths = [
     { wch: 20 }, // Angajat
     { wch: 12 }, // Data
-    { wch: 10 }, // Intrare
-    { wch: 10 }, // Ieșire
-    { wch: 10 }, // Regular
-    { wch: 10 }, // Noapte
-    { wch: 10 }, // Sâmbătă
-    { wch: 10 }, // Duminică
-    { wch: 12 }, // Sărbătoare
-    { wch: 10 }, // Pasager
-    { wch: 10 }, // Condus
-    { wch: 10 }, // Utilaj
-    { wch: 8 },  // CO
-    { wch: 8 },  // CM
-    { wch: 10 }, // TOTAL
+    { wch: 12 }, // Ore Normale
+    { wch: 12 }, // Ore Noapte
+    { wch: 12 }, // Ore Sâmbătă
+    { wch: 12 }, // Ore Duminică
+    { wch: 12 }, // Ore Sărbători
+    { wch: 12 }, // Ore Pasager
+    { wch: 12 }, // Ore Șofat
+    { wch: 12 }, // Ore Echipament
+    { wch: 12 }, // Ore Concediu
+    { wch: 12 }, // Ore Medical
+    { wch: 12 }, // Total Ore
+    { wch: 30 }  // Notițe
   ];
-  
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Pontaje');
-  
-  XLSX.writeFile(workbook, `${filename}.xlsx`);
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pontaje');
+  XLSX.writeFile(wb, filename);
 };
 
-export const exportToCSV = (data: TimeEntryForExport[], filename: string) => {
-  const exportData: ExportTimeEntry[] = data.map(entry => {
-    const categories = mapHoursToCategories(entry);
-    const totalHours = Object.values(categories).reduce((sum, h) => sum + h, 0);
-    
-    return {
-      Angajat: entry.profiles?.full_name || entry.profiles?.username || 'Necunoscut',
-      Data: new Date(entry.clock_in_time).toLocaleDateString('ro-RO'),
-      Intrare: new Date(entry.clock_in_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
-      Ieșire: entry.clock_out_time 
-        ? new Date(entry.clock_out_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
-        : '-',
-      Regular: formatHours(categories.regular),
-      Noapte: formatHours(categories.noapte),
-      Sâmbătă: formatHours(categories.sambata),
-      Duminică: formatHours(categories.duminica),
-      Sărbătoare: formatHours(categories.sarbatoare),
-      Pasager: formatHours(categories.pasager),
-      Condus: formatHours(categories.condus),
-      Utilaj: formatHours(categories.utilaj),
-      CO: formatHours(categories.co),
-      CM: formatHours(categories.cm),
-      TOTAL: formatHours(totalHours),
-    };
-  });
-  
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
-  const csv = XLSX.utils.sheet_to_csv(worksheet);
+export const exportToCSV = (data: DailyTimesheetForExport[], filename: string = 'pontaje.csv') => {
+  const exportData: ExportTimeEntry[] = data.map(entry => mapTimesheetToExportRow(entry));
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
+  const csv = XLSX.utils.sheet_to_csv(ws);
   
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   
   link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}.csv`);
+  link.setAttribute('download', filename);
   link.style.visibility = 'hidden';
   
   document.body.appendChild(link);

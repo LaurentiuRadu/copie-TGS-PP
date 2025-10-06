@@ -5,12 +5,228 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface TimeSegment {
-  segment_type: string;
-  start_time: string;
-  end_time: string;
-  hours_decimal: number;
-  multiplier: number;
+interface TimesheetEntry {
+  employee_id: string;
+  work_date: string;
+  hours_regular: number;
+  hours_night: number;
+  hours_saturday: number;
+  hours_sunday: number;
+  hours_holiday: number;
+  hours_passenger: number;
+  hours_driving: number;
+  hours_equipment: number;
+  hours_leave: number;
+  notes: string | null;
+}
+
+interface Shift {
+  startTime: string;
+  endTime: string;
+  employeeId: string;
+  notes?: string;
+}
+
+/**
+ * Găsește următorul moment critic de segmentare (00:00, 06:00, 22:00)
+ */
+function getNextCriticalTime(currentTime: Date): Date {
+  const result = new Date(currentTime);
+  const currentHour = result.getHours();
+  const currentMinute = result.getMinutes();
+  
+  // Dacă suntem înainte de 06:00, mergi la 06:00 aceeași zi
+  if (currentHour < 6 || (currentHour === 6 && currentMinute === 0)) {
+    result.setHours(6, 0, 0, 0);
+    return result;
+  }
+  
+  // Dacă suntem între 06:00 și 22:00, mergi la 22:00 aceeași zi
+  if (currentHour < 22 || (currentHour === 22 && currentMinute === 0)) {
+    result.setHours(22, 0, 0, 0);
+    return result;
+  }
+  
+  // Dacă suntem după 22:00, mergi la 00:00 ziua următoare
+  result.setDate(result.getDate() + 1);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+/**
+ * Verifică dacă o dată este sărbătoare legală românească
+ */
+function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
+  const dateStr = date.toISOString().split('T')[0];
+  return holidayDates.has(dateStr);
+}
+
+/**
+ * Determină tipul de ore bazat pe ziua săptămânii și interval orar
+ * Conform pseudo-cod:
+ * - Sărbătoare 06:01 → 24:00 = hours_holiday (2.0x)
+ * - Sărbătoare 00:00 → 06:00 = hours_night (1.25x)
+ * - Sâmbătă 06:01 → Duminică 06:00 = hours_saturday (1.50x)
+ * - Duminică 06:01 → 24:00 = hours_sunday (2.0x)
+ * - Noapte 22:01 → 06:00 = hours_night (1.25x)
+ * - Normal 06:01 → 22:00 = hours_regular (1.0x)
+ */
+function determineHoursType(
+  segmentStart: Date,
+  segmentEnd: Date,
+  holidayDates: Set<string>
+): string {
+  const dayOfWeek = segmentStart.getDay(); // 0=Duminică, 1=Luni, ..., 6=Sâmbătă
+  const startHour = segmentStart.getHours();
+  const startMinute = segmentStart.getMinutes();
+  
+  // Verifică dacă este sărbătoare legală
+  if (isLegalHoliday(segmentStart, holidayDates)) {
+    // Sărbătoare 06:01 → 24:00
+    if (startHour > 6 || (startHour === 6 && startMinute >= 1)) {
+      return 'hours_holiday';
+    }
+    // Sărbătoare 00:00 → 06:00
+    if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
+      return 'hours_night';
+    }
+  }
+  
+  // SÂMBĂTĂ-DUMINICĂ (Sâmbătă 06:01 → Duminică 06:00)
+  if (
+    (dayOfWeek === 6 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) || // Sâmbătă de la 06:01
+    (dayOfWeek === 0 && (startHour < 6 || (startHour === 6 && startMinute === 0)))  // Duminică până la 06:00
+  ) {
+    return 'hours_saturday';
+  }
+  
+  // DUMINICĂ (Duminică 06:01 → 24:00)
+  if (dayOfWeek === 0 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) {
+    return 'hours_sunday';
+  }
+  
+  // NOAPTE (22:01 → 06:00) - oricare zi (Luni-Vineri)
+  if (startHour >= 22 && (startHour > 22 || startMinute >= 1)) {
+    return 'hours_night';
+  }
+  
+  if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
+    return 'hours_night';
+  }
+  
+  // ORE NORMALE (06:01 → 22:00) - Luni-Vineri
+  return 'hours_regular';
+}
+
+/**
+ * Segmentează o tură de lucru în pontaje zilnice separate
+ */
+function segmentShiftIntoTimesheets(
+  shift: Shift,
+  holidayDates: Set<string>
+): TimesheetEntry[] {
+  const start = new Date(shift.startTime);
+  const end = new Date(shift.endTime);
+  const timesheets: TimesheetEntry[] = [];
+  
+  let currentSegmentStart = new Date(start);
+  
+  // Procesează tura în segmente până la sfârșit
+  while (currentSegmentStart < end) {
+    // Determină sfârșitul acestui segment
+    const nextCriticalTime = getNextCriticalTime(currentSegmentStart);
+    const currentSegmentEnd = nextCriticalTime < end ? nextCriticalTime : end;
+    
+    // Calculează ore pentru acest segment
+    const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
+    
+    // Determină tipul de ore bazat pe ziua săptămânii și interval orar
+    const hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
+    
+    // Găsește sau creează pontaj pentru această zi
+    const workDate = currentSegmentStart.toISOString().split('T')[0];
+    let existingTimesheet = timesheets.find(t => t.work_date === workDate);
+    
+    if (!existingTimesheet) {
+      existingTimesheet = {
+        employee_id: shift.employeeId,
+        work_date: workDate,
+        hours_regular: 0,
+        hours_night: 0,
+        hours_saturday: 0,
+        hours_sunday: 0,
+        hours_holiday: 0,
+        hours_passenger: 0,
+        hours_driving: 0,
+        hours_equipment: 0,
+        hours_leave: 0,
+        notes: shift.notes || null
+      };
+      timesheets.push(existingTimesheet);
+    }
+    
+    // Adaugă orele la tipul corect
+    existingTimesheet[hoursType] += hoursInSegment;
+    
+    // Avansează la următorul segment
+    currentSegmentStart = new Date(currentSegmentEnd);
+  }
+  
+  // Rotunjește toate orele la 2 zecimale
+  timesheets.forEach(t => {
+    t.hours_regular = Math.round(t.hours_regular * 100) / 100;
+    t.hours_night = Math.round(t.hours_night * 100) / 100;
+    t.hours_saturday = Math.round(t.hours_saturday * 100) / 100;
+    t.hours_sunday = Math.round(t.hours_sunday * 100) / 100;
+    t.hours_holiday = Math.round(t.hours_holiday * 100) / 100;
+  });
+  
+  return timesheets;
+}
+
+/**
+ * Validează un pontaj înainte de trimitere
+ */
+function validateTimesheet(timesheet: TimesheetEntry): string[] {
+  const errors: string[] = [];
+  
+  // 1. Total ore/zi <= 24h
+  const totalHours = 
+    timesheet.hours_regular +
+    timesheet.hours_night +
+    timesheet.hours_saturday +
+    timesheet.hours_sunday +
+    timesheet.hours_holiday +
+    timesheet.hours_passenger +
+    timesheet.hours_driving +
+    timesheet.hours_equipment +
+    timesheet.hours_leave;
+  
+  if (totalHours > 24) {
+    errors.push(`Total ore (${totalHours}h) depășește 24h pentru ${timesheet.work_date}`);
+  }
+  
+  // 2. work_date nu în viitor
+  const today = new Date().toISOString().split('T')[0];
+  if (timesheet.work_date > today) {
+    errors.push(`Data ${timesheet.work_date} este în viitor`);
+  }
+  
+  // 3. Toate orele >= 0
+  const hourFields: (keyof TimesheetEntry)[] = [
+    'hours_regular', 'hours_night', 'hours_saturday', 
+    'hours_sunday', 'hours_holiday', 'hours_passenger',
+    'hours_driving', 'hours_equipment', 'hours_leave'
+  ];
+  
+  hourFields.forEach(field => {
+    const value = timesheet[field];
+    if (typeof value === 'number' && value < 0) {
+      errors.push(`${field} nu poate fi negativ`);
+    }
+  });
+  
+  return errors;
 }
 
 Deno.serve(async (req) => {
@@ -23,9 +239,9 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { time_entry_id, clock_in_time, clock_out_time } = await req.json();
+    const { user_id, clock_in_time, clock_out_time, notes } = await req.json();
 
-    console.log('Calculating segments for:', { time_entry_id, clock_in_time, clock_out_time });
+    console.log('Processing shift:', { user_id, clock_in_time, clock_out_time });
 
     // Fetch holidays
     const { data: holidays } = await supabase
@@ -34,92 +250,57 @@ Deno.serve(async (req) => {
     
     const holidayDates = new Set((holidays || []).map(h => h.date));
 
-    // Parse times
-    const start = new Date(clock_in_time);
-    const end = new Date(clock_out_time);
-    
-    const segments: TimeSegment[] = [];
-    let current = new Date(start);
+    // Create shift object
+    const shift: Shift = {
+      startTime: clock_in_time,
+      endTime: clock_out_time,
+      employeeId: user_id,
+      notes
+    };
 
-    while (current < end) {
-      const dayOfWeek = current.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-      const dateStr = current.toISOString().split('T')[0];
-      const isHoliday = holidayDates.has(dateStr);
-      const isSaturday = dayOfWeek === 6;
-      const isSunday = dayOfWeek === 0;
-      
-      // Define day/night boundaries
-      const nightStart = new Date(current);
-      nightStart.setHours(22, 0, 0, 0);
-      
-      const nextDayStart = new Date(current);
-      nextDayStart.setDate(nextDayStart.getDate() + 1);
-      nextDayStart.setHours(0, 0, 0, 0);
-      
-      const nextDayMorning = new Date(nextDayStart);
-      nextDayMorning.setHours(6, 0, 0, 0);
-      
-      // Find next transition point
-      const transitions = [nightStart, nextDayStart, nextDayMorning, end]
-        .filter(t => t > current)
-        .sort((a, b) => a.getTime() - b.getTime());
-      
-      const segmentEnd = transitions[0];
-      
-      // Determine segment type
-      let segmentType = 'normal_day';
-      let multiplier = 1.0;
-      
-      const hour = current.getHours();
-      const isNight = hour >= 22 || hour < 6;
-      
-      if (isHoliday) {
-        segmentType = 'holiday';
-        multiplier = 1.0;
-      } else if (isSunday) {
-        segmentType = 'sunday';
-        multiplier = 1.0;
-      } else if (isSaturday) {
-        segmentType = 'saturday';
-        multiplier = 1.0;
-      } else {
-        // Zile normale: 06:00-22:00 = normal_day, 22:00-06:00 = normal_night
-        segmentType = isNight ? 'normal_night' : 'normal_day';
-        multiplier = 1.0;
+    // Segment shift into daily timesheets
+    const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
+
+    // Validate all timesheets
+    const allErrors: string[] = [];
+    timesheets.forEach(timesheet => {
+      const errors = validateTimesheet(timesheet);
+      allErrors.push(...errors);
+    });
+
+    if (allErrors.length > 0) {
+      console.error('Validation errors:', allErrors);
+      return new Response(
+        JSON.stringify({ error: 'Erori de validare', details: allErrors }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Insert or update timesheets in database
+    for (const timesheet of timesheets) {
+      const { error: upsertError } = await supabase
+        .from('daily_timesheets')
+        .upsert(timesheet, {
+          onConflict: 'employee_id,work_date'
+        });
+
+      if (upsertError) {
+        console.error('Error upserting timesheet:', upsertError);
+        throw upsertError;
       }
-      
-      const hours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
-      
-      segments.push({
-        segment_type: segmentType,
-        start_time: current.toISOString(),
-        end_time: segmentEnd.toISOString(),
-        hours_decimal: Math.round(hours * 100) / 100,
-        multiplier
-      });
-      
-      current = new Date(segmentEnd);
     }
 
-    // Save segments to database
-    const segmentsWithEntryId = segments.map(s => ({
-      ...s,
-      time_entry_id
-    }));
-
-    const { error: insertError } = await supabase
-      .from('time_entry_segments')
-      .insert(segmentsWithEntryId);
-
-    if (insertError) {
-      console.error('Error inserting segments:', insertError);
-      throw insertError;
-    }
-
-    console.log('Created segments:', segments.length);
+    console.log('Successfully created/updated timesheets:', timesheets.length);
 
     return new Response(
-      JSON.stringify({ success: true, segments }),
+      JSON.stringify({ 
+        success: true, 
+        timesheets,
+        message: `Procesate ${timesheets.length} pontaje zilnice`
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
