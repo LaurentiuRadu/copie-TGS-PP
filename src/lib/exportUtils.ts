@@ -237,10 +237,35 @@ export const exportToPayrollCSV = (
   const ws = XLSX.utils.json_to_sheet(exportData);
   const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
   
-  // 6. Download file
+  // 6. Add metadata header
+  const formatDate = (date: Date) => date.toLocaleDateString('ro-RO', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  });
+  
+  const formatDateTime = (date: Date) => date.toLocaleString('ro-RO', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  const now = new Date();
+  const header = `==== RAPORT PONTAJE TIMETRACK ====
+Perioada export: ${formatDate(startDate)} - ${formatDate(endDate)}
+Data export: ${formatDateTime(now)}
+Total angajați: ${aggregatedMap.size}
+
+`;
+  
+  const csvWithHeader = header + csv;
+  
+  // 7. Download file
   const monthYear = startDate.toISOString().slice(0, 7); // YYYY-MM
   const filename = `raport-lunar-${monthYear}.csv`;
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
+  const blob = new Blob(['\ufeff' + csvWithHeader], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;

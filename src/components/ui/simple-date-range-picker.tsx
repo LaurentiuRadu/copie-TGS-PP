@@ -63,7 +63,7 @@ export function SimpleDateRangePicker({
   };
   
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-4 pointer-events-auto", className)}>
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button
