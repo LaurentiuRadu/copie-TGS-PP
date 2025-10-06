@@ -199,7 +199,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex items-start justify-center p-4 pt-8">
-      <Card className="w-full max-w-md shadow-elegant border-primary/20">
+      <Card className={`w-full max-w-md shadow-elegant transition-all duration-300 ${activeTab === "admin" ? "bg-secondary border-secondary" : "border-primary/20"}`}>
         <CardHeader className="text-center space-y-4">
           <CardTitle className={`text-3xl font-bold ${activeTab === "admin" ? "text-white" : "bg-gradient-primary bg-clip-text text-transparent"}`}>
             TimeTrack
