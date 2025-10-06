@@ -410,9 +410,11 @@ const Mobile = () => {
       try {
         await supabase.functions.invoke('calculate-time-segments', {
           body: {
+            user_id: user?.id,
             time_entry_id: activeTimeEntry.id,
             clock_in_time: clockInTime,
-            clock_out_time: clockOutTime
+            clock_out_time: clockOutTime,
+            notes: activeTimeEntry.notes
           }
         });
       } catch (segmentError) {
