@@ -6,6 +6,7 @@ import { PasswordChangeDialog } from '@/components/PasswordChangeDialog';
 import { GDPRConsentDialog } from '@/components/GDPRConsentDialog';
 import { checkUserConsents } from '@/lib/gdprHelpers';
 import { iosStorage } from '@/lib/iosStorage';
+import { useSessionMonitor } from '@/hooks/useSessionMonitor';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -27,6 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const [needsGDPRConsent, setNeedsGDPRConsent] = useState(false);
   const navigate = useNavigate();
+
+  // Monitorizează sesiunea pentru delogare automată de pe alte dispozitive
+  useSessionMonitor(user?.id, !loading && !!user);
 
   // Chei pentru backup tokenuri în IndexedDB (iOS PWA)
   const SB_AUTH_KEY = `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`;
