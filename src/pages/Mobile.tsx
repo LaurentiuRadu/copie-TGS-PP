@@ -34,13 +34,11 @@ import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useSafeArea } from "@/hooks/useSafeArea";
 import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
-import { RomaniaTimeClock } from "@/components/RomaniaTimeClock";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
-import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
 import { ActiveShiftAlert } from "@/components/ActiveShiftAlert";
+import { AppHeader } from "@/components/AppHeader";
 
 type ShiftType = "condus" | "pasager" | "normal" | null;
 
@@ -428,87 +426,53 @@ const Mobile = () => {
 
   return (
     <div className="min-h-screen bg-background pb-safe-area-bottom">
-      <header 
-        className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border"
-        style={{ paddingTop: `${safeArea.top}px` }}
+      <AppHeader 
+        userName={user?.user_metadata?.full_name || user?.email}
+        showBackButton={false}
       >
-        <div className="flex items-center justify-between p-3 xs:p-4 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
-              title="Înapoi"
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold text-lg">Meniu</h2>
+            <p className="text-sm text-muted-foreground">Opțiuni disponibile</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2"
+              onClick={() => navigate('/my-time-entries')}
             >
-              <ArrowLeft className="h-6 w-6 text-primary" />
+              <Clock className="h-4 w-4" />
+              Pontajele Mele
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate(1)}
-              className="h-12 w-12 flex-shrink-0 touch-target border-2 border-primary bg-primary/10 hover:bg-primary/20"
-              title="Înainte"
+            <Button variant="outline" className="w-full justify-start gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Task-uri
+            </Button>
+            <Button variant="outline" className="w-full justify-start gap-2">
+              <FolderOpen className="h-4 w-4" />
+              Proiecte
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2" 
+              onClick={() => navigate('/vacations')}
             >
-              <ArrowRight className="h-6 w-6 text-primary" />
+              <CalendarDays className="h-4 w-4" />
+              Concedii
             </Button>
           </div>
-
-          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
-            <div className="flex h-8 w-8 xs:h-10 xs:w-10 items-center justify-center rounded-lg bg-primary flex-shrink-0">
-              <Clock className="h-4 w-4 xs:h-6 xs:w-6 text-primary-foreground" />
-            </div>
-            <div className="min-w-0 hidden xs:block">
-              <h1 className="text-base xs:text-lg font-semibold text-foreground truncate">TimeTrack</h1>
-              <p className="text-xs xs:text-sm text-muted-foreground truncate">{user?.user_metadata?.full_name || user?.email}</p>
-            </div>
+          <div className="p-4 border-t">
+            <Button
+              variant="outline" 
+              className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4" />
+              Deconectare
+            </Button>
           </div>
-          
-          <RomaniaTimeClock />
-          
-          <ScheduleNotificationBell />
-          
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="touch-target no-select flex-shrink-0">
-                <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <SheetHeader>
-                <SheetTitle>Meniu</SheetTitle>
-                <SheetDescription>Opțiuni disponibile</SheetDescription>
-              </SheetHeader>
-              <div className="mt-6 space-y-4">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <Clock className="h-4 w-4" />
-                  Istoric Timp
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Task-uri
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  Proiecte
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/vacations')}>
-                  <CalendarDays className="h-4 w-4" />
-                  Concedii
-                </Button>
-                <Button
-                  variant="outline" 
-                  className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-                  onClick={signOut}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Deconectare
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
-      </header>
+      </AppHeader>
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
         {/* Active Shift Alert - Persistent notification */}
