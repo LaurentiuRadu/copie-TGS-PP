@@ -297,7 +297,7 @@ export default function PrivacyPolicy() {
             <h4 className="font-semibold mb-2">Exercitarea Drepturilor</h4>
             <p className="text-sm">
               Pentru a vă exercita drepturile, accesați secțiunea <strong>Setări GDPR & Confidențialitate</strong> din 
-              aplicație sau contactați DPO-ul companiei la adresa: <strong>dpo@company.ro</strong>
+              aplicație sau contactați DPO-ul companiei: <strong>Radu Ioan Laurentiu</strong> (radu.ioan.laurentiu@company.ro, tel: 0741 19 07 29)
             </p>
             <p className="text-sm mt-2">
               Vom răspunde cererii dumneavoastră în termen de maximum 30 de zile calendaristice.
@@ -313,14 +313,28 @@ export default function PrivacyPolicy() {
         <CardContent>
           <p className="mb-4">
             Pentru orice întrebări referitoare la procesarea datelor personale sau pentru a vă exercita drepturile GDPR, 
-            vă rugăm să contactați:
+            vă rugăm să contactați Responsabilul cu Protecția Datelor (DPO):
           </p>
           
-          <div className="bg-muted p-4 rounded-lg space-y-2">
-            <p><strong>Data Protection Officer (DPO)</strong></p>
-            <p>Email: dpo@company.ro</p>
-            <p>Telefon: [Număr telefon DPO]</p>
-            <p>Adresă: [Adresa companiei]</p>
+          <div className="bg-muted p-4 rounded-lg border space-y-2">
+            <p><strong>Responsabil cu Protecția Datelor (DPO)</strong></p>
+            <p><strong>Nume:</strong> Radu Ioan Laurentiu</p>
+            <p><strong>Email:</strong> radu.ioan.laurentiu@company.ro</p>
+            <p><strong>Telefon:</strong> 0741 19 07 29</p>
+            <p><strong>Adresă:</strong> Bacau, strada Nordului 5 B 1</p>
+          </div>
+          
+          <div className="mt-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+            <h5 className="font-semibold mb-2">Depunerea unei Plângeri</h5>
+            <p className="text-sm text-muted-foreground">
+              Dacă considerați că drepturile dumneavoastră GDPR au fost încălcate, puteți depune o plângere 
+              la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP):
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc pl-6 mt-2">
+              <li>Website: <a href="https://www.dataprotection.ro" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">www.dataprotection.ro</a></li>
+              <li>Email: anspdcp@dataprotection.ro</li>
+              <li>Telefon: +40 21 252 5599</li>
+            </ul>
           </div>
 
           <p className="mt-4 text-sm text-muted-foreground">
