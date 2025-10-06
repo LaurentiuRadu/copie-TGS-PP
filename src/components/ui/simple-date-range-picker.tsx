@@ -1,14 +1,9 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addMonths, subMonths } from "date-fns";
-import { SimpleCalendar } from "./simple-calendar";
+import { SimpleCalendar, DateRange } from "./simple-calendar";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
-
-export interface DateRange {
-  from?: Date;
-  to?: Date;
-}
 
 export interface SimpleDateRangePickerProps {
   selected?: DateRange;
@@ -24,42 +19,22 @@ export function SimpleDateRangePicker({
   className 
 }: SimpleDateRangePickerProps) {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
-  const [selectingRange, setSelectingRange] = React.useState<"from" | "to">("from");
   
-  const handleDateSelect = (date: Date) => {
-    if (selectingRange === "from") {
+  const handleRangeSelect = (range: DateRange) => {
+    onSelect?.(range);
+  };
+  
+  const handleDateClick = (date: Date) => {
+    // Fallback single click for accessibility
+    if (!selected?.from || selected?.to) {
       onSelect?.({ from: date, to: undefined });
-      setSelectingRange("to");
     } else {
-      if (selected?.from && date < selected.from) {
-        // If end date is before start date, swap them
+      if (date < selected.from) {
         onSelect?.({ from: date, to: selected.from });
       } else {
         onSelect?.({ ...selected, to: date });
       }
-      setSelectingRange("from");
     }
-  };
-  
-  const isDateSelected = (date: Date): boolean => {
-    if (!selected?.from) return false;
-    
-    if (!selected.to) {
-      return date.getTime() === selected.from.getTime();
-    }
-    
-    return date >= selected.from && date <= selected.to;
-  };
-  
-  const getSelectedDate = (): Date | undefined => {
-    if (!selected?.from) return undefined;
-    
-    // For visual feedback, show the date being selected
-    if (selectingRange === "to") {
-      return selected.from;
-    }
-    
-    return selected.to || selected.from;
   };
   
   return (
@@ -87,8 +62,10 @@ export function SimpleDateRangePicker({
       
       {/* Calendar */}
       <SimpleCalendar
-        selected={getSelectedDate()}
-        onSelect={handleDateSelect}
+        mode="range"
+        selectedRange={selected}
+        onRangeSelect={handleRangeSelect}
+        onSelect={handleDateClick}
         month={currentMonth}
         disabled={disabled}
       />
