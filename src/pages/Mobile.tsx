@@ -39,7 +39,7 @@ import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
 import { ActiveShiftAlert } from "@/components/ActiveShiftAlert";
 import { AppHeader } from "@/components/AppHeader";
 
-type ShiftType = "condus" | "pasager" | "normal" | null;
+type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
 
 interface DayData {
   date: Date;
@@ -126,8 +126,16 @@ const Mobile = () => {
 
         console.debug('[Mobile] activeEntry', { hasActive: !!activeEntry });
         if (activeEntry) {
-          const notesMatch = activeEntry.notes?.match(/Tip: (Condus|Pasager|Normal)/i);
-          const shiftType = notesMatch ? (notesMatch[1].toLowerCase() as ShiftType) : 'normal';
+          const notesMatch = activeEntry.notes?.match(/Tip: (Condus|Pasager|Normal|Condus Utilaj)/i);
+          let shiftType: ShiftType = 'normal';
+          if (notesMatch) {
+            const typeText = notesMatch[1].toLowerCase();
+            if (typeText === 'condus utilaj') {
+              shiftType = 'utilaj';
+            } else {
+              shiftType = typeText as ShiftType;
+            }
+          }
 
           const clockInTime = new Date(activeEntry.clock_in_time).getTime();
           const elapsedSeconds = Math.floor((Date.now() - clockInTime) / 1000);
@@ -388,9 +396,17 @@ const Mobile = () => {
       case "condus": return "Condus";
       case "pasager": return "Pasager";
       case "normal": return "Normal";
+      case "utilaj": return "Condus Utilaj";
       default: return "";
     }
   };
+
+  // Check if user can see equipment button
+  const canSeeEquipmentButton = useMemo(() => {
+    const allowedUsernames = ['ababeiciprian', 'costachemarius', 'rusugheorghita'];
+    const username = user?.user_metadata?.username;
+    return username && allowedUsernames.includes(username.toLowerCase());
+  }, [user]);
 
   const getDayColor = (date: Date) => {
     const dayData = mockMonthData.find(
@@ -521,6 +537,7 @@ const Mobile = () => {
                 {activeShift === "condus" && <Car className="h-4 w-4" />}
                 {activeShift === "pasager" && <Users className="h-4 w-4" />}
                 {activeShift === "normal" && <Briefcase className="h-4 w-4" />}
+                {activeShift === "utilaj" && <Car className="h-4 w-4" />}
                 <span>Tip: {getShiftTypeLabel(activeShift)}</span>
               </div>
             )}
@@ -584,6 +601,27 @@ const Mobile = () => {
                   </>
                 )}
               </Button>
+
+              {canSeeEquipmentButton && (
+                <Button
+                  size="lg"
+                  onClick={() => handleShiftStart("utilaj")}
+                  disabled={!locationEnabled || isProcessing}
+                  className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "utilaj" ? "ring-4 ring-orange-300 ring-offset-2" : ""}`}
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Se procesează...
+                    </>
+                  ) : (
+                    <>
+                      <Car className="h-5 w-5 xs:h-6 xs:w-6" />
+                      INTRARE CONDUS UTILAJ
+                    </>
+                  )}
+                </Button>
+              )}
               
               {activeShift && (
                 <Button
