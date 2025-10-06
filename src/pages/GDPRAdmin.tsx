@@ -1,54 +1,53 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { Shield, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { format } from 'date-fns';
-import { ro } from 'date-fns/locale';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { ro } from "date-fns/locale";
+import { Shield, FileText, AlertCircle, CheckCircle, Clock, XCircle } from "lucide-react";
 
-export default function GDPRAdmin() {
-  const { user } = useAuth();
+type GDPRRequest = {
+  id: string;
+  user_id: string;
+  request_type: string;
+  status: string;
+  details?: any;
+  requested_at: string;
+  processed_at?: string;
+  processed_by?: string;
+  profiles?: {
+    username?: string;
+    full_name?: string;
+  };
+};
+
+const GDPRAdmin = () => {
+  const [selectedRequest, setSelectedRequest] = useState<GDPRRequest | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [adminNotes, setAdminNotes] = useState("");
+  const [newStatus, setNewStatus] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   const queryClient = useQueryClient();
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [processingNotes, setProcessingNotes] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Fetch all GDPR requests
-  const { data: gdprRequests, isLoading } = useQuery({
-    queryKey: ['gdpr-requests-admin', statusFilter],
+  const { data: requests, isLoading } = useQuery({
+    queryKey: ['gdpr-requests', statusFilter],
     queryFn: async () => {
       let query = supabase
-        .from('gdpr_requests' as any)
+        .from('gdpr_requests')
         .select(`
           *,
-          profiles:user_id (
-            full_name,
-            username
-          )
+          profiles:user_id (username, full_name)
         `)
-        .order('created_at', { ascending: false });
+        .order('requested_at', { ascending: false });
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -56,117 +55,118 @@ export default function GDPRAdmin() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as any[];
+      return data as GDPRRequest[];
     },
   });
 
-  // Update GDPR request mutation
-  const updateRequest = useMutation({
-    mutationFn: async ({
-      requestId,
-      status,
-      notes,
-    }: {
-      requestId: string;
-      status: string;
-      notes?: string;
-    }) => {
-      const updateData: any = {
+  const updateRequestMutation = useMutation({
+    mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const updates: any = {
         status,
-        processed_by: user?.id,
         processed_at: new Date().toISOString(),
+        processed_by: user?.id,
       };
 
       if (notes) {
-        updateData.details = notes;
+        updates.details = { admin_notes: notes };
       }
 
-      const { data, error } = await supabase
-        .from('gdpr_requests' as any)
-        .update(updateData)
-        .eq('id', requestId)
-        .select()
-        .single();
+      const { error } = await supabase
+        .from('gdpr_requests')
+        .update(updates)
+        .eq('id', id);
 
       if (error) throw error;
-
-      // If deletion request is approved, handle actual deletion
-      if (status === 'completed' && selectedRequest?.request_type === 'deletion') {
-        // Note: In production, this should be handled by an edge function
-        // to ensure proper cleanup of all user data
-        toast.info('Cererea de ștergere a fost aprobată. Procesul de ștergere va fi finalizat în curând.');
-      }
-
-      return data as any;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['gdpr-requests-admin'] });
-      toast.success('Cererea GDPR a fost actualizată');
+      queryClient.invalidateQueries({ queryKey: ['gdpr-requests'] });
+      toast.success("Cerere GDPR actualizată cu succes");
+      setDialogOpen(false);
       setSelectedRequest(null);
-      setProcessingNotes('');
+      setAdminNotes("");
+      setNewStatus("");
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Eroare la actualizarea cererii');
+    onError: (error) => {
+      toast.error(`Eroare: ${error.message}`);
     },
   });
 
+  const handleProcessRequest = (request: GDPRRequest) => {
+    setSelectedRequest(request);
+    setNewStatus(request.status);
+    setAdminNotes(request.details?.admin_notes || "");
+    setDialogOpen(true);
+  };
+
+  const handleUpdateStatus = () => {
+    if (!selectedRequest || !newStatus) return;
+    updateRequestMutation.mutate({
+      id: selectedRequest.id,
+      status: newStatus,
+      notes: adminNotes,
+    });
+  };
+
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {
-      pending: 'secondary',
-      in_progress: 'default',
-      completed: 'default',
-      rejected: 'destructive',
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string, icon: any }> = {
+      pending: { variant: "outline", label: "În așteptare", icon: Clock },
+      in_progress: { variant: "secondary", label: "În procesare", icon: AlertCircle },
+      completed: { variant: "default", label: "Finalizat", icon: CheckCircle },
+      rejected: { variant: "destructive", label: "Respins", icon: XCircle },
     };
-    const labels: Record<string, string> = {
-      pending: 'În așteptare',
-      in_progress: 'În procesare',
-      completed: 'Finalizată',
-      rejected: 'Respinsă',
-    };
+
+    const config = variants[status] || variants.pending;
+    const Icon = config.icon;
+
     return (
-      <Badge variant={variants[status] || 'default'}>
-        {labels[status] || status}
+      <Badge variant={config.variant} className="gap-1">
+        <Icon className="h-3 w-3" />
+        {config.label}
       </Badge>
     );
   };
 
   const getRequestTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      export: 'Export date',
-      rectification: 'Rectificare date',
-      deletion: 'Ștergere date',
-      portability: 'Portabilitate date',
-      objection: 'Obiecție prelucrare',
+    const types: Record<string, string> = {
+      export: "Export date",
+      deletion: "Ștergere date",
+      rectification: "Rectificare date",
+      portability: "Portabilitate date",
     };
-    return labels[type] || type;
+    return types[type] || type;
   };
 
   const getPriorityIcon = (type: string) => {
-    if (type === 'deletion') return <XCircle className="h-4 w-4 text-destructive" />;
-    if (type === 'export') return <Clock className="h-4 w-4 text-info" />;
-    return <CheckCircle className="h-4 w-4 text-muted-foreground" />;
+    if (type === 'deletion') return <AlertCircle className="h-4 w-4 text-destructive" />;
+    return <FileText className="h-4 w-4 text-muted-foreground" />;
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-          <Shield className="h-8 w-8 text-primary" />
-          Administrare GDPR
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Gestionează cererile de protecție a datelor personale ale utilizatorilor
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="h-6 w-6 text-primary" />
+          <h1 className="text-3xl font-bold">Administrare GDPR</h1>
+        </div>
+        <p className="text-muted-foreground">
+          Gestionare cereri GDPR și protecție date personale
         </p>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex gap-4 items-center">
-            <Label>Status:</Label>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Cereri GDPR</CardTitle>
+              <CardDescription>
+                Toate cererile de acces, rectificare și ștergere date
+              </CardDescription>
+            </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue />
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrare status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toate</SelectItem>
@@ -177,179 +177,130 @@ export default function GDPRAdmin() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Requests Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cereri GDPR</CardTitle>
-          <CardDescription>
-            {gdprRequests?.length || 0} cereri în total
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-muted-foreground text-center py-8">Se încarcă...</p>
-          ) : gdprRequests && gdprRequests.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utilizator</TableHead>
-                    <TableHead>Tip cerere</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data cererii</TableHead>
-                    <TableHead>Acțiuni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gdprRequests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {request.profiles?.full_name || request.profiles?.username || 'N/A'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {request.profiles?.username}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getPriorityIcon(request.request_type)}
-                          {getRequestTypeLabel(request.request_type)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell>
-                        {format(new Date(request.created_at), 'dd MMM yyyy, HH:mm', {
-                          locale: ro,
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedRequest(request)}
-                        >
-                          Procesează
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <p className="text-center text-muted-foreground py-8">Se încarcă cererile...</p>
+          ) : !requests || requests.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Nu există cereri GDPR</p>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Nu există cereri GDPR
-            </p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Utilizator</TableHead>
+                  <TableHead>Tip cerere</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data cererii</TableHead>
+                  <TableHead>Acțiuni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell className="font-medium">
+                      {request.profiles?.full_name || request.profiles?.username || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getPriorityIcon(request.request_type)}
+                        {getRequestTypeLabel(request.request_type)}
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(request.status)}</TableCell>
+                    <TableCell>
+                      {format(new Date(request.requested_at), "dd MMM yyyy, HH:mm", { locale: ro })}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleProcessRequest(request)}
+                      >
+                        Procesează
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* Process Request Dialog */}
-      <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Procesează cerere GDPR</DialogTitle>
+            <DialogTitle>Procesare cerere GDPR</DialogTitle>
             <DialogDescription>
-              {selectedRequest && (
-                <>
-                  Utilizator: {selectedRequest.profiles?.full_name || selectedRequest.profiles?.username}
-                  <br />
-                  Tip: {getRequestTypeLabel(selectedRequest.request_type)}
-                </>
-              )}
+              Actualizează statusul și adaugă note administrative
             </DialogDescription>
           </DialogHeader>
 
           {selectedRequest && (
             <div className="space-y-4">
-              {selectedRequest.details && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                 <div>
-                  <Label>Detalii cerere:</Label>
-                  <div className="border rounded-lg p-3 bg-muted/50 mt-1">
-                    <p className="text-sm text-foreground">{selectedRequest.details}</p>
-                  </div>
+                  <Label className="text-xs text-muted-foreground">Utilizator</Label>
+                  <p className="font-medium">
+                    {selectedRequest.profiles?.full_name || selectedRequest.profiles?.username}
+                  </p>
                 </div>
-              )}
-
-              <div>
-                <Label>Note procesare (opțional):</Label>
-                <Textarea
-                  placeholder="Adaugă note despre procesarea acestei cereri..."
-                  value={processingNotes}
-                  onChange={(e) => setProcessingNotes(e.target.value)}
-                  rows={4}
-                  className="mt-1"
-                />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Tip cerere</Label>
+                  <p className="font-medium">{getRequestTypeLabel(selectedRequest.request_type)}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data cererii</Label>
+                  <p className="font-medium">
+                    {format(new Date(selectedRequest.requested_at), "dd MMM yyyy, HH:mm", { locale: ro })}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Status curent</Label>
+                  <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+                </div>
               </div>
 
-              <div>
-                <Label>Status curent:</Label>
-                <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Schimbă status</Label>
+                <Select value={newStatus} onValueChange={setNewStatus}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Selectează status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">În așteptare</SelectItem>
+                    <SelectItem value="in_progress">În procesare</SelectItem>
+                    <SelectItem value="completed">Finalizat</SelectItem>
+                    <SelectItem value="rejected">Respins</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Note administrative</Label>
+                <Textarea
+                  id="notes"
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Adaugă detalii despre procesarea cererii..."
+                  rows={4}
+                />
               </div>
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setSelectedRequest(null)}
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Anulează
             </Button>
-            {selectedRequest?.status !== 'completed' && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    updateRequest.mutate({
-                      requestId: selectedRequest.id,
-                      status: 'in_progress',
-                      notes: processingNotes,
-                    })
-                  }
-                  disabled={updateRequest.isPending}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  În procesare
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() =>
-                    updateRequest.mutate({
-                      requestId: selectedRequest.id,
-                      status: 'rejected',
-                      notes: processingNotes,
-                    })
-                  }
-                  disabled={updateRequest.isPending}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Respinge
-                </Button>
-                <Button
-                  onClick={() =>
-                    updateRequest.mutate({
-                      requestId: selectedRequest.id,
-                      status: 'completed',
-                      notes: processingNotes,
-                    })
-                  }
-                  disabled={updateRequest.isPending}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Finalizează
-                </Button>
-              </>
-            )}
+            <Button onClick={handleUpdateStatus} disabled={!newStatus}>
+              Salvează modificări
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-}
+};
+
+export default GDPRAdmin;
