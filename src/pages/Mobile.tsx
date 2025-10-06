@@ -516,7 +516,13 @@ const Mobile = () => {
           <ActiveShiftAlert 
             clockInTime={activeTimeEntry.clock_in_time}
             shiftType={activeShift || 'normal'}
+            timeEntryId={activeTimeEntry.id}
             className="animate-fade-in"
+            onClockOut={() => {
+              setActiveShift(null);
+              setShiftSeconds(0);
+              setActiveTimeEntry(null);
+            }}
           />
         )}
         
