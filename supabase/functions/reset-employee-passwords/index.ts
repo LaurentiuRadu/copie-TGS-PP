@@ -23,22 +23,19 @@ Deno.serve(async (req) => {
 
     const targetPassword = '123456'
 
-    // Fetch all employee user IDs
-    const { data: roleRows, error: rolesError } = await supabaseAdmin
-      .from('user_roles')
-      .select('user_id, role')
-      .eq('role', 'employee')
+    // Fetch ALL users (not just employees)
+    const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
 
-    if (rolesError) {
-      console.error('Error fetching employee roles:', rolesError)
+    if (usersError) {
+      console.error('Error fetching users:', usersError)
       return new Response(
-        JSON.stringify({ error: rolesError.message }),
+        JSON.stringify({ error: usersError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Deduplicate user IDs
-    const userIds = Array.from(new Set((roleRows || []).map((r: any) => r.user_id)))
+    // Get all user IDs
+    const userIds = (users || []).map((u: any) => u.id)
 
     const results = {
       updated: 0,
@@ -56,7 +53,7 @@ Deno.serve(async (req) => {
 
         const email = userResp.user?.email || ''
         
-        // Reset ALL employee accounts, regardless of domain
+        // Reset ALL accounts to 123456
         // Also migrate old @employee.local accounts to @company.local
         const updates: any = { password: targetPassword }
         
@@ -71,6 +68,24 @@ Deno.serve(async (req) => {
           results.errors.push({ user_id: userId, error: updateErr.message })
           continue
         }
+
+        // Update user_password_tracking
+        const { error: trackingError } = await supabaseAdmin
+          .from('user_password_tracking')
+          .upsert({
+            user_id: userId,
+            is_default_password: true,
+            must_change_password: true,
+            password_changed_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
+          })
+
+        if (trackingError) {
+          console.error('Error updating password tracking:', trackingError)
+          // Don't fail the whole operation, just log
+        }
+
         results.updated += 1
       } catch (err) {
         results.errors.push({ user_id: userId, error: err instanceof Error ? err.message : 'Unknown error' })
