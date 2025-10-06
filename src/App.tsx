@@ -23,6 +23,7 @@ import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
 import GDPRAdmin from "./pages/GDPRAdmin";
 import Timesheet from "./pages/Timesheet";
+import GDPRSettings from "./pages/GDPRSettings";
 
 const App = () => (
   <TooltipProvider>
@@ -136,6 +137,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <GDPRAdmin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gdpr-settings"
+                element={
+                  <ProtectedRoute allowedRole="employee">
+                    <GDPRSettings />
                   </ProtectedRoute>
                 }
               />
