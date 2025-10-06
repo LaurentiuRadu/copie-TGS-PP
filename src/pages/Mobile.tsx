@@ -41,6 +41,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { TardinessReasonDialog } from "@/components/TardinessReasonDialog";
 import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
 import { useTardinessCheck } from "@/hooks/useTardinessCheck";
+import { UpdateNotification } from "@/components/UpdateNotification";
 
 type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
 
@@ -476,7 +477,7 @@ const Mobile = () => {
   return (
     <div className="min-h-screen bg-background pb-safe-area-bottom">
       <AppHeader 
-        userName={user?.user_metadata?.full_name || user?.email}
+        userName=""
         showBackButton={false}
       >
         <div className="flex flex-col h-full">
@@ -524,6 +525,18 @@ const Mobile = () => {
       </AppHeader>
 
       <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
+        {/* Header cu numele utilizatorului */}
+        <Card className="shadow-custom-md animate-fade-in">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Bun venit,</p>
+                <p className="text-lg font-semibold">{user?.user_metadata?.full_name || user?.email}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Active Shift Alert - Persistent notification */}
         {activeTimeEntry && (
           <ActiveShiftAlert 
@@ -775,6 +788,9 @@ const Mobile = () => {
           scheduledTime={tardinessDialog.scheduledTime}
         />
       )}
+
+      {/* Update Notification */}
+      <UpdateNotification />
     </div>
   );
 };
