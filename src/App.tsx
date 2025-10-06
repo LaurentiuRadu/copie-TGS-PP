@@ -21,6 +21,8 @@ import FaceVerifications from "./pages/FaceVerifications";
 import BulkImport from "./pages/BulkImport";
 import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
+import GDPRSettings from "./pages/GDPRSettings";
+import GDPRAdmin from "./pages/GDPRAdmin";
 
 const App = () => (
   <TooltipProvider>
@@ -118,6 +120,22 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <WeeklySchedules />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gdpr-settings"
+                element={
+                  <ProtectedRoute allowedRole="employee">
+                    <GDPRSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gdpr-admin"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <GDPRAdmin />
                   </ProtectedRoute>
                 }
               />

@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays } from "lucide-react";
+import { Home, Clock, Calendar, Users, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,7 @@ const adminMenuItems = [
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Import Salariați", url: "/bulk-import", icon: Users },
   { title: "Concedii", url: "/vacations", icon: Calendar },
+  { title: "Administrare GDPR", url: "/gdpr-admin", icon: Shield },
 ];
 
 // Meniuri pentru Angajați
@@ -32,6 +33,7 @@ const employeeMenuItems = [
   { title: "Pontajele Mele", url: "/my-time-entries", icon: FileText },
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Setări GDPR", url: "/gdpr-settings", icon: Shield },
 ];
 
 export function AppSidebar() {
