@@ -285,8 +285,19 @@ Total angajați: ${aggregatedMap.size}
   const csvWithHeader = header + csv;
   
   // 7. Download file
-  const monthYear = startDate.toISOString().slice(0, 7); // YYYY-MM
-  const filename = `raport-lunar-${monthYear}.csv`;
+  // Helper function to format date as DD.MM.YYYY
+  const formatDateRO = (date: Date): string => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  // Generate filename based on date range
+  const isSameDay = startDateStr === endDateStr;
+  const filename = isSameDay 
+    ? `raport-${formatDateRO(startDate)}.csv`
+    : `raport-${formatDateRO(startDate)}-${formatDateRO(endDate)}.csv`;
   const blob = new Blob(['\ufeff' + csvWithHeader], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
