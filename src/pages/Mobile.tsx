@@ -69,6 +69,7 @@ const Mobile = () => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastClickTime, setLastClickTime] = useState<Record<string, number>>({});
+  const [lastShiftType, setLastShiftType] = useState<ShiftType>(null);
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
@@ -215,6 +216,19 @@ const Mobile = () => {
       return;
     }
 
+    // Check for rapid shift type changes (cooldown 2 seconds between different types)
+    if (lastShiftType && lastShiftType !== type && !skipConfirmation) {
+      const lastTypeClick = lastClickTime['shift-type-change'] || 0;
+      const typeChangeCooldownMs = 2000; // 2 seconds between type changes
+      
+      if (now - lastTypeClick < typeChangeCooldownMs) {
+        const remainingSeconds = Math.ceil((typeChangeCooldownMs - (now - lastTypeClick)) / 1000);
+        toast.warning(`Așteaptă ${remainingSeconds}s pentru a schimba tipul de pontaj`);
+        triggerHaptic('warning');
+        return;
+      }
+    }
+
     // Check if same shift type is already active
     if (activeShift === type && !skipConfirmation) {
       toast.warning(`Ai deja o tură ${getShiftTypeLabel(type)} activă`);
@@ -222,7 +236,8 @@ const Mobile = () => {
       return;
     }
 
-    setLastClickTime(prev => ({ ...prev, [buttonKey]: now }));
+    setLastClickTime(prev => ({ ...prev, [buttonKey]: now, 'shift-type-change': now }));
+    setLastShiftType(type);
     
     if (!locationEnabled) {
       toast.error("Locația nu este activată");
