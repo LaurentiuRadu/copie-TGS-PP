@@ -140,11 +140,33 @@ export const exportToPayrollCSV = (
   startDate: Date, 
   endDate: Date
 ) => {
-  // 1. Filter data within date range
+  // Validate date range
+  if (startDate > endDate) {
+    throw new Error('Data de început trebuie să fie înainte de data de sfârșit');
+  }
+
+  // Helper function to convert Date to YYYY-MM-DD string for comparison
+  const formatDateForComparison = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const startDateStr = formatDateForComparison(startDate);
+  const endDateStr = formatDateForComparison(endDate);
+
+  console.log(`[Payroll Export] Date range: ${startDateStr} - ${endDateStr}`);
+  console.log(`[Payroll Export] Total records from DB: ${data.length}`);
+
+  // 1. Filter data within date range using string comparison to avoid timezone issues
   const filteredData = data.filter(entry => {
-    const workDate = new Date(entry.work_date);
-    return workDate >= startDate && workDate <= endDate;
+    // Extract YYYY-MM-DD from work_date (handles both "2025-10-03" and "2025-10-03T00:00:00")
+    const workDateStr = entry.work_date.split('T')[0];
+    return workDateStr >= startDateStr && workDateStr <= endDateStr;
   });
+
+  console.log(`[Payroll Export] Filtered records: ${filteredData.length}`);
 
   if (filteredData.length === 0) {
     throw new Error('Nu există date pentru intervalul selectat');
