@@ -573,32 +573,6 @@ const Mobile = () => {
           </Card>
         )}
 
-        <Card className={`shadow-custom-lg transition-all duration-300 animate-fade-in ${activeShift ? "bg-gradient-primary" : "bg-card"}`}>
-          <CardHeader className="pb-2 xs:pb-3">
-            <CardTitle className={`text-responsive-lg ${activeShift ? "text-white" : "text-foreground"} flex items-center justify-between gap-2`}>
-              <span>{activeShift ? "Tură Activă" : "Nicio tură activă"}</span>
-              {!activeShift && (
-                <span className="text-base text-muted-foreground font-normal truncate">
-                  {user?.user_metadata?.full_name || user?.email}
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className={activeShift ? "space-y-2 xs:space-y-3" : "py-3"}>
-            <div className={`font-bold tracking-wider tabular-nums ${activeShift ? "text-responsive-2xl text-white animate-pulse-soft" : "text-xl text-muted-foreground"}`}>
-              {formattedTime}
-            </div>
-            {activeShift && (
-              <div className={`flex items-center gap-2 text-responsive-sm ${activeShift ? "text-white/90" : "text-muted-foreground"}`}>
-                {activeShift === "condus" && <Car className="h-4 w-4" />}
-                {activeShift === "pasager" && <Users className="h-4 w-4" />}
-                {activeShift === "normal" && <Briefcase className="h-4 w-4" />}
-                {activeShift === "utilaj" && <Car className="h-4 w-4" />}
-                <span>Tip: {getShiftTypeLabel(activeShift)}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         <Card className="shadow-custom-lg animate-fade-in">
           <CardContent className="p-4 xs:p-6">
