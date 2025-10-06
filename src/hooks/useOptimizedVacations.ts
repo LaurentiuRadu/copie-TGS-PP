@@ -103,6 +103,7 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       adminNotes?: string;
       reviewedBy: string;
     }) => {
+      // Update vacation request status
       const { error } = await supabase
         .from('vacation_requests')
         .update({
@@ -114,16 +115,48 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
         .eq('id', id);
 
       if (error) throw error;
+
+      // If approved and type is 'vacation' (CO), auto-write to daily_timesheets
+      if (status === 'approved') {
+        const request = requests.find(r => r.id === id);
+        if (request && request.type === 'vacation') {
+          console.log(`[Vacation Approval] Processing CO request ${id} - writing 8h/day to daily_timesheets`);
+          
+          const { error: processError } = await supabase.functions.invoke('process-approved-vacation', {
+            body: {
+              request_id: id,
+              user_id: request.user_id,
+              start_date: request.start_date,
+              end_date: request.end_date,
+            }
+          });
+
+          if (processError) {
+            console.error('[Vacation Approval] Error processing vacation:', processError);
+            throw new Error(`Cerere aprobată, dar eroare la actualizarea pontajului: ${processError.message}`);
+          }
+
+          console.log(`[Vacation Approval] Successfully wrote hours_leave for request ${id}`);
+        }
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vacation-requests'] });
-      toast.success(
-        variables.status === 'approved' ? 'Cerere aprobată' : 'Cerere respinsă'
-      );
+      
+      const request = requests.find(r => r.id === variables.id);
+      const daysCount = request?.days_count || 0;
+      
+      if (variables.status === 'approved' && request?.type === 'vacation') {
+        toast.success(`Cerere CO aprobată! 8h/zi adăugate în pontaj pentru ${daysCount} zile`);
+      } else {
+        toast.success(
+          variables.status === 'approved' ? 'Cerere aprobată' : 'Cerere respinsă'
+        );
+      }
     },
     onError: (error: any) => {
       console.error('Error updating status:', error);
-      toast.error('Eroare la actualizarea cererii');
+      toast.error(error.message || 'Eroare la actualizarea cererii');
     },
   });
 
