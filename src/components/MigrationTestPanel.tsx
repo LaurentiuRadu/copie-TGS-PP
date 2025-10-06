@@ -14,15 +14,38 @@ export const MigrationTestPanel = () => {
     setResults(null);
     
     try {
-      const { data, error } = await supabase.functions.invoke('migrate-historical-timesheets', {
-        body: { process_last_24h: true }
-      });
+      const limit = 15;
+      let offset = 0;
+      let totalProcessed = 0;
+      let totalGenerated = 0;
+      let totalErrors = 0;
+      let hasMore = true;
+      let iterations = 0;
 
-      if (error) throw error;
+      while (hasMore && iterations < 20) {
+        const { data, error } = await supabase.functions.invoke('migrate-historical-timesheets', {
+          body: { process_last_24h: true, limit, offset }
+        });
+        if (error) throw error;
 
-      setResults(data);
+        totalProcessed += data?.stats?.processed || 0;
+        totalGenerated += data?.stats?.generated || 0;
+        totalErrors += data?.stats?.errors || 0;
+        hasMore = !!data?.page?.has_more;
+
+        setResults({
+          stats: { processed: totalProcessed, generated: totalGenerated, errors: totalErrors },
+          page: { ...data?.page }
+        });
+
+        if (hasMore) {
+          offset += limit;
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        iterations++;
+      }
+
       toast.success("Migrare finalizată cu succes!");
-      
       // Verifică rezultatele
       await verifyResults();
     } catch (error: any) {

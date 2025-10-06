@@ -36,22 +36,22 @@ interface Shift {
  */
 function getNextCriticalTime(currentTime: Date): Date {
   const result = new Date(currentTime);
-  const currentHour = result.getHours();
-  const currentMinute = result.getMinutes();
-  
-  // Dacă suntem înainte de 06:00, mergi la 06:00 aceeași zi
-  if (currentHour < 6 || (currentHour === 6 && currentMinute === 0)) {
-    result.setHours(6, 0, 0, 0);
+  const h = result.getHours();
+  const m = result.getMinutes();
+  const minutes = h * 60 + m;
+
+  // Boundaries must be STRICTLY after currentTime to avoid zero-length segments
+  if (minutes < 6 * 60) {
+    result.setHours(6, 0, 0, 0); // today 06:00
     return result;
   }
-  
-  // Dacă suntem între 06:00 și 22:00, mergi la 22:00 aceeași zi
-  if (currentHour < 22 || (currentHour === 22 && currentMinute === 0)) {
-    result.setHours(22, 0, 0, 0);
+
+  if (minutes < 22 * 60) {
+    result.setHours(22, 0, 0, 0); // today 22:00
     return result;
   }
-  
-  // Dacă suntem după 22:00, mergi la 00:00 ziua următoare
+
+  // >= 22:00 → next day 00:00
   result.setDate(result.getDate() + 1);
   result.setHours(0, 0, 0, 0);
   return result;
@@ -282,8 +282,10 @@ Deno.serve(async (req) => {
     // Parse request body for optional parameters
     const body = await req.json().catch(() => ({}));
     const processLast24h = body.process_last_24h || false;
+    const limit = Math.max(1, Math.min(30, Number(body.limit) || (processLast24h ? 15 : 15)));
+    const offset = Math.max(0, Number(body.offset) || 0);
     
-    console.log(`[Migration] Starting timesheet migration (last 24h mode: ${processLast24h})...`);
+    console.log(`[Migration] Starting timesheet migration (last 24h mode: ${processLast24h}, limit: ${limit}, offset: ${offset})...`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -321,6 +323,7 @@ Deno.serve(async (req) => {
       console.log(`[Migration] Filtering entries with clock_out >= ${cutoffTime.toISOString()}`);
     }
     
+    query = query.range(offset, offset + limit - 1);
     const { data: timeEntries, error: entriesError } = await query;
 
     if (entriesError) {
@@ -463,6 +466,12 @@ Deno.serve(async (req) => {
           generated: totalGeneratedCount,
           errors: totalErrorCount,
         },
+        page: {
+          limit,
+          offset,
+          returned: Array.isArray(timeEntries) ? timeEntries.length : 0,
+          has_more: Array.isArray(timeEntries) ? timeEntries.length === limit : false
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
