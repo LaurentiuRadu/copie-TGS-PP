@@ -242,76 +242,119 @@ const MyTimeEntries = () => {
           )}
         </div>
 
-        {/* Detailed Time Entries */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Pontaje Detaliate ({timeEntries.length})</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {loading ? (
-              <div className="text-center py-8 text-muted-foreground">Se încarcă...</div>
-            ) : timeEntries.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nu există pontaje pentru această lună
-              </div>
-            ) : (
-              timeEntries.map((entry) => {
-                const shiftType = getShiftTypeFromNotes(entry.notes);
-                const totalHours = entry.time_entry_segments?.reduce((sum, seg) => sum + seg.hours_decimal, 0) || 0;
+        {/* Detailed Time Entries Grouped by Day */}
+        <div className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">Se încarcă...</div>
+              </CardContent>
+            </Card>
+          ) : timeEntries.length === 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  Nu există pontaje pentru această lună
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            (() => {
+              // Grupare pontaje pe zile
+              const entriesByDay = timeEntries.reduce((acc, entry) => {
+                const dayKey = format(new Date(entry.clock_in_time), 'yyyy-MM-dd');
+                if (!acc[dayKey]) {
+                  acc[dayKey] = [];
+                }
+                acc[dayKey].push(entry);
+                return acc;
+              }, {} as Record<string, typeof timeEntries>);
+
+              // Sortare zile descrescător
+              const sortedDays = Object.keys(entriesByDay).sort((a, b) => b.localeCompare(a));
+
+              return sortedDays.map((dayKey) => {
+                const dayEntries = entriesByDay[dayKey];
+                const dayDate = new Date(dayKey);
+                const dayTotalHours = dayEntries.reduce((sum, entry) => {
+                  return sum + (entry.time_entry_segments?.reduce((s, seg) => s + seg.hours_decimal, 0) || 0);
+                }, 0);
 
                 return (
-                  <Card key={entry.id} className="bg-accent/50">
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        {/* Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="font-semibold">
-                              {format(new Date(entry.clock_in_time), 'dd MMM yyyy', { locale: ro })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {shiftType}
-                            </Badge>
-                            {!entry.clock_out_time && (
-                              <Badge variant="default" className="bg-green-500 text-xs">Activ</Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Time Range */}
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {format(new Date(entry.clock_in_time), 'HH:mm')}
-                            {entry.clock_out_time && ` - ${format(new Date(entry.clock_out_time), 'HH:mm')}`}
-                          </span>
-                          <span className="font-semibold text-primary">
-                            {totalHours.toFixed(2)}h
-                          </span>
-                        </div>
-
-                        {/* Segments (if available) */}
-                        {entry.time_entry_segments && entry.time_entry_segments.length > 0 && (
-                          <div className="pt-2 border-t space-y-1">
-                            <div className="text-xs font-medium text-muted-foreground mb-2">Detalii:</div>
-                            {entry.time_entry_segments.map((seg, idx) => (
-                              <div key={idx} className="flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground capitalize">{seg.segment_type.replace('_', ' ')}</span>
-                                <span className="font-mono">{seg.hours_decimal.toFixed(2)}h × {seg.multiplier}x</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                  <Card key={dayKey}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <CalendarIcon className="h-5 w-5 text-primary" />
+                          {format(dayDate, 'EEEE, dd MMMM yyyy', { locale: ro })}
+                        </CardTitle>
+                        <Badge variant="secondary" className="text-sm">
+                          Total: {dayTotalHours.toFixed(2)}h
+                        </Badge>
                       </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {dayEntries.map((entry) => {
+                        const shiftType = getShiftTypeFromNotes(entry.notes);
+                        const totalHours = entry.time_entry_segments?.reduce((sum, seg) => sum + seg.hours_decimal, 0) || 0;
+
+                        return (
+                          <Card key={entry.id} className="bg-accent/50">
+                            <CardContent className="p-4">
+                              <div className="space-y-3">
+                                {/* Header */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                    <span className="font-semibold">
+                                      Pontaj #{dayEntries.indexOf(entry) + 1}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      {shiftType}
+                                    </Badge>
+                                    {!entry.clock_out_time && (
+                                      <Badge variant="default" className="bg-green-500 text-xs">Activ</Badge>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Time Range */}
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">
+                                    {format(new Date(entry.clock_in_time), 'HH:mm')}
+                                    {entry.clock_out_time && ` - ${format(new Date(entry.clock_out_time), 'HH:mm')}`}
+                                  </span>
+                                  <span className="font-semibold text-primary">
+                                    {totalHours.toFixed(2)}h
+                                  </span>
+                                </div>
+
+                                {/* Segments (if available) */}
+                                {entry.time_entry_segments && entry.time_entry_segments.length > 0 && (
+                                  <div className="pt-2 border-t space-y-1">
+                                    <div className="text-xs font-medium text-muted-foreground mb-2">Detalii:</div>
+                                    {entry.time_entry_segments.map((seg, idx) => (
+                                      <div key={idx} className="flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground capitalize">{seg.segment_type.replace('_', ' ')}</span>
+                                        <span className="font-mono">{seg.hours_decimal.toFixed(2)}h × {seg.multiplier}x</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </CardContent>
                   </Card>
                 );
-              })
-            )}
-          </CardContent>
-        </Card>
+              });
+            })()
+          )}
+        </div>
       </div>
     </div>
   );
