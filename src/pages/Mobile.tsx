@@ -67,6 +67,7 @@ const Mobile = () => {
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lastClickTime, setLastClickTime] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
@@ -194,7 +195,32 @@ const Mobile = () => {
   };
 
   const handleShiftStart = useCallback(async (type: ShiftType, skipConfirmation: boolean = false) => {
-    if (isProcessing) return;
+    if (isProcessing) {
+      toast.warning("Așteaptă finalizarea operațiunii anterioare");
+      return;
+    }
+
+    // Check for duplicate clicks (cooldown 3 seconds)
+    const buttonKey = `start-${type}`;
+    const now = Date.now();
+    const lastClick = lastClickTime[buttonKey] || 0;
+    const cooldownMs = 3000; // 3 seconds
+
+    if (now - lastClick < cooldownMs) {
+      const remainingSeconds = Math.ceil((cooldownMs - (now - lastClick)) / 1000);
+      toast.warning(`Așteaptă ${remainingSeconds}s înainte să pontezi din nou`);
+      triggerHaptic('warning');
+      return;
+    }
+
+    // Check if same shift type is already active
+    if (activeShift === type && !skipConfirmation) {
+      toast.warning(`Ai deja o tură ${getShiftTypeLabel(type)} activă`);
+      triggerHaptic('warning');
+      return;
+    }
+
+    setLastClickTime(prev => ({ ...prev, [buttonKey]: now }));
     
     if (!locationEnabled) {
       toast.error("Locația nu este activată");
@@ -446,7 +472,7 @@ const Mobile = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [activeTimeEntry, locationEnabled, isProcessing, triggerHaptic]);
+  }, [activeTimeEntry, locationEnabled, isProcessing, triggerHaptic, lastClickTime, user]);
 
   const getShiftTypeLabel = (type: ShiftType) => {
     switch (type) {

@@ -30,15 +30,18 @@ export function ClockInConfirmationCard({
 
   useEffect(() => {
     // Trigger animation
-    setTimeout(() => setIsVisible(true), 10);
+    const showTimer = setTimeout(() => setIsVisible(true), 10);
 
     // Auto-close after 5 seconds
-    const timer = setTimeout(() => {
+    const closeTimer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onClose, 300); // Wait for animation to complete
     }, 5000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(closeTimer);
+    };
   }, [onClose]);
 
   return (
