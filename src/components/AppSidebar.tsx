@@ -30,7 +30,7 @@ const adminMenuItems = [
   { title: "Import Salariați", url: "/bulk-import", icon: Users },
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Setări", url: "/backup-restore", icon: Settings },
-  { title: "GDPR", url: "/gdpr-settings", icon: Shield },
+  { title: "GDPR", url: "/gdpr-admin", icon: Shield },
 ];
 
 // Meniuri pentru Angajați
