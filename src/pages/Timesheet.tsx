@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +56,7 @@ const Timesheet = () => {
     },
   });
 
-  const { data: timeEntries, isLoading: loadingEntries } = useQuery({
+  const { data: timeEntries, isLoading: loadingEntries, refetch } = useQuery({
     queryKey: ['timesheet-entries', weekStart.toISOString(), weekEnd.toISOString(), selectedUser],
     queryFn: async () => {
       let query = supabase
@@ -65,7 +65,9 @@ const Timesheet = () => {
           id,
           user_id,
           clock_in_time,
-          clock_out_time
+          clock_out_time,
+          notes,
+          time_entry_segments(*)
         `)
         .gte('clock_in_time', weekStart.toISOString())
         .lte('clock_in_time', weekEnd.toISOString())
@@ -94,6 +96,23 @@ const Timesheet = () => {
       return entriesWithProfiles as TimeEntry[];
     },
   });
+
+  // Realtime sync
+  useEffect(() => {
+    const channel = supabase
+      .channel('timesheet-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, () => {
+        refetch();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entry_segments' }, () => {
+        refetch();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   const calculateHours = (entries: TimeEntry[]): string => {
     let totalMinutes = 0;

@@ -111,24 +111,20 @@ const TimeEntries = () => {
 
   const getSegmentLabel = (type: string) => {
     const labels: Record<string, string> = {
-      normal_day: 'Ore Normale Zi',
-      normal_night: 'Ore Noapte',
-      weekend_saturday_day: 'Sâmbătă Zi',
-      weekend_saturday_night: 'Sâmbătă Noapte',
-      weekend_sunday_day: 'Duminică Zi',
-      weekend_sunday_night: 'Duminică Noapte',
-      holiday_day: 'Sărbătoare Zi',
-      holiday_night: 'Sărbătoare Noapte',
-      overtime: 'Ore Suplimentare',
+      normal_day: 'Regular',
+      normal_night: 'Noapte',
+      saturday: 'Sâmbătă',
+      sunday: 'Duminică',
+      holiday: 'Sărbătoare',
     };
     return labels[type] || type;
   };
 
   const getSegmentColor = (type: string) => {
-    if (type.includes('holiday')) return 'bg-red-500/20 text-red-900 dark:text-red-100';
-    if (type.includes('sunday')) return 'bg-purple-500/20 text-purple-900 dark:text-purple-100';
-    if (type.includes('saturday')) return 'bg-blue-500/20 text-blue-900 dark:text-blue-100';
-    if (type.includes('night')) return 'bg-indigo-500/20 text-indigo-900 dark:text-indigo-100';
+    if (type === 'holiday') return 'bg-red-500/20 text-red-900 dark:text-red-100';
+    if (type === 'sunday') return 'bg-purple-500/20 text-purple-900 dark:text-purple-100';
+    if (type === 'saturday') return 'bg-blue-500/20 text-blue-900 dark:text-blue-100';
+    if (type === 'normal_night') return 'bg-indigo-500/20 text-indigo-900 dark:text-indigo-100';
     return 'bg-green-500/20 text-green-900 dark:text-green-100';
   };
 
@@ -142,16 +138,6 @@ const TimeEntries = () => {
     return entry.time_entry_segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
   };
 
-  const calculateWeightedHours = (entry: TimeEntry) => {
-    if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
-      return calculateTotalHours(entry);
-    }
-    
-    return entry.time_entry_segments.reduce(
-      (sum, seg) => sum + (seg.hours_decimal * seg.multiplier), 
-      0
-    );
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,7 +185,6 @@ const TimeEntries = () => {
             ) : (
               entries.map((entry) => {
                 const totalHours = calculateTotalHours(entry);
-                const weightedHours = calculateWeightedHours(entry);
                 const hasSegments = entry.time_entry_segments?.length > 0;
 
                 return (
@@ -238,12 +223,12 @@ const TimeEntries = () => {
                           {hasSegments ? (
                             <div className="space-y-1">
                               <div className="text-sm font-medium">
-                                Total: {totalHours.toFixed(2)}h → {weightedHours.toFixed(2)}h plătite
+                                Total: {totalHours.toFixed(2)}h
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {entry.time_entry_segments.map((seg, idx) => (
                                   <Badge key={idx} className={getSegmentColor(seg.segment_type)}>
-                                    {seg.hours_decimal.toFixed(2)}h × {seg.multiplier}
+                                    {getSegmentLabel(seg.segment_type)}: {seg.hours_decimal.toFixed(2)}h
                                   </Badge>
                                 ))}
                               </div>
@@ -334,16 +319,13 @@ const TimeEntries = () => {
                         </div>
                         <div className="text-right">
                           <div className="font-semibold">{seg.hours_decimal.toFixed(2)}h</div>
-                          <Badge className={getSegmentColor(seg.segment_type)}>
-                            ×{seg.multiplier}
-                          </Badge>
                         </div>
                       </div>
                     ))}
                     <div className="pt-3 border-t flex justify-between items-center font-semibold">
-                      <span>Total Plătit:</span>
+                      <span>Total:</span>
                       <span className="text-xl text-primary">
-                        {calculateWeightedHours(selectedEntry).toFixed(2)}h
+                        {calculateTotalHours(selectedEntry).toFixed(2)}h
                       </span>
                     </div>
                   </div>

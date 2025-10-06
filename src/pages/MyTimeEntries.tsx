@@ -62,14 +62,11 @@ const MyTimeEntries = () => {
 
   const getSegmentLabel = (type: string) => {
     const labels: Record<string, string> = {
-      normal_day: 'Ore Zi',
-      normal_night: 'Ore Noapte +25%',
-      weekend_saturday_day: 'Sâmbătă +50%',
-      weekend_saturday_night: 'Sâmbătă Noapte +50%',
-      weekend_sunday_day: 'Duminică +100%',
-      weekend_sunday_night: 'Duminică Noapte +100%',
-      holiday_day: 'Sărbătoare +100%',
-      holiday_night: 'Sărbătoare Noapte +100%',
+      normal_day: 'Regular',
+      normal_night: 'Noapte',
+      saturday: 'Sâmbătă',
+      sunday: 'Duminică',
+      holiday: 'Sărbătoare',
     };
     return labels[type] || type;
   };
@@ -84,19 +81,7 @@ const MyTimeEntries = () => {
     return entry.time_entry_segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
   };
 
-  const calculateWeightedHours = (entry: TimeEntry) => {
-    if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
-      return calculateTotalHours(entry);
-    }
-    
-    return entry.time_entry_segments.reduce(
-      (sum, seg) => sum + (seg.hours_decimal * seg.multiplier), 
-      0
-    );
-  };
-
   const monthlyTotalHours = entries.reduce((sum, entry) => sum + calculateTotalHours(entry), 0);
-  const monthlyWeightedHours = entries.reduce((sum, entry) => sum + calculateWeightedHours(entry), 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,41 +90,17 @@ const MyTimeEntries = () => {
       <div className="container mx-auto p-6 space-y-6">
 
       {/* Monthly Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ore Lucrate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{monthlyTotalHours.toFixed(1)}h</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {format(selectedMonth, 'MMMM yyyy', { locale: ro })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ore Plătite (cu sporuri)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-primary">{monthlyWeightedHours.toFixed(1)}h</div>
-            <p className="text-xs text-muted-foreground mt-1">Echivalent total</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Bonus Sporuri</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">
-              +{(monthlyWeightedHours - monthlyTotalHours).toFixed(1)}h
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Ore bonus</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Ore Lucrate</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold">{monthlyTotalHours.toFixed(1)}h</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {format(selectedMonth, 'MMMM yyyy', { locale: ro })}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar */}
@@ -173,7 +134,6 @@ const MyTimeEntries = () => {
             ) : (
               entries.map((entry) => {
                 const totalHours = calculateTotalHours(entry);
-                const weightedHours = calculateWeightedHours(entry);
                 const hasSegments = entry.time_entry_segments?.length > 0;
 
                 return (
@@ -209,19 +169,12 @@ const MyTimeEntries = () => {
                             {entry.time_entry_segments.map((seg, idx) => (
                               <div key={idx} className="flex items-center justify-between text-sm pl-6">
                                 <span className="text-muted-foreground">{getSegmentLabel(seg.segment_type)}</span>
-                                <div className="flex items-center gap-2">
-                                  <span>{seg.hours_decimal.toFixed(2)}h</span>
-                                  {seg.multiplier > 1 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      ×{seg.multiplier}
-                                    </Badge>
-                                  )}
-                                </div>
+                                <span>{seg.hours_decimal.toFixed(2)}h</span>
                               </div>
                             ))}
                             <div className="pt-2 border-t flex justify-between font-semibold">
-                              <span>Total plătit:</span>
-                              <span className="text-primary">{weightedHours.toFixed(2)}h</span>
+                              <span>Total:</span>
+                              <span className="text-primary">{totalHours.toFixed(2)}h</span>
                             </div>
                           </div>
                         )}
