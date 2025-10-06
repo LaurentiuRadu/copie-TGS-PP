@@ -73,10 +73,20 @@ export const useOptimizedMyTimeEntries = (userId: string | undefined, selectedMo
   return useQuery({
     queryKey: ['my-time-entries', userId, selectedMonth.toISOString()],
     queryFn: async () => {
-      if (!userId) return [];
+      if (!userId) {
+        console.log('[useOptimizedMyTimeEntries] No userId provided');
+        return [];
+      }
 
       const startOfMonthTime = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
       const endOfMonthTime = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0, 23, 59, 59);
+
+      console.log('[useOptimizedMyTimeEntries] Query params:', {
+        userId,
+        selectedMonth: selectedMonth.toISOString(),
+        startOfMonthTime: startOfMonthTime.toISOString(),
+        endOfMonthTime: endOfMonthTime.toISOString()
+      });
 
       const { data, error } = await supabase
         .from('time_entries')
@@ -89,7 +99,12 @@ export const useOptimizedMyTimeEntries = (userId: string | undefined, selectedMo
         .lte('clock_in_time', endOfMonthTime.toISOString())
         .order('clock_in_time', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useOptimizedMyTimeEntries] Error:', error);
+        throw error;
+      }
+      
+      console.log('[useOptimizedMyTimeEntries] Data fetched:', data?.length || 0, 'entries');
       return data || [];
     },
     enabled: !!userId,
