@@ -271,6 +271,8 @@ function validateTimesheet(timesheet: TimesheetEntry): string[] {
  * 
  * Daily cron runs at 06:15 AM to ensure timesheets are ready by 08:00 AM for payroll.
  * Processes entries from the "timesheet day" (06:01 AM previous day - 06:00 AM current day)
+ * 
+ * ✅ OPTIMIZED: Processes in batches of 10 to avoid CPU timeout
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -340,114 +342,136 @@ Deno.serve(async (req) => {
 
     console.log(`[Migration] Found ${timeEntries.length} complete time entries`);
 
-    // 3. Process each time entry
-    let processedCount = 0;
-    let generatedCount = 0;
-    let errorCount = 0;
-    const allTimesheets: TimesheetEntry[] = [];
+    // 3. Process in BATCHES to avoid CPU timeout
+    const BATCH_SIZE = 10;
+    const totalBatches = Math.ceil(timeEntries.length / BATCH_SIZE);
+    
+    let totalProcessedCount = 0;
+    let totalGeneratedCount = 0;
+    let totalErrorCount = 0;
 
-    for (const entry of timeEntries) {
+    console.log(`[Migration] Processing ${timeEntries.length} entries in ${totalBatches} batches of ${BATCH_SIZE}...`);
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batchStart = batchIndex * BATCH_SIZE;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, timeEntries.length);
+      const batch = timeEntries.slice(batchStart, batchEnd);
+      
+      console.log(`[Migration] Processing batch ${batchIndex + 1}/${totalBatches} (entries ${batchStart + 1}-${batchEnd})...`);
+
       try {
-        // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
-        const shiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
-        const shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
-        
-        const shift: Shift = {
-          user_id: entry.user_id,
-          clock_in_time: entry.clock_in_time,
-          clock_out_time: entry.clock_out_time,
-          notes: entry.notes,
-          shiftType  // ✅ Pasează tipul de tură
-        };
+        const batchTimesheets: TimesheetEntry[] = [];
 
-        const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
+        // Process each entry in the batch
+        for (const entry of batch) {
+          try {
+            // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
+            const shiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
+            const shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+            
+            const shift: Shift = {
+              user_id: entry.user_id,
+              clock_in_time: entry.clock_in_time,
+              clock_out_time: entry.clock_out_time,
+              notes: entry.notes,
+              shiftType  // ✅ Pasează tipul de tură
+            };
 
-        // Validate each timesheet
-        for (const timesheet of timesheets) {
-          const errors = validateTimesheet(timesheet);
-          if (errors.length > 0) {
-            console.error(`[Migration] Validation errors for entry ${entry.id}:`, errors);
-            errorCount++;
-          } else {
-            allTimesheets.push(timesheet);
-            generatedCount++;
+            const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
+
+            // Validate each timesheet
+            for (const timesheet of timesheets) {
+              const errors = validateTimesheet(timesheet);
+              if (errors.length > 0) {
+                console.error(`[Migration] Validation errors for entry ${entry.id}:`, errors);
+                totalErrorCount++;
+              } else {
+                batchTimesheets.push(timesheet);
+                totalGeneratedCount++;
+              }
+            }
+
+            totalProcessedCount++;
+          } catch (error) {
+            console.error(`[Migration] Error processing entry ${entry.id}:`, error);
+            totalErrorCount++;
           }
         }
 
-        processedCount++;
-      } catch (error) {
-        console.error(`[Migration] Error processing entry ${entry.id}:`, error);
-        errorCount++;
-      }
-    }
-
-    console.log(`[Migration] Processed ${processedCount} entries, generated ${generatedCount} timesheets`);
-
-    // 4. Aggregate timesheets by employee_id + work_date before upserting
-    // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
-    // which occurs when multiple shifts generate timesheets for the same employee + date
-    if (allTimesheets.length > 0) {
-      console.log(`[Migration] Aggregating ${allTimesheets.length} timesheet entries...`);
-      
-      const aggregatedMap = new Map<string, TimesheetEntry>();
-      
-      for (const sheet of allTimesheets) {
-        const key = `${sheet.employee_id}_${sheet.work_date}`;
-        
-        if (aggregatedMap.has(key)) {
-          // Sum hours with existing entry for same employee + date
-          const existing = aggregatedMap.get(key)!;
-          existing.hours_regular += sheet.hours_regular;
-          existing.hours_night += sheet.hours_night;
-          existing.hours_saturday += sheet.hours_saturday;
-          existing.hours_sunday += sheet.hours_sunday;
-          existing.hours_holiday += sheet.hours_holiday;
-          existing.hours_passenger += sheet.hours_passenger;
-          existing.hours_driving += sheet.hours_driving;
-          existing.hours_equipment += sheet.hours_equipment;
-          existing.hours_leave += sheet.hours_leave;
-          existing.hours_medical_leave += sheet.hours_medical_leave;
+        // 4. Aggregate batch timesheets by employee_id + work_date
+        if (batchTimesheets.length > 0) {
+          console.log(`[Migration] Aggregating ${batchTimesheets.length} timesheet entries from batch ${batchIndex + 1}...`);
           
-          // Combine notes if both exist
-          if (sheet.notes && existing.notes) {
-            existing.notes = `${existing.notes}; ${sheet.notes}`;
-          } else if (sheet.notes) {
-            existing.notes = sheet.notes;
+          const aggregatedMap = new Map<string, TimesheetEntry>();
+          
+          for (const sheet of batchTimesheets) {
+            const key = `${sheet.employee_id}_${sheet.work_date}`;
+            
+            if (aggregatedMap.has(key)) {
+              // Sum hours with existing entry for same employee + date
+              const existing = aggregatedMap.get(key)!;
+              existing.hours_regular += sheet.hours_regular;
+              existing.hours_night += sheet.hours_night;
+              existing.hours_saturday += sheet.hours_saturday;
+              existing.hours_sunday += sheet.hours_sunday;
+              existing.hours_holiday += sheet.hours_holiday;
+              existing.hours_passenger += sheet.hours_passenger;
+              existing.hours_driving += sheet.hours_driving;
+              existing.hours_equipment += sheet.hours_equipment;
+              existing.hours_leave += sheet.hours_leave;
+              existing.hours_medical_leave += sheet.hours_medical_leave;
+              
+              // Combine notes if both exist
+              if (sheet.notes && existing.notes) {
+                existing.notes = `${existing.notes}; ${sheet.notes}`;
+              } else if (sheet.notes) {
+                existing.notes = sheet.notes;
+              }
+            } else {
+              // First entry for this employee + date combination
+              aggregatedMap.set(key, { ...sheet });
+            }
           }
-        } else {
-          // First entry for this employee + date combination
-          aggregatedMap.set(key, { ...sheet });
+          
+          const aggregatedTimesheets = Array.from(aggregatedMap.values());
+          console.log(`[Migration] Batch ${batchIndex + 1}: Aggregated into ${aggregatedTimesheets.length} unique timesheets`);
+
+          // 5. Upsert batch timesheets to database
+          console.log(`[Migration] Batch ${batchIndex + 1}: Upserting ${aggregatedTimesheets.length} timesheets...`);
+          const { error: upsertError } = await supabase
+            .from('daily_timesheets')
+            .upsert(aggregatedTimesheets, {
+              onConflict: 'employee_id,work_date',
+            });
+
+          if (upsertError) {
+            throw new Error(`Batch ${batchIndex + 1} upsert failed: ${upsertError.message}`);
+          }
+          
+          console.log(`[Migration] Batch ${batchIndex + 1}: Successfully upserted ${aggregatedTimesheets.length} timesheets`);
         }
-      }
-      
-      const aggregatedTimesheets = Array.from(aggregatedMap.values());
-      console.log(`[Migration] Aggregated into ${aggregatedTimesheets.length} unique timesheets`);
 
-      // 5. Upsert aggregated timesheets to database
-      console.log('[Migration] Upserting timesheets to database...');
-      const { error: upsertError } = await supabase
-        .from('daily_timesheets')
-        .upsert(aggregatedTimesheets, {
-          onConflict: 'employee_id,work_date',
-        });
+        console.log(`[Migration] Batch ${batchIndex + 1}/${totalBatches} completed. Progress: ${totalProcessedCount}/${timeEntries.length} entries processed`);
 
-      if (upsertError) {
-        throw new Error(`Failed to upsert timesheets: ${upsertError.message}`);
+      } catch (batchError) {
+        console.error(`[Migration] Batch ${batchIndex + 1} failed:`, batchError);
+        totalErrorCount++;
+        // Continue with next batch even if this one failed
       }
-      
-      console.log(`[Migration] Successfully upserted ${aggregatedTimesheets.length} timesheets`);
     }
+
+    console.log(`[Migration] All batches completed! Total: ${totalProcessedCount} entries processed, ${totalGeneratedCount} timesheets generated, ${totalErrorCount} errors`);
 
     console.log('[Migration] Migration completed successfully!');
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Migration completed: ${processedCount} entries processed, ${generatedCount} timesheets generated`,
+        message: `Migration completed: ${totalProcessedCount} entries processed, ${totalGeneratedCount} timesheets generated`,
         stats: {
-          processed: processedCount,
-          generated: generatedCount,
-          errors: errorCount,
+          processed: totalProcessedCount,
+          generated: totalGeneratedCount,
+          errors: totalErrorCount,
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
