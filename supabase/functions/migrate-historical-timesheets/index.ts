@@ -31,23 +31,29 @@ interface Shift {
 }
 
 /**
- * Get the next critical time boundary (00:00, 06:00, 22:00)
- * Used to segment work shifts into proper timesheet days (06:01 AM - 06:00 AM)
+ * Găsește următorul moment critic de segmentare (00:00, 06:00, 22:00)
  */
 function getNextCriticalTime(currentTime: Date): Date {
-  const next = new Date(currentTime);
-  const hour = next.getHours();
-
-  if (hour < 6) {
-    next.setHours(6, 0, 0, 0);
-  } else if (hour < 22) {
-    next.setHours(22, 0, 0, 0);
-  } else {
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
+  const result = new Date(currentTime);
+  const currentHour = result.getHours();
+  const currentMinute = result.getMinutes();
+  
+  // Dacă suntem înainte de 06:00, mergi la 06:00 aceeași zi
+  if (currentHour < 6 || (currentHour === 6 && currentMinute === 0)) {
+    result.setHours(6, 0, 0, 0);
+    return result;
   }
-
-  return next;
+  
+  // Dacă suntem între 06:00 și 22:00, mergi la 22:00 aceeași zi
+  if (currentHour < 22 || (currentHour === 22 && currentMinute === 0)) {
+    result.setHours(22, 0, 0, 0);
+    return result;
+  }
+  
+  // Dacă suntem după 22:00, mergi la 00:00 ziua următoare
+  result.setDate(result.getDate() + 1);
+  result.setHours(0, 0, 0, 0);
+  return result;
 }
 
 /**
@@ -59,54 +65,60 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 }
 
 /**
- * Determine the hours type for a time segment based on:
- * - Day of week (weekday, Saturday, Sunday)
- * - Time of day (06:00-22:00 = day, 22:00-06:00 = night)
- * - Holidays
+ * Determină tipul de ore bazat pe ziua săptămânii și interval orar
+ * Conform pseudo-cod:
+ * - Sărbătoare 06:01 → 24:00 = hours_holiday (2.0x)
+ * - Sărbătoare 00:00 → 06:00 = hours_night (1.25x)
+ * - Sâmbătă 06:01 → Duminică 06:00 = hours_saturday (1.50x)
+ * - Duminică 06:01 → 24:00 = hours_sunday (2.0x)
+ * - Noapte 22:01 → 06:00 = hours_night (1.25x)
+ * - Normal 06:01 → 22:00 = hours_regular (1.0x)
  */
 function determineHoursType(
   segmentStart: Date,
   segmentEnd: Date,
   holidayDates: Set<string>
 ): string {
-  const dayOfWeek = segmentStart.getDay();
+  const dayOfWeek = segmentStart.getDay(); // 0=Duminică, 1=Luni, ..., 6=Sâmbătă
   const startHour = segmentStart.getHours();
   const startMinute = segmentStart.getMinutes();
-  const startTimeDecimal = startHour + startMinute / 60;
-
-  // Check for holidays first
+  
+  // Verifică dacă este sărbătoare legală
   if (isLegalHoliday(segmentStart, holidayDates)) {
-    if (startTimeDecimal >= 6 && startTimeDecimal < 24) {
+    // Sărbătoare 06:01 → 24:00
+    if (startHour > 6 || (startHour === 6 && startMinute >= 1)) {
       return 'hours_holiday';
-    } else {
+    }
+    // Sărbătoare 00:00 → 06:00
+    if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
       return 'hours_night';
     }
   }
-
-  // Check for Saturday
-  if (dayOfWeek === 6) {
-    if (startTimeDecimal >= 6) {
-      return 'hours_saturday';
-    } else {
-      return 'hours_night';
-    }
+  
+  // SÂMBĂTĂ-DUMINICĂ (Sâmbătă 06:01 → Duminică 06:00)
+  if (
+    (dayOfWeek === 6 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) || // Sâmbătă de la 06:01
+    (dayOfWeek === 0 && (startHour < 6 || (startHour === 6 && startMinute === 0)))  // Duminică până la 06:00
+  ) {
+    return 'hours_saturday';
   }
-
-  // Check for Sunday
-  if (dayOfWeek === 0) {
-    if (startTimeDecimal >= 6) {
-      return 'hours_sunday';
-    } else {
-      return 'hours_saturday';
-    }
+  
+  // DUMINICĂ (Duminică 06:01 → 24:00)
+  if (dayOfWeek === 0 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) {
+    return 'hours_sunday';
   }
-
-  // Weekday: check for night hours
-  if (startTimeDecimal >= 6 && startTimeDecimal < 22) {
-    return 'hours_regular';
-  } else {
+  
+  // NOAPTE (22:01 → 06:00) - oricare zi (Luni-Vineri)
+  if (startHour >= 22 && (startHour > 22 || startMinute >= 1)) {
     return 'hours_night';
   }
+  
+  if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
+    return 'hours_night';
+  }
+  
+  // ORE NORMALE (06:01 → 22:00) - Luni-Vineri
+  return 'hours_regular';
 }
 
 /**
