@@ -27,11 +27,6 @@ export default defineConfig(({ mode }) => {
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-        // Manual chunks pentru bundle optimization
-        manualChunks: {
-          'vendor': ['react', 'react-dom', 'react-router-dom', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-toast'],
-          'query-vendor': ['@tanstack/react-query'],
-        },
       },
     },
   },
