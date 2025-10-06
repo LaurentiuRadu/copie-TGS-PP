@@ -4,9 +4,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { startOfWeek, endOfWeek, eachDayOfInterval, format, addWeeks, subWeeks, parseISO, isSameDay } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, addWeeks, subWeeks, startOfMonth, endOfMonth } from "date-fns";
 import { ro } from "date-fns/locale";
-import { Table as TableIcon, ChevronLeft, ChevronRight, Download, Calendar, RefreshCw } from "lucide-react";
+import { Table as TableIcon, ChevronLeft, ChevronRight, Download, Calendar, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { useWeeklyTimesheets, DailyTimesheet } from "@/hooks/useDailyTimesheets";
@@ -14,6 +15,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { useAuth } from "@/contexts/AuthContext";
+import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
+import { exportToPayrollCSV } from "@/lib/exportUtils";
 
 type TimesheetEntry = {
   userId: string;
@@ -32,6 +35,10 @@ const Timesheet = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [payrollDateRange, setPayrollDateRange] = useState<{ from: Date; to: Date }>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date())
+  });
   
   const { userRole } = useAuth();
   const queryClient = useQueryClient();
@@ -212,6 +219,43 @@ const Timesheet = () => {
     toast.success("Timesheet exportat cu succes");
   };
 
+  const handleExportPayrollCSV = async () => {
+    if (!payrollDateRange.from || !payrollDateRange.to) {
+      toast.error("Selectează intervalul de date pentru export");
+      return;
+    }
+
+    try {
+      // Fetch data for interval
+      const { data, error } = await supabase
+        .from('daily_timesheets')
+        .select(`
+          *,
+          profiles:employee_id (
+            username,
+            full_name
+          )
+        `)
+        .gte('work_date', format(payrollDateRange.from, 'yyyy-MM-dd'))
+        .lte('work_date', format(payrollDateRange.to, 'yyyy-MM-dd'))
+        .order('work_date');
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error("Nu există date pentru intervalul selectat");
+        return;
+      }
+
+      exportToPayrollCSV(data as any, payrollDateRange.from, payrollDateRange.to);
+      
+      toast.success(`Raport generat pentru ${format(payrollDateRange.from, 'dd.MM.yyyy')} - ${format(payrollDateRange.to, 'dd.MM.yyyy')}`);
+    } catch (error: any) {
+      console.error('Error exporting payroll:', error);
+      toast.error(error.message || "Eroare la generarea raportului");
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-6">
@@ -293,6 +337,36 @@ const Timesheet = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export Excel
               </Button>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="default">
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export Payroll CSV
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Export Raport Lunar Payroll</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground">
+                      Selectează intervalul de date pentru export:
+                    </div>
+                    <SimpleDateRangePicker
+                      selected={{ from: payrollDateRange.from, to: payrollDateRange.to }}
+                      onSelect={(range) => {
+                        if (range?.from && range?.to) {
+                          setPayrollDateRange({ from: range.from, to: range.to });
+                        }
+                      }}
+                    />
+                    <Button onClick={handleExportPayrollCSV} className="w-full">
+                      Generează CSV
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </CardHeader>
