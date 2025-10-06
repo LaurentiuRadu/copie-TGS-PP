@@ -36,7 +36,6 @@ import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
-import { ActiveShiftAlert } from "@/components/ActiveShiftAlert";
 import { AppHeader } from "@/components/AppHeader";
 import { TardinessReasonDialog } from "@/components/TardinessReasonDialog";
 import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
@@ -536,21 +535,6 @@ const Mobile = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Active Shift Alert - Persistent notification */}
-        {activeTimeEntry && (
-          <ActiveShiftAlert 
-            clockInTime={activeTimeEntry.clock_in_time}
-            shiftType={activeShift || 'normal'}
-            timeEntryId={activeTimeEntry.id}
-            className="animate-fade-in"
-            onClockOut={() => {
-              setActiveShift(null);
-              setShiftSeconds(0);
-              setActiveTimeEntry(null);
-            }}
-          />
-        )}
 
         {/* Clock Out Reminder Alert */}
         {activeTimeEntry && showReminderAlert && (
