@@ -10,6 +10,8 @@ interface ClockInConfirmationCardProps {
   timestamp: string;
   locationName: string;
   locationDistance: number;
+  latitude: number;
+  longitude: number;
   shiftType?: string;
   onClose: () => void;
 }
@@ -19,6 +21,8 @@ export function ClockInConfirmationCard({
   timestamp,
   locationName,
   locationDistance,
+  latitude,
+  longitude,
   shiftType,
   onClose,
 }: ClockInConfirmationCardProps) {
@@ -96,6 +100,9 @@ export function ClockInConfirmationCard({
                   <span className="text-xs text-muted-foreground ml-2">
                     ({Math.round(locationDistance)}m)
                   </span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  GPS: {latitude.toFixed(6)}, {longitude.toFixed(6)}
                 </p>
               </div>
             </div>

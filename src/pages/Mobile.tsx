@@ -80,6 +80,8 @@ const Mobile = () => {
     timestamp: string;
     locationName: string;
     locationDistance: number;
+    latitude: number;
+    longitude: number;
     shiftType?: string;
   } | null>(null);
   
@@ -306,6 +308,8 @@ const Mobile = () => {
         timestamp: entry.clock_in_time,
         locationName: nearestLocation.name,
         locationDistance: nearestLocation.distance,
+        latitude: currentCoords.latitude,
+        longitude: currentCoords.longitude,
         shiftType: getShiftTypeLabel(type),
       });
       
@@ -424,6 +428,8 @@ const Mobile = () => {
         timestamp: clockOutTime,
         locationName: nearestLocation.name,
         locationDistance: nearestLocation.distance,
+        latitude: currentCoords.latitude,
+        longitude: currentCoords.longitude,
       });
       
       toast.success(`Pontaj terminat cu succes`);
@@ -812,6 +818,8 @@ const Mobile = () => {
           timestamp={confirmationCard.timestamp}
           locationName={confirmationCard.locationName}
           locationDistance={confirmationCard.locationDistance}
+          latitude={confirmationCard.latitude}
+          longitude={confirmationCard.longitude}
           shiftType={confirmationCard.shiftType}
           onClose={() => setConfirmationCard(null)}
         />
