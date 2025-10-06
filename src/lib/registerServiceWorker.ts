@@ -9,6 +9,13 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
+          // Verifică actualizări la fiecare 30 secunde
+          setInterval(() => {
+            registration.update().catch(() => {
+              // Ignoră erorile de update
+            });
+          }, 30000);
+
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
@@ -18,16 +25,35 @@ export function registerServiceWorker() {
                     console.info('🔄 New version available');
                   }
                   
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  window.location.reload();
+                  // Arată notificare utilizatorului
+                  if (window.confirm('O nouă versiune a aplicației este disponibilă. Actualizați acum?')) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
+                  }
                 }
               });
+            }
+          });
+
+          // Forțează verificarea pentru actualizări când devine vizibilă aplicația
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+              registration.update().catch(() => {});
             }
           });
         })
         .catch((error) => {
           console.error('Service Worker registration failed:', error);
         });
+    });
+
+    // Reîncarcă pagina când un nou service worker preia controlul
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }
 }

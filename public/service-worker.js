@@ -1,5 +1,5 @@
 // Service Worker pentru PWA - Offline support și caching
-const CACHE_NAME = 'timetrack-v1';
+const CACHE_NAME = `timetrack-v${Date.now()}`;
 const OFFLINE_URL = '/';
 
 const urlsToCache = [
@@ -46,9 +46,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // IMPORTANT: Nu cache-ui cererile către Supabase auth/storage pentru a evita probleme de sesiune
+  const url = new URL(event.request.url);
+  const skipCache = 
+    event.request.url.includes('supabase.co') ||
+    event.request.url.includes('/auth/') ||
+    event.request.url.includes('storage') ||
+    event.request.method !== 'GET';
+
+  if (skipCache) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        // Nu cache-ui răspunsurile de eroare
+        if (!response || response.status !== 200 || response.type === 'error') {
+          return response;
+        }
+
         // Clone the response before caching
         const responseToCache = response.clone();
         
