@@ -238,12 +238,15 @@ const Auth = () => {
                   <Label htmlFor="employee-username">Username</Label>
                   <Input
                     id="employee-username"
-                    placeholder="ex: ionpopescu"
+                    placeholder="ex: numeprenume"
                     value={employeeUsername}
-                    onChange={(e) => setEmployeeUsername(e.target.value)}
+                    onChange={(e) => setEmployeeUsername(e.target.value.toLowerCase())}
                     required
                     disabled={loading}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Format: nume + prenume (fără spații)
+                  </p>
                 </div>
 
                 {isSignUp && (
