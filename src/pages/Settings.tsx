@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Download, Upload, Database, HardDrive, Info, Shield, Bell } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { ThemeSettings } from "@/components/ThemeSettings";
 
 export default function Settings() {
   const handleBackup = () => {
@@ -26,6 +27,9 @@ export default function Settings() {
   return (
     <AdminLayout title="Setări & Configurare">
       <div className="container max-w-5xl mx-auto p-6 space-y-6">
+        {/* Theme Settings */}
+        <ThemeSettings />
+
         {/* Backup & Restore Section */}
         <Card>
           <CardHeader>

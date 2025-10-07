@@ -5,6 +5,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { useAutoDarkMode } from "./hooks/useAutoDarkMode";
+import { useEffect, useState } from "react";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Mobile from "./pages/Mobile";
@@ -29,8 +31,28 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import { GDPRConsentAlert } from "./components/GDPRConsentAlert";
 
-const App = () => (
-  <TooltipProvider>
+const App = () => {
+  const [themeMode, setThemeMode] = useState<string>(() => {
+    return localStorage.getItem("theme-preference") || "system";
+  });
+
+  // Ascultă schimbări în localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const newMode = localStorage.getItem("theme-preference") || "system";
+      setThemeMode(newMode);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  // Activează auto-theme dacă este setat pe "auto"
+  const autoModeEnabled = themeMode === "auto";
+  useAutoDarkMode(autoModeEnabled);
+
+  return (
+    <TooltipProvider>
       <Toaster />
       <Sonner />
       <PWAInstallPrompt />
@@ -182,9 +204,10 @@ const App = () => (
           
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AuthProvider>
-  </TooltipProvider>
-);
+        </Routes>
+      </AuthProvider>
+    </TooltipProvider>
+  );
+};
 
 export default App;

@@ -27,10 +27,13 @@ const getSunTimes = (month: number): SunTimes => {
   return sunTimes[month] || { sunrise: 6, sunset: 18 };
 };
 
-export const useAutoDarkMode = () => {
+export const useAutoDarkMode = (enabled: boolean = false) => {
   const { setTheme } = useTheme();
 
   useEffect(() => {
+    // Dacă nu este activat, nu face nimic
+    if (!enabled) return;
+
     const updateTheme = () => {
       const now = new Date();
       const currentHour = now.getHours();
@@ -56,5 +59,5 @@ export const useAutoDarkMode = () => {
     const interval = setInterval(updateTheme, 30 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [setTheme]);
+  }, [enabled, setTheme]);
 };
