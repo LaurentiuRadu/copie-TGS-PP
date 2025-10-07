@@ -7,6 +7,8 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -49,17 +51,26 @@ export function AppSidebar() {
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Format: DDMM.2008 (combinație fixă conform cererii)
-  const getAppVersion = () => {
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return `${day}${month}.2008`;
-  };
+  // Versiune fixă + build number din baza de date
+  const { data: currentVersion } = useQuery({
+    queryKey: ['currentAppVersion'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('app_versions')
+        .select('version')
+        .eq('is_current', true)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching version:', error);
+        return '10'; // Default fallback
+      }
+      
+      return data?.version || '10';
+    },
+  });
   
-  const APP_VERSION = getAppVersion();
-  
-  console.log('Current app version:', APP_VERSION);
+  const APP_VERSION = `06.10.2008.${currentVersion || '10'}`;
   
   // Monitor pontaj activ pentru badge notification
   const { hasActiveEntry } = useActiveTimeEntry(user?.id);
