@@ -117,7 +117,7 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
  * - Sărbătoare 00:00 → 06:00 = hours_night (1.25x)
  * - Sâmbătă 06:01 → Duminică 06:00 = hours_saturday (1.50x)
  * - Duminică 06:01 → 24:00 = hours_sunday (2.0x)
- * - Noapte 22:01 → 06:00 = hours_night (1.25x)
+ * - Noapte 22:00 → 06:00 = hours_night (1.25x)
  * - Normal 06:01 → 22:00 = hours_regular (1.0x)
  */
 function determineHoursType(
@@ -154,8 +154,8 @@ function determineHoursType(
     return 'hours_sunday';
   }
   
-  // NOAPTE (22:01 → 06:00) - oricare zi (Luni-Vineri)
-  if (startHour >= 22 && (startHour > 22 || startMinute >= 1)) {
+  // NOAPTE (22:00 → 06:00) - oricare zi (Luni-Vineri)
+  if (startHour >= 22) {
     return 'hours_night';
   }
   
@@ -163,7 +163,7 @@ function determineHoursType(
     return 'hours_night';
   }
   
-  // ORE NORMALE (06:01 → 22:00) - Luni-Vineri
+  // ORE NORMALE (06:01 → 21:59:59) - Luni-Vineri
   return 'hours_regular';
 }
 

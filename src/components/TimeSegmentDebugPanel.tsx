@@ -71,8 +71,8 @@ export const TimeSegmentDebugPanel = () => {
       return "hours_sunday";
     }
     
-    // NOAPTE (22:01 → 06:00)
-    if (startHour >= 22 && (startHour > 22 || startMinute >= 1)) {
+    // NOAPTE (22:00 → 06:00)
+    if (startHour >= 22) {
       return "hours_night";
     }
     
@@ -80,7 +80,7 @@ export const TimeSegmentDebugPanel = () => {
       return "hours_night";
     }
     
-    // ORE NORMALE (06:01 → 22:00)
+    // ORE NORMALE (06:01 → 21:59:59)
     return "hours_regular";
   };
 
