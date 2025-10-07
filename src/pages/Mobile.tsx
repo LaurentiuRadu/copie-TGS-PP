@@ -107,17 +107,25 @@ const Mobile = () => {
   const requestLocationAccess = useCallback(async () => {
     try {
       setLocationError(null);
-      await getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+      toast.info('Se caută GPS... Poate dura până la 15 secunde.', { duration: 3000 });
+      await getCurrentPosition({ 
+        enableHighAccuracy: true, 
+        timeout: 15000, // 15 seconds for Android
+        maximumAge: 0,
+        maxRetries: 3,
+        retryDelay: 1000
+      });
       setLocationEnabled(true);
       triggerHaptic('light');
+      toast.success('Locație GPS găsită!');
     } catch (e: any) {
       setLocationEnabled(false);
       const errorMessage = e.code === 1 
         ? "Accesul la locație a fost refuzat. Activează permisiunile GPS." 
         : e.code === 2
-        ? "Nu s-a putut determina locația. Verifică conexiunea GPS."
+        ? "Nu s-a putut determina locația. Verifică conexiunea GPS și încearcă din nou."
         : e.code === 3
-        ? "Timeout la determinarea locației. Încearcă din nou."
+        ? "Timeout la determinarea locației. Verifică semnalul GPS și încearcă din nou."
         : "Locație indisponibilă";
       setLocationError(errorMessage);
       triggerHaptic('error');
@@ -278,16 +286,23 @@ const Mobile = () => {
             .eq('id', entry.id);
         }
       }
+      toast.info('Se obține locația GPS...', { duration: 3000 });
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
+        timeout: 15000, // 15 seconds for Android
+        maximumAge: 0,
+        maxRetries: 3,
+        retryDelay: 1000
       });
       
       const currentCoords = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
+      console.log('[ClockIn] GPS location obtained:', { 
+        accuracy: position.coords.accuracy,
+        coords: currentCoords 
+      });
 
       const { data: locations, error: locError } = await supabase
         .from('work_locations')
@@ -428,16 +443,23 @@ const Mobile = () => {
     triggerHaptic('medium');
     
     try {
+      toast.info('Se obține locația GPS...', { duration: 3000 });
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
+        timeout: 15000, // 15 seconds for Android
+        maximumAge: 0,
+        maxRetries: 3,
+        retryDelay: 1000
       });
       
       const currentCoords = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
+      console.log('[ClockOut] GPS location obtained:', { 
+        accuracy: position.coords.accuracy,
+        coords: currentCoords 
+      });
 
       const { data: locations, error: locError } = await supabase
         .from('work_locations')
