@@ -2,6 +2,7 @@ import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardLis
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { forceRefreshApp, isIOSPWA } from "@/lib/iosPwaUpdate";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,8 @@ const employeeMenuItems = [
 
 export function AppSidebar() {
   const { open } = useSidebar();
-  const { userRole, user, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { isAdmin, isEmployee } = useUserRole();
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -76,13 +78,18 @@ export function AppSidebar() {
   const { hasActiveEntry } = useActiveTimeEntry(user?.id);
 
   useEffect(() => {
-    // Setează meniurile bazate pe rol
-    if (userRole === 'admin') {
-      setMenuItems(adminMenuItems);
-    } else {
+    // Admin-ii văd TOATE meniurile cu separare clară
+    if (isAdmin) {
+      setMenuItems([
+        ...adminMenuItems,
+      ]);
+    } else if (isEmployee) {
+      // Angajații normali văd doar meniurile employee
       setMenuItems(employeeMenuItems);
+    } else {
+      setMenuItems([]);
     }
-  }, [userRole]);
+  }, [isAdmin, isEmployee]);
 
   const handleForceUpdate = async () => {
     setIsRefreshing(true);
@@ -123,10 +130,43 @@ export function AppSidebar() {
           )}
         </div>
 
+        {/* Meniu Admin */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administrare</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <NavLink
+                        to={item.url}
+                        end
+                        className={({ isActive }) =>
+                          isActive
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                            : "!text-white hover:bg-sidebar-accent/50"
+                        }
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Meniu Personal (pentru toți sau doar employee) */}
         <SidebarGroup>
+          <SidebarGroupLabel>
+            {isAdmin ? "Pontaj Personal" : "Meniu Principal"}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {employeeMenuItems.map((item) => {
                 const isPontajMenu = item.url === '/mobile';
                 const showBadge = isPontajMenu && hasActiveEntry;
                 
