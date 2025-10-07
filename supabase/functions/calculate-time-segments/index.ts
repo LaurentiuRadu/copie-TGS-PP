@@ -17,6 +17,7 @@ interface TimesheetEntry {
   hours_driving: number;
   hours_equipment: number;
   hours_leave: number;
+  hours_medical_leave: number;
   notes: string | null;
 }
 
@@ -212,6 +213,7 @@ function segmentShiftIntoTimesheets(
         hours_driving: 0,
         hours_equipment: 0,
         hours_leave: 0,
+        hours_medical_leave: 0,
         notes: shift.notes || null
       };
       timesheets.push(existingTimesheet);
