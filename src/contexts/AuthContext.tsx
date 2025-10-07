@@ -332,25 +332,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .catch((err) => console.error('GDPR consent check error:', err));
                 }
 
-                // Only redirect on SIGNED_IN event, not on TOKEN_REFRESHED or other events
-                if (event === 'SIGNED_IN') {
+                // Redirect logic - execută pentru toate evenimentele relevante (SIGNED_IN, INITIAL_SESSION)
+                // TOKEN_REFRESHED este deja handle-uit cu return mai sus
+                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
                   // Check current path to avoid unnecessary redirects
                   const currentPath = window.location.pathname;
                   
-                  // Define valid paths for each role
-                  const adminPaths = ['/admin', '/time-entries', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules'];
-                  const employeePaths = ['/mobile', '/my-time-entries', '/vacations'];
+                  // Define valid paths for each role - includ /timesheet pentru admin
+                  const adminPaths = ['/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/gdpr-admin', '/settings'];
+                  const employeePaths = ['/mobile', '/my-time-entries', '/vacations', '/settings'];
                   
                   const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
                                        (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
                   
                   // Only redirect if user is not on a valid path for their role
                   if (!isOnValidPath) {
+                    console.log('[AuthProvider] 🔀 Redirecting user - invalid path for role:', { currentPath, role });
                     if (role === 'admin') {
                       navigate('/admin');
                     } else if (role === 'employee') {
                       navigate('/mobile');
                     }
+                  } else {
+                    console.log('[AuthProvider] ✅ User on valid path, no redirect needed:', currentPath);
                   }
                 }
               });
