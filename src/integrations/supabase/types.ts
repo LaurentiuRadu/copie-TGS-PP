@@ -696,6 +696,68 @@ export type Database = {
           },
         ]
       }
+      time_entry_correction_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          current_entry_id: string | null
+          description: string
+          id: string
+          proposed_clock_in: string | null
+          proposed_clock_out: string | null
+          proposed_shift_type: string | null
+          request_type: Database["public"]["Enums"]["correction_request_type"]
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          work_date: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          current_entry_id?: string | null
+          description: string
+          id?: string
+          proposed_clock_in?: string | null
+          proposed_clock_out?: string | null
+          proposed_shift_type?: string | null
+          request_type: Database["public"]["Enums"]["correction_request_type"]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          work_date: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          current_entry_id?: string | null
+          description?: string
+          id?: string
+          proposed_clock_in?: string | null
+          proposed_clock_out?: string | null
+          proposed_shift_type?: string | null
+          request_type?: Database["public"]["Enums"]["correction_request_type"]
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entry_correction_requests_current_entry_id_fkey"
+            columns: ["current_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entry_segments: {
         Row: {
           created_at: string | null
@@ -1095,6 +1157,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "employee"
+      correction_request_type:
+        | "forgot_clock_in"
+        | "forgot_clock_out"
+        | "wrong_time"
+        | "wrong_shift_type"
+        | "duplicate_entry"
+        | "other"
       work_hour_type: "normal" | "night" | "saturday" | "sunday_holiday"
     }
     CompositeTypes: {
@@ -1224,6 +1293,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "employee"],
+      correction_request_type: [
+        "forgot_clock_in",
+        "forgot_clock_out",
+        "wrong_time",
+        "wrong_shift_type",
+        "duplicate_entry",
+        "other",
+      ],
       work_hour_type: ["normal", "night", "saturday", "sunday_holiday"],
     },
   },

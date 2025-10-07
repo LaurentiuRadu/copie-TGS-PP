@@ -1,16 +1,56 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar, AlertCircle } from "lucide-react";
 import { MigrationTestPanel } from "@/components/MigrationTestPanel";
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
 import { AdminLayout } from "@/components/AdminLayout";
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
+import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Admin = () => {
+  // Fetch pending correction requests count
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ['correctionRequestsPendingCount'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('time_entry_correction_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count || 0;
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="p-6 space-y-6">
+            {/* Correction Requests Section */}
+            <Card className="border-l-4 border-l-yellow-500">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-yellow-600" />
+                      Cereri de Corecție Pontaje
+                      {pendingCount > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} nouă
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>Gestionează cererile de corecție ale angajaților</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+
+            <TimeEntryCorrectionRequestsManager />
+
             {/* Historical Data Migration - Pas 5 */}
             <HistoricalDataMigration />
             

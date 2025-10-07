@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Clock, Calendar as CalendarIcon, Moon, Sun, Sunset, Gift, Car, Users as PassengerIcon, Wrench, TrendingUp, CalendarDays, ChevronDown } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Moon, Sun, Sunset, Gift, Car, Users as PassengerIcon, Wrench, TrendingUp, CalendarDays, ChevronDown, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { TimeEntryCorrectionDialog } from '@/components/TimeEntryCorrectionDialog';
 import {
   Accordion,
   AccordionContent,
@@ -32,12 +36,31 @@ const getShiftTypeFromNotes = (notes: string | null): string => {
 const MyTimeEntries = () => {
   const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   
   // Fetch time entries și daily timesheets
   const { data: timeEntries = [], isLoading: entriesLoading } = useOptimizedMyTimeEntries(user?.id, selectedMonth);
   const { data: dailyTimesheets = [], isLoading: timesheetsLoading } = useMyDailyTimesheets(user?.id, selectedMonth);
   
+  // Fetch correction requests
+  const { data: correctionRequests = [] } = useQuery({
+    queryKey: ['correctionRequests', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('time_entry_correction_requests')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+  
   const loading = entriesLoading || timesheetsLoading;
+  const pendingRequests = correctionRequests.filter(r => r.status === 'pending').length;
 
   // Calculează totalurile pe tipuri din daily_timesheets
   const monthlyStats = dailyTimesheets.reduce((acc, day) => ({
@@ -76,8 +99,8 @@ const MyTimeEntries = () => {
       <AppHeader userName={user?.user_metadata?.full_name || user?.email} showBackButton />
       
       <div className="container mx-auto p-4 md:p-6 space-y-6">
-        {/* Month Selector */}
-        <div className="flex items-center justify-between gap-4">
+        {/* Month Selector & Correction Button */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-muted-foreground" />
             <Select
@@ -96,10 +119,76 @@ const MyTimeEntries = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {dailyTimesheets.length} zile lucrate
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setCorrectionDialogOpen(true)}
+              className="gap-2"
+            >
+              <AlertCircle className="h-4 w-4" />
+              Raportează Problemă Pontaj
+              {pendingRequests > 0 && (
+                <Badge variant="destructive" className="ml-1">{pendingRequests}</Badge>
+              )}
+            </Button>
+            <div className="text-sm text-muted-foreground hidden sm:block">
+              {dailyTimesheets.length} zile lucrate
+            </div>
           </div>
         </div>
+
+        {/* Correction Requests Section */}
+        {correctionRequests.length > 0 && (
+          <Card className="border-l-4 border-l-yellow-500">
+            <CardHeader>
+              <CardTitle className="text-base">Cererile Mele de Corecție</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {correctionRequests.slice(0, 5).map((request) => {
+                  const statusConfig = {
+                    pending: { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-300', label: 'În așteptare' },
+                    approved: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-300', label: 'Aprobată' },
+                    rejected: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-300', label: 'Respinsă' },
+                  }[request.status] || { icon: Clock, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-300', label: request.status };
+                  
+                  const StatusIcon = statusConfig.icon;
+                  
+                  return (
+                    <div key={request.id} className={`p-3 rounded-lg ${statusConfig.bg} border ${statusConfig.border}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <StatusIcon className={`h-4 w-4 ${statusConfig.color} flex-shrink-0`} />
+                            <span className="font-medium text-sm">
+                              {format(new Date(request.work_date), 'dd MMM yyyy', { locale: ro })}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {statusConfig.label}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {request.description}
+                          </p>
+                          {request.admin_notes && request.status !== 'pending' && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">
+                              Admin: {request.admin_notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {correctionRequests.length > 5 && (
+                  <p className="text-xs text-muted-foreground text-center pt-2">
+                    +{correctionRequests.length - 5} cereri mai vechi
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -375,6 +464,12 @@ const MyTimeEntries = () => {
           )}
         </div>
       </div>
+
+      {/* Correction Dialog */}
+      <TimeEntryCorrectionDialog 
+        open={correctionDialogOpen} 
+        onOpenChange={setCorrectionDialogOpen}
+      />
     </div>
   );
 };
