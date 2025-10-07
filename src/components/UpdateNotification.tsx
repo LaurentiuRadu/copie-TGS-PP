@@ -159,10 +159,10 @@ export function UpdateNotification() {
 
   // Arată automat update dacă hook-ul de notificări a detectat unul
   useEffect(() => {
-    if (notificationHasUpdate && !showUpdate && !suppressRef.current) {
+    if (notificationHasUpdate && !showUpdate && !suppressRef.current && !isDismissed) {
       setShowUpdate(true);
     }
-  }, [notificationHasUpdate, showUpdate]);
+  }, [notificationHasUpdate, showUpdate, isDismissed]);
 
   const handleUpdate = async () => {
     // Previne reapariția imediată a cardului
@@ -177,21 +177,22 @@ export function UpdateNotification() {
       if (latestVersion?.version) {
         await iosStorage.setItem(APP_VERSION_KEY, latestVersion.version);
       }
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 200);
     } else if (isIOSPWA()) {
       toast.info('Se actualizează aplicația...');
       await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 200);
     } else if (registration?.waiting) {
       toast.info('Se instalează actualizarea...');
       activateWaitingServiceWorker();
     } else {
       toast.info('Se reîncarcă aplicația...');
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 200);
     }
   };
 
   const handleDismiss = () => {
+    suppressRef.current = true;
     if (updateType === 'version' && latestVersion?.version) {
       localStorage.setItem(DISMISSED_VERSION_KEY, latestVersion.version);
       setIsDismissed(true);
