@@ -19,8 +19,40 @@ interface VacationRequest {
   } | null;
 }
 
+interface VacationBalance {
+  id: string;
+  user_id: string;
+  year: number;
+  total_days: number;
+  used_days: number;
+  pending_days: number;
+  remaining_days: number;
+  notes: string | null;
+}
+
 export const useOptimizedVacations = (userId: string | undefined, isAdmin: boolean) => {
   const queryClient = useQueryClient();
+
+  // Fetch vacation balance for current year
+  const currentYear = new Date().getFullYear();
+  const { data: balance } = useQuery({
+    queryKey: ['vacation-balance', userId, currentYear],
+    queryFn: async () => {
+      if (!userId) return null;
+
+      const { data, error } = await supabase
+        .from('vacation_balances')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('year', currentYear)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as VacationBalance | null;
+    },
+    enabled: !!userId,
+    staleTime: 30000,
+  });
 
   // Optimized query - simplificat fără JOIN complex
   const { data: requests = [], isLoading } = useQuery({
@@ -162,6 +194,7 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
 
   return {
     requests,
+    balance,
     isLoading,
     createRequest: createRequest.mutate,
     updateStatus: updateStatus.mutate,

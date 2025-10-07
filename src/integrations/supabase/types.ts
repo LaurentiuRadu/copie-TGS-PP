@@ -916,6 +916,45 @@ export type Database = {
         }
         Relationships: []
       }
+      vacation_balances: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          pending_days: number
+          remaining_days: number | null
+          total_days: number
+          updated_at: string | null
+          used_days: number
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          pending_days?: number
+          remaining_days?: number | null
+          total_days?: number
+          updated_at?: string | null
+          used_days?: number
+          user_id: string
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          pending_days?: number
+          remaining_days?: number | null
+          total_days?: number
+          updated_at?: string | null
+          used_days?: number
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       vacation_requests: {
         Row: {
           admin_notes: string | null
@@ -1166,6 +1205,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      init_vacation_balance_2025: {
+        Args: { _used_days?: number; _user_id: string }
+        Returns: undefined
       }
       invalidate_user_sessions: {
         Args: { _reason: string; _user_id: string }
