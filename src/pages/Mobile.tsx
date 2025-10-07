@@ -556,7 +556,26 @@ const Mobile = () => {
   }, [triggerHaptic]);
 
   const handleShiftEnd = useCallback(async () => {
-    if (isProcessing) return;
+    // Verificări preliminare
+    if (isProcessing) {
+      console.log('[ClockOut] Already processing, ignoring...');
+      return;
+    }
+    
+    // Debounce pentru clock-out
+    const buttonKey = 'clock-out';
+    const now = Date.now();
+    const lastClick = lastClickTime[buttonKey] || 0;
+    const cooldownMs = 2000; // 2 seconds
+
+    if (now - lastClick < cooldownMs) {
+      const remainingSeconds = Math.ceil((cooldownMs - (now - lastClick)) / 1000);
+      toast.warning(`Așteaptă ${remainingSeconds}s înainte să închizi pontajul`);
+      triggerHaptic('warning');
+      return;
+    }
+
+    setLastClickTime(prev => ({ ...prev, [buttonKey]: now }));
     
     if (!activeTimeEntry) {
       toast.error("Nu există pontaj activ");
@@ -591,6 +610,45 @@ const Mobile = () => {
       );
     }
 
+    // ✅ AFIȘEAZĂ DIALOG DE CONFIRMARE PRE-PONTAJ IEȘIRE
+    try {
+      const position = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+        maxRetries: 1,
+        retryDelay: 1000
+      });
+      
+      const currentCoords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+
+      const { data: locations } = await supabase
+        .from('work_locations')
+        .select('*')
+        .eq('is_active', true);
+
+      const nearestLocation = locations ? findNearestLocation(currentCoords, locations) : null;
+
+      setPreClockDialog({
+        open: true,
+        type: "clock-out",
+        shiftType: getShiftTypeLabel(activeShift),
+        location: nearestLocation ? { name: nearestLocation.name, address: nearestLocation.address } : null,
+      });
+      triggerHaptic('light');
+      return;
+    } catch (error) {
+      console.warn('Could not get location for preview:', error);
+    }
+
+    // Dacă nu putem obține locația pentru preview, continuăm direct
+    await actuallyEndShift();
+  }, [isProcessing, locationEnabled, activeTimeEntry, lastClickTime, activeShift, batteryInfo, triggerHaptic]);
+
+  const actuallyEndShift = useCallback(async () => {
     setIsProcessing(true);
     triggerHaptic('medium');
     
@@ -637,7 +695,7 @@ const Mobile = () => {
         return;
       }
 
-      const clockInTime = activeTimeEntry.clock_in_time;
+      const clockInTime = activeTimeEntry!.clock_in_time;
       const clockOutTime = new Date().toISOString();
 
       const { error: updateError } = await supabase
@@ -648,7 +706,7 @@ const Mobile = () => {
           clock_out_longitude: currentCoords.longitude,
           clock_out_location_id: nearestLocation.id,
         })
-        .eq('id', activeTimeEntry.id);
+        .eq('id', activeTimeEntry!.id);
 
       if (updateError) throw updateError;
 
@@ -656,10 +714,10 @@ const Mobile = () => {
       console.log('[ClockOut] Starting time segment calculation...');
       const segmentSuccess = await processTimeSegmentsWithRetry(
         user?.id || '',
-        activeTimeEntry.id,
+        activeTimeEntry!.id,
         clockInTime,
         clockOutTime,
-        activeTimeEntry.notes
+        activeTimeEntry!.notes
       );
 
       if (!segmentSuccess) {
@@ -700,7 +758,7 @@ const Mobile = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [activeTimeEntry, locationEnabled, isProcessing, triggerHaptic, lastClickTime, user, batteryInfo]);
+  }, [activeTimeEntry, triggerHaptic, user]);
 
   const getShiftTypeLabel = (type: ShiftType) => {
     switch (type) {
@@ -1102,6 +1160,27 @@ const Mobile = () => {
         onOpenChange={setShowLogoutDialog}
         onConfirm={handleLogoutConfirm}
       />
+
+      {/* Pre-Clock Confirmation Dialog */}
+      {preClockDialog && (
+        <ClockConfirmationDialog
+          open={preClockDialog.open}
+          onOpenChange={(open) => !open && setPreClockDialog(null)}
+          onConfirm={async () => {
+            const type = preClockDialog.type;
+            setPreClockDialog(null);
+            if (type === "clock-in") {
+              await actuallyStartShift(activeShift || "normal");
+            } else {
+              await actuallyEndShift();
+            }
+          }}
+          type={preClockDialog.type}
+          shiftType={preClockDialog.shiftType}
+          location={preClockDialog.location}
+          loading={isProcessing}
+        />
+      )}
     </div>
   );
 };
