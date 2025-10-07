@@ -30,6 +30,7 @@ import Settings from "./pages/Settings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import { GDPRConsentAlert } from "./components/GDPRConsentAlert";
+import { UpdateNotification } from "./components/UpdateNotification";
 
 const App = () => {
   const [themeMode, setThemeMode] = useState<string>(() => {
@@ -58,6 +59,7 @@ const App = () => {
       <PWAInstallPrompt />
       <AuthProvider>
         <GDPRConsentAlert />
+        <UpdateNotification />
         <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />

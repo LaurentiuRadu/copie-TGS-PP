@@ -40,7 +40,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { TardinessReasonDialog } from "@/components/TardinessReasonDialog";
 import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
 import { useTardinessCheck } from "@/hooks/useTardinessCheck";
-import { UpdateNotification } from "@/components/UpdateNotification";
+
 import { ClockInConfirmationCard } from "@/components/ClockInConfirmationCard";
 import { ClockConfirmationDialog } from "@/components/ClockConfirmationDialog";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
@@ -1136,9 +1136,6 @@ const Mobile = () => {
           scheduledTime={tardinessDialog.scheduledTime}
         />
       )}
-
-      {/* Update Notification */}
-      <UpdateNotification />
 
       {/* Clock In/Out Confirmation Card */}
       {confirmationCard?.show && (
