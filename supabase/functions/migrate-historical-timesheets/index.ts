@@ -218,6 +218,30 @@ function segmentShiftIntoTimesheets(
     currentTime = segmentEnd;
   }
 
+  // ✅ DEDUCERE PAUZĂ: 30 min DOAR din hours_regular (06:00-22:00)
+  timesheets.forEach(t => {
+    const BREAK_HOURS = 0.5; // 30 minute
+    
+    if (t.hours_regular >= BREAK_HOURS) {
+      t.hours_regular -= BREAK_HOURS;
+      console.log(`[Migration Break] ✅ Deducere pauză 30 min din hours_regular pentru ${t.work_date} (${(t.hours_regular + BREAK_HOURS).toFixed(2)}h → ${t.hours_regular.toFixed(2)}h)`);
+    } else {
+      console.log(`[Migration Break] ⚠️ SKIP pauză pentru ${t.work_date} - insuficient hours_regular (${t.hours_regular.toFixed(2)}h < 0.5h)`);
+    }
+    
+    // Rotunjește toate orele la 2 zecimale
+    t.hours_regular = Math.round(t.hours_regular * 100) / 100;
+    t.hours_night = Math.round(t.hours_night * 100) / 100;
+    t.hours_saturday = Math.round(t.hours_saturday * 100) / 100;
+    t.hours_sunday = Math.round(t.hours_sunday * 100) / 100;
+    t.hours_holiday = Math.round(t.hours_holiday * 100) / 100;
+    t.hours_passenger = Math.round(t.hours_passenger * 100) / 100;
+    t.hours_driving = Math.round(t.hours_driving * 100) / 100;
+    t.hours_equipment = Math.round(t.hours_equipment * 100) / 100;
+    t.hours_leave = Math.round(t.hours_leave * 100) / 100;
+    t.hours_medical_leave = Math.round(t.hours_medical_leave * 100) / 100;
+  });
+
   return timesheets;
 }
 
