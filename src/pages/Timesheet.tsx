@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ const Timesheet = () => {
   const [currentMonth] = useState(new Date());
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [reprocessProgress, setReprocessProgress] = useState<string>('');
+  const [isReprocessSectionOpen, setIsReprocessSectionOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
     from: startOfMonth(currentMonth),
     to: endOfMonth(currentMonth),
@@ -270,49 +272,64 @@ const Timesheet = () => {
         </Card>
 
         {/* Re-procesare Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <RefreshCw className="h-5 w-5" />
-                  Re-procesare Timesheets
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Aplică fix timezone + reguli noi de pauză pentru toți angajații
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">
-                  Interval de date
-                </label>
-                <SimpleDateRangePicker
-                  selected={dateRange}
-                  onSelect={(range) => range && setDateRange(range)}
-                />
-              </div>
+        <Collapsible
+          open={isReprocessSectionOpen}
+          onOpenChange={setIsReprocessSectionOpen}
+        >
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <RefreshCw className="h-5 w-5" />
+                      Re-procesare Timesheets
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Aplică fix timezone + reguli noi de pauză pentru toți angajații
+                    </p>
+                  </div>
+                  {isReprocessSectionOpen ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            
+            <CollapsibleContent>
+              <CardContent className="border-t">
+                <div className="flex items-end gap-4">
+                  <div className="flex-1">
+                    <label className="text-sm font-medium mb-2 block">
+                      Interval de date
+                    </label>
+                    <SimpleDateRangePicker
+                      selected={dateRange}
+                      onSelect={(range) => range && setDateRange(range)}
+                    />
+                  </div>
 
-              <Button
-                onClick={handleReprocess}
-                disabled={isReprocessing || !dateRange.from || !dateRange.to}
-                className="gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${isReprocessing ? 'animate-spin' : ''}`} />
-                {isReprocessing ? 'Procesare...' : 'Re-procesează Date'}
-              </Button>
-            </div>
+                  <Button
+                    onClick={handleReprocess}
+                    disabled={isReprocessing || !dateRange.from || !dateRange.to}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isReprocessing ? 'animate-spin' : ''}`} />
+                    {isReprocessing ? 'Procesare...' : 'Re-procesează Date'}
+                  </Button>
+                </div>
 
-            {reprocessProgress && (
-              <div className="mt-4 p-3 bg-muted rounded-md">
-                <p className="text-sm font-mono">{reprocessProgress}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                {reprocessProgress && (
+                  <div className="mt-4 p-3 bg-muted rounded-md">
+                    <p className="text-sm font-mono">{reprocessProgress}</p>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         {/* Employee List */}
         {loadingUsers || loadingTimesheets ? (
