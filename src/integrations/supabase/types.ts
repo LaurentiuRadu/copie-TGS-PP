@@ -50,6 +50,36 @@ export type Database = {
         }
         Relationships: []
       }
+      app_versions: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_current: boolean | null
+          release_notes: string | null
+          released_by: string | null
+          updated_at: string | null
+          version: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_current?: boolean | null
+          release_notes?: string | null
+          released_by?: string | null
+          updated_at?: string | null
+          version: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_current?: boolean | null
+          release_notes?: string | null
+          released_by?: string | null
+          updated_at?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -1161,6 +1191,10 @@ export type Database = {
       }
       refresh_daily_stats: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      set_current_version: {
+        Args: { _version_id: string }
         Returns: undefined
       }
       user_in_team: {

@@ -1,12 +1,9 @@
+import { useCallback } from 'react';
+
 export type HapticStyle = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
 
 export function useHapticFeedback() {
-  const triggerHaptic = (style: HapticStyle = 'medium') => {
-    // Check if the Vibration API is supported
-    if (!('vibrate' in navigator)) {
-      return;
-    }
-
+  const triggerHaptic = useCallback((style: HapticStyle = 'medium') => {
     // Map haptic styles to vibration patterns
     const patterns: Record<HapticStyle, number | number[]> = {
       light: 10,
@@ -17,12 +14,37 @@ export function useHapticFeedback() {
       error: [50, 100, 50, 100, 50]
     };
 
-    try {
-      navigator.vibrate(patterns[style]);
-    } catch (error) {
-      console.warn('Haptic feedback failed:', error);
+    // Try native Vibration API first
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate(patterns[style]);
+      } catch (error) {
+        console.warn('Haptic feedback failed:', error);
+      }
     }
-  };
+
+    // Try Capacitor Haptics for better native feel
+    if ((window as any).Capacitor) {
+      import('@capacitor/haptics').then(({ Haptics, ImpactStyle }) => {
+        const impactStyles = {
+          light: ImpactStyle.Light,
+          heavy: ImpactStyle.Heavy,
+          medium: ImpactStyle.Medium,
+        };
+
+        const impactStyle = 
+          style === 'light' ? impactStyles.light :
+          style === 'heavy' ? impactStyles.heavy :
+          impactStyles.medium;
+
+        Haptics.impact({ style: impactStyle }).catch(() => {
+          // Silently fail if not supported
+        });
+      }).catch(() => {
+        // Capacitor Haptics not available
+      });
+    }
+  }, []);
 
   return { triggerHaptic };
 }
