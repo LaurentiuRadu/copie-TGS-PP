@@ -206,15 +206,8 @@ export default function WeeklySchedules() {
       
       if (error) throw error;
 
-      // Create notifications for all employees
-      const notifications = schedules.map(schedule => ({
-        schedule_id: schedule.id,
-        user_id: schedule.user_id
-      }));
-
-      await supabase
-        .from('schedule_notifications')
-        .insert(notifications);
+      // ✅ Notificările sunt create automat de trigger-ul notify_schedule_change
+      // Nu mai e nevoie de insert manual
 
       return schedules;
     },

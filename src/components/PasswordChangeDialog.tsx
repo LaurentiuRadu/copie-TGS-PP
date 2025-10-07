@@ -80,19 +80,8 @@ export function PasswordChangeDialog({ open, onSuccess }: PasswordChangeDialogPr
 
       if (updateError) throw updateError;
 
-      // Update password tracking
-      const { error: trackingError } = await (supabase as any)
-        .from('user_password_tracking')
-        .update({
-          is_default_password: false,
-          must_change_password: false,
-          password_changed_at: new Date().toISOString()
-        })
-        .eq('user_id', user.user.id);
-
-      if (trackingError) {
-        console.error('Error updating password tracking:', trackingError);
-      }
+      // ✅ Password tracking este actualizat automat de trigger
+      // când parola se schimbă prin auth.updateUser()
 
       toast({
         title: "✅ Parola schimbată cu succes!",

@@ -1141,6 +1141,15 @@ export type Database = {
         Args: { _reason: string; _user_id: string }
         Returns: number
       }
+      log_client_error: {
+        Args: {
+          _action: string
+          _details?: Json
+          _resource_id: string
+          _resource_type: string
+        }
+        Returns: undefined
+      }
       log_sensitive_data_access: {
         Args: {
           _action: string

@@ -287,17 +287,14 @@ const Mobile = () => {
         })
         .eq('id', timeEntryId);
       
-      // ✅ Log eroarea în audit_logs
-      await supabase
-        .from('audit_logs')
-        .insert({
-          user_id: userId,
-          action: 'time_segment_processing_failed',
-          resource_type: 'time_entry',
-          resource_id: timeEntryId,
-          details: {
-            attempts: maxRetries,
-            last_error: lastError?.message || String(lastError),
+      // ✅ Log eroarea în audit_logs folosind funcția security definer
+      await supabase.rpc('log_client_error', {
+        _action: 'time_segment_processing_failed',
+        _resource_type: 'time_entry',
+        _resource_id: timeEntryId,
+        _details: {
+          attempts: maxRetries,
+          last_error: lastError?.message || String(lastError),
             clock_in_time: clockInTime,
             clock_out_time: clockOutTime
           }
