@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Calendar, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
@@ -16,6 +17,7 @@ interface MigrationStats {
 export const HistoricalDataMigration = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [stats, setStats] = useState<MigrationStats | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(2025, 9, 6), // Oct 6, 2025
     to: new Date(2025, 9, 7),   // Oct 7, 2025
@@ -71,17 +73,28 @@ export const HistoricalDataMigration = () => {
   };
 
   return (
-    <Card className="shadow-elegant border-warning/20">
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-warning" />
-          <CardTitle>Migrare Date Istorice</CardTitle>
-        </div>
-        <CardDescription>
-          Reprocessează pontajele existente pentru a genera daily_timesheets corecte
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="shadow-elegant border-warning/20">
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-warning" />
+                <CardTitle>Migrare Date Istorice</CardTitle>
+              </div>
+              {isOpen ? (
+                <ChevronUp className="h-5 w-5 text-muted-foreground transition-transform" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform" />
+              )}
+            </div>
+            <CardDescription>
+              Reprocessează pontajele existente pentru a genera daily_timesheets corecte
+            </CardDescription>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Selectează perioada:</label>
           <SimpleDateRangePicker
@@ -156,7 +169,9 @@ export const HistoricalDataMigration = () => {
             <li>Detectează automat tipul de tură (condus, pasager, etc.)</li>
           </ul>
         </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 };
