@@ -49,16 +49,17 @@ export function AppSidebar() {
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Format: DDMM.YYYY
+  // Format: DDMM.2008 (combinație fixă conform cererii)
   const getAppVersion = () => {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    return `${day}${month}.${year}`;
+    return `${day}${month}.2008`;
   };
   
   const APP_VERSION = getAppVersion();
+  
+  console.log('Current app version:', APP_VERSION);
   
   // Monitor pontaj activ pentru badge notification
   const { hasActiveEntry } = useActiveTimeEntry(user?.id);
