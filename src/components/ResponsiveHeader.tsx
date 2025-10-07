@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ScheduleNotificationBell } from "@/components/ScheduleNotificationBell";
 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 interface ResponsiveHeaderProps {
   title: string;
   children?: ReactNode;
@@ -14,6 +16,24 @@ interface ResponsiveHeaderProps {
 
 export function ResponsiveHeader({ title, children, showSearch = false }: ResponsiveHeaderProps) {
   const { signOut } = useAuth();
+
+  const BASE_VERSION = "06.10.2008";
+  const { data: latest } = useQuery({
+    queryKey: ["currentAppVersion"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("app_versions")
+        .select("version")
+        .eq("is_current", true)
+        .maybeSingle();
+      if (error) {
+        console.debug("Version fetch error", error);
+        return null;
+      }
+      return data;
+    },
+  });
+  const displayVersion = `${BASE_VERSION}.${latest?.version ?? "10"}`;
 
   return (
     <header className="sticky top-0 z-20 flex h-14 md:h-16 items-center gap-2 md:gap-4 border-b border-border/50 bg-card/95 backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 px-3 md:px-6 shadow-sm">
@@ -46,6 +66,9 @@ export function ResponsiveHeader({ title, children, showSearch = false }: Respon
                 <LogOut className="h-4 w-4" />
                 Deconectare
               </Button>
+              <p className="mt-2 text-[10px] text-muted-foreground/60 text-center">
+                v{displayVersion}
+              </p>
             </div>
           </div>
         </SheetContent>
