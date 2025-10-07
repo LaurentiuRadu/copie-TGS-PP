@@ -5,11 +5,15 @@ import { MigrationTestPanel } from "@/components/MigrationTestPanel";
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
 import { AdminLayout } from "@/components/AdminLayout";
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
+import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
 
 const Admin = () => {
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="p-6 space-y-6">
+            {/* Historical Data Migration - Pas 5 */}
+            <HistoricalDataMigration />
+            
             {/* Time Segment Debug Panel */}
             <TimeSegmentDebugPanel />
             

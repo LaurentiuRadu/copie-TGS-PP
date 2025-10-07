@@ -225,6 +225,46 @@ const Mobile = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // Pas 2: Retry logic for time segment processing
+  const processTimeSegmentsWithRetry = async (
+    userId: string,
+    timeEntryId: string,
+    clockInTime: string,
+    clockOutTime: string,
+    notes: string | null,
+    maxRetries = 3
+  ): Promise<boolean> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`[ProcessSegments] Attempt ${attempt}/${maxRetries} for entry ${timeEntryId}...`);
+      
+      const { data, error } = await supabase.functions.invoke('calculate-time-segments', {
+        body: {
+          user_id: userId,
+          time_entry_id: timeEntryId,
+          clock_in_time: clockInTime,
+          clock_out_time: clockOutTime,
+          notes
+        }
+      });
+      
+      if (!error && data) {
+        console.log(`[ProcessSegments] ✅ Success on attempt ${attempt}`, data);
+        return true;
+      }
+      
+      console.error(`[ProcessSegments] ❌ Attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        const delayMs = 2000 * attempt; // Exponential backoff: 2s, 4s, 6s
+        console.log(`[ProcessSegments] Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    
+    console.error(`[ProcessSegments] ❌ All ${maxRetries} attempts failed`);
+    return false;
+  };
+
   const handleShiftStart = useCallback(async (type: ShiftType, skipConfirmation: boolean = false) => {
     if (isProcessing) {
       toast.warning("Așteaptă finalizarea operațiunii anterioare");
@@ -519,18 +559,27 @@ const Mobile = () => {
 
       if (updateError) throw updateError;
 
-      try {
-        await supabase.functions.invoke('calculate-time-segments', {
-          body: {
-            user_id: user?.id,
-            time_entry_id: activeTimeEntry.id,
-            clock_in_time: clockInTime,
-            clock_out_time: clockOutTime,
-            notes: activeTimeEntry.notes
+      // Pas 1 + Pas 2: Procesare automată cu retry logic
+      console.log('[ClockOut] Starting time segment calculation...');
+      const segmentSuccess = await processTimeSegmentsWithRetry(
+        user?.id || '',
+        activeTimeEntry.id,
+        clockInTime,
+        clockOutTime,
+        activeTimeEntry.notes
+      );
+
+      if (!segmentSuccess) {
+        console.error('[ClockOut] ❌ Failed to calculate segments after retries');
+        toast.error('Pontajul a fost salvat, dar procesarea orelor a eșuat. Contactează administratorul.', {
+          duration: 10000,
+          action: {
+            label: 'OK',
+            onClick: () => {}
           }
         });
-      } catch (segmentError) {
-        console.error('Failed to calculate segments:', segmentError);
+      } else {
+        console.log('[ClockOut] ✅ Time segments calculated successfully');
       }
 
       triggerHaptic('success');
