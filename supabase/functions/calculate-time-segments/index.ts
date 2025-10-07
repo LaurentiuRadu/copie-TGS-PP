@@ -380,9 +380,9 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { user_id, clock_in_time, clock_out_time, notes } = await req.json();
+    const { user_id, time_entry_id, clock_in_time, clock_out_time, notes } = await req.json();
 
-    console.log('Processing shift:', { user_id, clock_in_time, clock_out_time, notes });
+    console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes });
 
     // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
     const shiftTypeMatch = notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
@@ -396,21 +396,117 @@ Deno.serve(async (req) => {
     
     const holidayDates = new Set((holidays || []).map(h => h.date));
 
-    // Create shift object
-    const shift: Shift = {
-      startTime: clock_in_time,
-      endTime: clock_out_time,
-      employeeId: user_id,
-      notes,
-      shiftType  // ✅ Pasează tipul de tură
-    };
+    // ✅ STEP 1: Identifică zilele afectate de acest time_entry
+    const startUTC = new Date(clock_in_time);
+    const endUTC = new Date(clock_out_time);
+    const ROMANIA_OFFSET_MS = getRomaniaOffsetMs(startUTC);
+    const start = new Date(startUTC.getTime() + ROMANIA_OFFSET_MS);
+    const end = new Date(endUTC.getTime() + ROMANIA_OFFSET_MS);
+    
+    const startDate = start.toISOString().split('T')[0];
+    const endDate = end.toISOString().split('T')[0];
+    
+    // Creează lista de zile afectate
+    const affectedDates = new Set<string>([startDate]);
+    if (endDate !== startDate) {
+      affectedDates.add(endDate);
+      
+      // Dacă pontajul se întinde pe mai multe zile, adaugă toate zilele între ele
+      const current = new Date(start);
+      while (current.toISOString().split('T')[0] < endDate) {
+        current.setDate(current.getDate() + 1);
+        affectedDates.add(current.toISOString().split('T')[0]);
+      }
+    }
+    
+    console.log(`[Aggregate] Affected dates: ${Array.from(affectedDates).join(', ')}`);
 
-    // Segment shift into daily timesheets
-    const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
+    // ✅ STEP 2: Găsește TOATE pontajele finalizate pentru user pentru zilele afectate
+    const { data: allTimeEntries, error: fetchError } = await supabase
+      .from('time_entries')
+      .select('id, user_id, clock_in_time, clock_out_time, notes')
+      .eq('user_id', user_id)
+      .not('clock_out_time', 'is', null)
+      .gte('clock_in_time', `${Array.from(affectedDates).sort()[0]}T00:00:00Z`)
+      .lte('clock_in_time', `${Array.from(affectedDates).sort().pop()}T23:59:59Z`);
+
+    if (fetchError) {
+      console.error('[Aggregate] Error fetching time entries:', fetchError);
+      throw fetchError;
+    }
+
+    console.log(`[Aggregate] Found ${allTimeEntries?.length || 0} finalized time entries for affected dates`);
+
+    // ✅ STEP 3: Procesează toate pontajele și agregează rezultatele per zi
+    const aggregatedTimesheets = new Map<string, TimesheetEntry>();
+
+    for (const entry of (allTimeEntries || [])) {
+      const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
+      const entryShiftType = entryShiftTypeMatch ? entryShiftTypeMatch[1].toLowerCase() : 'normal';
+      
+      const shift: Shift = {
+        startTime: entry.clock_in_time,
+        endTime: entry.clock_out_time!,
+        employeeId: entry.user_id,
+        notes: entry.notes,
+        shiftType: entryShiftType
+      };
+
+      console.log(`[Aggregate] Processing entry ${entry.id} (${entryShiftType}): ${entry.clock_in_time} → ${entry.clock_out_time}`);
+
+      // Segmentează pontajul
+      const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
+
+      // Agregare: adună orele pentru fiecare zi
+      for (const timesheet of timesheets) {
+        const existing = aggregatedTimesheets.get(timesheet.work_date);
+        
+        if (!existing) {
+          aggregatedTimesheets.set(timesheet.work_date, { ...timesheet });
+        } else {
+          // Agregare ore
+          existing.hours_regular += timesheet.hours_regular;
+          existing.hours_night += timesheet.hours_night;
+          existing.hours_saturday += timesheet.hours_saturday;
+          existing.hours_sunday += timesheet.hours_sunday;
+          existing.hours_holiday += timesheet.hours_holiday;
+          existing.hours_passenger += timesheet.hours_passenger;
+          existing.hours_driving += timesheet.hours_driving;
+          existing.hours_equipment += timesheet.hours_equipment;
+          existing.hours_leave += timesheet.hours_leave;
+          existing.hours_medical_leave += timesheet.hours_medical_leave;
+          
+          // Combină notele dacă sunt diferite
+          if (timesheet.notes && !existing.notes?.includes(timesheet.notes)) {
+            existing.notes = existing.notes 
+              ? `${existing.notes}; ${timesheet.notes}`
+              : timesheet.notes;
+          }
+        }
+      }
+    }
+
+    // ✅ STEP 4: Rotunjire finală și validare
+    const finalTimesheets = Array.from(aggregatedTimesheets.values());
+    
+    finalTimesheets.forEach(t => {
+      t.hours_regular = Math.round(t.hours_regular * 100) / 100;
+      t.hours_night = Math.round(t.hours_night * 100) / 100;
+      t.hours_saturday = Math.round(t.hours_saturday * 100) / 100;
+      t.hours_sunday = Math.round(t.hours_sunday * 100) / 100;
+      t.hours_holiday = Math.round(t.hours_holiday * 100) / 100;
+      t.hours_passenger = Math.round(t.hours_passenger * 100) / 100;
+      t.hours_driving = Math.round(t.hours_driving * 100) / 100;
+      t.hours_equipment = Math.round(t.hours_equipment * 100) / 100;
+      t.hours_leave = Math.round(t.hours_leave * 100) / 100;
+      t.hours_medical_leave = Math.round(t.hours_medical_leave * 100) / 100;
+      
+      console.log(`[Aggregate] Final for ${t.work_date}: regular=${t.hours_regular}h, night=${t.hours_night}h, driving=${t.hours_driving}h, passenger=${t.hours_passenger}h, equipment=${t.hours_equipment}h`);
+    });
 
     // Validate all timesheets
     const allErrors: string[] = [];
-    timesheets.forEach(timesheet => {
+    finalTimesheets.forEach(timesheet => {
       const errors = validateTimesheet(timesheet);
       allErrors.push(...errors);
     });
@@ -426,8 +522,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Insert or update timesheets in database
-    for (const timesheet of timesheets) {
+    // ✅ STEP 5: UPSERT agregat - un singur UPSERT per zi
+    for (const timesheet of finalTimesheets) {
       const { error: upsertError } = await supabase
         .from('daily_timesheets')
         .upsert(timesheet, {
@@ -440,13 +536,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Successfully created/updated timesheets:', timesheets.length);
+    console.log(`[Aggregate] Successfully upserted ${finalTimesheets.length} aggregated daily timesheets`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        timesheets,
-        message: `Procesate ${timesheets.length} pontaje zilnice`
+        timesheets: finalTimesheets,
+        message: `Procesate și agregate ${finalTimesheets.length} pontaje zilnice`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
