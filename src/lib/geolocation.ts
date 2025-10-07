@@ -19,119 +19,127 @@ let cacheTimestamp = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minute cache
 
 /**
- * Enhanced geolocation with retry logic and fallback for Android devices
- * - Încercări multiple (default: 3)
- * - Timeout mai mare (default: 15 secunde)
- * - Fallback la low accuracy dacă high accuracy eșuează
+ * Enhanced geolocation with PARALLEL GPS + WiFi detection for maximum speed
+ * Strategy:
+ * - Pornește GPS (high accuracy) și WiFi (low accuracy) în paralel
+ * - Returnează prima locație care vine (de obicei WiFi e mai rapid)
+ * - Retry logic pentru fiecare metodă
  * - Cache pentru ultima locație validă
  */
 export const getCurrentPosition = async (opts?: GeolocationOptions): Promise<GeolocationPosition> => {
   const maxRetries = opts?.maxRetries ?? 3;
   const retryDelay = opts?.retryDelay ?? 1000;
   const timeout = opts?.timeout ?? 15000; // 15 seconds default
-  const enableHighAccuracy = opts?.enableHighAccuracy ?? true;
   const maximumAge = opts?.maximumAge ?? 0;
 
-  console.log('[Geolocation] 📍 Starting location request:', {
+  console.log('[Geolocation] 📍 Starting PARALLEL location request (GPS + WiFi):', {
     maxRetries,
     timeout,
-    enableHighAccuracy,
     hasCachedPosition: !!cachedPosition
   });
 
   // Helper function to get position (Capacitor or Web API)
-  const getPositionOnce = async (options: PositionOptions): Promise<GeolocationPosition> => {
+  const getPositionOnce = async (options: PositionOptions, label: string): Promise<GeolocationPosition> => {
+    console.log(`[Geolocation] 🚀 Starting ${label} request...`);
     try {
       const { Geolocation } = await import('@capacitor/geolocation');
       // @ts-ignore - Capacitor options compatible
-      return await Geolocation.getCurrentPosition(options as any);
-    } catch {
-      return await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!('geolocation' in navigator)) {
-          return reject(new Error('Geolocation not supported'));
-        }
-        navigator.geolocation.getCurrentPosition(resolve, reject, options);
-      });
-    }
-  };
-
-  // Try with high accuracy first
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[Geolocation] 🔄 Attempt ${attempt}/${maxRetries} (high accuracy: ${enableHighAccuracy})`);
-      
-      const position = await getPositionOnce({
-        enableHighAccuracy,
-        timeout,
-        maximumAge
-      });
-
-      console.log('[Geolocation] ✅ Location obtained successfully:', {
+      const position = await Geolocation.getCurrentPosition(options as any);
+      console.log(`[Geolocation] ✅ ${label} succeeded:`, {
         accuracy: position.coords.accuracy,
         latitude: position.coords.latitude.toFixed(6),
         longitude: position.coords.longitude.toFixed(6)
       });
-
-      // Update cache
-      cachedPosition = position;
-      cacheTimestamp = Date.now();
-
-      return position;
-    } catch (error: any) {
-      console.warn(`[Geolocation] ⚠️ Attempt ${attempt} failed:`, {
-        code: error.code,
-        message: error.message
+      // Capacitor returns Position, cast to GeolocationPosition
+      return position as unknown as GeolocationPosition;
+    } catch (capacitorError) {
+      // Fallback to web API
+      return await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!('geolocation' in navigator)) {
+          return reject(new Error('Geolocation not supported'));
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            console.log(`[Geolocation] ✅ ${label} succeeded (web API):`, {
+              accuracy: pos.coords.accuracy,
+              latitude: pos.coords.latitude.toFixed(6),
+              longitude: pos.coords.longitude.toFixed(6)
+            });
+            resolve(pos);
+          },
+          (err) => {
+            console.warn(`[Geolocation] ❌ ${label} failed:`, err.message);
+            reject(err);
+          },
+          options
+        );
       });
+    }
+  };
 
-      // If this is not the last attempt and it's a timeout or position unavailable error
-      if (attempt < maxRetries && (error.code === 2 || error.code === 3)) {
-        console.log(`[Geolocation] ⏳ Retrying in ${retryDelay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        continue;
-      }
+  // Retry function with exponential backoff
+  const getPositionWithRetry = async (
+    enableHighAccuracy: boolean, 
+    label: string
+  ): Promise<GeolocationPosition> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const position = await getPositionOnce({
+          enableHighAccuracy,
+          timeout: timeout / maxRetries, // Distribute timeout across retries
+          maximumAge: enableHighAccuracy ? maximumAge : 10000 // WiFi can use slightly older position
+        }, `${label} (attempt ${attempt}/${maxRetries})`);
 
-      // If permission denied, don't retry
-      if (error.code === 1) {
+        return position;
+      } catch (error: any) {
+        // If permission denied, don't retry
+        if (error.code === 1) {
+          throw error;
+        }
+
+        // If not last attempt, retry
+        if (attempt < maxRetries) {
+          const delay = retryDelay * attempt; // Exponential backoff
+          console.log(`[Geolocation] ⏳ ${label} retry in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
         throw error;
       }
-
-      // If this was the last high-accuracy attempt, try low accuracy as fallback
-      if (attempt === maxRetries && enableHighAccuracy) {
-        console.log('[Geolocation] 🔄 Trying fallback with low accuracy...');
-        try {
-          const fallbackPosition = await getPositionOnce({
-            enableHighAccuracy: false,
-            timeout: timeout * 0.75, // Slightly shorter timeout
-            maximumAge: 10000 // Accept cached position up to 10 seconds old
-          });
-
-          console.log('[Geolocation] ✅ Fallback location obtained:', {
-            accuracy: fallbackPosition.coords.accuracy,
-            latitude: fallbackPosition.coords.latitude.toFixed(6),
-            longitude: fallbackPosition.coords.longitude.toFixed(6)
-          });
-
-          // Update cache
-          cachedPosition = fallbackPosition;
-          cacheTimestamp = Date.now();
-
-          return fallbackPosition;
-        } catch (fallbackError) {
-          console.error('[Geolocation] ❌ Fallback also failed:', fallbackError);
-        }
-      }
-
-      // If all attempts failed, check if we have a recent cached position
-      if (cachedPosition && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-        console.warn('[Geolocation] 🗂️ Using cached position from', new Date(cacheTimestamp).toISOString());
-        return cachedPosition;
-      }
-
-      throw error;
     }
-  }
+    throw new Error(`${label} failed after ${maxRetries} retries`);
+  };
 
-  throw new Error('Location request failed after all retries');
+  try {
+    // Start BOTH GPS and WiFi in parallel - use whichever responds first!
+    const gpsPromise = getPositionWithRetry(true, 'GPS (high accuracy)');
+    const wifiPromise = getPositionWithRetry(false, 'WiFi (low accuracy)');
+
+    // Race them - first one to succeed wins!
+    const position = await Promise.race([gpsPromise, wifiPromise]);
+
+    console.log('[Geolocation] 🏆 First location obtained (probably WiFi):', {
+      accuracy: position.coords.accuracy,
+      source: position.coords.accuracy < 50 ? 'GPS' : 'WiFi/Network'
+    });
+
+    // Update cache
+    cachedPosition = position;
+    cacheTimestamp = Date.now();
+
+    return position;
+  } catch (error: any) {
+    console.error('[Geolocation] ❌ Both GPS and WiFi failed:', error);
+
+    // Last resort: check cached position
+    if (cachedPosition && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
+      console.warn('[Geolocation] 🗂️ Using cached position from', new Date(cacheTimestamp).toISOString());
+      return cachedPosition;
+    }
+
+    throw error;
+  }
 };
 
 // Calculate distance between two coordinates using Haversine formula
