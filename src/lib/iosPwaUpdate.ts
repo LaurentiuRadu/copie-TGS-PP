@@ -18,31 +18,30 @@ export function isIOSPWA(): boolean {
  */
 export async function forceRefreshApp(): Promise<void> {
   try {
-    // 1. Încearcă să invalideze cache-ul Service Worker
+    // Pentru iOS PWA, folosim doar reload simplu
+    // Ștergerea agresivă de cache poate cauza probleme de autentificare
+    if (isIOSPWA()) {
+      window.location.reload();
+      return;
+    }
+
+    // Pentru alte platforme, păstrăm logica de invalidare cache
     if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
+      const registration = await navigator.serviceWorker.getRegistration();
       
-      for (const registration of registrations) {
-        await registration.unregister();
+      if (registration?.waiting) {
+        // Activează worker-ul în așteptare
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        
+        // Așteaptă activarea
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
-      
-      // Așteaptă puțin pentru ca unregister să se completeze
-      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    // 2. Șterge cache-urile browser-ului
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map(cacheName => caches.delete(cacheName))
-      );
-    }
-
-    // 3. Force reload cu bypass cache
+    // Reload normal
     window.location.reload();
   } catch (error) {
     console.error('Force refresh failed:', error);
-    // Fallback la reload simplu
     window.location.reload();
   }
 }

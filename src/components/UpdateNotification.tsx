@@ -106,18 +106,16 @@ export function UpdateNotification() {
       });
     }
 
-    // Pentru iOS PWA - verificare adaptivă
+    // Pentru iOS PWA - verificare mai puțin agresivă
     if (isIOSPWA()) {
-      let iosCheckInterval: NodeJS.Timeout;
-      
-      const setupIOSCheck = () => {
-        const interval = getRecommendedPollingInterval();
+      // Verificare doar la 5 minute pentru iOS
+      const iosCheckInterval = setInterval(async () => {
+        if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+          return;
+        }
         
-        iosCheckInterval = setInterval(async () => {
-          if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
-            return;
-          }
-          
+        // Nu afișa update dacă utilizatorul nu e autentificat
+        if (!window.location.pathname.includes('/auth')) {
           try {
             const reg = await navigator.serviceWorker.getRegistration();
             if (reg?.waiting || reg?.installing) {
@@ -128,20 +126,11 @@ export function UpdateNotification() {
           } catch (error) {
             console.debug('iOS update check failed:', error);
           }
-        }, interval);
-      };
-
-      setupIOSCheck();
-      
-      // Reajustează intervalul când bateria se schimbă
-      const batteryMonitor = setInterval(() => {
-        clearInterval(iosCheckInterval);
-        setupIOSCheck();
-      }, 30000);
+        }
+      }, 5 * 60 * 1000); // 5 minute
 
       return () => {
         clearInterval(iosCheckInterval);
-        clearInterval(batteryMonitor);
       };
     }
   }, [showUpdate, batteryInfo, getRecommendedPollingInterval]);
@@ -172,6 +161,12 @@ export function UpdateNotification() {
   }, [notificationHasUpdate, showUpdate]);
 
   const handleUpdate = async () => {
+    // Ascunde notificarea imediat pentru a preveni click-uri multiple
+    setShowUpdate(false);
+    
+    // Scurt delay pentru feedback vizual
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     if (updateType === 'version') {
       // Actualizare versiune din DB - doar reload
       toast.info('Se actualizează aplicația...');
@@ -179,10 +174,11 @@ export function UpdateNotification() {
         await iosStorage.setItem(APP_VERSION_KEY, latestVersion.version);
       }
       window.location.reload();
-    } else if (isIOSPWA() && updateType === 'ios') {
+    } else if (isIOSPWA()) {
+      // Pentru iOS PWA, folosim doar reload simplu
       toast.info('Se actualizează aplicația...');
       await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
-      await forceRefreshApp();
+      window.location.reload();
     } else if (registration?.waiting) {
       toast.info('Se instalează actualizarea...');
       activateWaitingServiceWorker();
