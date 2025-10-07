@@ -3,15 +3,18 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock } from "lucide-react";
+import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
 import { cn } from "@/lib/utils";
 import { PayrollExportDialog } from "@/components/PayrollExportDialog";
+import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
+import { toast } from "sonner";
 
 type EmployeeTimesheetData = {
   userId: string;
@@ -38,6 +41,12 @@ const Timesheet = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
   const [currentMonth] = useState(new Date());
+  const [isReprocessing, setIsReprocessing] = useState(false);
+  const [reprocessProgress, setReprocessProgress] = useState<string>('');
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
+    from: startOfMonth(currentMonth),
+    to: endOfMonth(currentMonth),
+  });
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -176,6 +185,57 @@ const Timesheet = () => {
     return 'bg-green-50 dark:bg-green-950/20';
   };
 
+  const handleReprocess = async () => {
+    if (!dateRange.from || !dateRange.to) {
+      toast.error('Selectează un interval de date');
+      return;
+    }
+
+    setIsReprocessing(true);
+    setReprocessProgress('Pornire re-procesare...');
+
+    try {
+      const startDate = dateRange.from.toISOString().split('T')[0];
+      const endDate = dateRange.to.toISOString().split('T')[0];
+
+      setReprocessProgress(`Re-procesare pentru ${startDate} → ${endDate}...`);
+
+      const { data, error } = await supabase.functions.invoke('reprocess-all-timesheets', {
+        body: {
+          mode: 'all',
+          start_date: startDate,
+          end_date: endDate,
+          dry_run: false,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setReprocessProgress(
+          `✅ Finalizat: ${data.processed} intrări procesate, ${data.generated} timesheets generate`
+        );
+        toast.success(data.message);
+        
+        // Refresh data
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        throw new Error(data.error || 'Eroare necunoscută');
+      }
+    } catch (error: any) {
+      console.error('Reprocess error:', error);
+      setReprocessProgress('❌ Eroare la re-procesare');
+      toast.error(error.message || 'Eroare la re-procesarea datelor');
+    } finally {
+      setTimeout(() => {
+        setIsReprocessing(false);
+        setReprocessProgress('');
+      }, 3000);
+    }
+  };
+
   return (
     <AdminLayout title="Timesheet - Payroll">
       <div className="container mx-auto p-6 max-w-7xl space-y-4">
@@ -207,6 +267,51 @@ const Timesheet = () => {
               </div>
             </div>
           </CardHeader>
+        </Card>
+
+        {/* Re-procesare Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Re-procesare Timesheets
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Aplică fix timezone + reguli noi de pauză pentru toți angajații
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">
+                  Interval de date
+                </label>
+                <SimpleDateRangePicker
+                  selected={dateRange}
+                  onSelect={(range) => range && setDateRange(range)}
+                />
+              </div>
+
+              <Button
+                onClick={handleReprocess}
+                disabled={isReprocessing || !dateRange.from || !dateRange.to}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isReprocessing ? 'animate-spin' : ''}`} />
+                {isReprocessing ? 'Procesare...' : 'Re-procesează Date'}
+              </Button>
+            </div>
+
+            {reprocessProgress && (
+              <div className="mt-4 p-3 bg-muted rounded-md">
+                <p className="text-sm font-mono">{reprocessProgress}</p>
+              </div>
+            )}
+          </CardContent>
         </Card>
 
         {/* Employee List */}
