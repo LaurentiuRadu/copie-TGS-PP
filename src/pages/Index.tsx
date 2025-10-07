@@ -1,6 +1,5 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ActiveTimer } from "@/components/ActiveTimer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, Calendar, TrendingUp, Award } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -110,9 +109,6 @@ const Index = () => {
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Active Timer */}
-              <ActiveTimer />
             </div>
           </main>
         </div>

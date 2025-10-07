@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Menu, Clock, LogOut, Car, Users, Briefcase, CheckCircle2, FolderOpen, CalendarDays } from "lucide-react";
+import { Menu, Clock, LogOut, Car, Users, Briefcase, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, addMonths, subMonths } from "date-fns";
 import { ro } from "date-fns/locale";
@@ -876,14 +876,6 @@ const Mobile = () => {
             >
               <Clock className="h-4 w-4" />
               Pontajele Mele
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Task-uri
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2">
-              <FolderOpen className="h-4 w-4" />
-              Proiecte
             </Button>
             <Button 
               variant="outline" 
