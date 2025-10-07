@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Users } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
-
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
+import { ScheduleChangeHistory } from './ScheduleChangeHistory';
 
 const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
@@ -115,81 +115,86 @@ export function EmployeeScheduleView() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Programarea Săptămânii
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {schedules.map((schedule) => (
-            <div 
-              key={schedule.id} 
-              className="border rounded-lg p-4 space-y-2 bg-accent/50"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-lg">{dayNames[schedule.day_of_week - 1]}</span>
-                <div className="flex gap-2 items-center">
-                  <span className={schedule.shift_type === 'noapte' ? 'text-blue-600 dark:text-blue-400 font-medium text-sm' : 'text-sm'}>
-                    {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
-                  </span>
-                  <span className="text-sm text-muted-foreground">Echipa {schedule.team_id}</span>
-                </div>
-              </div>
-              
-              {schedule.location && (
-                <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground text-sm">📍</span>
-                  <span className="text-sm">{schedule.location}</span>
-                </div>
-              )}
-              
-              {schedule.activity && (
-                <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground text-sm">🔧</span>
-                  <span className="text-sm">{schedule.activity}</span>
-                </div>
-              )}
-              
-              {schedule.vehicle && (
-                <div className="flex items-start gap-2">
-                  <span className="text-muted-foreground text-sm">🚗</span>
-                  <span className="text-sm font-medium">{schedule.vehicle}</span>
-                </div>
-              )}
-              
-              {schedule.observations && (
-                <div className="flex items-start gap-2 pt-2 border-t">
-                  <span className="text-muted-foreground text-sm">💬</span>
-                  <span className="text-sm text-muted-foreground">{schedule.observations}</span>
-                </div>
-              )}
-              
-              {schedule.teammates && schedule.teammates.length > 0 && (
-                <div className="flex items-start gap-2 pt-2 border-t">
-                  <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Colegii din echipă:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {schedule.teammates.map((teammate) => (
-                        <Badge 
-                          key={teammate.id} 
-                          variant="secondary" 
-                          className="text-xs font-normal"
-                        >
-                          {teammate.full_name}
-                        </Badge>
-                      ))}
-                    </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Programarea Săptămânii
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {schedules.map((schedule) => (
+              <div 
+                key={schedule.id} 
+                className="border rounded-lg p-4 space-y-2 bg-accent/50"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-lg">{dayNames[schedule.day_of_week - 1]}</span>
+                  <div className="flex gap-2 items-center">
+                    <span className={schedule.shift_type === 'noapte' ? 'text-blue-600 dark:text-blue-400 font-medium text-sm' : 'text-sm'}>
+                      {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
+                    </span>
+                    <span className="text-sm text-muted-foreground">Echipa {schedule.team_id}</span>
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+                
+                {schedule.location && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground text-sm">📍</span>
+                    <span className="text-sm">{schedule.location}</span>
+                  </div>
+                )}
+                
+                {schedule.activity && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground text-sm">🔧</span>
+                    <span className="text-sm">{schedule.activity}</span>
+                  </div>
+                )}
+                
+                {schedule.vehicle && (
+                  <div className="flex items-start gap-2">
+                    <span className="text-muted-foreground text-sm">🚗</span>
+                    <span className="text-sm font-medium">{schedule.vehicle}</span>
+                  </div>
+                )}
+                
+                {schedule.observations && (
+                  <div className="flex items-start gap-2 pt-2 border-t">
+                    <span className="text-muted-foreground text-sm">💬</span>
+                    <span className="text-sm text-muted-foreground">{schedule.observations}</span>
+                  </div>
+                )}
+                
+                {schedule.teammates && schedule.teammates.length > 0 && (
+                  <div className="flex items-start gap-2 pt-2 border-t">
+                    <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground mb-1">Colegii din echipă:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {schedule.teammates.map((teammate) => (
+                          <Badge 
+                            key={teammate.id} 
+                            variant="secondary" 
+                            className="text-xs font-normal"
+                          >
+                            {teammate.full_name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Istoric Modificări */}
+      <ScheduleChangeHistory />
+    </div>
   );
 }

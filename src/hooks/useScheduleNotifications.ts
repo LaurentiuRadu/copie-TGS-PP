@@ -8,9 +8,9 @@ export const useScheduleNotifications = () => {
   const queryClient = useQueryClient();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch notifications
-  const { data: notifications } = useQuery({
-    queryKey: ['schedule-notifications', user?.id],
+  // Fetch unread notifications
+  const { data: unreadNotifications } = useQuery({
+    queryKey: ['schedule-notifications', 'unread', user?.id],
     queryFn: async () => {
       if (!user) return [];
       
@@ -25,7 +25,8 @@ export const useScheduleNotifications = () => {
             location,
             activity,
             vehicle,
-            observations
+            observations,
+            shift_type
           )
         `)
         .eq('user_id', user.id)
@@ -38,10 +39,46 @@ export const useScheduleNotifications = () => {
     enabled: !!user
   });
 
+  // Fetch read notifications (history - last 30 days)
+  const { data: readNotifications } = useQuery({
+    queryKey: ['schedule-notifications', 'history', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data, error } = await supabase
+        .from('schedule_notifications')
+        .select(`
+          *,
+          weekly_schedules (
+            team_id,
+            week_start_date,
+            day_of_week,
+            location,
+            activity,
+            vehicle,
+            observations,
+            shift_type
+          )
+        `)
+        .eq('user_id', user.id)
+        .not('read_at', 'is', null)
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('read_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user
+  });
+
   // Update unread count
   useEffect(() => {
-    setUnreadCount(notifications?.length || 0);
-  }, [notifications]);
+    setUnreadCount(unreadNotifications?.length || 0);
+  }, [unreadNotifications]);
 
   // Mark as read mutation
   const markAsRead = useMutation({
@@ -84,7 +121,8 @@ export const useScheduleNotifications = () => {
   }, [user, queryClient]);
 
   return {
-    notifications,
+    unreadNotifications,
+    readNotifications,
     unreadCount,
     markAsRead
   };
