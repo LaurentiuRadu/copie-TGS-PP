@@ -31,9 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   // Monitorizează sesiunea pentru a detecta delogări de pe alte dispozitive
-  useSessionMonitor(user?.id, !!user);
-
-  // Monitorizează sesiunea pentru delogare automată de pe alte dispozitive
   useSessionMonitor(user?.id, !loading && !!user);
 
   // Chei pentru backup tokenuri în IndexedDB (iOS PWA)
@@ -216,28 +213,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             // Verifică limita de sesiuni și înregistrează sesiunea
             try {
+              console.log('[AuthContext] 🔐 Registering session for device:', sessionId.substring(0, 8));
+              
               // Verifică dacă există deja o sesiune activă pentru acest device
               const { data: existingSession } = await supabase
                 .from('active_sessions')
-                .select('id')
+                .select('id, invalidated_at')
                 .eq('user_id', userId)
                 .eq('session_id', sessionId)
-                .eq('device_fingerprint', deviceFingerprint)
                 .maybeSingle();
               
-              if (!existingSession) {
-                // Verifică limita înainte de a insera
-                const { data: limitCheck } = await supabase.rpc('check_session_limit', {
+              if (existingSession && !existingSession.invalidated_at) {
+                // Sesiune existentă validă - doar actualizează timestamp
+                console.log('[AuthContext] ♻️ Updating existing session');
+                await supabase
+                  .from('active_sessions')
+                  .update({ 
+                    last_activity: new Date().toISOString(),
+                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+                  })
+                  .eq('id', existingSession.id);
+              } else {
+                // Sesiune nouă sau invalidată - verifică limita și creează
+                console.log('[AuthContext] 🆕 Creating new session, checking limits...');
+                const { data: limitCheck, error: limitError } = await supabase.rpc('check_session_limit', {
                   _user_id: userId,
                   _session_id: sessionId,
                   _device_fingerprint: deviceFingerprint
                 });
                 
-                const limitResult = limitCheck as { allowed?: boolean };
+                if (limitError) {
+                  console.error('[AuthContext] ❌ Session limit check failed:', limitError);
+                  return;
+                }
+                
+                const limitResult = limitCheck as { allowed?: boolean; action?: string; message?: string };
+                console.log('[AuthContext] 📊 Limit check result:', limitResult);
                 
                 if (limitResult?.allowed) {
+                  // Șterge sesiunea veche invalidată dacă există
+                  if (existingSession?.invalidated_at) {
+                    await supabase
+                      .from('active_sessions')
+                      .delete()
+                      .eq('id', existingSession.id);
+                  }
+                  
                   // Înregistrează noua sesiune
-                  await supabase
+                  const { error: insertError } = await supabase
                     .from('active_sessions')
                     .insert({
                       user_id: userId,
@@ -245,16 +268,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                       device_fingerprint: deviceFingerprint,
                       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                     });
+                  
+                  if (insertError) {
+                    console.error('[AuthContext] ❌ Failed to insert session:', insertError);
+                  } else {
+                    console.log('[AuthContext] ✅ Session registered successfully');
+                  }
+                } else {
+                  console.warn('[AuthContext] ⚠️ Session not allowed:', limitResult?.message);
                 }
-              } else {
-                // Actualizează ultima activitate
-                await supabase
-                  .from('active_sessions')
-                  .update({ last_activity: new Date().toISOString() })
-                  .eq('id', existingSession.id);
               }
             } catch (error) {
-              console.error('[AuthContext] Session registration error:', error);
+              console.error('[AuthContext] ❌ Session registration error:', error);
             }
             supabase
               .from('user_roles')

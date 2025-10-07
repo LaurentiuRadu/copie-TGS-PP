@@ -16,9 +16,24 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
 
     const sessionId = generateDeviceFingerprint();
     
+    let isLoggingOut = false; // Flag pentru a preveni logout-uri multiple
+    
     // Verifică dacă sesiunea curentă este validă
     const checkSessionValidity = async () => {
+      if (isLoggingOut) {
+        console.log('[SessionMonitor] Already logging out, skipping check');
+        return;
+      }
+      
       try {
+        // Verifică mai întâi dacă utilizatorul mai are o sesiune activă în Supabase
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (!currentSession) {
+          console.log('[SessionMonitor] No active Supabase session, skipping database check');
+          return;
+        }
+        
         const { data, error } = await supabase
           .from('active_sessions')
           .select('invalidated_at, invalidation_reason')
@@ -33,13 +48,16 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
 
         // Dacă sesiunea a fost invalidată, delogăm utilizatorul
         if (data?.invalidated_at) {
-          console.warn('[SessionMonitor] Session invalidated, logging out');
+          console.warn('[SessionMonitor] ⚠️ Session invalidated, reason:', data.invalidation_reason);
+          isLoggingOut = true;
           
           const reason = data.invalidation_reason === 'session_limit_exceeded' 
             ? 'Ai fost delogat automat deoarece te-ai conectat de pe alt dispozitiv.'
             : 'Sesiunea ta a fost închisă.';
           
-          toast.error(reason);
+          toast.error(reason, {
+            duration: 5000
+          });
           
           // Delogare
           await supabase.auth.signOut();
@@ -50,11 +68,11 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
       }
     };
 
-    // Verifică imediat
-    checkSessionValidity();
+    // Nu verifica imediat - lasă AuthContext să termine setup-ul
+    const initialCheckTimeout = setTimeout(checkSessionValidity, 5000);
 
-    // Verifică la fiecare 30 de secunde
-    const interval = setInterval(checkSessionValidity, 30000);
+    // Verifică la fiecare 60 de secunde (nu 30, pentru a reduce presiunea)
+    const interval = setInterval(checkSessionValidity, 60000);
 
     // Setup realtime subscription pentru invalidări instant
     const channel = supabase
@@ -77,6 +95,7 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
       .subscribe();
 
     return () => {
+      clearTimeout(initialCheckTimeout);
       clearInterval(interval);
       channel.unsubscribe();
     };
