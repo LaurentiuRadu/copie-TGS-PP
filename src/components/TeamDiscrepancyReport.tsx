@@ -22,10 +22,11 @@ export function TeamDiscrepancyReport() {
   const { data: discrepancies, isLoading, error } = useQuery({
     queryKey: ["team-discrepancies"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_team_discrepancies" as any);
+      // @ts-ignore - RPC function not yet in generated types
+      const { data, error } = await supabase.rpc("get_team_discrepancies");
       
       if (error) throw error;
-      return data as unknown as TeamDiscrepancy[];
+      return (data || []) as TeamDiscrepancy[];
     },
   });
 
