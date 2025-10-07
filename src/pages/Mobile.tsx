@@ -135,9 +135,22 @@ const Mobile = () => {
     }
   }, [triggerHaptic]);
 
+  // Request location access only ONCE on mount
   useEffect(() => {
-    requestLocationAccess();
-  }, [requestLocationAccess]);
+    let mounted = true;
+    
+    const initLocation = async () => {
+      if (mounted) {
+        await requestLocationAccess();
+      }
+    };
+    
+    initLocation();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty deps - run only once on mount
 
   // Check for active shift on mount (after auth is ready)
   useEffect(() => {
