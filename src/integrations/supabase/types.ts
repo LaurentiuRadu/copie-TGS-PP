@@ -1192,6 +1192,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_team_discrepancies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          day_of_week: number
+          diferenta_ore: number
+          membri: number
+          team_id: string
+          week_start_date: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
