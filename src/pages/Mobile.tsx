@@ -44,6 +44,7 @@ import { useTardinessCheck } from "@/hooks/useTardinessCheck";
 import { ClockInConfirmationCard } from "@/components/ClockInConfirmationCard";
 import { ClockConfirmationDialog } from "@/components/ClockConfirmationDialog";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
+import { useQuery } from "@tanstack/react-query";
 
 type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
 
@@ -837,6 +838,25 @@ const Mobile = () => {
 
   const formattedTime = useMemo(() => formatTime(shiftSeconds), [shiftSeconds]);
 
+  // Versiune fixă + build curent din backend
+  const BASE_VERSION = "06.10.2008";
+  const { data: currVer } = useQuery({
+    queryKey: ["currentAppVersionMobile"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("app_versions")
+        .select("version")
+        .eq("is_current", true)
+        .maybeSingle();
+      if (error) {
+        console.debug("Version fetch error", error);
+        return null;
+      }
+      return data;
+    },
+  });
+  const mobileDisplayVersion = `${BASE_VERSION}.${currVer?.version ?? "10"}`;
+
   return (
     <div className="min-h-screen bg-background pb-safe-area-bottom">
       <AppHeader 
@@ -883,6 +903,9 @@ const Mobile = () => {
               <LogOut className="h-4 w-4" />
               Deconectare
             </Button>
+            <p className="mt-2 text-[10px] text-muted-foreground/60 text-center">
+              v{mobileDisplayVersion}
+            </p>
           </div>
         </div>
       </AppHeader>

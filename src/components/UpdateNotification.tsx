@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +19,8 @@ export function UpdateNotification() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [updateType, setUpdateType] = useState<'pwa' | 'ios' | 'version'>('pwa');
   const [isDismissed, setIsDismissed] = useState(false);
+  const controllerChangedRef = useRef(false);
+  const suppressRef = useRef(false);
   
   const { batteryInfo, getRecommendedPollingInterval } = useBatteryOptimization();
   const { hasUpdate: notificationHasUpdate } = useUpdateNotifications();
@@ -89,9 +91,11 @@ export function UpdateNotification() {
       });
 
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!showUpdate) {
-          setShowUpdate(true);
-          setUpdateType('pwa');
+        // Când noul SW devine controller, reîncărcăm o singură dată și ascundem cardul
+        if (!controllerChangedRef.current) {
+          controllerChangedRef.current = true;
+          setShowUpdate(false);
+          setTimeout(() => window.location.reload(), 100);
         }
       });
     }
@@ -155,27 +159,26 @@ export function UpdateNotification() {
 
   // Arată automat update dacă hook-ul de notificări a detectat unul
   useEffect(() => {
-    if (notificationHasUpdate && !showUpdate) {
+    if (notificationHasUpdate && !showUpdate && !suppressRef.current) {
       setShowUpdate(true);
     }
   }, [notificationHasUpdate, showUpdate]);
 
   const handleUpdate = async () => {
-    // Ascunde notificarea imediat pentru a preveni click-uri multiple
+    // Previne reapariția imediată a cardului
+    suppressRef.current = true;
     setShowUpdate(false);
     
     // Scurt delay pentru feedback vizual
     await new Promise(resolve => setTimeout(resolve, 100));
     
     if (updateType === 'version') {
-      // Actualizare versiune din DB - doar reload
       toast.info('Se actualizează aplicația...');
       if (latestVersion?.version) {
         await iosStorage.setItem(APP_VERSION_KEY, latestVersion.version);
       }
       window.location.reload();
     } else if (isIOSPWA()) {
-      // Pentru iOS PWA, folosim doar reload simplu
       toast.info('Se actualizează aplicația...');
       await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
       window.location.reload();
@@ -244,6 +247,7 @@ export function UpdateNotification() {
                 size="sm"
                 variant="outline"
                 onClick={handleDismiss}
+                aria-label="Închide notificarea de actualizare"
               >
                 <X className="h-4 w-4" />
               </Button>
