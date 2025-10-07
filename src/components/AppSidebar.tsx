@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Table, RefreshCw, HardDrive } from "lucide-react";
+import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Table, RefreshCw, HardDrive, LogOut } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,10 +45,20 @@ const employeeMenuItems = [
 
 export function AppSidebar() {
   const { open } = useSidebar();
-  const { userRole, user } = useAuth();
+  const { userRole, user, signOut } = useAuth();
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const APP_VERSION = "0610.2025.00001";
+  
+  // Format: DDMM.YYYY
+  const getAppVersion = () => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    return `${day}${month}.${year}`;
+  };
+  
+  const APP_VERSION = getAppVersion();
   
   // Monitor pontaj activ pentru badge notification
   const { hasActiveEntry } = useActiveTimeEntry(user?.id);
@@ -161,14 +171,24 @@ export function AppSidebar() {
             {open && <span>Actualizare</span>}
           </Button>
           
+          <Button
+            onClick={signOut}
+            variant="outline"
+            size={open ? "default" : "icon"}
+            className="w-full"
+          >
+            <LogOut className={`h-4 w-4 ${open ? 'mr-2' : ''}`} />
+            {open && <span>Deconectare</span>}
+          </Button>
+          
           {open && (
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">
-                Versiune: <span className="font-mono font-semibold text-primary">{APP_VERSION}</span>
+            <div className="text-center pt-2 border-t border-sidebar-border/50">
+              <p className="text-[10px] text-muted-foreground/60">
+                v{APP_VERSION}
               </p>
               {isIOSPWA() && (
-                <p className="text-[10px] text-muted-foreground/70 mt-1">
-                  iOS PWA Mode
+                <p className="text-[9px] text-muted-foreground/50 mt-0.5">
+                  iOS PWA
                 </p>
               )}
             </div>
