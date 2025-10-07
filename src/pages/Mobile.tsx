@@ -105,20 +105,23 @@ const Mobile = () => {
   const tardinessInfo = useTardinessCheck(user?.id, !activeShift);
 
   const requestLocationAccess = useCallback(async () => {
+    let loadingToast: string | number | undefined;
     try {
       setLocationError(null);
-      toast.info('Se caută GPS... Poate dura până la 15 secunde.', { duration: 3000 });
+      loadingToast = toast.info('Se caută GPS... Poate dura până la 15 secunde.', { duration: Infinity });
       await getCurrentPosition({ 
         enableHighAccuracy: true, 
-        timeout: 15000, // 15 seconds for Android
+        timeout: 15000,
         maximumAge: 0,
         maxRetries: 3,
         retryDelay: 1000
       });
       setLocationEnabled(true);
       triggerHaptic('light');
-      toast.success('Locație GPS găsită!');
+      if (loadingToast) toast.dismiss(loadingToast);
+      toast.success('Locație GPS găsită!', { duration: 2000 });
     } catch (e: any) {
+      if (loadingToast) toast.dismiss(loadingToast);
       setLocationEnabled(false);
       const errorMessage = e.code === 1 
         ? "Accesul la locație a fost refuzat. Activează permisiunile GPS." 
@@ -286,14 +289,17 @@ const Mobile = () => {
             .eq('id', entry.id);
         }
       }
-      toast.info('Se obține locația GPS...', { duration: 3000 });
+      let loadingToast: string | number | undefined;
+      loadingToast = toast.info('Se obține locația GPS...', { duration: Infinity });
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 15000, // 15 seconds for Android
+        timeout: 15000,
         maximumAge: 0,
         maxRetries: 3,
         retryDelay: 1000
       });
+      
+      if (loadingToast) toast.dismiss(loadingToast);
       
       const currentCoords = {
         latitude: position.coords.latitude,
@@ -442,15 +448,18 @@ const Mobile = () => {
     setIsProcessing(true);
     triggerHaptic('medium');
     
+    let loadingToast: string | number | undefined;
     try {
-      toast.info('Se obține locația GPS...', { duration: 3000 });
+      loadingToast = toast.info('Se obține locația GPS...', { duration: Infinity });
       const position = await getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 15000, // 15 seconds for Android
+        timeout: 15000,
         maximumAge: 0,
         maxRetries: 3,
         retryDelay: 1000
       });
+      
+      if (loadingToast) toast.dismiss(loadingToast);
       
       const currentCoords = {
         latitude: position.coords.latitude,
