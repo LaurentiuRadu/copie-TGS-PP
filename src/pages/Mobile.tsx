@@ -232,8 +232,10 @@ const Mobile = () => {
     clockInTime: string,
     clockOutTime: string,
     notes: string | null,
-    maxRetries = 3
+    maxRetries = 5  // ✅ Crește de la 3 la 5
   ): Promise<boolean> => {
+    let lastError: any = null;
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`[ProcessSegments] Attempt ${attempt}/${maxRetries} for entry ${timeEntryId}...`);
       
@@ -249,19 +251,63 @@ const Mobile = () => {
       
       if (!error && data) {
         console.log(`[ProcessSegments] ✅ Success on attempt ${attempt}`, data);
+        
+        // Clear needs_reprocessing flag on success
+        await supabase
+          .from('time_entries')
+          .update({ 
+            needs_reprocessing: false,
+            last_reprocess_attempt: new Date().toISOString()
+          })
+          .eq('id', timeEntryId);
+        
         return true;
       }
       
+      lastError = error;
       console.error(`[ProcessSegments] ❌ Attempt ${attempt} failed:`, error);
       
       if (attempt < maxRetries) {
-        const delayMs = 2000 * attempt; // Exponential backoff: 2s, 4s, 6s
+        // ✅ Exponential backoff mai lung: 2s, 5s, 10s, 20s
+        const delayMs = attempt === 1 ? 2000 : 2500 * Math.pow(2, attempt - 2);
         console.log(`[ProcessSegments] Retrying in ${delayMs}ms...`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
     
     console.error(`[ProcessSegments] ❌ All ${maxRetries} attempts failed`);
+    
+    // ✅ Salvează flag needs_reprocessing
+    try {
+      await supabase
+        .from('time_entries')
+        .update({ 
+          needs_reprocessing: true,
+          last_reprocess_attempt: new Date().toISOString()
+        })
+        .eq('id', timeEntryId);
+      
+      // ✅ Log eroarea în audit_logs
+      await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: userId,
+          action: 'time_segment_processing_failed',
+          resource_type: 'time_entry',
+          resource_id: timeEntryId,
+          details: {
+            attempts: maxRetries,
+            last_error: lastError?.message || String(lastError),
+            clock_in_time: clockInTime,
+            clock_out_time: clockOutTime
+          }
+        });
+      
+      console.log(`[ProcessSegments] 📝 Marked entry ${timeEntryId} for reprocessing`);
+    } catch (flagError) {
+      console.error(`[ProcessSegments] Failed to set needs_reprocessing flag:`, flagError);
+    }
+    
     return false;
   };
 

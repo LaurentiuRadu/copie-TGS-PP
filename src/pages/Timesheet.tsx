@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { PayrollExportDialog } from "@/components/PayrollExportDialog";
 import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
 import { toast } from "sonner";
+import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
 
 type EmployeeTimesheetData = {
   userId: string;
@@ -257,6 +258,7 @@ const Timesheet = () => {
                 <div className="text-sm font-medium whitespace-nowrap">
                   {filteredEmployees.length} din {employeeData.length} angajați
                 </div>
+                <TimeEntryReprocessButton />
                 <PayrollExportDialog 
                   allTimesheets={allTimesheets || []}
                   employees={employeeData.map(e => ({

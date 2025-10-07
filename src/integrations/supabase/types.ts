@@ -629,6 +629,8 @@ export type Database = {
           device_info: Json | null
           id: string
           ip_address: string | null
+          last_reprocess_attempt: string | null
+          needs_reprocessing: boolean | null
           notes: string | null
           updated_at: string | null
           user_id: string
@@ -649,6 +651,8 @@ export type Database = {
           device_info?: Json | null
           id?: string
           ip_address?: string | null
+          last_reprocess_attempt?: string | null
+          needs_reprocessing?: boolean | null
           notes?: string | null
           updated_at?: string | null
           user_id: string
@@ -669,6 +673,8 @@ export type Database = {
           device_info?: Json | null
           id?: string
           ip_address?: string | null
+          last_reprocess_attempt?: string | null
+          needs_reprocessing?: boolean | null
           notes?: string | null
           updated_at?: string | null
           user_id?: string
