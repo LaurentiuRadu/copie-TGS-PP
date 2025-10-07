@@ -42,6 +42,7 @@ import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
 import { useTardinessCheck } from "@/hooks/useTardinessCheck";
 import { UpdateNotification } from "@/components/UpdateNotification";
 import { ClockInConfirmationCard } from "@/components/ClockInConfirmationCard";
+import { ClockConfirmationDialog } from "@/components/ClockConfirmationDialog";
 import { LogoutConfirmDialog } from "@/components/LogoutConfirmDialog";
 
 type ShiftType = "condus" | "pasager" | "normal" | "utilaj" | null;
@@ -91,6 +92,12 @@ const Mobile = () => {
     shiftType?: string;
   } | null>(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [preClockDialog, setPreClockDialog] = useState<{
+    open: boolean;
+    type: "clock-in" | "clock-out";
+    shiftType: string;
+    location: { name: string; address?: string } | null;
+  } | null>(null);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -362,7 +369,50 @@ const Mobile = () => {
       triggerHaptic('light');
       return;
     }
-    
+
+    // ✅ AFIȘEAZĂ DIALOG DE CONFIRMARE PRE-PONTAJ
+    if (!skipConfirmation) {
+      // Get location for preview
+      try {
+        const position = await getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+          maxRetries: 1,
+          retryDelay: 1000
+        });
+        
+        const currentCoords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        const { data: locations } = await supabase
+          .from('work_locations')
+          .select('*')
+          .eq('is_active', true);
+
+        const nearestLocation = locations ? findNearestLocation(currentCoords, locations) : null;
+
+        setPreClockDialog({
+          open: true,
+          type: "clock-in",
+          shiftType: getShiftTypeLabel(type),
+          location: nearestLocation ? { name: nearestLocation.name, address: nearestLocation.address } : null,
+        });
+        triggerHaptic('light');
+        return;
+      } catch (error) {
+        // Dacă nu putem obține locația pentru preview, continuăm direct
+        console.warn('Could not get location for preview:', error);
+      }
+    }
+
+    // Continue with actual clock-in
+    await actuallyStartShift(type);
+  }, [isProcessing, locationEnabled, activeShift, lastClickTime, lastShiftType, user, triggerHaptic]);
+
+  const actuallyStartShift = useCallback(async (type: ShiftType) => {
     setIsProcessing(true);
     triggerHaptic('medium');
     
@@ -491,7 +541,7 @@ const Mobile = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [locationEnabled, isProcessing, user, triggerHaptic, activeShift]);
+  }, [user, triggerHaptic, activeShift, tardinessInfo]);
 
   const handleConfirmShiftChange = useCallback(() => {
     setConfirmDialog({ open: false, newType: null });

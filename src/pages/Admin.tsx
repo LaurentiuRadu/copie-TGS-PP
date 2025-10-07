@@ -8,6 +8,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
+import { VersionManager } from "@/components/VersionManager";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -50,6 +51,9 @@ const Admin = () => {
             </Card>
 
             <TimeEntryCorrectionRequestsManager />
+
+            {/* Version Manager */}
+            <VersionManager />
 
             {/* Historical Data Migration - Pas 5 */}
             <HistoricalDataMigration />
