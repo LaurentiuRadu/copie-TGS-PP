@@ -32,6 +32,40 @@ interface Shift {
 }
 
 /**
+ * Calculează offsetul României (UTC+2 sau UTC+3 pentru DST) în milisecunde
+ */
+function getRomaniaOffsetMs(date: Date): number {
+  // România: UTC+2 (iarnă) sau UTC+3 (vară - DST)
+  // DST: ultimul duminică din martie 03:00 → ultimul duminică din octombrie 04:00
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth(); // 0=Ian, 2=Mar, 9=Oct
+  
+  // DST activ: martie (după ultimul duminică) până octombrie (înainte de ultimul duminică)
+  if (month > 2 && month < 9) {
+    return 3 * 60 * 60 * 1000; // UTC+3
+  }
+  if (month < 2 || month > 9) {
+    return 2 * 60 * 60 * 1000; // UTC+2
+  }
+  
+  // Pentru martie și octombrie, verificăm data exactă
+  const lastSundayMarch = new Date(Date.UTC(year, 2, 31));
+  lastSundayMarch.setUTCDate(31 - lastSundayMarch.getUTCDay());
+  
+  const lastSundayOct = new Date(Date.UTC(year, 9, 31));
+  lastSundayOct.setUTCDate(31 - lastSundayOct.getUTCDay());
+  
+  if (month === 2 && date >= lastSundayMarch) {
+    return 3 * 60 * 60 * 1000; // UTC+3
+  }
+  if (month === 9 && date < lastSundayOct) {
+    return 3 * 60 * 60 * 1000; // UTC+3
+  }
+  
+  return 2 * 60 * 60 * 1000; // UTC+2
+}
+
+/**
  * Găsește următorul moment critic de segmentare (00:00, 06:00, 06:01, 22:00)
  * ✅ FIXED: Adăugat 06:01 pentru a detecta corect tranziția Sâmbătă/Duminică/Sărbătoare
  */
@@ -143,8 +177,15 @@ function segmentShiftIntoTimesheets(
   holidayDates: Set<string>
 ): TimesheetEntry[] {
   const timesheets: TimesheetEntry[] = [];
-  const shiftStart = new Date(shift.clock_in_time);
-  const shiftEnd = new Date(shift.clock_out_time);
+  
+  // ✅ FIX TIMEZONE: Convertim UTC → România (UTC+2/UTC+3)
+  const shiftStartUTC = new Date(shift.clock_in_time);
+  const shiftEndUTC = new Date(shift.clock_out_time);
+  const ROMANIA_OFFSET_MS = getRomaniaOffsetMs(shiftStartUTC);
+  const shiftStart = new Date(shiftStartUTC.getTime() + ROMANIA_OFFSET_MS);
+  const shiftEnd = new Date(shiftEndUTC.getTime() + ROMANIA_OFFSET_MS);
+  
+  console.log(`[Migration Timezone] UTC → România: ${shiftStartUTC.toISOString()} → ${shiftStart.toISOString()} (offset: ${ROMANIA_OFFSET_MS / 3600000}h)`);
 
   // ✅ Detectează tipul de tură din notes (default: 'normal')
   const shiftType = shift.shiftType || 'normal';
@@ -218,16 +259,47 @@ function segmentShiftIntoTimesheets(
     currentTime = segmentEnd;
   }
 
-  // ✅ DEDUCERE PAUZĂ: 30 min DOAR din hours_regular (06:00-22:00)
+  // ✅ REGULI NOI PAUZĂ
   timesheets.forEach(t => {
-    const BREAK_HOURS = 0.5; // 30 minute
+    // REGULA 1: Pauză 30 min pentru ore de zi (regular + saturday + sunday + holiday)
+    const totalDayHours = t.hours_regular + t.hours_saturday + t.hours_sunday + t.hours_holiday;
     
-    if (t.hours_regular >= BREAK_HOURS) {
-      t.hours_regular -= BREAK_HOURS;
-      console.log(`[Migration Break] ✅ Deducere pauză 30 min din hours_regular pentru ${t.work_date} (${(t.hours_regular + BREAK_HOURS).toFixed(2)}h → ${t.hours_regular.toFixed(2)}h)`);
+    if (totalDayHours >= 4.0) {
+      const dayBreak = 0.5; // 30 min
+      
+      // Deducere proporțională din fiecare categorie
+      if (totalDayHours > 0) {
+        const regularRatio = t.hours_regular / totalDayHours;
+        const saturdayRatio = t.hours_saturday / totalDayHours;
+        const sundayRatio = t.hours_sunday / totalDayHours;
+        const holidayRatio = t.hours_holiday / totalDayHours;
+        
+        const regularDeduction = dayBreak * regularRatio;
+        const saturdayDeduction = dayBreak * saturdayRatio;
+        const sundayDeduction = dayBreak * sundayRatio;
+        const holidayDeduction = dayBreak * holidayRatio;
+        
+        t.hours_regular -= regularDeduction;
+        t.hours_saturday -= saturdayDeduction;
+        t.hours_sunday -= sundayDeduction;
+        t.hours_holiday -= holidayDeduction;
+        
+        console.log(`[Migration Break Day] ✅ Pauză 30 min pentru ${t.work_date}: regular -${regularDeduction.toFixed(2)}h, saturday -${saturdayDeduction.toFixed(2)}h, sunday -${sundayDeduction.toFixed(2)}h, holiday -${holidayDeduction.toFixed(2)}h`);
+      }
     } else {
-      console.log(`[Migration Break] ⚠️ SKIP pauză pentru ${t.work_date} - insuficient hours_regular (${t.hours_regular.toFixed(2)}h < 0.5h)`);
+      console.log(`[Migration Break Day] ⚠️ SKIP pauză zi pentru ${t.work_date} - total day hours (${totalDayHours.toFixed(2)}h) < 4.0h`);
     }
+    
+    // REGULA 2: Pauză 15 min pentru ore de noapte
+    if (t.hours_night >= 4.0) {
+      const nightBreak = 0.25; // 15 min
+      t.hours_night -= nightBreak;
+      console.log(`[Migration Break Night] ✅ Pauză 15 min pentru ${t.work_date}: night -${nightBreak.toFixed(2)}h`);
+    } else {
+      console.log(`[Migration Break Night] ⚠️ SKIP pauză noapte pentru ${t.work_date} - hours_night (${t.hours_night.toFixed(2)}h) < 4.0h`);
+    }
+    
+    // ⚠️ NU SE SCADE PAUZĂ DIN: hours_driving, hours_passenger, hours_equipment
     
     // Rotunjește toate orele la 2 zecimale
     t.hours_regular = Math.round(t.hours_regular * 100) / 100;
