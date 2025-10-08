@@ -1,5 +1,8 @@
 project_id = "hbwkufaksipsqipqdqcv"
 
+[functions.analyze-work-patterns]
+verify_jwt = true
+
 [functions.consolidate-duplicate-accounts]
 verify_jwt = true
 
