@@ -91,6 +91,13 @@ Deno.serve(async (req) => {
       }
     })
 
+    // Sortare alfabetică după fullName
+    usersWithRoles.sort((a, b) => {
+      const nameA = a.fullName.toLowerCase().trim()
+      const nameB = b.fullName.toLowerCase().trim()
+      return nameA.localeCompare(nameB, 'ro')
+    })
+
     return new Response(
       JSON.stringify({ users: usersWithRoles }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
