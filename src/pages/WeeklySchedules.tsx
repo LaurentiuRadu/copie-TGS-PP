@@ -502,14 +502,51 @@ export default function WeeklySchedules() {
     setShowDeleteDialog(false);
   };
 
-  // Afișare individuală - fără grupare
-  const individualSchedules = useMemo(() => {
+  // Grupare după echipă (fără unire de echipe)
+  const teamSummary = useMemo(() => {
     if (!schedules) return [];
     
-    return schedules.map((schedule: any) => ({
-      ...schedule,
-      coordinator: schedule.coordinator_id ? 
-        employees?.find(e => e.id === schedule.coordinator_id) : null,
+    // Grupează doar după team_id
+    const grouped = schedules.reduce((acc: any, schedule: any) => {
+      const key = schedule.team_id;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          team_id: schedule.team_id,
+          coordinator: schedule.coordinator_id ? 
+            employees?.find(e => e.id === schedule.coordinator_id) : null,
+          coordinator_id: schedule.coordinator_id,
+          members: new Set(),
+          locations: new Map(),
+          days: new Set(),
+          scheduleIds: [],
+        };
+      }
+      
+      acc[key].members.add(schedule.profiles?.full_name || 'N/A');
+      acc[key].days.add(schedule.day_of_week);
+      acc[key].scheduleIds.push(schedule.id);
+      
+      // Track locations per day
+      const dayKey = schedule.day_of_week;
+      if (!acc[key].locations.has(dayKey)) {
+        acc[key].locations.set(dayKey, new Set());
+      }
+      acc[key].locations.get(dayKey).add(
+        `${schedule.shift_type === 'zi' ? '☀️' : '🌙'} ${schedule.location}${schedule.activity ? ' - ' + schedule.activity : ''}`
+      );
+      
+      return acc;
+    }, {});
+    
+    return Object.values(grouped).map((group: any) => ({
+      ...group,
+      members: Array.from(group.members),
+      days: Array.from(group.days).sort(),
+      locations: Array.from(group.locations.entries()).map(([day, locs]) => ({
+        day,
+        locations: Array.from(locs)
+      }))
     }));
   }, [schedules, employees]);
 
@@ -912,84 +949,85 @@ export default function WeeklySchedules() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {isLoading ? (
                   <div className="col-span-full text-center py-8">Se încarcă...</div>
-                ) : individualSchedules.length === 0 ? (
+                ) : teamSummary.length === 0 ? (
                   <div className="col-span-full text-center py-8 text-muted-foreground">
                     Nu există programări pentru această săptămână
                   </div>
                 ) : (
-                  individualSchedules.map((schedule: any) => (
-                    <Card key={schedule.id} className="hover:shadow-lg transition-shadow">
+                  teamSummary.map((summary: any) => (
+                    <Card key={summary.team_id} className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                          <span className="text-lg">{schedule.profiles?.full_name || 'N/A'}</span>
+                          <span className="text-lg">Echipa {summary.team_id}</span>
                           <div className="flex items-center gap-2">
-                            <Badge variant={schedule.shift_type === 'zi' ? 'default' : 'secondary'}>
-                              {schedule.shift_type === 'zi' ? '☀️ Zi' : '🌙 Noapte'}
+                            <Badge variant="outline">
+                              {summary.members.length} membri
                             </Badge>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleBulkEdit(schedule.user_id)}
-                              title="Editează toate zilele"
+                              onClick={() => {
+                                setActiveTab('details');
+                                setSelectedScheduleIds(summary.scheduleIds || []);
+                              }}
+                              title="Vezi detaliile"
                             >
                               <Edit className="h-4 w-4 text-primary" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => deleteSchedule.mutate([schedule.id])}
-                              title="Șterge"
+                              onClick={() => {
+                                setSelectedScheduleIds(summary.scheduleIds || []);
+                                setShowDeleteDialog(true);
+                              }}
+                              title="Șterge toate programările"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </CardTitle>
-                        <CardDescription className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {dayNames[schedule.day_of_week - 1]} • Echipa {schedule.team_id}
-                          </div>
-                          {schedule.coordinator && (
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              Coordonator: <strong>{schedule.coordinator.full_name}</strong>
-                            </div>
-                          )}
-                        </CardDescription>
+                        {summary.coordinator && (
+                          <CardDescription className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            Coordonator: <strong>{summary.coordinator.full_name}</strong>
+                          </CardDescription>
+                        )}
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="space-y-2">
-                          <div className="flex items-start gap-2">
-                            <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                            <div className="flex-1">
-                              <div className="text-sm font-medium">{schedule.location || 'N/A'}</div>
-                              {schedule.activity && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                                  <Activity className="h-3 w-3" />
-                                  {schedule.activity}
-                                </div>
-                              )}
-                            </div>
+                      <CardContent 
+                        className="space-y-3 cursor-pointer"
+                        onClick={() => setActiveTab('details')}
+                      >
+                        <div className="pt-2 border-t">
+                          <div className="text-xs text-muted-foreground mb-2">Membri echipă:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {summary.members.map((member: string, idx: number) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {member}
+                              </Badge>
+                            ))}
                           </div>
-                          
-                          {schedule.vehicle && (
-                            <div className="flex items-start gap-2">
-                              <Car className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
-                              <div className="flex flex-wrap gap-1">
-                                {schedule.vehicle.split(',').map((v: string, idx: number) => (
-                                  <Badge key={idx} variant="outline" className="font-mono text-xs">
-                                    {v.trim()}
-                                  </Badge>
-                                ))}
+                        </div>
+                        
+                        <div className="pt-2 border-t">
+                          <div className="text-xs text-muted-foreground mb-2">Program săptămânal:</div>
+                          <div className="space-y-2">
+                            {summary.locations.map((dayLoc: any) => (
+                              <div key={dayLoc.day} className="text-sm">
+                                <div className="font-medium text-xs text-muted-foreground mb-1">
+                                  {dayNames[dayLoc.day - 1]}:
+                                </div>
+                                <div className="flex flex-col gap-1 ml-2">
+                                  {dayLoc.locations.map((loc: string, idx: number) => (
+                                    <div key={idx} className="flex items-start gap-1 text-xs">
+                                      <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                      <span>{loc}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          
-                          {schedule.observations && (
-                            <div className="text-xs text-muted-foreground pt-2 border-t">
-                              {schedule.observations}
-                            </div>
-                          )}
+                            ))}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
