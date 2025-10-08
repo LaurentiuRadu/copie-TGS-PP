@@ -215,6 +215,31 @@ export default function MyTimeEntries() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   };
 
+  // Helper function to get nearest location with proper error handling
+  const getNearestLocation = async (latitude: number, longitude: number) => {
+    const { data: locations, error } = await supabase
+      .from('work_locations')
+      .select('id, name, latitude, longitude, radius_meters')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('[getNearestLocation] Error fetching locations:', error);
+      throw new Error('Nu s-au putut încărca locațiile de lucru');
+    }
+
+    if (!locations || locations.length === 0) {
+      throw new Error('Nu există locații de lucru configurate');
+    }
+
+    const nearest = findNearestLocation({ latitude, longitude }, locations);
+    
+    if (!nearest) {
+      throw new Error('Nu ești în apropierea unei locații valide de lucru');
+    }
+
+    return nearest;
+  };
+
   const handleShiftStart = async (shiftType: ShiftType) => {
     if (!user?.id || isProcessing) return;
     
@@ -230,16 +255,10 @@ export default function MyTimeEntries() {
     try {
       // Get current position
       const position = await getCurrentPosition();
-      const nearestLocation = await findNearestLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      });
-
-      if (!nearestLocation) {
-        toast.error('Nu ești în apropierea unei locații valide de lucru');
-        setIsProcessing(false);
-        return;
-      }
+      const nearestLocation = await getNearestLocation(
+        position.coords.latitude,
+        position.coords.longitude
+      );
 
       // Show pre-clock dialog
       setPreClockDialog({
@@ -269,10 +288,10 @@ export default function MyTimeEntries() {
     setIsProcessing(true);
 
     try {
-      const nearestLocation = await findNearestLocation({
-        latitude: preClockDialog.latitude,
-        longitude: preClockDialog.longitude
-      });
+      const nearestLocation = await getNearestLocation(
+        preClockDialog.latitude,
+        preClockDialog.longitude
+      );
 
       const shiftNotes = preClockDialog.shiftType === 'condus' ? 'Condus' :
                         preClockDialog.shiftType === 'pasager' ? 'Pasager' :
@@ -346,16 +365,10 @@ export default function MyTimeEntries() {
 
     try {
       const position = await getCurrentPosition();
-      const nearestLocation = await findNearestLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude
-      });
-
-      if (!nearestLocation) {
-        toast.error('Nu ești în apropierea unei locații valide de lucru');
-        setIsProcessing(false);
-        return;
-      }
+      const nearestLocation = await getNearestLocation(
+        position.coords.latitude,
+        position.coords.longitude
+      );
 
       // Show pre-clock-out dialog
       setPreClockDialog({
@@ -384,10 +397,10 @@ export default function MyTimeEntries() {
     setIsProcessing(true);
 
     try {
-      const nearestLocation = await findNearestLocation({
-        latitude: preClockDialog.latitude,
-        longitude: preClockDialog.longitude
-      });
+      const nearestLocation = await getNearestLocation(
+        preClockDialog.latitude,
+        preClockDialog.longitude
+      );
 
       const { error } = await supabase
         .from('time_entries')
