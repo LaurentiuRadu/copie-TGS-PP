@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.4e7d2e1cb2d440188ea3656cb94f3a48',
-  appName: 'TimeTrack',
+  appId: 'ro.tgservices.pontajsalariati',
+  appName: 'pontajsalariati',
   webDir: 'dist',
   server: {
     url: 'https://4e7d2e1c-b2d4-4018-8ea3-656cb94f3a48.lovableproject.com?forceHideBadge=true',
