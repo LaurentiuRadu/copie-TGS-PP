@@ -63,6 +63,8 @@ export default function WeeklySchedules() {
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [coordinatorId, setCoordinatorId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('summary');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [vehicleSearch, setVehicleSearch] = useState('');
   
   // Configuration per day - each day can have multiple location entries
   interface DayConfiguration {
@@ -142,8 +144,39 @@ export default function WeeklySchedules() {
       )
       .map(s => s.user_id);
     
-    return employees.filter(emp => !occupiedUserIds.includes(emp.id));
-  }, [employees, schedules, formData.day_of_week, editingSchedule]);
+    const filtered = employees.filter(emp => !occupiedUserIds.includes(emp.id));
+    
+    // Aplică filtrul de căutare
+    if (!employeeSearch.trim()) return filtered;
+    const searchLower = employeeSearch.toLowerCase();
+    return filtered.filter(emp => 
+      (emp.full_name?.toLowerCase().includes(searchLower)) ||
+      (emp.username?.toLowerCase().includes(searchLower))
+    );
+  }, [employees, schedules, formData.day_of_week, editingSchedule, employeeSearch]);
+
+  // Filtrare mașini bazată pe căutare
+  const filteredVehicles = useMemo(() => {
+    if (!vehicleSearch.trim()) return AVAILABLE_VEHICLES;
+    const searchLower = vehicleSearch.toLowerCase();
+    return AVAILABLE_VEHICLES.filter(v => v.toLowerCase().includes(searchLower));
+  }, [vehicleSearch]);
+
+  // Echipe deja folosite în săptămâna selectată
+  const usedTeams = useMemo(() => {
+    if (!schedules) return new Set<string>();
+    return new Set(schedules.map((s: any) => s.team_id));
+  }, [schedules]);
+
+  // Echipe disponibile (exclude echipele deja folosite)
+  const availableTeams = useMemo(() => {
+    const allTeams = Array.from({ length: 10 }, (_, i) => `E${i + 1}`);
+    // Dacă editezi, permite echipa curentă
+    if (editingSchedule) {
+      return allTeams;
+    }
+    return allTeams.filter(team => !usedTeams.has(team));
+  }, [usedTeams, editingSchedule]);
 
   // Create/Update schedule mutation
   const createSchedule = useMutation({
@@ -250,6 +283,8 @@ export default function WeeklySchedules() {
     setSelectedDays([]);
     setCoordinatorId('');
     setDayConfigurations({});
+    setEmployeeSearch('');
+    setVehicleSearch('');
     setFormData({
       team_id: selectedTeam,
       week_start_date: selectedWeek,
@@ -311,6 +346,47 @@ export default function WeeklySchedules() {
       activity: schedule.activity || '',
       observations: schedule.observations || '',
       shift_type: schedule.shift_type
+    });
+  };
+
+  // Editare completă pentru toate zilele unui angajat
+  const handleBulkEdit = (userId: string) => {
+    if (!schedules) return;
+    
+    // Găsește toate programările acestui angajat în săptămâna curentă
+    const userSchedules = schedules.filter((s: any) => s.user_id === userId);
+    
+    if (userSchedules.length === 0) return;
+    
+    const firstSchedule = userSchedules[0];
+    
+    // Pregătește configurațiile pentru fiecare zi
+    const configs: Record<number, DayConfiguration[]> = {};
+    userSchedules.forEach((schedule: any) => {
+      configs[schedule.day_of_week] = [{
+        location: schedule.location || '',
+        activity: schedule.activity || '',
+        vehicle: schedule.vehicle || '',
+        shift_type: schedule.shift_type,
+        observations: schedule.observations || ''
+      }];
+    });
+    
+    setEditingSchedule(null); // Nu editezi o singură programare
+    setShowForm(true);
+    setActiveTab('details');
+    setSelectedEmployees([userId]);
+    setSelectedDays(userSchedules.map((s: any) => s.day_of_week));
+    setDayConfigurations(configs);
+    setCoordinatorId(firstSchedule.coordinator_id || '');
+    setFormData({
+      team_id: firstSchedule.team_id,
+      week_start_date: firstSchedule.week_start_date,
+      day_of_week: firstSchedule.day_of_week,
+      location: '',
+      activity: '',
+      observations: '',
+      shift_type: 'zi'
     });
   };
 
@@ -484,9 +560,18 @@ export default function WeeklySchedules() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 10 }, (_, i) => `E${i + 1}`).map(team => (
-                    <SelectItem key={team} value={team}>{team}</SelectItem>
-                  ))}
+                  {Array.from({ length: 10 }, (_, i) => `E${i + 1}`).map(team => {
+                    const isUsed = usedTeams.has(team) && team !== selectedTeam;
+                    return (
+                      <SelectItem 
+                        key={team} 
+                        value={team}
+                        disabled={isUsed}
+                      >
+                        {team} {isUsed && '(ocupată)'}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -543,9 +628,17 @@ export default function WeeklySchedules() {
                     />
                   ) : (
                     <>
+                      <Input
+                        placeholder="🔍 Caută angajat..."
+                        value={employeeSearch}
+                        onChange={(e) => setEmployeeSearch(e.target.value)}
+                        className="mb-2"
+                      />
                       <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
                         {availableEmployees.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">Toți angajații sunt deja programați în această zi</p>
+                          <p className="text-sm text-muted-foreground">
+                            {employeeSearch ? 'Niciun angajat găsit' : 'Toți angajații sunt deja programați în această zi'}
+                          </p>
                         ) : (
                           availableEmployees.map(emp => (
                             <div key={emp.id} className="flex items-center space-x-2">
@@ -574,22 +667,32 @@ export default function WeeklySchedules() {
                 {/* Multi-select Mașini */}
                 <div className="space-y-3">
                   <Label>Mașini (selectare multiplă)</Label>
+                  <Input
+                    placeholder="🔍 Caută mașină..."
+                    value={vehicleSearch}
+                    onChange={(e) => setVehicleSearch(e.target.value)}
+                    className="mb-2"
+                  />
                   <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                    {AVAILABLE_VEHICLES.map(vehicle => (
-                      <div key={vehicle} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`vehicle-${vehicle}`}
-                          checked={selectedVehicles.includes(vehicle)}
-                          onCheckedChange={() => toggleVehicle(vehicle)}
-                        />
-                        <label
-                          htmlFor={`vehicle-${vehicle}`}
-                          className="text-sm cursor-pointer flex-1 font-mono"
-                        >
-                          {vehicle}
-                        </label>
-                      </div>
-                    ))}
+                    {filteredVehicles.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nicio mașină găsită</p>
+                    ) : (
+                      filteredVehicles.map(vehicle => (
+                        <div key={vehicle} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`vehicle-${vehicle}`}
+                            checked={selectedVehicles.includes(vehicle)}
+                            onCheckedChange={() => toggleVehicle(vehicle)}
+                          />
+                          <label
+                            htmlFor={`vehicle-${vehicle}`}
+                            className="text-sm cursor-pointer flex-1 font-mono"
+                          >
+                            {vehicle}
+                          </label>
+                        </div>
+                      ))
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {selectedVehicles.length} mașină/i selectată/e
@@ -826,8 +929,8 @@ export default function WeeklySchedules() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEdit(schedule)}
-                              title="Editează"
+                              onClick={() => handleBulkEdit(schedule.user_id)}
+                              title="Editează toate zilele"
                             >
                               <Edit className="h-4 w-4 text-primary" />
                             </Button>
