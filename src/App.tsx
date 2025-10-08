@@ -20,7 +20,7 @@ import TimeEntries from "./pages/TimeEntries";
 import MyTimeEntries from "./pages/MyTimeEntries";
 import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
-import BulkImport from "./pages/BulkImport";
+
 import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
 import GDPRAdmin from "./pages/GDPRAdmin";
@@ -126,14 +126,6 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <FaceVerifications />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/bulk-import"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <BulkImport />
                   </ProtectedRoute>
                 }
               />

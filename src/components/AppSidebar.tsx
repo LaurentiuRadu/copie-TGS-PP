@@ -32,7 +32,7 @@ const adminMenuItems = [
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
-  { title: "Import Salariați", url: "/bulk-import", icon: Users },
+  
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Setări", url: "/backup-restore", icon: Settings },
   { title: "GDPR", url: "/gdpr-admin", icon: Shield },
