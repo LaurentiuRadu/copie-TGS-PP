@@ -64,8 +64,6 @@ export function EmployeeScheduleView() {
           ?.filter(ts => 
             ts.team_id === schedule.team_id &&
             ts.day_of_week === schedule.day_of_week &&
-            ts.shift_type === schedule.shift_type &&
-            ts.location === schedule.location &&
             ts.user_id !== user.id
           )
           .map(ts => {
