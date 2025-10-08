@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RefreshCw, UserPlus, Edit, Trash2, Users, Search, Filter, Key } from "lucide-react";
+import { RefreshCw, UserPlus, Edit, Trash2, Users, Search, Filter, Key, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,12 @@ const UserManagement = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Change role dialog
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [changingRoleUser, setChangingRoleUser] = useState<User | null>(null);
+  const [newRole, setNewRole] = useState<'admin' | 'employee'>('employee');
+  const [changingRole, setChangingRole] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -392,6 +398,75 @@ const UserManagement = () => {
     }
   };
 
+  const handleChangeRole = async () => {
+    if (!changingRoleUser) {
+      return;
+    }
+
+    try {
+      setChangingRole(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Eroare",
+          description: "Nu ești autentificat",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Verifică că nu încearcă să-și schimbe propriul rol
+      if (changingRoleUser.id === session.user.id) {
+        toast({
+          title: "Eroare",
+          description: "Nu îți poți schimba propriul rol",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase.functions.invoke('update-user-role', {
+        body: {
+          userId: changingRoleUser.id,
+          role: newRole,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error changing role:', error);
+        toast({
+          title: "Eroare",
+          description: "Nu s-a putut schimba rolul",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Succes",
+        description: `Rolul pentru ${changingRoleUser.username} a fost schimbat în ${newRole === 'admin' ? 'Administrator' : 'Angajat'}`,
+      });
+
+      setRoleDialogOpen(false);
+      setChangingRoleUser(null);
+      setNewRole('employee');
+      loadUsers();
+    } catch (error) {
+      console.error('Error changing role:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-a putut schimba rolul",
+        variant: "destructive",
+      });
+    } finally {
+      setChangingRole(false);
+    }
+  };
+
   return (
     <AdminLayout 
       title="Gestionare Utilizatori"
@@ -588,7 +663,85 @@ const UserManagement = () => {
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex gap-2 justify-end">
+                                <div className="flex gap-2 justify-end flex-wrap">
+                                  <Dialog open={roleDialogOpen && changingRoleUser?.id === user.id} onOpenChange={(open) => {
+                                    setRoleDialogOpen(open);
+                                    if (!open) {
+                                      setChangingRoleUser(null);
+                                      setNewRole('employee');
+                                    }
+                                  }}>
+                                    <DialogTrigger asChild>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={async () => {
+                                          const { data: { session } } = await supabase.auth.getSession();
+                                          if (user.id === session?.user.id) {
+                                            toast({
+                                              title: "Eroare",
+                                              description: "Nu îți poți schimba propriul rol",
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          setChangingRoleUser(user);
+                                          setNewRole(user.roles.includes('admin') ? 'employee' : 'admin');
+                                          setRoleDialogOpen(true);
+                                        }}
+                                        className="gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary transition-all"
+                                      >
+                                        <Shield className="h-4 w-4" />
+                                        Schimbă Rol
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-md">
+                                      <DialogHeader>
+                                        <DialogTitle>Schimbă Rolul Utilizatorului</DialogTitle>
+                                        <DialogDescription>
+                                          Modifică rolul pentru {user.username} ({user.fullName})
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <div className="space-y-4 py-4">
+                                        <div className="space-y-2">
+                                          <Label htmlFor="change-role">Rol Nou</Label>
+                                          <Select value={newRole} onValueChange={(value: 'admin' | 'employee') => setNewRole(value)}>
+                                            <SelectTrigger className="border-primary/20 focus:border-primary">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="employee">Angajat</SelectItem>
+                                              <SelectItem value="admin">Administrator</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          {user.roles.includes('admin') && newRole === 'employee' && (
+                                            <p className="text-sm text-destructive font-medium">
+                                              ⚠️ Atenție: Schimbi un administrator în angajat. Acesta va pierde toate privilegiile de admin.
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <DialogFooter>
+                                        <Button
+                                          variant="outline"
+                                          onClick={() => {
+                                            setRoleDialogOpen(false);
+                                            setChangingRoleUser(null);
+                                            setNewRole('employee');
+                                          }}
+                                        >
+                                          Anulează
+                                        </Button>
+                                        <Button 
+                                          onClick={handleChangeRole}
+                                          disabled={changingRole}
+                                          className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                        >
+                                          {changingRole ? 'Se schimbă...' : 'Confirmă Schimbare'}
+                                        </Button>
+                                      </DialogFooter>
+                                    </DialogContent>
+                                  </Dialog>
                                   <Dialog open={editDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
                                     setEditDialogOpen(open);
                                     if (!open) {
@@ -820,6 +973,84 @@ const UserManagement = () => {
                             />
                             
                             <div className="flex gap-2">
+                              <Dialog open={roleDialogOpen && changingRoleUser?.id === user.id} onOpenChange={(open) => {
+                                setRoleDialogOpen(open);
+                                if (!open) {
+                                  setChangingRoleUser(null);
+                                  setNewRole('employee');
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={async () => {
+                                      const { data: { session } } = await supabase.auth.getSession();
+                                      if (user.id === session?.user.id) {
+                                        toast({
+                                          title: "Eroare",
+                                          description: "Nu îți poți schimba propriul rol",
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+                                      setChangingRoleUser(user);
+                                      setNewRole(user.roles.includes('admin') ? 'employee' : 'admin');
+                                      setRoleDialogOpen(true);
+                                    }}
+                                    className="flex-1 gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary transition-all touch-target"
+                                  >
+                                    <Shield className="h-4 w-4" />
+                                    Rol
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                  <DialogHeader>
+                                    <DialogTitle>Schimbă Rolul Utilizatorului</DialogTitle>
+                                    <DialogDescription>
+                                      Modifică rolul pentru {user.username} ({user.fullName})
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="change-role-mobile">Rol Nou</Label>
+                                      <Select value={newRole} onValueChange={(value: 'admin' | 'employee') => setNewRole(value)}>
+                                        <SelectTrigger className="border-primary/20 focus:border-primary">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="employee">Angajat</SelectItem>
+                                          <SelectItem value="admin">Administrator</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {user.roles.includes('admin') && newRole === 'employee' && (
+                                        <p className="text-sm text-destructive font-medium">
+                                          ⚠️ Atenție: Schimbi un administrator în angajat. Acesta va pierde toate privilegiile de admin.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <DialogFooter>
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => {
+                                        setRoleDialogOpen(false);
+                                        setChangingRoleUser(null);
+                                        setNewRole('employee');
+                                      }}
+                                    >
+                                      Anulează
+                                    </Button>
+                                    <Button 
+                                      onClick={handleChangeRole}
+                                      disabled={changingRole}
+                                      className="bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+                                    >
+                                      {changingRole ? 'Se schimbă...' : 'Confirmă Schimbare'}
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
                               <Dialog open={editDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
                                 setEditDialogOpen(open);
                                 if (!open) {

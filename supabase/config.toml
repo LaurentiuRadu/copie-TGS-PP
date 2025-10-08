@@ -27,5 +27,11 @@ verify_jwt = true
 [functions.update-user]
 verify_jwt = true
 
+[functions.update-user-role]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
 [functions.reprocess-missing-segments]
 verify_jwt = true
