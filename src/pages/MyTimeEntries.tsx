@@ -219,7 +219,7 @@ export default function MyTimeEntries() {
   const getNearestLocation = async (latitude: number, longitude: number) => {
     const { data: locations, error } = await supabase
       .from('work_locations')
-      .select('id, name, latitude, longitude, radius_meters')
+      .select('id, name, latitude, longitude, radius_meters, coverage_type, geometry')
       .eq('is_active', true);
 
     if (error) {

@@ -172,8 +172,26 @@ export const isWithinRadius = (
 // Find nearest work location from user's current position
 export const findNearestLocation = (
   currentCoords: Coordinates,
-  locations: Array<{ id: string; latitude: number; longitude: number; radius_meters: number }>
+  locations: Array<{ 
+    id: string; 
+    latitude: number; 
+    longitude: number; 
+    radius_meters: number;
+    coverage_type?: string;
+    geometry?: any;
+  }>
 ) => {
+  // ✅ Prioritate 1: Verifică dacă există locație "country" (Toată România)
+  const countryLocation = locations.find(loc => loc.coverage_type === 'country');
+  if (countryLocation) {
+    console.log('[findNearestLocation] 🇷🇴 Found country-wide location, allowing clock-in from anywhere');
+    return { 
+      ...countryLocation, 
+      distance: 0  // Distanța nu contează pentru "country"
+    };
+  }
+
+  // ✅ Prioritate 2: Caută locații circle/polygon în raza permisă
   let nearest = null;
   let minDistance = Infinity;
 
@@ -183,9 +201,12 @@ export const findNearestLocation = (
       longitude: location.longitude,
     });
 
-    if (distance <= location.radius_meters && distance < minDistance) {
-      minDistance = distance;
-      nearest = { ...location, distance };
+    // Pentru circle: verifică dacă e în rază
+    if (location.coverage_type === 'circle' || !location.coverage_type) {
+      if (distance <= location.radius_meters && distance < minDistance) {
+        minDistance = distance;
+        nearest = { ...location, distance };
+      }
     }
   }
 
