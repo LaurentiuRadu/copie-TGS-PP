@@ -104,15 +104,15 @@ export default function WeeklySchedules() {
     }
   });
 
-  // Fetch schedules
+  // Fetch schedules for all teams in the selected week
   const { data: schedules, isLoading } = useQuery({
-    queryKey: ['weekly-schedules', selectedWeek, selectedTeam],
+    queryKey: ['weekly-schedules', selectedWeek],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_schedules')
         .select('*')
         .eq('week_start_date', selectedWeek)
-        .eq('team_id', selectedTeam)
+        .order('team_id')
         .order('day_of_week');
       if (error) throw error;
       
@@ -135,12 +135,18 @@ export default function WeeklySchedules() {
     }
   });
 
+  // Filter schedules by selected team for details tab
+  const teamSchedules = useMemo(() => {
+    if (!schedules) return [];
+    return schedules.filter(s => s.team_id === selectedTeam);
+  }, [schedules, selectedTeam]);
+
   // Filtrare angajați disponibili - exclude pe cei deja programați în ziua selectată
   const availableEmployees = useMemo(() => {
-    if (!employees || !schedules) return employees || [];
+    if (!employees || !teamSchedules) return employees || [];
     
     // Dacă editezi, exclude programările celorlalți din ziua selectată
-    const occupiedUserIds = schedules
+    const occupiedUserIds = teamSchedules
       .filter(s => 
         s.day_of_week === formData.day_of_week && 
         (!editingSchedule || s.id !== editingSchedule.id)
@@ -156,7 +162,7 @@ export default function WeeklySchedules() {
       (emp.full_name?.toLowerCase().includes(searchLower)) ||
       (emp.username?.toLowerCase().includes(searchLower))
     );
-  }, [employees, schedules, formData.day_of_week, editingSchedule, employeeSearch]);
+  }, [employees, teamSchedules, formData.day_of_week, editingSchedule, employeeSearch]);
 
   // Filtrare mașini bazată pe căutare
   const filteredVehicles = useMemo(() => {
@@ -168,6 +174,7 @@ export default function WeeklySchedules() {
   // Echipe deja folosite în săptămâna selectată
   const usedTeams = useMemo(() => {
     if (!schedules) return new Set<string>();
+    // Get used teams from all schedules
     return new Set(schedules.map((s: any) => s.team_id));
   }, [schedules]);
 
@@ -408,6 +415,7 @@ export default function WeeklySchedules() {
         ? prev.filter(id => id !== employeeId)
         : [...prev, employeeId]
     );
+    setEmployeeSearch(''); // Clear search after selection
   };
 
   const toggleVehicle = (vehicle: string) => {
@@ -416,6 +424,7 @@ export default function WeeklySchedules() {
         ? prev.filter(v => v !== vehicle)
         : [...prev, vehicle]
     );
+    setVehicleSearch(''); // Clear search after selection
   };
 
   const toggleDay = (day: number) => {
@@ -494,10 +503,10 @@ export default function WeeklySchedules() {
   };
 
   const toggleAllSchedules = () => {
-    if (selectedScheduleIds.length === schedules?.length) {
+    if (selectedScheduleIds.length === teamSchedules?.length) {
       setSelectedScheduleIds([]);
     } else {
-      setSelectedScheduleIds(schedules?.map((s: any) => s.id) || []);
+      setSelectedScheduleIds(teamSchedules?.map((s: any) => s.id) || []);
     }
   };
 
@@ -602,28 +611,30 @@ export default function WeeklySchedules() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <Label>Echipa</Label>
-              <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 10 }, (_, i) => `E${i + 1}`).map(team => {
-                    const isUsed = usedTeams.has(team) && team !== selectedTeam;
-                    return (
-                      <SelectItem 
-                        key={team} 
-                        value={team}
-                        disabled={isUsed}
-                      >
-                        {team} {isUsed && '(ocupată)'}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
+            {activeTab === 'details' && (
+              <div className="flex-1 min-w-[200px]">
+                <Label>Echipa</Label>
+                <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 10 }, (_, i) => `E${i + 1}`).map(team => {
+                      const isUsed = usedTeams.has(team) && team !== selectedTeam;
+                      return (
+                        <SelectItem 
+                          key={team} 
+                          value={team}
+                          disabled={isUsed}
+                        >
+                          {team} {isUsed && '(ocupată)'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button onClick={() => { resetForm(); setShowForm(!showForm); setActiveTab('details'); }}>
               <Plus className="h-4 w-4 mr-2" />
               Adaugă Programare
@@ -1076,7 +1087,7 @@ export default function WeeklySchedules() {
                   <TableRow>
                     <TableHead className="w-[50px]">
                       <Checkbox
-                        checked={schedules?.length > 0 && selectedScheduleIds.length === schedules?.length}
+                        checked={teamSchedules?.length > 0 && selectedScheduleIds.length === teamSchedules?.length}
                         onCheckedChange={toggleAllSchedules}
                       />
                     </TableHead>
@@ -1097,14 +1108,14 @@ export default function WeeklySchedules() {
                     <TableRow>
                       <TableCell colSpan={11} className="text-center">Se încarcă...</TableCell>
                     </TableRow>
-                  ) : schedules?.length === 0 ? (
+                  ) : teamSchedules?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={11} className="text-center text-muted-foreground">
                         Nu există programări pentru această săptămână
                       </TableCell>
                     </TableRow>
                   ) : (
-                    schedules?.map((schedule: any) => {
+                    teamSchedules?.map((schedule: any) => {
                       const coordinator = employees?.find(e => e.id === schedule.coordinator_id);
                       const teamLeader = employees?.find(e => e.id === schedule.team_leader_id);
                       return (

@@ -221,26 +221,42 @@ export default function EditTeamSchedule() {
         });
       });
 
-      // Insert new locations (ignore conflicts)
+      // Insert new locations with proper error handling
       for (const location of uniqueLocations) {
-        await supabase
+        const { error } = await supabase
           .from('locations')
-          .upsert({ name: location }, { onConflict: 'name', ignoreDuplicates: true });
+          .insert({ name: location })
+          .select()
+          .single();
+        
+        // Ignore duplicate key errors (location already exists)
+        if (error && !error.message.includes('duplicate key')) {
+          console.error('Error saving location:', error);
+        }
       }
 
-      // Insert new projects (ignore conflicts)
+      // Insert new projects with proper error handling
       for (const project of uniqueProjects) {
-        await supabase
+        const { error } = await supabase
           .from('projects')
-          .upsert({ name: project }, { onConflict: 'name', ignoreDuplicates: true });
+          .insert({ name: project })
+          .select()
+          .single();
+        
+        // Ignore duplicate key errors (project already exists)
+        if (error && !error.message.includes('duplicate key')) {
+          console.error('Error saving project:', error);
+        }
       }
 
-      // Delete existing schedules
+      // Delete ONLY the schedules for this specific team configuration
+      // This prevents merging of different schedule configurations
       await supabase
         .from('weekly_schedules')
         .delete()
         .eq('team_id', teamId)
-        .eq('week_start_date', weekStart);
+        .eq('week_start_date', weekStart)
+        .in('user_id', selectedEmployees);
 
       // Create new schedules
       const scheduleEntries = [];
@@ -288,6 +304,7 @@ export default function EditTeamSchedule() {
         ? prev.filter(id => id !== employeeId)
         : [...prev, employeeId]
     );
+    setEmployeeSearch(''); // Clear search after selection
   };
 
   const toggleVehicle = (vehicle: string) => {
@@ -296,6 +313,7 @@ export default function EditTeamSchedule() {
         ? prev.filter(v => v !== vehicle)
         : [...prev, vehicle]
     );
+    setVehicleSearch(''); // Clear search after selection
   };
 
   const toggleDay = (day: number) => {
