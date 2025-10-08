@@ -699,7 +699,12 @@ export default function WeeklySchedules() {
                       <SelectValue placeholder="Selectează Manager de Proiect" />
                     </SelectTrigger>
                     <SelectContent>
-                      {employees?.map(emp => (
+                      {employees?.filter(emp => {
+                        const fullName = emp.full_name || '';
+                        return ['Alexandrescu Adrian', 'Costache Florin', 'Chiticaru Florin', 
+                                'Costan Ionut', 'Radu Ioan', 'Radu Laurentiu', 'Canbei Razvan']
+                          .includes(fullName);
+                      }).map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           👤 {emp.full_name || emp.username}
                         </SelectItem>
@@ -718,13 +723,18 @@ export default function WeeklySchedules() {
                       <SelectValue placeholder="Selectează Șef de Echipă" />
                     </SelectTrigger>
                     <SelectContent>
-                      {employees?.map(emp => (
+                      {employees?.filter(emp => selectedEmployees.includes(emp.id)).map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           👤 {emp.full_name || emp.username}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedEmployees.length === 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selectează mai întâi angajați pentru echipă
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -934,6 +944,8 @@ export default function WeeklySchedules() {
                                           placeholder="Locație nouă..."
                                           onKeyDown={async (e) => {
                                             if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              e.stopPropagation();
                                               const newLocation = e.currentTarget.value.trim();
                                               if (newLocation) {
                                                 updateDayConfiguration(dayNum, configIndex, 'location', newLocation);
@@ -941,6 +953,8 @@ export default function WeeklySchedules() {
                                                   await supabase.from('locations').insert({ name: newLocation });
                                                   queryClient.invalidateQueries({ queryKey: ['locations'] });
                                                   toast.success(`Locație "${newLocation}" adăugată`);
+                                                  // Close popover
+                                                  document.body.click();
                                                 } catch (error: any) {
                                                   if (error.code !== '23505') { // ignore duplicate key error
                                                     toast.error('Eroare la salvarea locației');
@@ -1003,6 +1017,8 @@ export default function WeeklySchedules() {
                                           placeholder="Proiect nou..."
                                           onKeyDown={async (e) => {
                                             if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              e.stopPropagation();
                                               const newProject = e.currentTarget.value.trim();
                                               if (newProject) {
                                                 updateDayConfiguration(dayNum, configIndex, 'activity', newProject);
@@ -1010,6 +1026,8 @@ export default function WeeklySchedules() {
                                                   await supabase.from('projects').insert({ name: newProject });
                                                   queryClient.invalidateQueries({ queryKey: ['projects'] });
                                                   toast.success(`Proiect "${newProject}" adăugat`);
+                                                  // Close popover
+                                                  document.body.click();
                                                 } catch (error: any) {
                                                   if (error.code !== '23505') { // ignore duplicate key error
                                                     toast.error('Eroare la salvarea proiectului');
