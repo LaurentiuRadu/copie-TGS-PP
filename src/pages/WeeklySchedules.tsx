@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +64,9 @@ export default function WeeklySchedules() {
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [teamToDuplicate, setTeamToDuplicate] = useState<string>('');
+  const [targetWeek, setTargetWeek] = useState<string>('');
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [projectManagerId, setProjectManagerId] = useState<string>('');
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
@@ -333,6 +336,69 @@ export default function WeeklySchedules() {
     onError: (error) => {
       toast.error('Eroare la ștergere');
       console.error('Schedule delete error:', error);
+    }
+  });
+
+  // Duplicate schedule mutation
+  const duplicateSchedule = useMutation({
+    mutationFn: async ({ teamId, targetWeekStart }: { teamId: string; targetWeekStart: string }) => {
+      // Verifică dacă există deja echipa în săptămâna țintă
+      const { data: existingSchedules } = await supabase
+        .from('weekly_schedules')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('week_start_date', targetWeekStart)
+        .limit(1);
+
+      if (existingSchedules && existingSchedules.length > 0) {
+        throw new Error(`Echipa ${teamId} există deja în săptămâna selectată`);
+      }
+
+      // Preia toate programările echipei din săptămâna curentă
+      const { data: teamSchedules, error: fetchError } = await supabase
+        .from('weekly_schedules')
+        .select('*')
+        .eq('team_id', teamId)
+        .eq('week_start_date', selectedWeek);
+
+      if (fetchError) throw fetchError;
+      if (!teamSchedules || teamSchedules.length === 0) {
+        throw new Error('Nu există programări de duplicat');
+      }
+
+      // Creează intrări noi pentru săptămâna țintă
+      const newSchedules = teamSchedules.map(schedule => ({
+        team_id: schedule.team_id,
+        week_start_date: targetWeekStart,
+        user_id: schedule.user_id,
+        day_of_week: schedule.day_of_week,
+        location: schedule.location,
+        activity: schedule.activity,
+        vehicle: schedule.vehicle,
+        observations: schedule.observations,
+        shift_type: schedule.shift_type,
+        coordinator_id: schedule.coordinator_id,
+        team_leader_id: schedule.team_leader_id
+      }));
+
+      const { error: insertError } = await supabase
+        .from('weekly_schedules')
+        .insert(newSchedules);
+
+      if (insertError) throw insertError;
+
+      return { teamId, targetWeekStart, count: newSchedules.length };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedules'] });
+      toast.success(`Echipa ${data.teamId} duplicată cu succes! (${data.count} programări)`);
+      setShowDuplicateDialog(false);
+      setTeamToDuplicate('');
+      setTargetWeek('');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Eroare la duplicarea planificării');
+      console.error('Schedule duplicate error:', error);
     }
   });
 
@@ -1345,6 +1411,17 @@ export default function WeeklySchedules() {
                               variant="ghost"
                               size="icon"
                               onClick={() => {
+                                setTeamToDuplicate(summary.team_id);
+                                setShowDuplicateDialog(true);
+                              }}
+                              title="Repetă planificarea în altă săptămână"
+                            >
+                              <Copy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
                                 navigate(`/edit-team-schedule?team=${summary.team_id}&week=${selectedWeek}`);
                               }}
                               title="Editează echipa"
@@ -1542,6 +1619,67 @@ export default function WeeklySchedules() {
             <AlertDialogCancel>Anulează</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Șterge
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate Schedule Dialog */}
+      <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              Repetă Planificarea
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Duplică programarea echipei {teamToDuplicate} într-o altă săptămână
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="target-week" className="text-sm font-medium">Selectează săptămâna țintă</Label>
+            <Input
+              type="date"
+              id="target-week"
+              value={targetWeek}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const weekStart = format(startOfWeek(new Date(e.target.value), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                  setTargetWeek(weekStart);
+                }
+              }}
+              className="mt-2"
+            />
+            {targetWeek && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Săptămâna {getWeek(new Date(targetWeek), { weekStartsOn: 1 })} - {format(new Date(targetWeek), 'dd MMM yyyy', { locale: ro })}
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDuplicateDialog(false);
+              setTeamToDuplicate('');
+              setTargetWeek('');
+            }}>
+              Anulează
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!targetWeek) {
+                  toast.error('Selectează o săptămână țintă');
+                  return;
+                }
+                if (targetWeek === selectedWeek) {
+                  toast.error('Săptămâna țintă trebuie să fie diferită de săptămâna curentă');
+                  return;
+                }
+                duplicateSchedule.mutate({ teamId: teamToDuplicate, targetWeekStart: targetWeek });
+              }}
+              disabled={!targetWeek || duplicateSchedule.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {duplicateSchedule.isPending ? 'Se duplică...' : 'Duplică Planificarea'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
