@@ -26,13 +26,11 @@ import {
 // Meniuri pentru Admin
 const adminMenuItems = [
   { title: "Dashboard", url: "/admin", icon: Home },
-  { title: "Gestionare Utilizatori", url: "/user-management", icon: UserCog },
   { title: "Monitorizare Pontaje Live", url: "/time-entries", icon: ClipboardList },
   { title: "Timesheet", url: "/timesheet", icon: Table },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
-  
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Setări", url: "/backup-restore", icon: Settings },
   { title: "GDPR", url: "/gdpr-admin", icon: Shield },

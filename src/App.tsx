@@ -21,7 +21,6 @@ import MyTimeEntries from "./pages/MyTimeEntries";
 import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 
-import UserManagement from "./pages/UserManagement";
 import WeeklySchedules from "./pages/WeeklySchedules";
 import GDPRAdmin from "./pages/GDPRAdmin";
 import Timesheet from "./pages/Timesheet";
@@ -126,14 +125,6 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <FaceVerifications />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/user-management"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <UserManagement />
                   </ProtectedRoute>
                 }
               />

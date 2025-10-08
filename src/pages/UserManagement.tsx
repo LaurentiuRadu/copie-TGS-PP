@@ -22,7 +22,7 @@ interface User {
   createdAt: string;
 }
 
-const UserManagement = () => {
+const UserManagement = ({ embedded = false }: { embedded?: boolean }) => {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -549,207 +549,205 @@ const UserManagement = () => {
     }
   };
 
-  return (
-    <AdminLayout 
-      title="Gestionare Utilizatori"
-      actions={
-        <>
-          <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                size="sm"
-                className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span className="hidden md:inline">Adaugă Utilizator</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Adaugă Utilizator Nou</DialogTitle>
-                  <DialogDescription>
-                    Creează un cont nou pentru un angajat sau administrator
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-username">Username *</Label>
-                    <Input
-                      id="new-username"
-                      placeholder="ex: ionpopescu"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      className="border-primary/20 focus:border-primary"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="new-firstname">Prenume *</Label>
-                      <Input
-                        id="new-firstname"
-                        placeholder="Prenume"
-                        value={newFirstName}
-                        onChange={(e) => setNewFirstName(e.target.value)}
-                        className="border-primary/20 focus:border-primary"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="new-lastname">Nume *</Label>
-                      <Input
-                        id="new-lastname"
-                        placeholder="Nume"
-                        value={newLastName}
-                        onChange={(e) => setNewLastName(e.target.value)}
-                        className="border-primary/20 focus:border-primary"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-user-password">Parolă *</Label>
-                    <Input
-                      id="new-user-password"
-                      type="text"
-                      placeholder="Minim 6 caractere"
-                      value={newUserPassword}
-                      onChange={(e) => setNewUserPassword(e.target.value)}
-                      autoComplete="off"
-                      className="border-primary/20 focus:border-primary"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-user-role">Rol *</Label>
-                    <Select value={newUserRole} onValueChange={(value: 'admin' | 'employee') => setNewUserRole(value)}>
-                      <SelectTrigger className="border-primary/20 focus:border-primary">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="employee">Angajat</SelectItem>
-                        <SelectItem value="admin">Administrator</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setAddUserDialogOpen(false);
-                      setNewUsername('');
-                      setNewFirstName('');
-                      setNewLastName('');
-                      setNewUserPassword('');
-                      setNewUserRole('employee');
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Anulează
-                  </Button>
-                  <Button 
-                    onClick={handleAddUser}
-                    disabled={creating || !newUsername || !newFirstName || !newLastName || !newUserPassword}
-                    className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
-                  >
-                    {creating ? 'Se creează...' : 'Creează Utilizator'}
-                  </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={consolidateDialogOpen} onOpenChange={setConsolidateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                variant="outline"
-                size="sm"
-                className="gap-2 hover:bg-accent transition-all h-9"
-              >
-                <GitMerge className="h-4 w-4" />
-                <span className="hidden md:inline">Consolidează Conturi</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Consolidează Conturi Duplicate</DialogTitle>
-                <DialogDescription>
-                  Mută toate pontajele de la un cont duplicat către contul corect, apoi șterge contul duplicat.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="source-user">Cont de Șters (duplicat)</Label>
-                  <Select value={sourceUser} onValueChange={setSourceUser}>
-                    <SelectTrigger className="border-primary/20 focus:border-primary">
-                      <SelectValue placeholder="Selectează contul duplicat" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.username} - {user.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="target-user">Cont Corect (destinație)</Label>
-                  <Select value={targetUser} onValueChange={setTargetUser}>
-                    <SelectTrigger className="border-primary/20 focus:border-primary">
-                      <SelectValue placeholder="Selectează contul corect" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.username} - {user.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {sourceUser && targetUser && sourceUser !== targetUser && (
-                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <p className="text-sm text-destructive font-medium">
-                      ⚠️ Atenție: Această acțiune va muta toate pontajele de la{' '}
-                      <strong>{users.find(u => u.id === sourceUser)?.username}</strong> către{' '}
-                      <strong>{users.find(u => u.id === targetUser)?.username}</strong> și va șterge{' '}
-                      primul cont. Această operație este ireversibilă!
-                    </p>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setConsolidateDialogOpen(false);
-                    setSourceUser('');
-                    setTargetUser('');
-                  }}
-                >
-                  Anulează
-                </Button>
-                <Button 
-                  onClick={handleConsolidateAccounts}
-                  disabled={consolidating || !sourceUser || !targetUser || sourceUser === targetUser}
-                  variant="destructive"
-                  className="shadow-md hover:shadow-lg transition-all"
-                >
-                  {consolidating ? 'Se consolidează...' : 'Consolidează Conturi'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button
-            variant="outline" 
-            size="sm" 
-            onClick={loadUsers}
-            disabled={loading}
-            className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
+  const headerActions = (
+    <>
+      <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            size="sm"
+            className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all h-9"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden md:inline">Reîmprospătează</span>
+            <UserPlus className="h-4 w-4" />
+            <span className="hidden md:inline">Adaugă Utilizator</span>
           </Button>
-        </>
-      }
-    >
-      <div className="p-3 md:p-6">
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Adaugă Utilizator Nou</DialogTitle>
+              <DialogDescription>
+                Creează un cont nou pentru un angajat sau administrator
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-username">Username *</Label>
+                <Input
+                  id="new-username"
+                  placeholder="ex: ionpopescu"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  className="border-primary/20 focus:border-primary"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="new-firstname">Prenume *</Label>
+                  <Input
+                    id="new-firstname"
+                    placeholder="Prenume"
+                    value={newFirstName}
+                    onChange={(e) => setNewFirstName(e.target.value)}
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-lastname">Nume *</Label>
+                  <Input
+                    id="new-lastname"
+                    placeholder="Nume"
+                    value={newLastName}
+                    onChange={(e) => setNewLastName(e.target.value)}
+                    className="border-primary/20 focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-user-password">Parolă *</Label>
+                <Input
+                  id="new-user-password"
+                  type="text"
+                  placeholder="Minim 6 caractere"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  autoComplete="off"
+                  className="border-primary/20 focus:border-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-user-role">Rol *</Label>
+                <Select value={newUserRole} onValueChange={(value: 'admin' | 'employee') => setNewUserRole(value)}>
+                  <SelectTrigger className="border-primary/20 focus:border-primary">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Angajat</SelectItem>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddUserDialogOpen(false);
+                  setNewUsername('');
+                  setNewFirstName('');
+                  setNewLastName('');
+                  setNewUserPassword('');
+                  setNewUserRole('employee');
+                }}
+                className="w-full sm:w-auto"
+              >
+                Anulează
+              </Button>
+              <Button 
+                onClick={handleAddUser}
+                disabled={creating || !newUsername || !newFirstName || !newLastName || !newUserPassword}
+                className="w-full sm:w-auto bg-gradient-primary shadow-md hover:shadow-lg transition-all"
+              >
+                {creating ? 'Se creează...' : 'Creează Utilizator'}
+              </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={consolidateDialogOpen} onOpenChange={setConsolidateDialogOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="outline"
+            size="sm"
+            className="gap-2 hover:bg-accent transition-all h-9"
+          >
+            <GitMerge className="h-4 w-4" />
+            <span className="hidden md:inline">Consolidează Conturi</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Consolidează Conturi Duplicate</DialogTitle>
+            <DialogDescription>
+              Mută toate pontajele de la un cont duplicat către contul corect, apoi șterge contul duplicat.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="source-user">Cont de Șters (duplicat)</Label>
+              <Select value={sourceUser} onValueChange={setSourceUser}>
+                <SelectTrigger className="border-primary/20 focus:border-primary">
+                  <SelectValue placeholder="Selectează contul duplicat" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.username} - {user.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="target-user">Cont Corect (destinație)</Label>
+              <Select value={targetUser} onValueChange={setTargetUser}>
+                <SelectTrigger className="border-primary/20 focus:border-primary">
+                  <SelectValue placeholder="Selectează contul corect" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.username} - {user.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {sourceUser && targetUser && sourceUser !== targetUser && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ Atenție: Această acțiune va muta toate pontajele de la{' '}
+                  <strong>{users.find(u => u.id === sourceUser)?.username}</strong> către{' '}
+                  <strong>{users.find(u => u.id === targetUser)?.username}</strong> și va șterge{' '}
+                  primul cont. Această operație este ireversibilă!
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConsolidateDialogOpen(false);
+                setSourceUser('');
+                setTargetUser('');
+              }}
+            >
+              Anulează
+            </Button>
+            <Button 
+              onClick={handleConsolidateAccounts}
+              disabled={consolidating || !sourceUser || !targetUser || sourceUser === targetUser}
+              variant="destructive"
+              className="shadow-md hover:shadow-lg transition-all"
+            >
+              {consolidating ? 'Se consolidează...' : 'Consolidează Conturi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Button
+        variant="outline" 
+        size="sm" 
+        onClick={loadUsers}
+        disabled={loading}
+        className="gap-2 hover:bg-accent transition-all h-9 px-2 md:px-3"
+      >
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        <span className="hidden md:inline">Reîmprospătează</span>
+      </Button>
+    </>
+  );
+
+  const content = (
+    <div className="p-3 md:p-6">
             <Card className="shadow-elegant border-primary/10 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-glass opacity-30 pointer-events-none" />
               <CardHeader className="relative">
@@ -1423,6 +1421,31 @@ const UserManagement = () => {
               </CardContent>
             </Card>
       </div>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold">Gestionare Utilizatori</h2>
+            <p className="text-muted-foreground">Gestionează parolele și rolurile utilizatorilor</p>
+          </div>
+          <div className="flex gap-2">
+            {headerActions}
+          </div>
+        </div>
+        {content}
+      </>
+    );
+  }
+
+  return (
+    <AdminLayout 
+      title="Gestionare Utilizatori"
+      actions={headerActions}
+    >
+      {content}
     </AdminLayout>
   );
 };
