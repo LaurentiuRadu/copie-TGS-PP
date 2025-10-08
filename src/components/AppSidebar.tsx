@@ -27,7 +27,7 @@ import {
 const adminMenuItems = [
   { title: "Dashboard", url: "/admin", icon: Home },
   { title: "Gestionare Utilizatori", url: "/user-management", icon: UserCog },
-  { title: "Pontaje Detaliate", url: "/time-entries", icon: ClipboardList },
+  { title: "Monitorizare Pontaje Live", url: "/time-entries", icon: ClipboardList },
   { title: "Timesheet", url: "/timesheet", icon: Table },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },

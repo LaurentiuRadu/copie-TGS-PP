@@ -138,7 +138,7 @@ const TimeEntries = () => {
 
 
   return (
-    <AdminLayout title="Pontaje Detaliate">
+    <AdminLayout title="Monitorizare Pontaje Live">
       <div className="container mx-auto p-6 space-y-6">
 
         {/* Entries List */}
