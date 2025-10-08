@@ -131,7 +131,20 @@ export default function WeeklySchedules() {
       return data;
     }
   });
-
+  
+  // Fetch execution items ("De executat")
+  const { data: executionItems } = useQuery({
+    queryKey: ['execution_items'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('execution_items')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+  
   // Fetch schedules for all teams in the selected week
   const { data: schedules, isLoading } = useQuery({
     queryKey: ['weekly-schedules', selectedWeek],
@@ -254,6 +267,10 @@ export default function WeeklySchedules() {
       }
 
       // Dacă adaugi - pentru fiecare zi, configurație, și angajat
+      // Securizare: nu permite folosirea aceluiași nume/număr de echipă în săptămâna curentă
+      if (!editingSchedule && usedTeams.has(selectedTeam)) {
+        throw new Error('Numele/numărul echipei este deja folosit în săptămâna curentă');
+      }
       const scheduleEntries = [];
       for (const dayOfWeek of selectedDays) {
         const configs = dayConfigurations[dayOfWeek] || [];
@@ -666,10 +683,23 @@ export default function WeeklySchedules() {
                 </Select>
               </div>
             )}
-            <Button onClick={() => { resetForm(); setShowForm(!showForm); setActiveTab('details'); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Adaugă Programare
-            </Button>
+              <Button onClick={() => {
+                resetForm();
+                // Alege automat următorul număr de echipă disponibil în săptămâna curentă
+                const allTeams = Array.from({ length: 10 }, (_, i) => `E${i + 1}`);
+                const nextTeam = allTeams.find(t => !usedTeams.has(t));
+                if (!nextTeam) {
+                  toast.error('Toate numerele de echipă sunt ocupate pentru săptămâna selectată');
+                  return;
+                }
+                setSelectedTeam(nextTeam);
+                setFormData(prev => ({ ...prev, team_id: nextTeam, week_start_date: selectedWeek }));
+                setShowForm(true);
+                setActiveTab('details');
+              }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adaugă Programare
+              </Button>
             {selectedScheduleIds.length > 0 && (
               <Button variant="destructive" onClick={handleDeleteSelected}>
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -1083,11 +1113,74 @@ export default function WeeklySchedules() {
                             
                             <div className="md:col-span-2">
                               <Label>De executat</Label>
-                              <Input
-                                value={config.observations}
-                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'observations', e.target.value)}
-                                placeholder="Detalii despre sarcini de executat"
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                      "w-full justify-between font-normal",
+                                      !config.observations && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {config.observations || "Selectează/adauga 'De executat'..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="🔍 Caută 'De executat'..." />
+                                    <CommandEmpty>
+                                      <div className="p-2 text-sm">
+                                        Nu există elementul. Scrie-l manual:
+                                        <Input
+                                          className="mt-2"
+                                          placeholder="Element nou..."
+                                          onKeyDown={async (e) => {
+                                            if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              const newItem = e.currentTarget.value.trim();
+                                              if (newItem) {
+                                                updateDayConfiguration(dayNum, configIndex, 'observations', newItem);
+                                                try {
+                                                  await supabase.from('execution_items').insert({ name: newItem });
+                                                  queryClient.invalidateQueries({ queryKey: ['execution_items'] });
+                                                  toast.success(`Element "${newItem}" adăugat`);
+                                                  document.body.click();
+                                                } catch (error: any) {
+                                                  if (error.code !== '23505') {
+                                                    toast.error('Eroare la salvarea elementului');
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }}
+                                        />
+                                      </div>
+                                    </CommandEmpty>
+                                    <CommandGroup className="max-h-64 overflow-auto">
+                                      {executionItems?.map((item) => (
+                                        <CommandItem
+                                          key={item.id}
+                                          value={item.name}
+                                          onSelect={() => {
+                                            updateDayConfiguration(dayNum, configIndex, 'observations', item.name);
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              config.observations === item.name ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {item.name}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </div>
                           </div>
                         </div>
@@ -1134,11 +1227,74 @@ export default function WeeklySchedules() {
               {editingSchedule && (
                 <div>
                   <Label>De executat</Label>
-                  <Input
-                    value={formData.observations}
-                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                    placeholder="ex: Detalii despre sarcini..."
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between font-normal",
+                          !formData.observations && "text-muted-foreground"
+                        )}
+                      >
+                        {formData.observations || "Selectează/adauga 'De executat'..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="🔍 Caută 'De executat'..." />
+                        <CommandEmpty>
+                          <div className="p-2 text-sm">
+                            Nu există elementul. Scrie-l manual:
+                            <Input
+                              className="mt-2"
+                              placeholder="Element nou..."
+                              onKeyDown={async (e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const newItem = e.currentTarget.value.trim();
+                                  if (newItem) {
+                                    setFormData(prev => ({ ...prev, observations: newItem }));
+                                    try {
+                                      await supabase.from('execution_items').insert({ name: newItem });
+                                      queryClient.invalidateQueries({ queryKey: ['execution_items'] });
+                                      toast.success(`Element "${newItem}" adăugat`);
+                                      document.body.click();
+                                    } catch (error: any) {
+                                      if (error.code !== '23505') {
+                                        toast.error('Eroare la salvarea elementului');
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {executionItems?.map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={item.name}
+                              onSelect={() => {
+                                setFormData(prev => ({ ...prev, observations: item.name }));
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.observations === item.name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {item.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
 

@@ -211,6 +211,27 @@ export type Database = {
         }
         Relationships: []
       }
+      execution_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       face_verification_logs: {
         Row: {
           created_at: string
