@@ -1,6 +1,8 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
+import { getWeek } from "date-fns";
+import { ro } from "date-fns/locale";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -11,6 +13,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
   return (
     <DayPicker
       weekStartsOn={1}
+      showWeekNumber
       showOutsideDays={showOutsideDays}
       className={cn("p-3 pointer-events-auto", className)}
       classNames={{
@@ -26,6 +29,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
+        weeknumber: "text-muted-foreground font-medium text-xs w-8 text-center border-r border-border pr-2",
         head_row: "flex",
         head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
         row: "flex w-full mt-2",
@@ -44,7 +48,13 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
       }}
       components={{
         Chevron: ({ orientation }) => 
-          orientation === 'left' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+          orientation === 'left' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />,
+      }}
+      locale={ro}
+      formatters={{
+        formatWeekNumber: (weekNumber) => {
+          return `${weekNumber}`;
+        },
       }}
       {...props}
     />
