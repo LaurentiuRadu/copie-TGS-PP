@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
@@ -143,25 +141,8 @@ const TimeEntries = () => {
     <AdminLayout title="Pontaje Detaliate">
       <div className="container mx-auto p-6 space-y-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Selectează Data</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              locale={ro}
-              className="rounded-md border"
-            />
-          </CardContent>
-        </Card>
-
         {/* Entries List */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle>
               Pontaje ({entries.length})
@@ -264,7 +245,6 @@ const TimeEntries = () => {
             )}
           </CardContent>
         </Card>
-      </div>
 
       {/* Detail Modal */}
       <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(null)}>
