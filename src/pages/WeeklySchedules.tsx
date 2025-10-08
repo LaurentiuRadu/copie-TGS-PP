@@ -330,7 +330,7 @@ export default function WeeklySchedules() {
         for (let i = 0; i < configs.length; i++) {
           const config = configs[i];
           if (!config.location || !config.activity) {
-            toast.error(`Completează Locația și Activitatea pentru ${dayNames[day - 1]} - Locație ${i + 1}`);
+            toast.error(`Completează Locația și Proiectul pentru ${dayNames[day - 1]} - Locație ${i + 1}`);
             return;
           }
         }
@@ -875,11 +875,11 @@ export default function WeeklySchedules() {
                             </div>
                             
                             <div>
-                              <Label>Activitate *</Label>
+                              <Label>Proiect *</Label>
                               <Input
                                 value={config.activity}
                                 onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'activity', e.target.value)}
-                                placeholder="Ex: Pază"
+                                placeholder="Ex: Pază Complexul X"
                               />
                             </div>
                             
@@ -893,11 +893,11 @@ export default function WeeklySchedules() {
                             </div>
                             
                             <div className="md:col-span-2">
-                              <Label>Observații</Label>
+                              <Label>De executat</Label>
                               <Input
                                 value={config.observations}
                                 onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'observations', e.target.value)}
-                                placeholder="Detalii suplimentare"
+                                placeholder="Detalii despre sarcini de executat"
                               />
                             </div>
                           </div>
@@ -932,11 +932,11 @@ export default function WeeklySchedules() {
                     />
                   </div>
                   <div>
-                    <Label>Activitate</Label>
+                    <Label>Proiect</Label>
                     <Input
                       value={formData.activity}
                       onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
-                      placeholder="ex: MIV"
+                      placeholder="ex: Pază Complexul X"
                     />
                   </div>
                 </div>
@@ -944,11 +944,11 @@ export default function WeeklySchedules() {
 
               {editingSchedule && (
                 <div>
-                  <Label>Observații</Label>
+                  <Label>De executat</Label>
                   <Input
                     value={formData.observations}
                     onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                    placeholder="ex: Observații..."
+                    placeholder="ex: Detalii despre sarcini..."
                   />
                 </div>
               )}
@@ -1086,9 +1086,9 @@ export default function WeeklySchedules() {
                     <TableHead>Manager de Proiect</TableHead>
                     <TableHead>Șef de Echipă</TableHead>
                     <TableHead>Locație</TableHead>
-                    <TableHead>Activitate</TableHead>
+                    <TableHead>Proiect</TableHead>
                     <TableHead>Mașină</TableHead>
-                    <TableHead>Observații</TableHead>
+                    <TableHead>De executat</TableHead>
                     <TableHead className="w-[120px]">Acțiuni</TableHead>
                   </TableRow>
                 </TableHeader>
