@@ -1,5 +1,8 @@
 project_id = "hbwkufaksipsqipqdqcv"
 
+[functions.consolidate-duplicate-accounts]
+verify_jwt = true
+
 [functions.calculate-time-segments]
 verify_jwt = true
 
