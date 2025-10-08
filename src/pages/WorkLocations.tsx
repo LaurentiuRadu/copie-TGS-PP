@@ -89,6 +89,13 @@ const WorkLocations = () => {
     fetchLocations();
   }, []);
 
+  // Auto-obține locația curentă când se deschide dialogul
+  useEffect(() => {
+    if (dialogOpen && !editingLocation) {
+      useCurrentLocation();
+    }
+  }, [dialogOpen, editingLocation]);
+
   useEffect(() => {
     // Initialize or cleanup map based on dialog visibility
     if (!dialogOpen) {
