@@ -9,7 +9,7 @@ import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
 import { VersionManager } from "@/components/VersionManager";
-import { DuplicateAccountConsolidation } from "@/components/DuplicateAccountConsolidation";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -55,9 +55,6 @@ const Admin = () => {
 
             {/* Version Manager */}
             <VersionManager />
-
-            {/* Duplicate Account Consolidation */}
-            <DuplicateAccountConsolidation />
 
             {/* Historical Data Migration - Pas 5 */}
             <HistoricalDataMigration />
