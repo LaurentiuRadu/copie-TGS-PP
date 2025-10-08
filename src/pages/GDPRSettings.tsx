@@ -4,19 +4,15 @@ import { ActiveSessionsManager } from "@/components/ActiveSessionsManager";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield } from "lucide-react";
+import { AdminLayout } from "@/components/AdminLayout";
 
 export default function GDPRSettings() {
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
 
   return (
-    <div className="container max-w-4xl py-8 space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Setări GDPR & Confidențialitate</h1>
-        <p className="text-muted-foreground">
-          Gestionează consimțămintele și drepturile tale privind datele personale
-        </p>
-      </div>
+    <AdminLayout title="GDPR & Confidențialitate">
+      <div className="container max-w-4xl py-8 space-y-8">
 
       {isAdmin ? (
         <Card>
@@ -40,8 +36,9 @@ export default function GDPRSettings() {
         <GDPRConsentManager />
       )}
       
-      <ActiveSessionsManager />
-      <GDPRDataManager />
-    </div>
+        <ActiveSessionsManager />
+        <GDPRDataManager />
+      </div>
+    </AdminLayout>
   );
 }

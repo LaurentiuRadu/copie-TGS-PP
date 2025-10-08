@@ -36,7 +36,7 @@ import { useAutoDarkMode } from "@/hooks/useAutoDarkMode";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 import { EmployeeScheduleView } from "@/components/EmployeeScheduleView";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
-import { AppHeader } from "@/components/AppHeader";
+import { AdminLayout } from "@/components/AdminLayout";
 import { TardinessReasonDialog } from "@/components/TardinessReasonDialog";
 import { ClockOutReminderAlert } from "@/components/ClockOutReminderAlert";
 import { useTardinessCheck } from "@/hooks/useTardinessCheck";
@@ -858,51 +858,9 @@ const Mobile = () => {
   const mobileDisplayVersion = `${BASE_VERSION}.${currVer?.version ?? "10"}`;
 
   return (
-    <div className="min-h-screen bg-background pb-safe-area-bottom">
-      <AppHeader 
-        userName=""
-        showBackButton={false}
-      >
-        <div className="flex flex-col h-full">
-          <div className="p-4 border-b">
-            <h2 className="font-semibold text-lg">Meniu</h2>
-            <p className="text-sm text-muted-foreground">Opțiuni disponibile</p>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2"
-              onClick={() => navigate('/my-time-entries')}
-            >
-              <Clock className="h-4 w-4" />
-              Pontajele Mele
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2" 
-              onClick={() => navigate('/vacations')}
-            >
-              <CalendarDays className="h-4 w-4" />
-              Concedii
-            </Button>
-          </div>
-          <div className="p-4 border-t">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2 text-destructive hover:text-destructive"
-              onClick={handleLogoutClick}
-            >
-              <LogOut className="h-4 w-4" />
-              Deconectare
-            </Button>
-            <p className="mt-2 text-[10px] text-muted-foreground/60 text-center">
-              v{mobileDisplayVersion}
-            </p>
-          </div>
-        </div>
-      </AppHeader>
-
-      <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
+    <AdminLayout title="Pontaj">
+      <div className="pb-safe-area-bottom">
+        <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
         {/* Header cu numele utilizatorului */}
         <Card className="shadow-custom-md animate-fade-in">
           <CardContent className="p-4">
@@ -1193,7 +1151,9 @@ const Mobile = () => {
           loading={isProcessing}
         />
       )}
-    </div>
+        </main>
+      </div>
+    </AdminLayout>
   );
 };
 

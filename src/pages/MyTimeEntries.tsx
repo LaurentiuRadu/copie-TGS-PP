@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { AppHeader } from '@/components/AppHeader';
+import { AdminLayout } from '@/components/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -523,10 +523,8 @@ export default function MyTimeEntries() {
   const isLoading = entriesLoading || timesheetsLoading;
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingTop: safeArea.top, paddingBottom: safeArea.bottom }}>
-      <AppHeader />
-      
-      <main className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
+    <AdminLayout title="Pontaj Personal">
+      <div className="container mx-auto px-4 py-6 max-w-4xl space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -970,7 +968,6 @@ export default function MyTimeEntries() {
             )}
           </CardContent>
         </Card>
-      </main>
 
       {/* Dialogs */}
       <TimeEntryCorrectionDialog
@@ -1008,6 +1005,7 @@ export default function MyTimeEntries() {
           onClose={() => setConfirmationCard({ ...confirmationCard, visible: false })}
         />
       )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
