@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +95,19 @@ export default function WeeklySchedules() {
   });
 
   const weekNumber = getWeek(new Date(selectedWeek), { weekStartsOn: 1 });
+
+  // Navigate between weeks
+  const goToPreviousWeek = () => {
+    const newWeek = format(startOfWeek(addDays(new Date(selectedWeek), -7), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    setSelectedWeek(newWeek);
+    setFormData(prev => ({ ...prev, week_start_date: newWeek }));
+  };
+
+  const goToNextWeek = () => {
+    const newWeek = format(startOfWeek(addDays(new Date(selectedWeek), 7), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    setSelectedWeek(newWeek);
+    setFormData(prev => ({ ...prev, week_start_date: newWeek }));
+  };
 
   // Fetch employees
   const { data: employees } = useQuery({
@@ -697,30 +710,48 @@ export default function WeeklySchedules() {
           <div className="flex flex-wrap gap-4 items-end">
             <div className="flex-1 min-w-[200px]">
               <Label>Săptămâna (Nr. {weekNumber})</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {selectedWeek ? format(new Date(selectedWeek), "dd MMM yyyy", { locale: ro }) : "Selectează săptămâna"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <SimpleDateRangePicker
-                    selected={{ 
-                      from: new Date(selectedWeek), 
-                      to: addDays(new Date(selectedWeek), 6) 
-                    }}
-                    onSelect={(range) => {
-                      if (range?.from) {
-                        const weekStart = format(startOfWeek(range.from, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-                        setSelectedWeek(weekStart);
-                        setFormData(prev => ({ ...prev, week_start_date: weekStart }));
-                      }
-                    }}
-                    disabled={(date) => date > new Date()}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={goToPreviousWeek}
+                  title="Săptămâna anterioară"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="flex-1 justify-start text-left font-normal">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {selectedWeek ? format(new Date(selectedWeek), "dd MMM yyyy", { locale: ro }) : "Selectează săptămâna"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <SimpleDateRangePicker
+                      selected={{ 
+                        from: new Date(selectedWeek), 
+                        to: addDays(new Date(selectedWeek), 6) 
+                      }}
+                      onSelect={(range) => {
+                        if (range?.from) {
+                          const weekStart = format(startOfWeek(range.from, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                          setSelectedWeek(weekStart);
+                          setFormData(prev => ({ ...prev, week_start_date: weekStart }));
+                        }
+                      }}
+                      disabled={(date) => date > new Date()}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={goToNextWeek}
+                  title="Săptămâna următoare"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             {activeTab === 'details' && (
               <div className="flex-1 min-w-[200px]">
