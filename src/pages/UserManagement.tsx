@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RefreshCw, UserPlus, Edit, Trash2, Users, Search, Filter, Key, Shield } from "lucide-react";
+import { RefreshCw, UserPlus, Edit, Trash2, Users, Search, Filter, Key, Shield, GitMerge } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +59,12 @@ const UserManagement = () => {
   const [changingRoleUser, setChangingRoleUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<'admin' | 'employee'>('employee');
   const [changingRole, setChangingRole] = useState(false);
+
+  // Consolidate accounts dialog
+  const [consolidateDialogOpen, setConsolidateDialogOpen] = useState(false);
+  const [sourceUser, setSourceUser] = useState<string>(''); // Cont de șters
+  const [targetUser, setTargetUser] = useState<string>(''); // Cont destinație
+  const [consolidating, setConsolidating] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -467,6 +473,82 @@ const UserManagement = () => {
     }
   };
 
+  const handleConsolidateAccounts = async () => {
+    if (!sourceUser || !targetUser) {
+      toast({
+        title: "Eroare",
+        description: "Selectează ambele conturi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (sourceUser === targetUser) {
+      toast({
+        title: "Eroare",
+        description: "Nu poți consolida un cont cu el însuși",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setConsolidating(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Eroare",
+          description: "Nu ești autentificat",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('consolidate-duplicate-accounts', {
+        body: {
+          sourceUserId: sourceUser,
+          targetUserId: targetUser,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error consolidating accounts:', error);
+        toast({
+          title: "Eroare",
+          description: "Nu s-au putut consolida conturile",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const sourceUsername = users.find(u => u.id === sourceUser)?.username;
+      const targetUsername = users.find(u => u.id === targetUser)?.username;
+
+      toast({
+        title: "Succes",
+        description: `Contul ${sourceUsername} a fost consolidat în ${targetUsername}. ${data.migratedCounts?.timeEntries || 0} pontaje mutate.`,
+      });
+
+      setConsolidateDialogOpen(false);
+      setSourceUser('');
+      setTargetUser('');
+      loadUsers();
+    } catch (error) {
+      console.error('Error consolidating accounts:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu s-au putut consolida conturile",
+        variant: "destructive",
+      });
+    } finally {
+      setConsolidating(false);
+    }
+  };
+
   return (
     <AdminLayout 
       title="Gestionare Utilizatori"
@@ -482,7 +564,7 @@ const UserManagement = () => {
                 <span className="hidden md:inline">Adaugă Utilizator</span>
               </Button>
             </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Adaugă Utilizator Nou</DialogTitle>
                   <DialogDescription>
@@ -572,7 +654,89 @@ const UserManagement = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button 
+          <Dialog open={consolidateDialogOpen} onOpenChange={setConsolidateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline"
+                size="sm"
+                className="gap-2 hover:bg-accent transition-all h-9"
+              >
+                <GitMerge className="h-4 w-4" />
+                <span className="hidden md:inline">Consolidează Conturi</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Consolidează Conturi Duplicate</DialogTitle>
+                <DialogDescription>
+                  Mută toate pontajele de la un cont duplicat către contul corect, apoi șterge contul duplicat.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="source-user">Cont de Șters (duplicat)</Label>
+                  <Select value={sourceUser} onValueChange={setSourceUser}>
+                    <SelectTrigger className="border-primary/20 focus:border-primary">
+                      <SelectValue placeholder="Selectează contul duplicat" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.username} - {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="target-user">Cont Corect (destinație)</Label>
+                  <Select value={targetUser} onValueChange={setTargetUser}>
+                    <SelectTrigger className="border-primary/20 focus:border-primary">
+                      <SelectValue placeholder="Selectează contul corect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.username} - {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {sourceUser && targetUser && sourceUser !== targetUser && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive font-medium">
+                      ⚠️ Atenție: Această acțiune va muta toate pontajele de la{' '}
+                      <strong>{users.find(u => u.id === sourceUser)?.username}</strong> către{' '}
+                      <strong>{users.find(u => u.id === targetUser)?.username}</strong> și va șterge{' '}
+                      primul cont. Această operație este ireversibilă!
+                    </p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setConsolidateDialogOpen(false);
+                    setSourceUser('');
+                    setTargetUser('');
+                  }}
+                >
+                  Anulează
+                </Button>
+                <Button 
+                  onClick={handleConsolidateAccounts}
+                  disabled={consolidating || !sourceUser || !targetUser || sourceUser === targetUser}
+                  variant="destructive"
+                  className="shadow-md hover:shadow-lg transition-all"
+                >
+                  {consolidating ? 'Se consolidează...' : 'Consolidează Conturi'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button
             variant="outline" 
             size="sm" 
             onClick={loadUsers}

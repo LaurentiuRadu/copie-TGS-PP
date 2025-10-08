@@ -53,37 +53,8 @@ const Auth = () => {
       });
 
       if (isSignUp) {
-        // For signup, we create an account with username as email (workaround)
-        const email = `${validated.username}@company.local`;
-        
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password: validated.password,
-          options: {
-            data: {
-              username: validated.username,
-              full_name: employeeFullName,
-            },
-            emailRedirectTo: `${window.location.origin}/mobile`,
-          },
-        });
-
-        if (signUpError) throw signUpError;
-
-        if (signUpData.user) {
-          // Assign employee role
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: signUpData.user.id,
-              role: 'employee',
-            });
-
-          if (roleError) throw roleError;
-
-          toast.success("Contul de angajat a fost creat cu succes!");
-          navigate("/mobile");
-        }
+        // Signup disabled for employees - only admins can create employee accounts
+        throw new Error("Crearea contului de angajat este dezactivată. Contactează administratorul pentru a-ți crea un cont.");
       } else {
         // Login with username - try both domains with fallback
         const primaryEmail = `${validated.username}@company.local`;
@@ -145,30 +116,8 @@ const Auth = () => {
       });
 
       if (isSignUp) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: validated.email,
-          password: validated.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/admin`,
-          },
-        });
-
-        if (signUpError) throw signUpError;
-
-        if (signUpData.user) {
-          // Assign admin role
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: signUpData.user.id,
-              role: 'admin',
-            });
-
-          if (roleError) throw roleError;
-
-          toast.success("Contul de administrator a fost creat cu succes!");
-          navigate("/admin");
-        }
+        // Signup disabled for admins too - use create-user edge function instead
+        throw new Error("Crearea contului de administrator este dezactivată. Contactează super-adminul.");
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: validated.email,
@@ -351,18 +300,7 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
 
-          <div className="mt-6 text-center">
-            <Button
-              variant="link"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError(null);
-              }}
-              className={`text-sm ${activeTab === "admin" ? "text-white hover:text-white/80" : "text-primary hover:text-primary/80"} transition-colors`}
-            >
-              {isSignUp ? "Am deja cont" : "Creează cont nou"}
-            </Button>
-          </div>
+          {/* Signup disabled - only show for reference but hide the toggle button */}
         </CardContent>
       </Card>
     </div>
