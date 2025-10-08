@@ -34,10 +34,10 @@ export function AdminLayout({ children, title, actions }: AdminLayoutProps) {
               {actions}
               <AdminSearchCommand />
               <Button 
-                variant="outline" 
+                variant="secondary" 
                 size="sm" 
                 onClick={signOut}
-                className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive transition-all duration-200"
+                className="gap-2 hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden md:inline">Deconectare</span>
