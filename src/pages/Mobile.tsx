@@ -97,6 +97,7 @@ const Mobile = () => {
     open: boolean;
     type: "clock-in" | "clock-out";
     shiftType: string;
+    originalShiftType?: ShiftType;
     location: { name: string; address?: string } | null;
   } | null>(null);
   
@@ -399,6 +400,7 @@ const Mobile = () => {
           open: true,
           type: "clock-in",
           shiftType: getShiftTypeLabel(type),
+          originalShiftType: type,
           location: nearestLocation ? { name: nearestLocation.name, address: nearestLocation.address } : null,
         });
         triggerHaptic('light');
@@ -637,6 +639,7 @@ const Mobile = () => {
         open: true,
         type: "clock-out",
         shiftType: getShiftTypeLabel(activeShift),
+        originalShiftType: activeShift,
         location: nearestLocation ? { name: nearestLocation.name, address: nearestLocation.address } : null,
       });
       triggerHaptic('light');
@@ -1138,9 +1141,10 @@ const Mobile = () => {
           onOpenChange={(open) => !open && setPreClockDialog(null)}
           onConfirm={async () => {
             const type = preClockDialog.type;
+            const originalShift = preClockDialog.originalShiftType;
             setPreClockDialog(null);
             if (type === "clock-in") {
-              await actuallyStartShift(activeShift || "normal");
+              await actuallyStartShift(originalShift || "normal");
             } else {
               await actuallyEndShift();
             }
