@@ -22,6 +22,7 @@ import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 
 import WeeklySchedules from "./pages/WeeklySchedules";
+import EditTeamSchedule from "./pages/EditTeamSchedule";
 import GDPRAdmin from "./pages/GDPRAdmin";
 import Timesheet from "./pages/Timesheet";
 import GDPRSettings from "./pages/GDPRSettings";
@@ -133,6 +134,14 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <WeeklySchedules />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/edit-team-schedule"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <EditTeamSchedule />
                   </ProtectedRoute>
                 }
               />

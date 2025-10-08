@@ -1015,6 +1015,7 @@ export type Database = {
           observations: string | null
           shift_type: string
           team_id: string
+          team_leader_id: string | null
           updated_at: string
           user_id: string
           vehicle: string | null
@@ -1031,6 +1032,7 @@ export type Database = {
           observations?: string | null
           shift_type?: string
           team_id: string
+          team_leader_id?: string | null
           updated_at?: string
           user_id: string
           vehicle?: string | null
@@ -1047,6 +1049,7 @@ export type Database = {
           observations?: string | null
           shift_type?: string
           team_id?: string
+          team_leader_id?: string | null
           updated_at?: string
           user_id?: string
           vehicle?: string | null

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -50,6 +51,7 @@ const AVAILABLE_VEHICLES = [
 ];
 
 export default function WeeklySchedules() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   useRealtimeSchedules(true);
   const [selectedWeek, setSelectedWeek] = useState(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
@@ -61,7 +63,8 @@ export default function WeeklySchedules() {
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [coordinatorId, setCoordinatorId] = useState<string>('');
+  const [projectManagerId, setProjectManagerId] = useState<string>('');
+  const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [activeTab, setActiveTab] = useState('summary');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [vehicleSearch, setVehicleSearch] = useState('');
@@ -185,8 +188,12 @@ export default function WeeklySchedules() {
         throw new Error('Selectează cel puțin un angajat');
       }
 
-      if (!coordinatorId && !editingSchedule) {
-        throw new Error('Selectează un coordonator');
+      if (!projectManagerId && !editingSchedule) {
+        throw new Error('Selectează un Manager de Proiect');
+      }
+
+      if (!teamLeaderId && !editingSchedule) {
+        throw new Error('Selectează un Șef de Echipă');
       }
 
       const vehicles = selectedVehicles.join(', ');
@@ -202,7 +209,8 @@ export default function WeeklySchedules() {
             observations: formData.observations,
             shift_type: formData.shift_type,
             day_of_week: formData.day_of_week,
-            coordinator_id: coordinatorId || editingSchedule.coordinator_id
+            coordinator_id: projectManagerId || editingSchedule.coordinator_id,
+            team_leader_id: teamLeaderId || editingSchedule.team_leader_id
           })
           .eq('id', editingSchedule.id);
         
@@ -226,7 +234,8 @@ export default function WeeklySchedules() {
               vehicle: config.vehicle || null,
               observations: config.observations || null,
               shift_type: config.shift_type,
-              coordinator_id: coordinatorId
+              coordinator_id: projectManagerId,
+              team_leader_id: teamLeaderId
             });
           }
         }
@@ -281,7 +290,8 @@ export default function WeeklySchedules() {
     setSelectedEmployees([]);
     setSelectedVehicles([]);
     setSelectedDays([]);
-    setCoordinatorId('');
+    setProjectManagerId('');
+    setTeamLeaderId('');
     setDayConfigurations({});
     setEmployeeSearch('');
     setVehicleSearch('');
@@ -337,7 +347,8 @@ export default function WeeklySchedules() {
     setSelectedEmployees([schedule.user_id]);
     setSelectedVehicles(schedule.vehicle ? schedule.vehicle.split(',').map((v: string) => v.trim()) : []);
     setSelectedDays([schedule.day_of_week]);
-    setCoordinatorId(schedule.coordinator_id || '');
+    setProjectManagerId(schedule.coordinator_id || '');
+    setTeamLeaderId(schedule.team_leader_id || '');
     setFormData({
       team_id: schedule.team_id,
       week_start_date: schedule.week_start_date,
@@ -378,7 +389,8 @@ export default function WeeklySchedules() {
     setSelectedEmployees([userId]);
     setSelectedDays(userSchedules.map((s: any) => s.day_of_week));
     setDayConfigurations(configs);
-    setCoordinatorId(firstSchedule.coordinator_id || '');
+    setProjectManagerId(firstSchedule.coordinator_id || '');
+    setTeamLeaderId(firstSchedule.team_leader_id || '');
     setFormData({
       team_id: firstSchedule.team_id,
       week_start_date: firstSchedule.week_start_date,
@@ -633,24 +645,45 @@ export default function WeeklySchedules() {
                 </h3>
               </div>
               
-              {/* Coordonator Selection */}
-              <div className="border-b pb-4">
-                <Label className="text-base font-semibold flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Coordonator *
-                </Label>
-                <Select value={coordinatorId} onValueChange={setCoordinatorId}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Selectează coordonatorul echipei" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees?.map(emp => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        👤 {emp.full_name || emp.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Manager de Proiect & Șef de Echipă Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
+                <div>
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Manager de Proiect *
+                  </Label>
+                  <Select value={projectManagerId} onValueChange={setProjectManagerId}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Selectează Manager de Proiect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees?.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          👤 {emp.full_name || emp.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Șef de Echipă *
+                  </Label>
+                  <Select value={teamLeaderId} onValueChange={setTeamLeaderId}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Selectează Șef de Echipă" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees?.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          👤 {emp.full_name || emp.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -915,7 +948,7 @@ export default function WeeklySchedules() {
                   <Input
                     value={formData.observations}
                     onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                    placeholder="ex: Coordonator..."
+                    placeholder="ex: Observații..."
                   />
                 </div>
               )}
@@ -967,10 +1000,9 @@ export default function WeeklySchedules() {
                               variant="ghost"
                               size="icon"
                               onClick={() => {
-                                setActiveTab('details');
-                                setSelectedScheduleIds(summary.scheduleIds || []);
+                                navigate(`/edit-team-schedule?team=${summary.team_id}&week=${selectedWeek}`);
                               }}
-                              title="Vezi detaliile"
+                              title="Editează echipa"
                             >
                               <Edit className="h-4 w-4 text-primary" />
                             </Button>
@@ -990,7 +1022,7 @@ export default function WeeklySchedules() {
                         {summary.coordinator && (
                           <CardDescription className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            Coordonator: <strong>{summary.coordinator.full_name}</strong>
+                            Manager de Proiect: <strong>{summary.coordinator.full_name}</strong>
                           </CardDescription>
                         )}
                       </CardHeader>
@@ -1051,7 +1083,8 @@ export default function WeeklySchedules() {
                     <TableHead>Zi</TableHead>
                     <TableHead>Tură</TableHead>
                     <TableHead>Angajat</TableHead>
-                    <TableHead>Coordonator</TableHead>
+                    <TableHead>Manager de Proiect</TableHead>
+                    <TableHead>Șef de Echipă</TableHead>
                     <TableHead>Locație</TableHead>
                     <TableHead>Activitate</TableHead>
                     <TableHead>Mașină</TableHead>
@@ -1062,17 +1095,18 @@ export default function WeeklySchedules() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center">Se încarcă...</TableCell>
+                      <TableCell colSpan={11} className="text-center">Se încarcă...</TableCell>
                     </TableRow>
                   ) : schedules?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground">
                         Nu există programări pentru această săptămână
                       </TableCell>
                     </TableRow>
                   ) : (
                     schedules?.map((schedule: any) => {
                       const coordinator = employees?.find(e => e.id === schedule.coordinator_id);
+                      const teamLeader = employees?.find(e => e.id === schedule.team_leader_id);
                       return (
                         <TableRow key={schedule.id} className={selectedScheduleIds.includes(schedule.id) ? 'bg-muted/50' : ''}>
                           <TableCell>
@@ -1093,6 +1127,16 @@ export default function WeeklySchedules() {
                               <Badge variant="outline" className="gap-1">
                                 <User className="h-3 w-3" />
                                 {coordinator.full_name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {teamLeader ? (
+                              <Badge variant="outline" className="gap-1">
+                                <User className="h-3 w-3" />
+                                {teamLeader.full_name}
                               </Badge>
                             ) : (
                               <span className="text-muted-foreground text-xs">N/A</span>
