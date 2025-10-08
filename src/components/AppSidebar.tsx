@@ -214,7 +214,7 @@ export function AppSidebar() {
           <Button
             onClick={handleForceUpdate}
             disabled={isRefreshing}
-            variant="outline"
+            variant="secondary"
             size={open ? "default" : "icon"}
             className="w-full glass-button touch-target-lg hover:glow-primary"
           >
@@ -224,7 +224,7 @@ export function AppSidebar() {
           
           <Button
             onClick={signOut}
-            variant="outline"
+            variant="secondary"
             size={open ? "default" : "icon"}
             className="w-full"
           >
