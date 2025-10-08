@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import tgsLogo from "@/assets/tgs-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -116,14 +117,14 @@ export function AppSidebar() {
         <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-6">
           {open ? (
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <Clock className="h-5 w-5 text-primary-foreground" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+                <img src={tgsLogo} alt="TGS PP Logo" className="h-full w-full object-cover" />
               </div>
-              <span className="text-lg font-bold text-sidebar-foreground">TimeTrack</span>
+              <span className="text-lg font-bold text-sidebar-foreground">TGS PP</span>
             </div>
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Clock className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+              <img src={tgsLogo} alt="TGS PP Logo" className="h-full w-full object-cover" />
             </div>
           )}
         </div>

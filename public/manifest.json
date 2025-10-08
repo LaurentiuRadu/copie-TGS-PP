@@ -1,6 +1,6 @@
 {
-  "name": "TimeTrack - Sistem de Pontaj",
-  "short_name": "TimeTrack",
+  "name": "TGS PP - Sistem de Pontaj",
+  "short_name": "TGS PP",
   "description": "Sistem modern de pontaj cu verificare facială și geolocație",
   "start_url": "/",
   "display": "standalone",

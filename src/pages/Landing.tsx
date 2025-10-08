@@ -17,7 +17,7 @@ const Landing = () => {
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-foreground">
-            TimeTrack
+            TGS PP
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Time Tracking & Productivity Management

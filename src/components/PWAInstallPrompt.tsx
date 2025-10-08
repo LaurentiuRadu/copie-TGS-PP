@@ -73,7 +73,7 @@ export function PWAInstallPrompt() {
           
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm mb-1">
-              Instalează TimeTrack
+              Instalează TGS PP
             </h3>
             <p className="text-xs text-muted-foreground mb-3">
               Obține acces rapid și funcționează fullscreen fără tab-uri de browser

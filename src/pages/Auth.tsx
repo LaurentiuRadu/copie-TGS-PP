@@ -151,7 +151,7 @@ const Auth = () => {
       <Card className={`w-full max-w-md shadow-elegant transition-all duration-300 ${activeTab === "admin" ? "bg-secondary border-secondary" : "border-primary/20"}`}>
         <CardHeader className="text-center space-y-4">
           <CardTitle className={`text-3xl font-bold ${activeTab === "admin" ? "text-white" : "bg-gradient-primary bg-clip-text text-transparent"}`}>
-            TimeTrack
+            TGS PP
           </CardTitle>
           <CardDescription className="text-base">
             {isSignUp ? "Creează cont nou" : "Autentificare în sistem"}
