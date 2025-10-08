@@ -28,6 +28,21 @@ Deno.serve(async (req) => {
 
     console.log('[analyze-work-patterns] Starting pattern analysis...');
 
+    // Fetch active work locations to check for country-wide coverage
+    const { data: workLocations, error: locError } = await supabase
+      .from('work_locations')
+      .select('id, name, coverage_type, latitude, longitude, radius_meters')
+      .eq('is_active', true);
+
+    if (locError) {
+      console.error('[analyze-work-patterns] Error fetching work locations:', locError);
+      throw locError;
+    }
+
+    // Check if there's a country-wide location (Toată România)
+    const hasCountryLocation = workLocations?.some(loc => loc.coverage_type === 'country');
+    console.log(`[analyze-work-patterns] Country-wide location exists: ${hasCountryLocation}`);
+
     // Get active users from last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -212,6 +227,12 @@ Deno.serve(async (req) => {
 
         // Check location deviation (only if we have a predominant location)
         if (predominantLocation.count > 0 && entry.clock_in_latitude && entry.clock_in_longitude) {
+          // ✅ SKIP location anomaly check if country-wide coverage exists
+          if (hasCountryLocation) {
+            console.log(`[analyze-work-patterns] Skipping location anomaly check - country-wide coverage active`);
+            continue;
+          }
+
           // Calculate distance from predominant location (Haversine formula)
           const R = 6371000; // Earth radius in meters
           const lat1 = predominantLocation.lat * Math.PI / 180;
