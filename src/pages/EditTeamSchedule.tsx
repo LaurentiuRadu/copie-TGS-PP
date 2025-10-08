@@ -16,10 +16,10 @@ const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', '
 
 interface DayConfiguration {
   location: string;
-  activity: string;
+  project: string;
   vehicle: string;
   shift_type: 'zi' | 'noapte';
-  observations: string;
+  to_execute: string;
 }
 
 export default function EditTeamSchedule() {
@@ -54,6 +54,32 @@ export default function EditTeamSchedule() {
         .from('profiles')
         .select('id, full_name, username')
         .order('full_name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch locations
+  const { data: locations } = useQuery({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch projects
+  const { data: projects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
       if (error) throw error;
       return data;
     }
@@ -135,10 +161,10 @@ export default function EditTeamSchedule() {
           
           configs[schedule.day_of_week].push({
             location: schedule.location || '',
-            activity: schedule.activity || '',
+            project: schedule.activity || '',
             vehicle: schedule.vehicle || '',
             shift_type: schedule.shift_type as 'zi' | 'noapte',
-            observations: schedule.observations || ''
+            to_execute: schedule.observations || ''
           });
         }
       });
@@ -164,18 +190,18 @@ export default function EditTeamSchedule() {
   }, [vehicleSearch]);
 
   const filteredLocations = useMemo(() => {
-    if (!dbLocations) return [];
-    if (!locationSearch.trim()) return dbLocations;
+    if (!locations) return [];
+    if (!locationSearch.trim()) return locations;
     const searchLower = locationSearch.toLowerCase();
-    return dbLocations.filter(l => l.toLowerCase().includes(searchLower));
-  }, [dbLocations, locationSearch]);
+    return locations.filter(loc => loc.name.toLowerCase().includes(searchLower));
+  }, [locations, locationSearch]);
 
   const filteredProjects = useMemo(() => {
-    if (!dbProjects) return [];
-    if (!projectSearch.trim()) return dbProjects;
+    if (!projects) return [];
+    if (!projectSearch.trim()) return projects;
     const searchLower = projectSearch.toLowerCase();
-    return dbProjects.filter(p => p.toLowerCase().includes(searchLower));
-  }, [dbProjects, projectSearch]);
+    return projects.filter(proj => proj.name.toLowerCase().includes(searchLower));
+  }, [projects, projectSearch]);
 
   const updateSchedules = useMutation({
     mutationFn: async () => {
@@ -191,7 +217,7 @@ export default function EditTeamSchedule() {
       Object.values(dayConfigurations).forEach(configs => {
         configs.forEach(config => {
           if (config.location.trim()) uniqueLocations.add(config.location.trim());
-          if (config.activity.trim()) uniqueProjects.add(config.activity.trim());
+          if (config.project.trim()) uniqueProjects.add(config.project.trim());
         });
       });
 
@@ -228,9 +254,9 @@ export default function EditTeamSchedule() {
               user_id: userId,
               day_of_week: dayOfWeek,
               location: config.location,
-              activity: config.activity,
+              activity: config.project,
               vehicle: config.vehicle || null,
-              observations: config.observations || null,
+              observations: config.to_execute || null,
               shift_type: config.shift_type,
               coordinator_id: projectManagerId,
               team_leader_id: teamLeaderId
@@ -280,13 +306,13 @@ export default function EditTeamSchedule() {
       
       setDayConfigurations(prevConfigs => {
         const newConfigs = { ...prevConfigs };
-        if (newDays.includes(day) && !prevConfigs[day]) {
+      if (newDays.includes(day) && !prevConfigs[day]) {
           newConfigs[day] = [{
             location: '',
-            activity: '',
+            project: '',
             vehicle: selectedVehicles.join(', '),
             shift_type: 'zi',
-            observations: ''
+            to_execute: ''
           }];
         } else if (!newDays.includes(day)) {
           delete newConfigs[day];
@@ -305,10 +331,10 @@ export default function EditTeamSchedule() {
         ...(prev[dayNum] || []),
         {
           location: '',
-          activity: '',
+          project: '',
           vehicle: selectedVehicles.join(', '),
           shift_type: 'zi',
-          observations: ''
+          to_execute: ''
         }
       ]
     }));
@@ -544,7 +570,7 @@ export default function EditTeamSchedule() {
                             />
                             <datalist id={`locations-${dayNum}-${configIndex}`}>
                               {filteredLocations.map(loc => (
-                                <option key={loc} value={loc} />
+                                <option key={loc.id} value={loc.name} />
                               ))}
                             </datalist>
                           </div>
@@ -552,14 +578,20 @@ export default function EditTeamSchedule() {
                           <div>
                             <Label>Proiect *</Label>
                             <Input
-                              value={config.activity}
-                              onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'activity', e.target.value)}
+                              value={config.project}
+                              onChange={(e) => {
+                                updateDayConfiguration(dayNum, configIndex, 'project', e.target.value);
+                                // Auto-insert in projects table if doesn't exist
+                                if (e.target.value && !projects?.some(p => p.name === e.target.value)) {
+                                  supabase.from('projects').insert({ name: e.target.value }).then();
+                                }
+                              }}
                               placeholder="Ex: Pază Complexul X"
                               list={`projects-${dayNum}-${configIndex}`}
                             />
                             <datalist id={`projects-${dayNum}-${configIndex}`}>
                               {filteredProjects.map(proj => (
-                                <option key={proj} value={proj} />
+                                <option key={proj.id} value={proj.name} />
                               ))}
                             </datalist>
                           </div>
@@ -576,8 +608,8 @@ export default function EditTeamSchedule() {
                           <div className="md:col-span-2">
                             <Label>De executat</Label>
                             <Input
-                              value={config.observations}
-                              onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'observations', e.target.value)}
+                              value={config.to_execute}
+                              onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'to_execute', e.target.value)}
                               placeholder="Detalii despre sarcini de executat"
                             />
                           </div>
