@@ -11,7 +11,7 @@ import { useUpdateNotifications } from '@/hooks/useUpdateNotifications';
 import { supabase } from '@/integrations/supabase/client';
 
 const APP_VERSION_KEY = 'app_version';
-const CURRENT_VERSION = "1.0.0"; // Actualizează manual după fiecare publish în package.json
+const CURRENT_VERSION = "10"; // Actualizează manual după fiecare publish în package.json
 const DISMISSED_VERSION_KEY = 'dismissedAppVersion';
 
 export function UpdateNotification() {
@@ -49,6 +49,13 @@ export function UpdateNotification() {
       }
     };
     checkVersion();
+
+    // Curățare one-time pentru versiuni vechi dismissed
+    const dismissedVersion = localStorage.getItem(DISMISSED_VERSION_KEY);
+    if (dismissedVersion && dismissedVersion !== "10") {
+      localStorage.removeItem(DISMISSED_VERSION_KEY);
+      console.log('[UpdateNotification] Cleared old dismissed version:', dismissedVersion);
+    }
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then((reg) => {
