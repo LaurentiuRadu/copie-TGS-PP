@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Users } from 'lucide-react';
-import { format, startOfWeek } from 'date-fns';
+import { format, startOfWeek, getWeek, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 import { ScheduleChangeHistory } from './ScheduleChangeHistory';
@@ -13,7 +13,11 @@ const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', '
 
 export function EmployeeScheduleView() {
   const { user } = useAuth();
-  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const weekStartDate = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const currentWeekStart = format(weekStartDate, 'yyyy-MM-dd');
+  const weekNumber = getWeek(weekStartDate, { weekStartsOn: 1, locale: ro });
+  const weekEndDate = addDays(weekStartDate, 6);
+  const weekPeriod = `${format(weekStartDate, 'dd.MM.yyyy', { locale: ro })} - ${format(weekEndDate, 'dd.MM.yyyy', { locale: ro })}`;
 
   useRealtimeSchedules(true);
 
@@ -102,7 +106,7 @@ export function EmployeeScheduleView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Programarea Săptămânii
+            Programarea Săptămânii W{weekNumber} ({weekPeriod})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -118,7 +122,7 @@ export function EmployeeScheduleView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Programarea Săptămânii
+            Programarea Săptămânii W{weekNumber} ({weekPeriod})
           </CardTitle>
         </CardHeader>
         <CardContent>
