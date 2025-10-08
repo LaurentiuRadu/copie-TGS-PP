@@ -10,15 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown } from 'lucide-react';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SimpleDateRangePicker } from '@/components/ui/simple-date-range-picker';
 import { AdminLayout } from '@/components/AdminLayout';
+import { cn } from '@/lib/utils';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 
@@ -99,6 +101,32 @@ export default function WeeklySchedules() {
         .from('profiles')
         .select('id, full_name, username')
         .order('full_name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch locations
+  const { data: locations } = useQuery({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch projects
+  const { data: projects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
       if (error) throw error;
       return data;
     }
@@ -878,20 +906,126 @@ export default function WeeklySchedules() {
                             
                             <div>
                               <Label>Locație *</Label>
-                              <Input
-                                value={config.location}
-                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'location', e.target.value)}
-                                placeholder="Ex: București"
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                      "w-full justify-between font-normal",
+                                      !config.location && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {config.location || "Selectează locație..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="🔍 Caută locație..." />
+                                    <CommandEmpty>
+                                      <div className="p-2 text-sm">
+                                        Nu există locația. Scrie-o manual:
+                                        <Input
+                                          className="mt-2"
+                                          placeholder="Locație nouă..."
+                                          onKeyDown={async (e) => {
+                                            if (e.key === 'Enter') {
+                                              const newLocation = e.currentTarget.value.trim();
+                                              if (newLocation) {
+                                                updateDayConfiguration(dayNum, configIndex, 'location', newLocation);
+                                                await supabase.from('locations').insert({ name: newLocation });
+                                                queryClient.invalidateQueries({ queryKey: ['locations'] });
+                                              }
+                                            }
+                                          }}
+                                        />
+                                      </div>
+                                    </CommandEmpty>
+                                    <CommandGroup className="max-h-64 overflow-auto">
+                                      {locations?.map((loc) => (
+                                        <CommandItem
+                                          key={loc.id}
+                                          value={loc.name}
+                                          onSelect={() => {
+                                            updateDayConfiguration(dayNum, configIndex, 'location', loc.name);
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              config.location === loc.name ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {loc.name}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </div>
                             
                             <div>
                               <Label>Proiect *</Label>
-                              <Input
-                                value={config.activity}
-                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'activity', e.target.value)}
-                                placeholder="Ex: Pază Complexul X"
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                      "w-full justify-between font-normal",
+                                      !config.activity && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {config.activity || "Selectează proiect..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="🔍 Caută proiect..." />
+                                    <CommandEmpty>
+                                      <div className="p-2 text-sm">
+                                        Nu există proiectul. Scrie-l manual:
+                                        <Input
+                                          className="mt-2"
+                                          placeholder="Proiect nou..."
+                                          onKeyDown={async (e) => {
+                                            if (e.key === 'Enter') {
+                                              const newProject = e.currentTarget.value.trim();
+                                              if (newProject) {
+                                                updateDayConfiguration(dayNum, configIndex, 'activity', newProject);
+                                                await supabase.from('projects').insert({ name: newProject });
+                                                queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                              }
+                                            }
+                                          }}
+                                        />
+                                      </div>
+                                    </CommandEmpty>
+                                    <CommandGroup className="max-h-64 overflow-auto">
+                                      {projects?.map((proj) => (
+                                        <CommandItem
+                                          key={proj.id}
+                                          value={proj.name}
+                                          onSelect={() => {
+                                            updateDayConfiguration(dayNum, configIndex, 'activity', proj.name);
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              config.activity === proj.name ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {proj.name}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </div>
                             
                             <div>

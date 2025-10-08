@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { ArrowLeft, Calendar, Plus, X, Save } from 'lucide-react';
+import { ArrowLeft, Calendar, Plus, X, Save, Check, ChevronsUpDown } from 'lucide-react';
 import { AdminLayout } from '@/components/AdminLayout';
+import { cn } from '@/lib/utils';
 
 const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
@@ -580,38 +583,126 @@ export default function EditTeamSchedule() {
                           
                           <div>
                             <Label>Locație *</Label>
-                            <Input
-                              value={config.location}
-                              onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'location', e.target.value)}
-                              placeholder="Ex: București"
-                              list={`locations-${dayNum}-${configIndex}`}
-                            />
-                            <datalist id={`locations-${dayNum}-${configIndex}`}>
-                              {filteredLocations.map(loc => (
-                                <option key={loc.id} value={loc.name} />
-                              ))}
-                            </datalist>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full justify-between font-normal",
+                                    !config.location && "text-muted-foreground"
+                                  )}
+                                >
+                                  {config.location || "Selectează locație..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-full p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="🔍 Caută locație..." />
+                                  <CommandEmpty>
+                                    <div className="p-2 text-sm">
+                                      Nu există locația. Scrie-o manual:
+                                      <Input
+                                        className="mt-2"
+                                        placeholder="Locație nouă..."
+                                        onKeyDown={async (e) => {
+                                          if (e.key === 'Enter') {
+                                            const newLocation = e.currentTarget.value.trim();
+                                            if (newLocation) {
+                                              updateDayConfiguration(dayNum, configIndex, 'location', newLocation);
+                                              await supabase.from('locations').insert({ name: newLocation });
+                                              queryClient.invalidateQueries({ queryKey: ['locations'] });
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  </CommandEmpty>
+                                  <CommandGroup className="max-h-64 overflow-auto">
+                                    {locations?.map((loc) => (
+                                      <CommandItem
+                                        key={loc.id}
+                                        value={loc.name}
+                                        onSelect={() => {
+                                          updateDayConfiguration(dayNum, configIndex, 'location', loc.name);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            config.location === loc.name ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {loc.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                           
                           <div>
                             <Label>Proiect *</Label>
-                            <Input
-                              value={config.project}
-                              onChange={(e) => {
-                                updateDayConfiguration(dayNum, configIndex, 'project', e.target.value);
-                                // Auto-insert in projects table if doesn't exist
-                                if (e.target.value && !projects?.some(p => p.name === e.target.value)) {
-                                  supabase.from('projects').insert({ name: e.target.value }).then();
-                                }
-                              }}
-                              placeholder="Ex: Pază Complexul X"
-                              list={`projects-${dayNum}-${configIndex}`}
-                            />
-                            <datalist id={`projects-${dayNum}-${configIndex}`}>
-                              {filteredProjects.map(proj => (
-                                <option key={proj.id} value={proj.name} />
-                              ))}
-                            </datalist>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full justify-between font-normal",
+                                    !config.project && "text-muted-foreground"
+                                  )}
+                                >
+                                  {config.project || "Selectează proiect..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-full p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="🔍 Caută proiect..." />
+                                  <CommandEmpty>
+                                    <div className="p-2 text-sm">
+                                      Nu există proiectul. Scrie-l manual:
+                                      <Input
+                                        className="mt-2"
+                                        placeholder="Proiect nou..."
+                                        onKeyDown={async (e) => {
+                                          if (e.key === 'Enter') {
+                                            const newProject = e.currentTarget.value.trim();
+                                            if (newProject) {
+                                              updateDayConfiguration(dayNum, configIndex, 'project', newProject);
+                                              await supabase.from('projects').insert({ name: newProject });
+                                              queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  </CommandEmpty>
+                                  <CommandGroup className="max-h-64 overflow-auto">
+                                    {projects?.map((proj) => (
+                                      <CommandItem
+                                        key={proj.id}
+                                        value={proj.name}
+                                        onSelect={() => {
+                                          updateDayConfiguration(dayNum, configIndex, 'project', proj.name);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            config.project === proj.name ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {proj.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                           
                           <div>
