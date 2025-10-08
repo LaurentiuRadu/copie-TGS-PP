@@ -191,3 +191,42 @@ export const findNearestLocation = (
 
   return nearest;
 };
+
+/**
+ * Verifică dacă coordonatele curente sunt în interiorul unei locații definite
+ * Suportă: cerc (radius), poligon (geometry), sau țară întreagă (country)
+ */
+export const isWithinLocation = async (
+  currentCoords: Coordinates,
+  location: {
+    latitude: number;
+    longitude: number;
+    radius_meters: number;
+    coverage_type?: 'circle' | 'polygon' | 'country';
+    geometry?: any; // GeoJSON geometry
+  }
+): Promise<boolean> => {
+  // Toată țara = permite oriunde
+  if (location.coverage_type === 'country') {
+    return true;
+  }
+  
+  // Poligon desenat - folosește turf pentru verificare
+  if (location.coverage_type === 'polygon' && location.geometry) {
+    try {
+      const { default: booleanPointInPolygon } = await import('@turf/boolean-point-in-polygon');
+      const point: [number, number] = [currentCoords.longitude, currentCoords.latitude];
+      return booleanPointInPolygon(point, location.geometry);
+    } catch (error) {
+      console.error('[Geolocation] Error checking polygon:', error);
+      return false;
+    }
+  }
+  
+  // Circle (metoda existentă) - fallback implicit
+  return isWithinRadius(
+    currentCoords,
+    { latitude: location.latitude, longitude: location.longitude },
+    location.radius_meters
+  );
+};

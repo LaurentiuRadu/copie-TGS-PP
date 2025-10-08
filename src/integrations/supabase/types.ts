@@ -1173,8 +1173,10 @@ export type Database = {
       work_locations: {
         Row: {
           address: string | null
+          coverage_type: string | null
           created_at: string | null
           created_by: string | null
+          geometry: Json | null
           id: string
           is_active: boolean
           latitude: number
@@ -1185,8 +1187,10 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          coverage_type?: string | null
           created_at?: string | null
           created_by?: string | null
+          geometry?: Json | null
           id?: string
           is_active?: boolean
           latitude: number
@@ -1197,8 +1201,10 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          coverage_type?: string | null
           created_at?: string | null
           created_by?: string | null
+          geometry?: Json | null
           id?: string
           is_active?: boolean
           latitude?: number

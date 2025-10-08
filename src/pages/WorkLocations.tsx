@@ -26,6 +26,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import { AdminLayout } from "@/components/AdminLayout";
 import { getCurrentPosition } from "@/lib/geolocation";
 
@@ -39,6 +41,8 @@ interface WorkLocation {
   longitude: number;
   radius_meters: number;
   is_active: boolean;
+  geometry?: any;
+  coverage_type?: 'circle' | 'polygon' | 'country';
 }
 
 const WorkLocations = () => {
@@ -50,6 +54,8 @@ const WorkLocations = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const draw = useRef<MapboxDraw | null>(null);
+  const [drawingMode, setDrawingMode] = useState<'circle' | 'polygon' | 'country'>('circle');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +63,8 @@ const WorkLocations = () => {
     latitude: 44.4268, // Bucharest default
     longitude: 26.1025,
     radius_meters: 100,
+    geometry: null as any,
+    coverage_type: 'circle' as 'circle' | 'polygon' | 'country',
   });
 
   const [mapboxToken, setMapboxToken] = useState<string>('');
@@ -163,6 +171,76 @@ const WorkLocations = () => {
 
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+        // Inițializare Mapbox Draw
+        draw.current = new MapboxDraw({
+          displayControlsDefault: false,
+          controls: {
+            polygon: true,
+            trash: true
+          },
+          styles: [
+            {
+              'id': 'gl-draw-polygon-fill',
+              'type': 'fill',
+              'paint': {
+                'fill-color': '#3b82f6',
+                'fill-opacity': 0.2
+              }
+            },
+            {
+              'id': 'gl-draw-polygon-stroke',
+              'type': 'line',
+              'paint': {
+                'line-color': '#3b82f6',
+                'line-width': 3
+              }
+            },
+            {
+              'id': 'gl-draw-polygon-midpoint',
+              'type': 'circle',
+              'paint': {
+                'circle-radius': 3,
+                'circle-color': '#3b82f6'
+              }
+            },
+            {
+              'id': 'gl-draw-polygon-vertex',
+              'type': 'circle',
+              'paint': {
+                'circle-radius': 5,
+                'circle-color': '#fff',
+                'circle-stroke-color': '#3b82f6',
+                'circle-stroke-width': 2
+              }
+            }
+          ]
+        });
+
+        map.current.addControl(draw.current, 'top-left');
+
+        // Event când se termină desenarea
+        map.current.on('draw.create', (e: any) => {
+          const feature = e.features[0];
+          console.log('[Draw] Polygon created:', feature);
+          
+          setFormData(prev => ({
+            ...prev,
+            geometry: feature.geometry,
+            coverage_type: 'polygon'
+          }));
+          
+          toast.success('Zonă desenată! Salvează pentru a o păstra.');
+        });
+
+        map.current.on('draw.delete', () => {
+          setFormData(prev => ({
+            ...prev,
+            geometry: null,
+            coverage_type: 'circle'
+          }));
+          setDrawingMode('circle');
+        });
+
         // Ensure proper sizing after dialog opens
         map.current.on('load', () => {
           console.log('[Mapbox] Map loaded');
@@ -182,14 +260,16 @@ const WorkLocations = () => {
           setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
         });
 
-        // Update formData when map is clicked
+        // Update formData when map is clicked (doar pentru mod circle)
         map.current.on('click', (e) => {
-          console.log('[Mapbox] Map clicked:', { lat: e.lngLat.lat, lng: e.lngLat.lng });
-          setFormData((prev) => ({
-            ...prev,
-            latitude: e.lngLat.lat,
-            longitude: e.lngLat.lng,
-          }));
+          if (drawingMode === 'circle') {
+            console.log('[Mapbox] Map clicked:', { lat: e.lngLat.lat, lng: e.lngLat.lng });
+            setFormData((prev) => ({
+              ...prev,
+              latitude: e.lngLat.lat,
+              longitude: e.lngLat.lng,
+            }));
+          }
         });
       } catch (error) {
         console.error('[Mapbox] Init failed:', error);
@@ -218,7 +298,7 @@ const WorkLocations = () => {
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add markers for saved locations
+      // Add markers for saved locations
     locations.forEach(location => {
       const el = document.createElement('div');
       el.className = 'w-8 h-8 bg-primary rounded-full border-2 border-white shadow-lg flex items-center justify-center';
@@ -234,10 +314,49 @@ const WorkLocations = () => {
 
       markers.current.push(marker);
 
-      // Add radius circle
-      if (map.current?.getSource(`radius-${location.id}`)) {
-        map.current.removeLayer(`radius-${location.id}`);
-        map.current.removeSource(`radius-${location.id}`);
+      // Afișare poligon sau cerc pentru fiecare locație
+      if (location.coverage_type === 'polygon' && location.geometry) {
+        const sourceId = `polygon-${location.id}`;
+        
+        // Șterge sursa existentă dacă există
+        if (map.current?.getSource(sourceId)) {
+          if (map.current.getLayer(`polygon-fill-${location.id}`)) {
+            map.current.removeLayer(`polygon-fill-${location.id}`);
+          }
+          if (map.current.getLayer(`polygon-outline-${location.id}`)) {
+            map.current.removeLayer(`polygon-outline-${location.id}`);
+          }
+          map.current.removeSource(sourceId);
+        }
+        
+        map.current?.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: location.geometry,
+            properties: {}
+          }
+        });
+        
+        map.current?.addLayer({
+          id: `polygon-fill-${location.id}`,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': location.is_active ? '#22c55e' : '#9ca3af',
+            'fill-opacity': 0.2
+          }
+        });
+        
+        map.current?.addLayer({
+          id: `polygon-outline-${location.id}`,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': location.is_active ? '#16a34a' : '#6b7280',
+            'line-width': 2
+          }
+        });
       }
     });
 
@@ -268,7 +387,7 @@ const WorkLocations = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setLocations(data || []);
+      setLocations((data || []) as WorkLocation[]);
     } catch (error: any) {
       toast.error('Eroare la încărcarea locațiilor: ' + error.message);
     } finally {
@@ -280,16 +399,20 @@ const WorkLocations = () => {
     e.preventDefault();
 
     try {
+      const dataToSave = {
+        name: formData.name,
+        address: formData.address,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        radius_meters: formData.radius_meters,
+        geometry: formData.geometry,
+        coverage_type: formData.coverage_type,
+      };
+
       if (editingLocation) {
         const { error } = await supabase
           .from('work_locations')
-          .update({
-            name: formData.name,
-            address: formData.address,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            radius_meters: formData.radius_meters,
-          })
+          .update(dataToSave)
           .eq('id', editingLocation.id);
 
         if (error) throw error;
@@ -297,7 +420,7 @@ const WorkLocations = () => {
       } else {
         const { error } = await supabase
           .from('work_locations')
-          .insert([formData]);
+          .insert([dataToSave]);
 
         if (error) throw error;
         toast.success('Locație adăugată cu succes');
@@ -319,7 +442,10 @@ const WorkLocations = () => {
       latitude: location.latitude,
       longitude: location.longitude,
       radius_meters: location.radius_meters,
+      geometry: location.geometry || null,
+      coverage_type: location.coverage_type || 'circle',
     });
+    setDrawingMode(location.coverage_type || 'circle');
     setDialogOpen(true);
   };
 
@@ -362,8 +488,11 @@ const WorkLocations = () => {
       latitude: 44.4268,
       longitude: 26.1025,
       radius_meters: 100,
+      geometry: null,
+      coverage_type: 'circle',
     });
     setEditingLocation(null);
+    setDrawingMode('circle');
   };
 
   const useCurrentLocation = async () => {
@@ -415,6 +544,44 @@ const WorkLocations = () => {
     } finally {
       setLoadingLocation(false);
     }
+  };
+
+  const selectRomaniaPreset = () => {
+    const romaniaBounds = {
+      type: 'Polygon' as const,
+      coordinates: [[
+        [20.2620, 43.6190], // SW - Timișoara Sud
+        [29.7150, 43.6190], // SE - Constanța Sud
+        [29.7150, 48.2650], // NE - Suceava Nord
+        [20.2620, 48.2650], // NW - Satu Mare Nord
+        [20.2620, 43.6190]  // Close polygon
+      ]]
+    };
+    
+    draw.current?.deleteAll();
+    draw.current?.add({
+      type: 'Feature',
+      geometry: romaniaBounds,
+      properties: {}
+    });
+    
+    setFormData(prev => ({
+      ...prev,
+      geometry: romaniaBounds,
+      coverage_type: 'country'
+    }));
+    
+    setDrawingMode('country');
+    
+    // Zoom la România
+    if (map.current) {
+      map.current.fitBounds([
+        [20.2620, 43.6190], // SW
+        [29.7150, 48.2650]  // NE
+      ], { padding: 50 });
+    }
+    
+    toast.success('România întreagă selectată!');
   };
 
   return (
@@ -498,15 +665,16 @@ const WorkLocations = () => {
                           min="10"
                           max="1000"
                           required
+                          disabled={drawingMode !== 'circle'}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Angajații vor putea face pontaj doar în interiorul acestei raze
+                          {drawingMode === 'circle' ? 'Angajații vor putea face pontaj doar în interiorul acestei raze' : 'Raza nu se aplică pentru zone desenate'}
                         </p>
                       </div>
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label>Hartă (Click pentru a selecta locația)</Label>
+                          <Label>Hartă</Label>
                           <Button
                             type="button"
                             variant="outline"
@@ -528,6 +696,63 @@ const WorkLocations = () => {
                             )}
                           </Button>
                         </div>
+                        
+                        {/* Butoane Drawing */}
+                        <div className="flex gap-2 mb-3">
+                          <Button
+                            type="button"
+                            variant={drawingMode === 'polygon' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => {
+                              setDrawingMode('polygon');
+                              draw.current?.changeMode('draw_polygon');
+                              toast.info('Click pe hartă pentru a desena zona. Double-click pentru a închide poligonul.');
+                            }}
+                            className="flex-1"
+                          >
+                            ✏️ Desenează Zonă
+                          </Button>
+                          
+                          <Button
+                            type="button"
+                            variant={drawingMode === 'country' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={selectRomaniaPreset}
+                            className="flex-1"
+                          >
+                            🇷🇴 Toată România
+                          </Button>
+                          
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              draw.current?.deleteAll();
+                              setDrawingMode('circle');
+                              setFormData(prev => ({
+                                ...prev,
+                                geometry: null,
+                                coverage_type: 'circle'
+                              }));
+                              toast.info('Mod cerc activat - click pe hartă pentru punct fix');
+                            }}
+                          >
+                            🗑️ Resetează
+                          </Button>
+                        </div>
+
+                        {drawingMode === 'polygon' && (
+                          <p className="text-xs text-amber-600 mb-2">
+                            💡 Desenează o zonă pe hartă. Double-click pentru a finaliza.
+                          </p>
+                        )}
+
+                        {drawingMode === 'country' && (
+                          <p className="text-xs text-green-600 mb-2">
+                            ✓ Toată România selectată - pontaj permis oriunde în țară
+                          </p>
+                        )}
                         {mapError && (
                           <p className="text-sm text-destructive">{mapError}</p>
                         )}
@@ -596,9 +821,10 @@ const WorkLocations = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nume</TableHead>
+                        <TableHead>Tip Acoperire</TableHead>
                         <TableHead>Adresă</TableHead>
                         <TableHead>Coordonate</TableHead>
-                        <TableHead>Rază</TableHead>
+                        <TableHead>Rază / Zonă</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Acțiuni</TableHead>
                       </TableRow>
@@ -607,13 +833,27 @@ const WorkLocations = () => {
                       {locations.map((location) => (
                         <TableRow key={location.id}>
                           <TableCell className="font-medium">{location.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {location.coverage_type === 'country' && '🇷🇴 România'}
+                              {location.coverage_type === 'polygon' && '✏️ Zonă'}
+                              {(!location.coverage_type || location.coverage_type === 'circle') && '⭕ Cerc'}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-muted-foreground">
                             {location.address || '-'}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                           </TableCell>
-                          <TableCell>{location.radius_meters}m</TableCell>
+                          <TableCell>
+                            {location.coverage_type === 'circle' || !location.coverage_type
+                              ? `${location.radius_meters}m`
+                              : location.coverage_type === 'country'
+                              ? 'Toată țara'
+                              : 'Zonă personalizată'
+                            }
+                          </TableCell>
                           <TableCell>
                             <Badge
                               variant={location.is_active ? 'default' : 'secondary'}
