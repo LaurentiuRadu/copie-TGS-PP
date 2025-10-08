@@ -1151,7 +1151,6 @@ const Mobile = () => {
           loading={isProcessing}
         />
       )}
-        </main>
       </div>
     </AdminLayout>
   );
