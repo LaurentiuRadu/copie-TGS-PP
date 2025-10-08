@@ -1,7 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Download, Filter, Plus, TrendingUp, Clock, Calendar, AlertCircle } from "lucide-react";
+import { Users, TrendingUp, Clock, Calendar, AlertCircle, ChevronDown } from "lucide-react";
 import { MigrationTestPanel } from "@/components/MigrationTestPanel";
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -9,11 +8,14 @@ import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
 import { VersionManager } from "@/components/VersionManager";
-
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 const Admin = () => {
+  const [toolsOpen, setToolsOpen] = useState(false);
+
   // Fetch pending correction requests count
   const { data: pendingCount = 0 } = useQuery({
     queryKey: ['correctionRequestsPendingCount'],
@@ -25,170 +27,169 @@ const Admin = () => {
       if (error) throw error;
       return count || 0;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
+  });
+
+  // Fetch total employees
+  const { data: totalEmployees = 0 } = useQuery({
+    queryKey: ['totalEmployees'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      return count || 0;
+    },
+  });
+
+  // Fetch active today (clocked in, not clocked out)
+  const { data: activeToday = 0 } = useQuery({
+    queryKey: ['activeToday'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { count, error } = await supabase
+        .from('time_entries')
+        .select('*', { count: 'exact', head: true })
+        .gte('clock_in_time', `${today}T00:00:00`)
+        .is('clock_out_time', null);
+      if (error) throw error;
+      return count || 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Fetch pending vacation requests
+  const { data: pendingVacations = 0 } = useQuery({
+    queryKey: ['pendingVacations'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('vacation_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) throw error;
+      return count || 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Fetch average hours per day (current week)
+  const { data: avgHours = 0 } = useQuery({
+    queryKey: ['avgHoursCurrentWeek'],
+    queryFn: async () => {
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay() + 1);
+      const startDate = startOfWeek.toISOString().split('T')[0];
+
+      const { data, error } = await supabase
+        .from('daily_timesheets')
+        .select('hours_regular, hours_night, work_date')
+        .gte('work_date', startDate);
+      
+      if (error) throw error;
+      if (!data || data.length === 0) return 0;
+
+      const totalHours = data.reduce((sum, entry) => 
+        sum + (entry.hours_regular || 0) + (entry.hours_night || 0), 0
+      );
+      const uniqueDays = new Set(data.map(entry => entry.work_date)).size;
+      return uniqueDays > 0 ? (totalHours / uniqueDays).toFixed(1) : 0;
+    },
   });
 
   return (
     <AdminLayout title="Admin Dashboard">
       <div className="p-6 space-y-6">
-            {/* Correction Requests Section */}
-            <Card className="border-l-4 border-l-yellow-500">
-              <CardHeader>
+        {/* 🔴 ALERTE & ACȚIUNI URGENTE */}
+        {(pendingCount > 0) && (
+          <Card className="border-l-4 border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-900 dark:text-yellow-100">
+                <AlertCircle className="h-5 w-5" />
+                Atenție: {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} de corecție în așteptare
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        )}
+
+        <TimeEntryCorrectionRequestsManager />
+        <TardinessReportsManager />
+
+        {/* 📊 STATISTICI REALE */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Angajați</CardTitle>
+              <Users className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalEmployees}</div>
+              <p className="text-xs text-muted-foreground">Activi în sistem</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-success/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Activi Astăzi</CardTitle>
+              <Clock className="h-4 w-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeToday}</div>
+              <p className="text-xs text-muted-foreground">Pontați în prezent</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-warning/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Cereri Concediu</CardTitle>
+              <Calendar className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{pendingVacations}</div>
+              <p className="text-xs text-muted-foreground">În așteptare aprobare</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-info/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ore Medii/Zi</CardTitle>
+              <TrendingUp className="h-4 w-4 text-info" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{avgHours}h</div>
+              <p className="text-xs text-muted-foreground">Săptămâna curentă</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ⚙️ INSTRUMENTE TEHNICE (Collapsible) */}
+        <Collapsible open={toolsOpen} onOpenChange={setToolsOpen}>
+          <Card>
+            <CollapsibleTrigger className="w-full">
+              <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <AlertCircle className="h-5 w-5 text-yellow-600" />
-                      Cereri de Corecție Pontaje
-                      {pendingCount > 0 && (
-                        <Badge variant="destructive" className="ml-2">
-                          {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} nouă
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription>Gestionează cererile de corecție ale angajaților</CardDescription>
-                  </div>
+                  <CardTitle className="flex items-center gap-2">
+                    ⚙️ Instrumente Tehnice
+                  </CardTitle>
+                  <ChevronDown 
+                    className={`h-5 w-5 transition-transform ${toolsOpen ? 'rotate-180' : ''}`}
+                  />
                 </div>
+                <CardDescription>
+                  Migrări, debug și management versiuni
+                </CardDescription>
               </CardHeader>
-            </Card>
-
-            <TimeEntryCorrectionRequestsManager />
-
-            {/* Version Manager */}
-            <VersionManager />
-
-            {/* Historical Data Migration - Pas 5 */}
-            <HistoricalDataMigration />
-            
-            {/* Time Segment Debug Panel */}
-            <TimeSegmentDebugPanel />
-            
-            {/* Migration Test Panel */}
-            <MigrationTestPanel />
-
-            {/* Tardiness Reports Manager */}
-            <TardinessReportsManager />
-
-            {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-primary/20">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Angajați</CardTitle>
-                  <Users className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">
-                    Activi în sistem
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-success/20">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Prezenti Astăzi</CardTitle>
-                  <Clock className="h-4 w-4 text-success" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">
-                    Pontați în prezent
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-warning/20">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Cereri Concediu</CardTitle>
-                  <Calendar className="h-4 w-4 text-warning" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">
-                    În așteptare aprobare
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 bg-gradient-card border-info/20">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Performanță</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-info" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">
-                    Media ore lucrate/zi
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Team Overview Card */}
-            <Card className="shadow-elegant border-primary/10 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-glass opacity-50 pointer-events-none" />
-              <CardHeader className="relative">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                      <Users className="h-6 w-6 text-primary" />
-                      Echipa - Monitorizare Timp Real
-                    </CardTitle>
-                    <CardDescription className="mt-1">Status și activitate angajați</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-2 hover:bg-accent transition-all">
-                      <Filter className="h-4 w-4" />
-                      Filtrează
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2 hover:bg-accent transition-all">
-                      <Download className="h-4 w-4" />
-                      Export
-                    </Button>
-                    <Button size="sm" className="gap-2 bg-gradient-primary shadow-md hover:shadow-lg transition-all">
-                      <Plus className="h-4 w-4" />
-                      Angajat Nou
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="relative">
-                <div className="text-center py-12 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-lg">Nu există date disponibile</p>
-                  <p className="text-sm mt-1">Datele vor apărea aici când angajații încep să ponteze</p>
-                </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-6 pt-0">
+                <VersionManager />
+                <HistoricalDataMigration />
+                <TimeSegmentDebugPanel />
+                <MigrationTestPanel />
               </CardContent>
-            </Card>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Recent Activity */}
-              <Card className="shadow-custom-md border-primary/5">
-                <CardHeader>
-                  <CardTitle className="text-lg">Activitate Recentă</CardTitle>
-                  <CardDescription>Ultimele acțiuni ale echipei</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Clock className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                    <p>Nu există activități recente</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Stats */}
-              <Card className="shadow-custom-md border-primary/5">
-                <CardHeader>
-                  <CardTitle className="text-lg">Statistici Rapide</CardTitle>
-                  <CardDescription>Rezumat săptămâna curentă</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    <TrendingUp className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                    <p>Nu există date disponibile</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </div>
     </AdminLayout>
   );
