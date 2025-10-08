@@ -700,10 +700,19 @@ export default function WeeklySchedules() {
                     </SelectTrigger>
                     <SelectContent>
                       {employees?.filter(emp => {
-                        const fullName = emp.full_name || '';
-                        return ['Alexandrescu Adrian', 'Costache Florin', 'Chiticaru Florin', 
-                                'Costan Ionut', 'Radu Ioan', 'Radu Laurentiu', 'Canbei Razvan']
-                          .includes(fullName);
+                        const candidate = (emp.full_name || emp.username || '').trim().toUpperCase();
+                        const allowed = [
+                          'ALEXANDRESCU ADRIAN',
+                          'COSTACHE FLORIN',
+                          'CHITICARU FLORIN',
+                          'COSTAN IONUT',
+                          'RADU IOAN',
+                          'RADU LAURENTIU',
+                          'CANBEI RAZVAN',
+                        ];
+                        return allowed.some((name) =>
+                          candidate === name || candidate.startsWith(name + ' ')
+                        );
                       }).map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
                           👤 {emp.full_name || emp.username}
