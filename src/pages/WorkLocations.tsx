@@ -21,12 +21,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Plus, Edit, Trash2 } from "lucide-react";
+import { MapPin, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AdminLayout } from "@/components/AdminLayout";
+import { getCurrentPosition } from "@/lib/geolocation";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoibGF1cmVudGl1cmFkdSIsImEiOiJjbWc4MGtpb2owMjYzMmtxdWRrZG50NnV2In0._eXA5o4wir9a25cJhvX5VQ';
 
@@ -43,6 +44,7 @@ interface WorkLocation {
 const WorkLocations = () => {
   const [locations, setLocations] = useState<WorkLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<WorkLocation | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -57,14 +59,30 @@ const WorkLocations = () => {
     radius_meters: 100,
   });
 
-  const [mapboxToken, setMapboxToken] = useState<string>(() => {
-    return localStorage.getItem('mapboxPublicToken') || '';
-  });
+  const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [tokenReady, setTokenReady] = useState(false);
   const [mapError, setMapError] = useState<string>('');
 
+  // Load token from localStorage on mount
   useEffect(() => {
-    localStorage.setItem('mapboxPublicToken', mapboxToken);
-  }, [mapboxToken]);
+    const token = localStorage.getItem('mapboxPublicToken') || MAPBOX_TOKEN;
+    console.log('[Mapbox] Token loaded:', {
+      hasToken: !!token,
+      tokenLength: token?.length,
+      isValid: token?.startsWith('pk.'),
+      source: localStorage.getItem('mapboxPublicToken') ? 'localStorage' : 'default',
+    });
+    setMapboxToken(token);
+    setTokenReady(true);
+  }, []);
+
+  // Save token to localStorage when it changes
+  useEffect(() => {
+    if (tokenReady && mapboxToken) {
+      localStorage.setItem('mapboxPublicToken', mapboxToken);
+      console.log('[Mapbox] Token saved to localStorage');
+    }
+  }, [mapboxToken, tokenReady]);
 
   useEffect(() => {
     fetchLocations();
@@ -83,48 +101,71 @@ const WorkLocations = () => {
       return;
     }
 
+    // Don't initialize map until token is ready
+    if (!tokenReady) {
+      console.log('[Mapbox] Waiting for token to be ready...');
+      return;
+    }
+
     if (!mapContainer.current || map.current) return;
+
+    const token = mapboxToken || MAPBOX_TOKEN;
+    console.log('[Mapbox] Initializing map with token:', {
+      hasToken: !!token,
+      tokenLength: token?.length,
+      isValid: token?.startsWith('pk.'),
+    });
 
     // Wait for DOM to be ready and dialog animation to complete
     const initTimer = setTimeout(() => {
       if (!mapContainer.current) return;
 
-      mapboxgl.accessToken = mapboxToken || MAPBOX_TOKEN;
+      try {
+        mapboxgl.accessToken = token;
 
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [formData.longitude, formData.latitude],
-        zoom: 12,
-      });
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current,
+          style: 'mapbox://styles/mapbox/streets-v12',
+          center: [formData.longitude, formData.latitude],
+          zoom: 12,
+        });
 
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        console.log('[Mapbox] Map initialized successfully');
 
-      // Ensure proper sizing after dialog opens
-      map.current.on('load', () => {
-        // Force resize twice for reliability
-        setTimeout(() => {
-          map.current?.resize();
-        }, 100);
-        setTimeout(() => {
-          map.current?.resize();
-        }, 300);
-        setMapError('');
-      });
+        map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-      // Surface Mapbox errors (e.g., invalid token)
-      map.current.on('error', () => {
-        setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
-      });
+        // Ensure proper sizing after dialog opens
+        map.current.on('load', () => {
+          console.log('[Mapbox] Map loaded');
+          // Force resize twice for reliability
+          setTimeout(() => {
+            map.current?.resize();
+          }, 100);
+          setTimeout(() => {
+            map.current?.resize();
+          }, 300);
+          setMapError('');
+        });
 
-      // Update formData when map is clicked
-      map.current.on('click', (e) => {
-        setFormData((prev) => ({
-          ...prev,
-          latitude: e.lngLat.lat,
-          longitude: e.lngLat.lng,
-        }));
-      });
+        // Surface Mapbox errors (e.g., invalid token)
+        map.current.on('error', (e) => {
+          console.error('[Mapbox] Error:', e);
+          setMapError('Eroare Mapbox: verificați tokenul public sau permisiunile domeniului.');
+        });
+
+        // Update formData when map is clicked
+        map.current.on('click', (e) => {
+          console.log('[Mapbox] Map clicked:', { lat: e.lngLat.lat, lng: e.lngLat.lng });
+          setFormData((prev) => ({
+            ...prev,
+            latitude: e.lngLat.lat,
+            longitude: e.lngLat.lng,
+          }));
+        });
+      } catch (error) {
+        console.error('[Mapbox] Init failed:', error);
+        setMapError('Eroare inițializare hartă. Verificați token-ul.');
+      }
     }, 100);
 
     return () => {
@@ -134,7 +175,7 @@ const WorkLocations = () => {
         map.current = null;
       }
     };
-  }, [dialogOpen, mapboxToken]);
+  }, [dialogOpen, tokenReady, mapboxToken]);
 
   // Update markers when locations or formData changes
   useEffect(() => {
@@ -292,58 +333,55 @@ const WorkLocations = () => {
     setEditingLocation(null);
   };
 
-  const useCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocalizarea nu este suportată de acest browser');
-      return;
-    }
-
-    toast.info('Se obține locația...');
+  const useCurrentLocation = async () => {
+    setLoadingLocation(true);
+    console.log('[Geolocation] Getting current position...');
     
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setFormData((prev) => ({
-          ...prev,
-          latitude,
-          longitude,
-        }));
-        
-        // Centrare harta pe locația curentă
-        if (map.current) {
-          map.current.flyTo({
-            center: [longitude, latitude],
-            zoom: 15,
-            duration: 1500,
-          });
-        }
-        
-        toast.success('Locație obținută cu succes!');
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-        let errorMessage = 'Nu s-a putut obține locația';
-        
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Permisiunea de localizare a fost refuzată';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Informațiile de localizare nu sunt disponibile';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Cererea de localizare a expirat';
-            break;
-        }
-        
-        toast.error(errorMessage);
-      },
-      {
+    try {
+      const position = await getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 0,
+        maxRetries: 2,
+        retryDelay: 1000,
+      });
+
+      const { latitude, longitude } = position.coords;
+      console.log('[Geolocation] Position obtained:', { latitude, longitude, accuracy: position.coords.accuracy });
+      
+      setFormData((prev) => ({
+        ...prev,
+        latitude,
+        longitude,
+      }));
+      
+      // Centrare harta pe locația curentă
+      if (map.current) {
+        map.current.flyTo({
+          center: [longitude, latitude],
+          zoom: 15,
+          duration: 1500,
+        });
       }
-    );
+      
+      toast.success(`Locație obținută! (±${Math.round(position.coords.accuracy)}m)`);
+    } catch (error: any) {
+      console.error('[Geolocation] Error:', error);
+      let errorMessage = 'Nu s-a putut obține locația';
+      
+      if (error.message) {
+        if (error.message.includes('denied')) {
+          errorMessage = 'Permisiunea de localizare a fost refuzată. Verificați setările browser-ului.';
+        } else if (error.message.includes('unavailable')) {
+          errorMessage = 'Serviciile de localizare nu sunt disponibile';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Timpul de așteptare a expirat. Încercați din nou.';
+        }
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setLoadingLocation(false);
+    }
   };
 
   return (
@@ -441,14 +479,27 @@ const WorkLocations = () => {
                             variant="outline"
                             size="sm"
                             onClick={useCurrentLocation}
+                            disabled={loadingLocation}
                             className="gap-2"
                           >
-                            <MapPin className="h-4 w-4" />
-                            Locația Mea
+                            {loadingLocation ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Se obține...
+                              </>
+                            ) : (
+                              <>
+                                <MapPin className="h-4 w-4" />
+                                Locația Mea
+                              </>
+                            )}
                           </Button>
                         </div>
                         {mapError && (
                           <p className="text-sm text-destructive">{mapError}</p>
+                        )}
+                        {!tokenReady && (
+                          <p className="text-sm text-muted-foreground">Se încarcă token-ul...</p>
                         )}
                         <Input
                           id="mapbox-token"
@@ -458,9 +509,15 @@ const WorkLocations = () => {
                           className="mb-2"
                         />
                         <p className="text-xs text-muted-foreground">
-                          Token-ul se salvează automat. Închide și redeschide dialogul pentru a aplica modificările.
+                          Token-ul se salvează automat și se aplică imediat.
                         </p>
-                        <div ref={mapContainer} className="h-[300px] rounded-lg border bg-muted" />
+                        <div ref={mapContainer} className="h-[300px] rounded-lg border bg-muted relative">
+                          {!tokenReady && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-lg">
+                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           💡 Click pe hartă pentru a seta locația sau folosește butonul "Locația Mea"
                         </p>
