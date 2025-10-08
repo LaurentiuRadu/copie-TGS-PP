@@ -62,6 +62,7 @@ const WorkLocations = () => {
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [tokenReady, setTokenReady] = useState(false);
   const [mapError, setMapError] = useState<string>('');
+  const [mapKey, setMapKey] = useState(0);
 
   // Load token from localStorage on mount
   useEffect(() => {
@@ -107,7 +108,10 @@ const WorkLocations = () => {
       return;
     }
 
-    if (!mapContainer.current || map.current) return;
+    // Force re-render of map container when dialog opens
+    setMapKey(prev => prev + 1);
+
+    if (map.current) return;
 
     const token = mapboxToken || MAPBOX_TOKEN;
     console.log('[Mapbox] Initializing map with token:', {
@@ -116,9 +120,27 @@ const WorkLocations = () => {
       isValid: token?.startsWith('pk.'),
     });
 
-    // Wait for DOM to be ready and dialog animation to complete
-    const initTimer = setTimeout(() => {
-      if (!mapContainer.current) return;
+    let retryCount = 0;
+    const maxRetries = 5;
+    let initTimer: NodeJS.Timeout;
+    let retryTimer: NodeJS.Timeout;
+
+    const attemptMapInit = () => {
+      console.log(`[Mapbox] Init attempt ${retryCount + 1}/${maxRetries + 1}`);
+      
+      if (!mapContainer.current) {
+        console.log('[Mapbox] Container not ready, retrying...');
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          retryTimer = setTimeout(attemptMapInit, 200);
+          return;
+        } else {
+          console.error('[Mapbox] Container not available after max retries');
+          setMapError('Eroare: container hartă nu este disponibil. Încercați să redeschideți dialogul.');
+          return;
+        }
+      }
 
       try {
         mapboxgl.accessToken = token;
@@ -166,10 +188,14 @@ const WorkLocations = () => {
         console.error('[Mapbox] Init failed:', error);
         setMapError('Eroare inițializare hartă. Verificați token-ul.');
       }
-    }, 100);
+    };
+
+    // Wait for DOM to be ready and dialog animation to complete (300ms)
+    initTimer = setTimeout(attemptMapInit, 300);
 
     return () => {
       clearTimeout(initTimer);
+      clearTimeout(retryTimer);
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -511,7 +537,7 @@ const WorkLocations = () => {
                         <p className="text-xs text-muted-foreground">
                           Token-ul se salvează automat și se aplică imediat.
                         </p>
-                        <div ref={mapContainer} className="h-[300px] rounded-lg border bg-muted relative">
+                        <div key={mapKey} ref={mapContainer} className="h-[300px] rounded-lg border bg-muted relative">
                           {!tokenReady && (
                             <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-lg">
                               <Loader2 className="h-8 w-8 animate-spin text-primary" />
