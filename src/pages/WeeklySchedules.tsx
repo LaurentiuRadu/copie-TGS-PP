@@ -260,7 +260,7 @@ export default function WeeklySchedules() {
         for (const config of configs) {
           for (const userId of selectedEmployees) {
             scheduleEntries.push({
-              team_id: formData.team_id,
+              team_id: selectedTeam,
               week_start_date: formData.week_start_date,
               user_id: userId,
               day_of_week: dayOfWeek,
@@ -642,7 +642,10 @@ export default function WeeklySchedules() {
             {activeTab === 'details' && (
               <div className="flex-1 min-w-[200px]">
                 <Label>Echipa</Label>
-                <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                <Select value={selectedTeam} onValueChange={(value) => {
+                  setSelectedTeam(value);
+                  setFormData(prev => ({ ...prev, team_id: value }));
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -934,8 +937,15 @@ export default function WeeklySchedules() {
                                               const newLocation = e.currentTarget.value.trim();
                                               if (newLocation) {
                                                 updateDayConfiguration(dayNum, configIndex, 'location', newLocation);
-                                                await supabase.from('locations').insert({ name: newLocation });
-                                                queryClient.invalidateQueries({ queryKey: ['locations'] });
+                                                try {
+                                                  await supabase.from('locations').insert({ name: newLocation });
+                                                  queryClient.invalidateQueries({ queryKey: ['locations'] });
+                                                  toast.success(`Locație "${newLocation}" adăugată`);
+                                                } catch (error: any) {
+                                                  if (error.code !== '23505') { // ignore duplicate key error
+                                                    toast.error('Eroare la salvarea locației');
+                                                  }
+                                                }
                                               }
                                             }
                                           }}
@@ -996,8 +1006,15 @@ export default function WeeklySchedules() {
                                               const newProject = e.currentTarget.value.trim();
                                               if (newProject) {
                                                 updateDayConfiguration(dayNum, configIndex, 'activity', newProject);
-                                                await supabase.from('projects').insert({ name: newProject });
-                                                queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                                try {
+                                                  await supabase.from('projects').insert({ name: newProject });
+                                                  queryClient.invalidateQueries({ queryKey: ['projects'] });
+                                                  toast.success(`Proiect "${newProject}" adăugat`);
+                                                } catch (error: any) {
+                                                  if (error.code !== '23505') { // ignore duplicate key error
+                                                    toast.error('Eroare la salvarea proiectului');
+                                                  }
+                                                }
                                               }
                                             }
                                           }}
