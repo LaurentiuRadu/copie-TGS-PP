@@ -702,16 +702,16 @@ export default function WeeklySchedules() {
                       {employees?.filter(emp => {
                         const candidate = (emp.full_name || emp.username || '').trim().toUpperCase();
                         const allowed = [
-                          'ALEXANDRESCU ADRIAN',
-                          'COSTACHE FLORIN',
-                          'CHITICARU FLORIN',
-                          'COSTAN IONUT',
-                          'RADU IOAN',
-                          'RADU LAURENTIU',
-                          'CANBEI RAZVAN',
+                          ['ALEXANDRESCU', 'ADRIAN'],
+                          ['COSTACHE', 'FLORIN'],
+                          ['CHITICARU', 'FLORIN'],
+                          ['COSTAN', 'IONUT'],
+                          ['RADU', 'IOAN'],
+                          ['RADU', 'LAURENTIU'],
+                          ['CANBEI', 'RAZVAN'],
                         ];
-                        return allowed.some((name) =>
-                          candidate === name || candidate.startsWith(name + ' ')
+                        return allowed.some((nameParts) =>
+                          nameParts.every(part => candidate.includes(part))
                         );
                       }).map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>
