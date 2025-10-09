@@ -131,43 +131,76 @@ Deno.serve(async (req) => {
       return str.trim().replace(/\s+/g, ' ').toUpperCase();
     };
 
+    const getNameTokens = (name: string): string[] => {
+      return normalizeString(name).split(' ').filter(token => token.length > 0);
+    };
+
     const findEmployeeByName = (csvName: string): typeof profiles[0] | null => {
       if (!profiles || profiles.length === 0) return null;
 
       const normalizedCsvName = normalizeString(csvName);
+      const csvTokens = getNameTokens(csvName);
 
-      // 1. Încercare potrivire exactă (case-insensitive)
-      let match = profiles.find(p => 
-        normalizeString(p.full_name || '') === normalizedCsvName
-      );
-      if (match) return match;
+      for (const emp of profiles) {
+        const normalizedDbName = normalizeString(emp.full_name || '');
+        const dbTokens = getNameTokens(emp.full_name || '');
 
-      // 2. Încercare inversare simplă: "NUME PRENUME" <-> "PRENUME NUME"
-      const csvParts = normalizedCsvName.split(' ');
-      if (csvParts.length >= 2) {
-        const reversed = `${csvParts.slice(1).join(' ')} ${csvParts[0]}`;
-        match = profiles.find(p => 
-          normalizeString(p.full_name || '') === reversed
-        );
-        if (match) {
-          console.log(`[import-payroll-hours] ✓ Matched by name inversion: "${csvName}" -> "${match.full_name}"`);
-          return match;
+        // 1. Exact match (case-insensitive, normalized spaces)
+        if (normalizedCsvName === normalizedDbName) {
+          return emp;
         }
 
-        // 3. Încercare inversare cu prenume mijlociu: "NUME PRENUME MIJLOCIU" <-> "PRENUME MIJLOCIU NUME"
-        if (csvParts.length >= 3) {
-          const reversedWithMiddle = `${csvParts.slice(1).join(' ')} ${csvParts[0]}`;
-          match = profiles.find(p => 
-            normalizeString(p.full_name || '') === reversedWithMiddle
-          );
-          if (match) {
-            console.log(`[import-payroll-hours] ✓ Matched by name inversion (with middle): "${csvName}" -> "${match.full_name}"`);
-            return match;
+        // 2. Inverted name match: "LAST FIRST [MIDDLE...]" <-> "FIRST [MIDDLE...] LAST"
+        if (csvTokens.length >= 2 && dbTokens.length >= 2) {
+          // Try: CSV = "LAST FIRST [MIDDLE...]", DB = "FIRST [MIDDLE...] LAST"
+          const csvInverted = [...csvTokens.slice(1), csvTokens[0]].join(' ');
+          if (csvInverted === normalizedDbName) {
+            console.log(`[import-payroll-hours] ✓ Matched by name inversion: "${csvName}" -> "${emp.full_name}"`);
+            return emp;
+          }
+
+          // Try: CSV = "FIRST [MIDDLE...] LAST", DB = "LAST FIRST [MIDDLE...]"
+          const dbInverted = [...dbTokens.slice(1), dbTokens[0]].join(' ');
+          if (normalizedCsvName === dbInverted) {
+            console.log(`[import-payroll-hours] ✓ Matched by name inversion: "${csvName}" -> "${emp.full_name}"`);
+            return emp;
+          }
+        }
+
+        // 3. Tolerance for middle name differences:
+        // Match if last name (first token) and at least one other token match
+        if (csvTokens.length >= 2 && dbTokens.length >= 2) {
+          // Check if first tokens match (assuming format: LAST FIRST [MIDDLE...])
+          if (csvTokens[0] === dbTokens[0]) {
+            // Check if any of the remaining tokens in CSV exist in DB
+            const csvRest = new Set(csvTokens.slice(1));
+            const dbRest = new Set(dbTokens.slice(1));
+
+            // If at least one first name component matches, consider it a match
+            const hasCommonToken = [...csvRest].some(token => dbRest.has(token));
+            if (hasCommonToken) {
+              console.log(`[import-payroll-hours] ✓ Matched with middle name tolerance: "${csvName}" -> "${emp.full_name}"`);
+              return emp;
+            }
+          }
+
+          // Also check inverted: maybe DB has format "FIRST LAST" and CSV has "LAST FIRST MIDDLE"
+          // In this case, last token of DB should match first token of CSV (last name)
+          if (dbTokens[dbTokens.length - 1] === csvTokens[0]) {
+            // Check if any first names match
+            const csvFirstNames = new Set(csvTokens.slice(1));
+            const dbFirstNames = new Set(dbTokens.slice(0, -1));
+
+            const hasCommonFirstName = [...csvFirstNames].some(token => dbFirstNames.has(token));
+            if (hasCommonFirstName) {
+              console.log(`[import-payroll-hours] ✓ Matched with inverted middle name tolerance: "${csvName}" -> "${emp.full_name}"`);
+              return emp;
+            }
           }
         }
       }
 
-      // 4. Nu s-a găsit potrivire
+      // 4. No match found
       return null;
     };
 
