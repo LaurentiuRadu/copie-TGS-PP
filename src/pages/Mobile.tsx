@@ -735,6 +735,10 @@ const Mobile = () => {
       return;
     }
     
+    // ✅ CRUCIAL: Capturează shift-ul anterior ÎNAINTE să-l actualizezi
+    const previousShiftType = activeShift;
+    const previousShiftLabel = previousShiftType ? getShiftTypeLabel(previousShiftType) : null;
+    
     // 4. Update UI și DB instant
     const newShiftLabel = getShiftTypeLabel(newType);
     setActiveShift(newType);
@@ -770,6 +774,8 @@ const Mobile = () => {
               clock_in_time: activeTimeEntry.clock_in_time,
               clock_out_time: new Date().toISOString(), // ACUM (parțial)
               notes: `Tip: ${newShiftLabel}`,
+              previous_shift_type: previousShiftLabel, // ✅ Shift-ul ANTERIOR (pentru segment intermediar)
+              current_shift_type: newShiftLabel,       // ✅ Shift-ul NOU (pentru tracking)
               isIntermediateCalculation: true // ✅ Flag explicit pentru recalculare intermediară
             }
           });

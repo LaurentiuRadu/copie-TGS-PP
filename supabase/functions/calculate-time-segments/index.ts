@@ -394,7 +394,16 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let { user_id, time_entry_id, clock_in_time, clock_out_time, notes, isIntermediateCalculation } = await req.json();
+    let { 
+      user_id, 
+      time_entry_id, 
+      clock_in_time, 
+      clock_out_time, 
+      notes, 
+      previous_shift_type, 
+      current_shift_type, 
+      isIntermediateCalculation 
+    } = await req.json();
 
     console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes, isIntermediateCalculation });
 
@@ -406,8 +415,20 @@ Deno.serve(async (req) => {
       // ✅ RECALCULARE INTERMEDIARĂ: Salvează doar segmentul curent în time_entry_segments
       console.log('[Intermediate] Saving segment to time_entry_segments...');
       
-      const shiftTypeMatch = notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
-      let shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+      // ✅ CRUCIAL: Folosește previous_shift_type pentru segment intermediar
+      // (când user-ul schimbă tipul, segmentul care se salvează e pentru tipul ANTERIOR)
+      let shiftType: string;
+      if (previous_shift_type) {
+        // Folosește shift-ul anterior dacă e disponibil
+        shiftType = previous_shift_type.toLowerCase();
+        console.log(`[Intermediate] Using previous_shift_type: ${previous_shift_type} → ${shiftType}`);
+      } else {
+        // Fallback: extrage din notes (pentru cazuri edge)
+        const shiftTypeMatch = notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
+        shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+        console.log(`[Intermediate] Fallback to notes: ${notes} → ${shiftType}`);
+      }
+      
       if (shiftType === 'condus utilaj') shiftType = 'utilaj';
       
       // Preia ultimul segment salvat pentru a ști când a început tipul curent
