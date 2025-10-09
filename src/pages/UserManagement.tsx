@@ -111,8 +111,11 @@ const UserManagement = ({ embedded = false }: { embedded?: boolean }) => {
   };
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    // ✅ Disable auto-load când e embedded în Settings pentru a preveni loop-ul
+    if (!embedded) {
+      loadUsers();
+    }
+  }, [embedded]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {

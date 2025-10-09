@@ -45,7 +45,7 @@ const Admin = () => {
 
   return (
     <AdminLayout title="Admin Dashboard">
-      <div className="p-6 space-y-6">
+      <div className="container mx-auto max-w-7xl p-6 space-y-6">
         {/* 🔴 ALERTE & ACȚIUNI URGENTE */}
         {(pendingCount > 0) && (
           <Card className="border-l-4 border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20">
