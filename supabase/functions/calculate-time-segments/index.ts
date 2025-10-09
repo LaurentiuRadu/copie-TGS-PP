@@ -231,21 +231,23 @@ function segmentShiftIntoTimesheets(
     
     const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
     
-    // ✅ DUAL-TRACK: Calculează AMBELE tipuri de ore
-    // TRACK 1: Ore NORMALE (bazate pe interval orar - ÎNTOTDEAUNA)
-    const normalHoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
-    
-    // TRACK 2: Ore SPECIALE (bazate pe shiftType - OPȚIONAL)
-    let specialHoursType: string | null = null;
+    // ❗ SINGLE-TRACK: fiecare pontaj merge într-o singură categorie
+    // Dacă e condus/pasager/utilaj → folosește categoria specială
+    // Altfel → determină tipul de ore normale (zi/noapte/weekend/sărbătoare)
+    let hoursType: string;
     if (shiftType === 'condus') {
-      specialHoursType = 'hours_driving';
+      hoursType = 'hours_driving';
+      console.log(`[Segment] → hours_driving (${hoursInSegment}h)`);
     } else if (shiftType === 'pasager') {
-      specialHoursType = 'hours_passenger';
+      hoursType = 'hours_passenger';
+      console.log(`[Segment] → hours_passenger (${hoursInSegment}h)`);
     } else if (shiftType === 'utilaj') {
-      specialHoursType = 'hours_equipment';
+      hoursType = 'hours_equipment';
+      console.log(`[Segment] → hours_equipment (${hoursInSegment}h)`);
+    } else {
+      hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
+      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h)`);
     }
-    
-    console.log(`[Segment Dual-Track] ${hoursInSegment}h → Normal: ${normalHoursType}${specialHoursType ? ` + Special: ${specialHoursType}` : ''}`);
     
     // Găsește sau creează pontaj pentru această zi
     const workDate = currentSegmentStart.toISOString().split('T')[0];
@@ -266,17 +268,14 @@ function segmentShiftIntoTimesheets(
         hours_leave: 0,
         hours_medical_leave: 0,
         notes: shift.notes || null,
-        start_time: currentSegmentStart,  // Păstrează timpul efectiv
+        start_time: currentSegmentStart,
         end_time: currentSegmentEnd
       };
       timesheets.push(existingTimesheet);
     }
     
-    // ✅ Adaugă ore în AMBELE tracks
-    (existingTimesheet as any)[normalHoursType] += hoursInSegment;
-    if (specialHoursType) {
-      (existingTimesheet as any)[specialHoursType] += hoursInSegment;
-    }
+    // Adaugă orele la o singură categorie
+    (existingTimesheet as any)[hoursType] += hoursInSegment;
     
     // Avansează la următorul segment
     currentSegmentStart = new Date(currentSegmentEnd);
