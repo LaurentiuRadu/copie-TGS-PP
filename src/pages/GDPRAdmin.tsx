@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { ro } from "date-fns/locale";
 import { Shield, FileText, AlertCircle, CheckCircle, Clock, XCircle, Users, UserX, AlertTriangle } from "lucide-react";
 import { getUsersWithoutConsents } from "@/lib/gdprHelpers";
+import { AdminLayout } from "@/components/AdminLayout";
 
 type GDPRRequest = {
   id: string;
@@ -176,16 +177,8 @@ const GDPRAdmin = () => {
   const usersWithConsents = totalUsers - usersWithoutConsents.length;
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Shield className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Administrare GDPR</h1>
-        </div>
-        <p className="text-muted-foreground">
-          Gestionare cereri GDPR și protecție date personale
-        </p>
-      </div>
+    <AdminLayout title="Administrare GDPR">
+      <div className="container mx-auto p-6 max-w-7xl">
 
       {/* Statistici Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -472,7 +465,8 @@ const GDPRAdmin = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 
