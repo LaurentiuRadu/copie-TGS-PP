@@ -39,6 +39,8 @@ const hourTypeMapping: Record<string, keyof Omit<GroupedEntry, 'employee_id' | '
   'Ore utilaj': 'hours_equipment',
   'Ore CO': 'hours_leave',
   'Ore CM': 'hours_medical_leave',
+  'Ore concediu': 'hours_leave',      // Alternativă pentru "Ore CO"
+  'Ore echipament': 'hours_equipment', // Alternativă pentru "Ore utilaj"
 };
 
 Deno.serve(async (req) => {
