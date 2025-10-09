@@ -126,21 +126,70 @@ Deno.serve(async (req) => {
 
     console.log(`[import-payroll-hours] Found ${profiles?.length || 0} employees in database`);
 
+    // Helper function pentru matching inteligent de nume
+    const normalizeString = (str: string): string => {
+      return str.trim().replace(/\s+/g, ' ').toUpperCase();
+    };
+
+    const findEmployeeByName = (csvName: string): typeof profiles[0] | null => {
+      if (!profiles || profiles.length === 0) return null;
+
+      const normalizedCsvName = normalizeString(csvName);
+
+      // 1. Încercare potrivire exactă (case-insensitive)
+      let match = profiles.find(p => 
+        normalizeString(p.full_name || '') === normalizedCsvName
+      );
+      if (match) return match;
+
+      // 2. Încercare inversare simplă: "NUME PRENUME" <-> "PRENUME NUME"
+      const csvParts = normalizedCsvName.split(' ');
+      if (csvParts.length >= 2) {
+        const reversed = `${csvParts.slice(1).join(' ')} ${csvParts[0]}`;
+        match = profiles.find(p => 
+          normalizeString(p.full_name || '') === reversed
+        );
+        if (match) {
+          console.log(`[import-payroll-hours] ✓ Matched by name inversion: "${csvName}" -> "${match.full_name}"`);
+          return match;
+        }
+
+        // 3. Încercare inversare cu prenume mijlociu: "NUME PRENUME MIJLOCIU" <-> "PRENUME MIJLOCIU NUME"
+        if (csvParts.length >= 3) {
+          const reversedWithMiddle = `${csvParts.slice(1).join(' ')} ${csvParts[0]}`;
+          match = profiles.find(p => 
+            normalizeString(p.full_name || '') === reversedWithMiddle
+          );
+          if (match) {
+            console.log(`[import-payroll-hours] ✓ Matched by name inversion (with middle): "${csvName}" -> "${match.full_name}"`);
+            return match;
+          }
+        }
+      }
+
+      // 4. Nu s-a găsit potrivire
+      return null;
+    };
+
     // Group entries by (employee_id, work_date)
     const groupedMap = new Map<string, GroupedEntry>();
     const employeesSet = new Set<string>();
+    const employeeMatches = new Map<string, string>(); // CSV name -> DB name
     let minDate: Date | null = null;
     let maxDate: Date | null = null;
 
     for (const row of rows) {
-      // Find employee
-      const employee = profiles?.find(p => 
-        p.full_name?.toUpperCase() === row.angajat.toUpperCase()
-      );
+      // Find employee with intelligent matching
+      const employee = findEmployeeByName(row.angajat);
 
       if (!employee) {
         errors.push(`Employee not found: ${row.angajat}`);
         continue;
+      }
+
+      // Track successful matches
+      if (!employeeMatches.has(row.angajat)) {
+        employeeMatches.set(row.angajat, employee.full_name || '');
       }
 
       // Parse date (DD.MM.YYYY -> YYYY-MM-DD)
@@ -303,6 +352,19 @@ Deno.serve(async (req) => {
 
     console.log('[import-payroll-hours] ✅ Import completed successfully');
 
+    // Prepare employee matches info
+    const matchInfo = Array.from(employeeMatches.entries())
+      .filter(([csv, db]) => {
+        const norm1 = csv.trim().replace(/\s+/g, ' ').toUpperCase();
+        const norm2 = db.trim().replace(/\s+/g, ' ').toUpperCase();
+        return norm1 !== norm2;
+      })
+      .map(([csv, db]) => ({ csv_name: csv, matched_db_name: db }));
+
+    if (matchInfo.length > 0) {
+      console.log(`[import-payroll-hours] ℹ️ Applied ${matchInfo.length} name normalizations/inversions`);
+    }
+
     // Prepare response
     const response = {
       success: true,
@@ -310,6 +372,7 @@ Deno.serve(async (req) => {
       grouped_entries: groupedEntries.length,
       employees_count: employeesSet.size,
       employees_list: Array.from(employeesSet).sort(),
+      employee_matches: matchInfo.length > 0 ? matchInfo : undefined,
       date_range: {
         start: minDateStr,
         end: maxDateStr,
