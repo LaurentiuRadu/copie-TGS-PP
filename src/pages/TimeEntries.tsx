@@ -1,16 +1,30 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { Clock, MapPin, Smartphone, User, ChevronDown } from "lucide-react";
+import { Clock, MapPin, Smartphone, User, ChevronDown, LogOut } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 
 import { useOptimizedTimeEntries } from "@/hooks/useOptimizedTimeEntries";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
@@ -42,9 +56,12 @@ interface TimeEntry {
 const TimeEntries = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+  const [showClockOutDialog, setShowClockOutDialog] = useState(false);
+  const [isClockingOut, setIsClockingOut] = useState(false);
+  const { isAdmin } = useUserRole();
 
   // ✅ Folosim hook-urile optimizate - eliminare N+1 + duplicate logic
-  const { data: entries = [], isLoading: loading } = useOptimizedTimeEntries(selectedDate);
+  const { data: entries = [], isLoading: loading, refetch } = useOptimizedTimeEntries(selectedDate);
   
   // ✅ Real-time updates automat gestionat
   useRealtimeTimeEntries(true);
@@ -103,6 +120,35 @@ const TimeEntries = () => {
   }
 
   const groupedUsers = groupEntriesByUser(entries);
+
+  // Funcție pentru închiderea pontajului de către admin
+  const handleAdminClockOut = async () => {
+    if (!selectedEntry || !isAdmin) return;
+
+    setIsClockingOut(true);
+    try {
+      const { error } = await supabase
+        .from('time_entries')
+        .update({ 
+          clock_out_time: new Date().toISOString(),
+          clock_out_latitude: selectedEntry.clock_in_latitude,
+          clock_out_longitude: selectedEntry.clock_in_longitude,
+        })
+        .eq('id', selectedEntry.id);
+
+      if (error) throw error;
+
+      toast.success('Pontaj închis cu succes');
+      setShowClockOutDialog(false);
+      setSelectedEntry(null);
+      refetch();
+    } catch (error) {
+      console.error('Error closing time entry:', error);
+      toast.error('Eroare la închiderea pontajului');
+    } finally {
+      setIsClockingOut(false);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -246,7 +292,21 @@ const TimeEntries = () => {
       <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalii Pontaj</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Detalii Pontaj</DialogTitle>
+              {/* Buton pentru admin să închidă pontajul activ */}
+              {isAdmin && selectedEntry && !selectedEntry.clock_out_time && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowClockOutDialog(true)}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Închide Pontaj
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           
           {selectedEntry && (
@@ -359,6 +419,30 @@ const TimeEntries = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmare închidere pontaj */}
+      <AlertDialog open={showClockOutDialog} onOpenChange={setShowClockOutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmare Închidere Pontaj</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ești sigur că vrei să închizi pontajul pentru <strong>{selectedEntry?.profiles?.full_name}</strong>?
+              <br /><br />
+              Ora de ieșire va fi setată la ora curentă: <strong>{format(new Date(), 'dd MMM yyyy HH:mm', { locale: ro })}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClockingOut}>Anulează</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAdminClockOut}
+              disabled={isClockingOut}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isClockingOut ? 'Se procesează...' : 'Închide Pontaj'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
