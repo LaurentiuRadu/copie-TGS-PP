@@ -9,6 +9,7 @@ import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
 import { SuspiciousEntriesManager } from "@/components/SuspiciousEntriesManager";
 import { VersionManager } from "@/components/VersionManager";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,9 +114,17 @@ const Admin = () => {
           </Card>
         )}
 
-        <TimeEntryCorrectionRequestsManager />
-        <TardinessReportsManager />
-        <SuspiciousEntriesManager />
+        <ErrorBoundary>
+          <TimeEntryCorrectionRequestsManager />
+        </ErrorBoundary>
+        
+        <ErrorBoundary>
+          <TardinessReportsManager />
+        </ErrorBoundary>
+        
+        <ErrorBoundary>
+          <SuspiciousEntriesManager />
+        </ErrorBoundary>
 
         {/* 📊 STATISTICI REALE */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

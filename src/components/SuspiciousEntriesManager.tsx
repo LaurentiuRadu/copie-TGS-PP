@@ -17,6 +17,7 @@ interface SuspiciousEntry {
   clock_out_time: string;
   needs_reprocessing: boolean;
   profiles: {
+    id: string;
     full_name: string;
     username: string;
   };
@@ -47,7 +48,7 @@ export function SuspiciousEntriesManager() {
 
       if (error) throw error;
 
-      // Fetch profiles separately
+      // Fetch profiles separately (batched pentru performanță)
       const userIds = [...new Set(data?.map(e => e.user_id) || [])];
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -60,7 +61,7 @@ export function SuspiciousEntriesManager() {
       const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
       return data?.map(entry => ({
         ...entry,
-        profiles: profilesMap.get(entry.user_id) || { full_name: '', username: 'Unknown' }
+        profiles: profilesMap.get(entry.user_id) || { id: entry.user_id, full_name: '', username: 'Unknown' }
       })) as SuspiciousEntry[];
     },
   });

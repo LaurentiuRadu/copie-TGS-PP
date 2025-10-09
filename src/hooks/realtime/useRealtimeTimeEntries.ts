@@ -65,16 +65,37 @@ export const useRealtimeTimeEntries = (enabled: boolean = true) => {
         }
       )
       
-      // ⚠️ SEGMENTS: Păstrăm invalidare globală (va fi optimizat în PR viitor)
+      // ✅ SEGMENTS: Targeted invalidation
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'time_entry_segments' },
         (payload) => {
           console.log('[useRealtimeTimeEntries] SEGMENTS event:', payload.eventType);
           
-          // Segmentele afectează calculele complexe → invalidare globală
-          queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-          queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
+          const timeEntryId = (payload.new as any)?.time_entry_id || (payload.old as any)?.time_entry_id;
+          
+          if (timeEntryId) {
+            // Invalidare țintită pentru acest time_entry specific
+            queryClient.invalidateQueries({ 
+              queryKey: ['time-entries'],
+              predicate: (query) => {
+                const data = query.state.data as any[];
+                return data?.some(e => e.id === timeEntryId);
+              }
+            });
+            
+            queryClient.invalidateQueries({ 
+              queryKey: ['my-time-entries'],
+              predicate: (query) => {
+                const data = query.state.data as any[];
+                return data?.some(e => e.id === timeEntryId);
+              }
+            });
+          } else {
+            // Fallback la invalidare globală dacă nu avem time_entry_id
+            queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+            queryClient.invalidateQueries({ queryKey: ['my-time-entries'] });
+          }
         }
       )
       

@@ -63,7 +63,7 @@ export const useOptimizedTimeEntries = (selectedDate: Date) => {
         profiles: profilesMap.get(entry.user_id) || null
       })) as TimeEntry[];
     },
-    staleTime: 10000, // 10 secunde - date fresh pentru admin
+    staleTime: 60000, // 60 secunde - date fresh pentru admin (optimizat)
     gcTime: 60000, // 1 minut in cache
     refetchOnWindowFocus: true, // Refresh când user revine pe tab
   });

@@ -20,9 +20,11 @@ import { format } from "date-fns";
 interface TimeEntryManualCorrectionDialogProps {
   entry: {
     id: string;
+    user_id: string;
     clock_in_time: string;
     clock_out_time: string;
     profiles: {
+      id: string;
       full_name: string;
       username: string;
     };
@@ -83,7 +85,7 @@ export function TimeEntryManualCorrectionDialog({
       // Trigger recalculation
       const { error: functionError } = await supabase.functions.invoke('calculate-time-segments', {
         body: {
-          user_id: entry.id,
+          user_id: entry.user_id,  // ✅ FIX: user_id corect (nu entry.id)
           time_entry_id: entry.id,
           clock_in_time: new Date(clockIn).toISOString(),
           clock_out_time: new Date(clockOut).toISOString(),

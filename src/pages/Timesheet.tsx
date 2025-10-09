@@ -9,7 +9,7 @@ import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
 import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,8 @@ const Timesheet = () => {
     from: startOfMonth(currentMonth),
     to: endOfMonth(currentMonth),
   });
+  
+  const queryClient = useQueryClient();
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -227,10 +229,13 @@ const Timesheet = () => {
         );
         toast.success(data.message);
         
-        // Refresh data
+        // ✅ Refresh soft cu query invalidation (fără reload brutal)
         setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+          queryClient.invalidateQueries({ queryKey: ['monthly-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
+          queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+          queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+        }, 1000);
       } else {
         throw new Error(data.error || 'Eroare necunoscută');
       }

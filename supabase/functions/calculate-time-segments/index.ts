@@ -5,6 +5,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ✅ Conditional logging pentru producție
+const isDev = Deno.env.get('DENO_ENV') === 'development';
+
+// Log helpers - doar console.log e condiționat, warn/error sunt mereu active
+const log = {
+  info: (...args: any[]) => { if (isDev) console.log(...args); },
+  warn: (...args: any[]) => console.warn(...args),
+  error: (...args: any[]) => console.error(...args),
+};
+
 interface TimesheetEntry {
   employee_id: string;
   work_date: string;
@@ -398,6 +408,19 @@ Deno.serve(async (req) => {
       // Limitează automat la 24h de la clock_in
       const maxClockOut = new Date(new Date(clock_in_time).getTime() + 24 * 60 * 60 * 1000);
       clock_out_time = maxClockOut.toISOString();
+      
+      // ✅ FIX: UPDATE în DB pentru persistență
+      const { error: updateError } = await supabase
+        .from('time_entries')
+        .update({ 
+          clock_out_time,
+          needs_reprocessing: true 
+        })
+        .eq('id', time_entry_id);
+      
+      if (updateError) {
+        console.error('[Validation] DB update failed:', updateError);
+      }
       
       // Creează alertă de securitate
       const { error: alertError } = await supabase.from('security_alerts').insert({
