@@ -112,14 +112,14 @@ Deno.serve(async (req) => {
       }
 
       // Procesează batch-ul
-      const result = await processEntries(supabase, batch);
+      const batchResults = await processEntries(supabase, batch);
       
-      totalProcessed += result.total;
-      totalSuccess += result.success;
-      totalFailed += result.failed;
-      allErrors.push(...result.errors);
+      totalProcessed += batchResults.total;
+      totalSuccess += batchResults.success;
+      totalFailed += batchResults.failed;
+      allErrors.push(...batchResults.errors);
       
-      console.log(`[Reprocess] Batch ${batchNumber} COMPLETE: ${result.success}/${result.total} success, ${result.failed} failed`);
+      console.log(`[Reprocess] Batch ${batchNumber} COMPLETE: ${batchResults.success}/${batchResults.total} success, ${batchResults.failed} failed`);
       console.log(`[Reprocess] ═══ Overall Progress: ${totalProcessed} total | ${totalSuccess} ✅ | ${totalFailed} ❌ ═══`);
       
       // Continuă dacă am primit un batch complet (ar putea fi mai multe)
@@ -167,7 +167,7 @@ async function processEntries(supabase: any, entries: TimeEntry[]) {
       console.log(`[Reprocess] Processing entry ${entry.id}...`);
       
       // Invocă calculate-time-segments
-      const { data, error } = await supabase.functions.invoke('calculate-time-segments', {
+      const { error } = await supabase.functions.invoke('calculate-time-segments', {
         body: {
           user_id: entry.user_id,
           time_entry_id: entry.id,
@@ -212,8 +212,5 @@ async function processEntries(supabase: any, entries: TimeEntry[]) {
 
   console.log(`[Reprocess] Complete: ${results.success} success, ${results.failed} failed`);
 
-  return new Response(
-    JSON.stringify(results),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
+  return results;
 }
