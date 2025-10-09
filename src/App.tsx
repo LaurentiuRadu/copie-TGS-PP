@@ -17,7 +17,6 @@ import Vacations from "./pages/Vacations";
 import WorkLocations from "./pages/WorkLocations";
 import RootRedirect from "./pages/RootRedirect";
 import TimeEntries from "./pages/TimeEntries";
-import MyTimeEntries from "./pages/MyTimeEntries";
 import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 
@@ -102,14 +101,6 @@ const App = () => {
                 element={
                   <ProtectedRoute allowedRole="admin">
                     <TimeEntries />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/my-time-entries"
-                element={
-                  <ProtectedRoute allowedRole="employee">
-                    <MyTimeEntries />
                   </ProtectedRoute>
                 }
               />

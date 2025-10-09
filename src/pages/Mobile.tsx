@@ -3,14 +3,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Menu, Clock, LogOut, Car, Users, Briefcase, CalendarDays } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Menu, Clock, LogOut, Car, Users, Briefcase, CalendarDays, MapPin, AlertCircle, Image as ImageIcon, Wrench, Navigation } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { format, addMonths, subMonths } from "date-fns";
 import { ro } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getCurrentPosition, findNearestLocation } from "@/lib/geolocation";
 import { generateDeviceFingerprint, getDeviceInfo, getClientIP } from "@/lib/deviceFingerprint";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import { TimeEntryCorrectionDialog } from '@/components/TimeEntryCorrectionDialog';
+import { useOptimizedMyTimeEntries } from '@/hooks/useOptimizedTimeEntries';
+import { useMyDailyTimesheets } from '@/hooks/useDailyTimesheets';
+import { cn } from '@/lib/utils';
+import { QUERY_KEYS } from '@/lib/queryKeys';
 import {
   Sheet,
   SheetContent,
@@ -78,6 +86,7 @@ const Mobile = () => {
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; newType: ShiftType }>({ open: false, newType: null });
   const [tardinessDialog, setTardinessDialog] = useState<{ open: boolean; delayMinutes: number; scheduledTime: string } | null>(null);
   const [showReminderAlert, setShowReminderAlert] = useState(true);
@@ -112,6 +121,96 @@ const Mobile = () => {
   
   // Check for tardiness when clocking in
   const tardinessInfo = useTardinessCheck(user?.id, !activeShift);
+
+  // Fetch data for history tab
+  const startDate = startOfMonth(selectedMonth);
+  const endDate = endOfMonth(startDate);
+  const { data: timeEntries = [], isLoading: entriesLoading } = useOptimizedMyTimeEntries(user?.id, startDate);
+  const { data: dailyTimesheets = [], isLoading: timesheetsLoading } = useMyDailyTimesheets(user?.id, startDate);
+
+  // Filter time entries for selected month
+  const filteredTimeEntries = timeEntries.filter((entry: any) => {
+    const entryDate = new Date(entry.clock_in_time);
+    return entryDate >= startDate && entryDate <= endDate;
+  });
+
+  // Group by days
+  const entriesByDay = filteredTimeEntries.reduce((acc: any, entry: any) => {
+    const dayKey = format(new Date(entry.clock_in_time), 'yyyy-MM-dd');
+    if (!acc[dayKey]) {
+      acc[dayKey] = [];
+    }
+    acc[dayKey].push(entry);
+    return acc;
+  }, {});
+
+  // Calculate monthly statistics
+  const monthlyStats = dailyTimesheets
+    .filter((ts: any) => {
+      const tsDate = new Date(ts.work_date);
+      return tsDate >= startDate && tsDate <= endDate;
+    })
+    .reduce((acc: any, ts: any) => ({
+      total: acc.total + (ts.hours_regular || 0) + (ts.hours_night || 0),
+      regular: acc.regular + (ts.hours_regular || 0),
+      night: acc.night + (ts.hours_night || 0),
+      weekend: acc.weekend + (ts.hours_saturday || 0) + (ts.hours_sunday || 0),
+      holiday: acc.holiday + (ts.hours_holiday || 0),
+      driving: acc.driving + (ts.hours_driving || 0),
+      passenger: acc.passenger + (ts.hours_passenger || 0),
+      equipment: acc.equipment + (ts.hours_equipment || 0),
+    }), {
+      total: 0,
+      regular: 0,
+      night: 0,
+      weekend: 0,
+      holiday: 0,
+      driving: 0,
+      passenger: 0,
+      equipment: 0,
+    });
+
+  // Fetch correction requests
+  const { data: correctionRequests = [] } = useQuery({
+    queryKey: QUERY_KEYS.myCorrectionRequests(user?.id),
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('time_entry_correction_requests')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+
+  const getShiftTypeFromNotes = (notes: string | null): string => {
+    if (!notes) return 'Normal';
+    const lower = notes.toLowerCase();
+    if (lower.includes('condus utilaj')) return 'Condus Utilaj';
+    if (lower.includes('condus')) return 'Condus';
+    if (lower.includes('pasager')) return 'Pasager';
+    return 'Normal';
+  };
+
+  const getShiftColor = (shiftType: string): string => {
+    switch (shiftType.toLowerCase()) {
+      case 'condus':
+        return 'bg-green-500';
+      case 'pasager':
+        return 'bg-blue-500';
+      case 'utilaj':
+      case 'condus utilaj':
+        return 'bg-orange-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
 
   const requestLocationAccess = useCallback(async () => {
     let loadingToast: string | number | undefined;
@@ -911,118 +1010,208 @@ const Mobile = () => {
         )}
 
 
-        <Card className="shadow-custom-lg animate-fade-in">
-          <CardContent className="p-4 xs:p-6">
-            <div className="grid grid-cols-1 gap-2 xs:gap-3">
-              <Button
-                size="lg"
-                onClick={() => handleShiftStart("condus")}
-                disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "animate-glow-blue border-2 border-blue-400" : ""}`}
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Se procesează...
-                  </>
-                ) : (
-                  <>
-                    <Car className="h-5 w-5 xs:h-6 xs:w-6" />
-                    INTRARE CONDUS
-                  </>
-                )}
-              </Button>
-              <Button
-                size="lg"
-                onClick={() => handleShiftStart("pasager")}
-                disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "animate-glow-green border-2 border-green-400" : ""}`}
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Se procesează...
-                  </>
-                ) : (
-                  <>
-                    <Users className="h-5 w-5 xs:h-6 xs:w-6" />
-                    INTRARE PASAGER
-                  </>
-                )}
-              </Button>
-              <Button
-                size="lg"
-                onClick={() => handleShiftStart("normal")}
-                disabled={!locationEnabled || isProcessing}
-                className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "animate-glow-purple border-2 border-purple-400" : ""}`}
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Se procesează...
-                  </>
-                ) : (
-                  <>
-                    <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
-                    INTRARE NORMAL
-                  </>
-                )}
-              </Button>
+        <Tabs defaultValue="pontaj" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="pontaj">Pontaj</TabsTrigger>
+            <TabsTrigger value="istoric">Istoric</TabsTrigger>
+          </TabsList>
 
-              {canSeeEquipmentButton && (
-                <Button
-                  size="lg"
-                  onClick={() => handleShiftStart("utilaj")}
-                  disabled={!locationEnabled || isProcessing}
-                  className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "utilaj" ? "animate-glow-orange border-2 border-orange-400" : ""}`}
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Se procesează...
-                    </>
-                  ) : (
-                    <>
-                      <Car className="h-5 w-5 xs:h-6 xs:w-6" />
-                      INTRARE CONDUS UTILAJ
-                    </>
+          {/* Tab Pontaj - Interfața actuală de clock-in/out */}
+          <TabsContent value="pontaj" className="space-y-3 xs:space-y-4">
+            <Card className="shadow-custom-lg animate-fade-in">
+              <CardContent className="p-4 xs:p-6">
+                <div className="grid grid-cols-1 gap-2 xs:gap-3">
+                  <Button
+                    size="lg"
+                    onClick={() => handleShiftStart("condus")}
+                    disabled={!locationEnabled || isProcessing}
+                    className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "animate-glow-blue border-2 border-blue-400" : ""}`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Se procesează...
+                      </>
+                    ) : (
+                      <>
+                        <Car className="h-5 w-5 xs:h-6 xs:w-6" />
+                        INTRARE CONDUS
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="lg"
+                    onClick={() => handleShiftStart("pasager")}
+                    disabled={!locationEnabled || isProcessing}
+                    className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "animate-glow-green border-2 border-green-400" : ""}`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Se procesează...
+                      </>
+                    ) : (
+                      <>
+                        <Users className="h-5 w-5 xs:h-6 xs:w-6" />
+                        INTRARE PASAGER
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="lg"
+                    onClick={() => handleShiftStart("normal")}
+                    disabled={!locationEnabled || isProcessing}
+                    className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "animate-glow-purple border-2 border-purple-400" : ""}`}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Se procesează...
+                      </>
+                    ) : (
+                      <>
+                        <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
+                        INTRARE NORMAL
+                      </>
+                    )}
+                  </Button>
+
+                  {canSeeEquipmentButton && (
+                    <Button
+                      size="lg"
+                      onClick={() => handleShiftStart("utilaj")}
+                      disabled={!locationEnabled || isProcessing}
+                      className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "utilaj" ? "animate-glow-orange border-2 border-orange-400" : ""}`}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Se procesează...
+                        </>
+                      ) : (
+                        <>
+                          <Car className="h-5 w-5 xs:h-6 xs:w-6" />
+                          INTRARE CONDUS UTILAJ
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
-              )}
-              
-              {activeShift && (
-                <Button
-                  size="lg"
-                  onClick={handleShiftEnd}
-                  disabled={isProcessing}
-                  variant="destructive"
-                  className="touch-target no-select h-14 xs:h-16 text-responsive-sm flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 mt-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Se procesează...
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-5 w-5 xs:h-6 xs:w-6" />
-                      IEȘIRE
-                    </>
+                  
+                  {activeShift && (
+                    <Button
+                      size="lg"
+                      onClick={handleShiftEnd}
+                      disabled={isProcessing}
+                      variant="destructive"
+                      className="touch-target no-select h-14 xs:h-16 text-responsive-sm flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 mt-2"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Se procesează...
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="h-5 w-5 xs:h-6 xs:w-6" />
+                          IEȘIRE
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Employee Schedule */}
-        <EmployeeScheduleView />
+            {/* Employee Schedule */}
+            <EmployeeScheduleView />
+          </TabsContent>
 
-        {/* Monthly Calendar */}
-        <Card className="shadow-custom-lg">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-responsive-lg">Calendar Lunar</CardTitle>
-          </CardHeader>
+          {/* Tab Istoric - Calendar, statistici, lista de pontaje */}
+          <TabsContent value="istoric" className="space-y-3 xs:space-y-4">
+            {/* Month Selector */}
+            <Card>
+              <CardContent className="p-4">
+                <Select
+                  value={format(selectedMonth, 'yyyy-MM')}
+                  onValueChange={(value) => {
+                    const [year, month] = value.split('-');
+                    setSelectedMonth(new Date(parseInt(year), parseInt(month) - 1, 1));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selectează luna" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const date = new Date();
+                      date.setMonth(date.getMonth() - i);
+                      return (
+                        <SelectItem key={i} value={format(date, 'yyyy-MM')}>
+                          {format(date, 'MMMM yyyy', { locale: ro })}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            {/* Monthly Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Statistici {format(selectedMonth, 'MMMM yyyy', { locale: ro })}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {timesheetsLoading ? (
+                  <div className="flex justify-center p-4">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Total Ore</p>
+                      <p className="text-2xl font-bold">{monthlyStats.total.toFixed(2)}h</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Ore Zi</p>
+                      <p className="text-xl font-semibold">{monthlyStats.regular.toFixed(2)}h</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Ore Noapte</p>
+                      <p className="text-xl font-semibold">{monthlyStats.night.toFixed(2)}h</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Ore Weekend</p>
+                      <p className="text-xl font-semibold">{monthlyStats.weekend.toFixed(2)}h</p>
+                    </div>
+                    {monthlyStats.driving > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Ore Condus</p>
+                        <p className="text-xl font-semibold">{monthlyStats.driving.toFixed(2)}h</p>
+                      </div>
+                    )}
+                    {monthlyStats.passenger > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Ore Pasager</p>
+                        <p className="text-xl font-semibold">{monthlyStats.passenger.toFixed(2)}h</p>
+                      </div>
+                    )}
+                    {monthlyStats.equipment > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Ore Utilaj</p>
+                        <p className="text-xl font-semibold">{monthlyStats.equipment.toFixed(2)}h</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Monthly Calendar View */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Calendar Lunar</CardTitle>
+              </CardHeader>
           <CardContent className="space-y-3 xs:space-y-4">
             <div className="touch-manipulation">
               <Calendar
@@ -1083,7 +1272,124 @@ const Mobile = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Time Entries List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Istoric Pontaje</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {entriesLoading ? (
+              <div className="flex justify-center p-4">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              </div>
+            ) : Object.keys(entriesByDay).length === 0 ? (
+              <p className="text-center text-muted-foreground p-4">Nu există pontaje în luna selectată</p>
+            ) : (
+              <Accordion type="single" collapsible className="w-full">
+                {Object.entries(entriesByDay)
+                  .sort((a, b) => b[0].localeCompare(a[0]))
+                  .map(([dayKey, entries]: [string, any]) => {
+                    const firstEntry = entries[0];
+                    const shiftType = getShiftTypeFromNotes(firstEntry.notes);
+                    
+                    return (
+                      <AccordionItem key={dayKey} value={dayKey}>
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex items-center justify-between w-full pr-2">
+                            <div className="flex items-center gap-3">
+                              <Badge className={cn(getShiftColor(shiftType), "text-white")}>
+                                {shiftType}
+                              </Badge>
+                              <span className="font-medium">
+                                {format(parseISO(dayKey), 'EEEE, d MMMM yyyy', { locale: ro })}
+                              </span>
+                            </div>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-3">
+                          {entries.map((entry: any) => (
+                            <Card key={entry.id} className="p-4">
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <span>Intrare: {format(parseISO(entry.clock_in_time), 'HH:mm')}</span>
+                                  {entry.clock_out_time && (
+                                    <span>Ieșire: {format(parseISO(entry.clock_out_time), 'HH:mm')}</span>
+                                  )}
+                                </div>
+                                {entry.clock_in_location_id && (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <MapPin className="h-4 w-4" />
+                                    <span>Locație pontaj</span>
+                                  </div>
+                                )}
+                                {entry.notes && (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <span>{entry.notes}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </Card>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+              </Accordion>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Correction Requests */}
+        {correctionRequests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Cereri de Corecții</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {correctionRequests.map((request: any) => (
+                  <div key={request.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        {format(parseISO(request.work_date), 'd MMMM yyyy', { locale: ro })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{request.description}</p>
+                    </div>
+                    <Badge variant={
+                      request.status === 'approved' ? 'default' :
+                      request.status === 'rejected' ? 'destructive' :
+                      'secondary'
+                    }>
+                      {request.status === 'approved' ? 'Aprobat' :
+                       request.status === 'rejected' ? 'Respins' :
+                       'În așteptare'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Button
+          onClick={() => setCorrectionDialogOpen(true)}
+          className="w-full"
+        >
+          <AlertCircle className="mr-2 h-4 w-4" />
+          Solicită Corecție Pontaj
+        </Button>
+      </TabsContent>
+    </Tabs>
       </main>
+
+      {/* Time Entry Correction Dialog */}
+      <TimeEntryCorrectionDialog
+        open={correctionDialogOpen}
+        onOpenChange={setCorrectionDialogOpen}
+      />
 
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && handleCancelShiftChange()}>
