@@ -19,6 +19,8 @@ interface TimesheetEntry {
   hours_leave: number;
   hours_medical_leave: number;
   notes: string | null;
+  start_time?: Date;  // Pentru detectare corectă interval 00:00-06:00
+  end_time?: Date;
 }
 
 interface Shift {
@@ -255,7 +257,9 @@ function segmentShiftIntoTimesheets(
         hours_equipment: 0,
         hours_leave: 0,
         hours_medical_leave: 0,
-        notes: shift.notes || null
+        notes: shift.notes || null,
+        start_time: currentSegmentStart,  // Păstrează timpul efectiv
+        end_time: currentSegmentEnd
       };
       timesheets.push(existingTimesheet);
     }
@@ -463,30 +467,30 @@ Deno.serve(async (req) => {
         
         // REGULĂ CRITICĂ: Ore noapte 00:00-06:00 aparțin zilei PRECEDENTE
         // Exemplu: Joi 00:00-06:00 → "noaptea de Miercuri" → work_date = Miercuri
-        if (timesheet.hours_night > 0) {
-          const workDate = new Date(timesheet.work_date + 'T00:00:00Z');
-          const hour = workDate.getUTCHours();
+        if (timesheet.hours_night > 0 && timesheet.start_time) {
+          const segmentHour = timesheet.start_time.getUTCHours();
           
-          // Dacă avem ore noapte și e segment 00:00-06:00, ajustăm la ziua precedentă
-          if (hour < 6) {
+          // Verifică dacă segmentul EFECTIV începe în 00:00-06:00
+          if (segmentHour >= 0 && segmentHour < 6) {
+            const workDate = new Date(timesheet.work_date + 'T00:00:00Z');
             const previousDay = new Date(workDate);
             previousDay.setUTCDate(previousDay.getUTCDate() - 1);
             adjustedWorkDate = previousDay.toISOString().split('T')[0];
-            console.log(`[Night Rule] Adjusted ${timesheet.work_date} → ${adjustedWorkDate} for ${timesheet.hours_night}h night`);
+            console.log(`[Night Rule] Adjusted ${timesheet.work_date} → ${adjustedWorkDate} (segment ${segmentHour}:00, ${timesheet.hours_night}h night)`);
           }
         }
         
         // REGULĂ WEEKEND: Duminică 00:00-06:00 → "sâmbăta noapte" → work_date = Sâmbătă
-        if (timesheet.hours_saturday > 0) {
-          const workDate = new Date(timesheet.work_date + 'T00:00:00Z');
-          const dayOfWeek = workDate.getUTCDay();
-          const hour = workDate.getUTCHours();
+        if (timesheet.hours_saturday > 0 && timesheet.start_time) {
+          const segmentHour = timesheet.start_time.getUTCHours();
+          const dayOfWeek = timesheet.start_time.getUTCDay();
           
-          if (dayOfWeek === 0 && hour < 6) { // Duminică 00:00-06:00
+          if (dayOfWeek === 0 && segmentHour >= 0 && segmentHour < 6) { // Duminică 00:00-06:00
+            const workDate = new Date(timesheet.work_date + 'T00:00:00Z');
             const saturday = new Date(workDate);
             saturday.setUTCDate(saturday.getUTCDate() - 1);
             adjustedWorkDate = saturday.toISOString().split('T')[0];
-            console.log(`[Weekend Rule] Adjusted ${timesheet.work_date} → ${adjustedWorkDate} for ${timesheet.hours_saturday}h saturday`);
+            console.log(`[Weekend Rule] Adjusted ${timesheet.work_date} → ${adjustedWorkDate} (segment ${segmentHour}:00, ${timesheet.hours_saturday}h saturday)`);
           }
         }
         
