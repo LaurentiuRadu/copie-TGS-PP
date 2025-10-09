@@ -127,8 +127,44 @@ const Mobile = () => {
     return entryDate >= startDate && entryDate <= endDate;
   });
 
+  // Convert dailyTimesheets to synthetic time entries for display
+  const syntheticEntries = dailyTimesheets.map(sheet => {
+    const totalHours = Number(sheet.hours_regular || 0) + 
+                       Number(sheet.hours_night || 0) +
+                       Number(sheet.hours_driving || 0) + 
+                       Number(sheet.hours_equipment || 0) + 
+                       Number(sheet.hours_passenger || 0);
+    
+    const clockInTime = new Date(`${sheet.work_date}T08:00:00`);
+    const clockOutTime = new Date(clockInTime);
+    clockOutTime.setHours(clockInTime.getHours() + Math.floor(totalHours));
+    clockOutTime.setMinutes((totalHours % 1) * 60);
+    
+    return {
+      id: sheet.id,
+      user_id: sheet.employee_id,
+      clock_in_time: clockInTime.toISOString(),
+      clock_out_time: clockOutTime.toISOString(),
+      notes: sheet.notes || `Ore Zi: ${sheet.hours_regular || 0}h, Condus: ${(Number(sheet.hours_driving || 0) + Number(sheet.hours_equipment || 0))}h, Pasager: ${sheet.hours_passenger || 0}h`,
+      isFromPayroll: true,
+      payrollData: sheet,
+    };
+  });
+
+  // Filter out synthetic entries if manual entry exists for same day
+  const manualEntryDates = new Set(
+    filteredTimeEntries.map(entry => format(new Date(entry.clock_in_time), 'yyyy-MM-dd'))
+  );
+  
+  const filteredSyntheticEntries = syntheticEntries.filter(
+    entry => !manualEntryDates.has(format(new Date(entry.clock_in_time), 'yyyy-MM-dd'))
+  );
+
+  // Combine manual and synthetic entries
+  const allEntries = [...filteredTimeEntries, ...filteredSyntheticEntries];
+
   // Group by days
-  const entriesByDay = filteredTimeEntries.reduce((acc: any, entry: any) => {
+  const entriesByDay = allEntries.reduce((acc: any, entry: any) => {
     const dayKey = format(new Date(entry.clock_in_time), 'yyyy-MM-dd');
     if (!acc[dayKey]) {
       acc[dayKey] = [];
@@ -1312,18 +1348,63 @@ const Mobile = () => {
                           {entries.map((entry: any) => (
                             <Card key={entry.id} className="p-4">
                               <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span>Intrare: {format(parseISO(entry.clock_in_time), 'HH:mm')}</span>
-                                  {entry.clock_out_time && (
-                                    <span>Ieșire: {format(parseISO(entry.clock_out_time), 'HH:mm')}</span>
-                                  )}
-                                </div>
-                                {entry.clock_in_location_id && (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <MapPin className="h-4 w-4" />
-                                    <span>Locație pontaj</span>
-                                  </div>
+                                {entry.isFromPayroll ? (
+                                  <>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        📊 Date Payroll
+                                      </Badge>
+                                    </div>
+                                    {entry.payrollData && (
+                                      <div className="grid grid-cols-2 gap-2 text-sm">
+                                        {Number(entry.payrollData.hours_regular || 0) > 0 && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Ore Zi:</span>
+                                            <span className="font-medium">{entry.payrollData.hours_regular}h</span>
+                                          </div>
+                                        )}
+                                        {Number(entry.payrollData.hours_night || 0) > 0 && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Ore Noapte:</span>
+                                            <span className="font-medium">{entry.payrollData.hours_night}h</span>
+                                          </div>
+                                        )}
+                                        {(Number(entry.payrollData.hours_driving || 0) + Number(entry.payrollData.hours_equipment || 0)) > 0 && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Condus:</span>
+                                            <span className="font-medium">{(Number(entry.payrollData.hours_driving || 0) + Number(entry.payrollData.hours_equipment || 0))}h</span>
+                                          </div>
+                                        )}
+                                        {Number(entry.payrollData.hours_passenger || 0) > 0 && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Pasager:</span>
+                                            <span className="font-medium">{entry.payrollData.hours_passenger}h</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Badge variant="outline" className="text-xs">
+                                        🕐 Pontaj Manual
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <Clock className="h-4 w-4 text-muted-foreground" />
+                                      <span>Intrare: {format(parseISO(entry.clock_in_time), 'HH:mm')}</span>
+                                      {entry.clock_out_time && (
+                                        <span>Ieșire: {format(parseISO(entry.clock_out_time), 'HH:mm')}</span>
+                                      )}
+                                    </div>
+                                    {entry.clock_in_location_id && (
+                                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <MapPin className="h-4 w-4" />
+                                        <span>Locație pontaj</span>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                                 {entry.notes && (
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
