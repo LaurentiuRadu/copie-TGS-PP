@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { Clock, MapPin, Smartphone } from "lucide-react";
+import { Clock, MapPin, Smartphone, User, ChevronDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,31 @@ const TimeEntries = () => {
   
   // ✅ Real-time updates automat gestionat
   useRealtimeTimeEntries(true);
+
+  const groupEntriesByUser = (entries: TimeEntry[]) => {
+    const grouped = entries.reduce((acc, entry) => {
+      const userId = entry.profiles?.full_name || 'Necunoscut';
+      if (!acc[userId]) {
+        acc[userId] = [];
+      }
+      acc[userId].push(entry);
+      return acc;
+    }, {} as Record<string, TimeEntry[]>);
+    
+    return Object.entries(grouped).map(([userName, userEntries]) => ({
+      userName,
+      entries: userEntries,
+      totalEntries: userEntries.length,
+      totalHours: userEntries.reduce((sum, e) => sum + calculateTotalHours(e), 0),
+      hasActiveEntry: userEntries.some(e => !e.clock_out_time),
+    })).sort((a, b) => {
+      if (a.hasActiveEntry && !b.hasActiveEntry) return -1;
+      if (!a.hasActiveEntry && b.hasActiveEntry) return 1;
+      return a.userName.localeCompare(b.userName);
+    });
+  };
+
+  const groupedUsers = groupEntriesByUser(entries);
 
   const getSegmentLabel = (type: string) => {
     const labels: Record<string, string> = {
@@ -98,90 +124,120 @@ const TimeEntries = () => {
                 Nu există pontaje pentru această dată
               </div>
             ) : (
-              entries.map((entry) => {
-                const totalHours = calculateTotalHours(entry);
-                const hasSegments = entry.time_entry_segments?.length > 0;
-
-                return (
-                  <Card 
-                    key={entry.id}
-                    className="cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => setSelectedEntry(entry)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-lg">
-                              {entry.profiles?.full_name || 'Necunoscut'}
+              groupedUsers.map((group) => (
+                <Collapsible key={group.userName} defaultOpen={false}>
+                  <Card className="overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <User className="h-5 w-5 text-muted-foreground" />
+                            <span className="font-semibold text-lg">{group.userName}</span>
+                            <Badge variant="outline">
+                              {group.totalEntries} {group.totalEntries === 1 ? 'pontaj' : 'pontaje'}
+                            </Badge>
+                            {group.hasActiveEntry && (
+                              <Badge className="bg-green-500">Activ</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Total: {group.totalHours.toFixed(2)}h
                             </span>
-                            {!entry.clock_out_time && (
-                              <Badge variant="default" className="bg-green-500">Activ</Badge>
-                            )}
+                            <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
                           </div>
-                          
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {format(new Date(entry.clock_in_time), 'HH:mm')}
-                              {entry.clock_out_time && ` - ${format(new Date(entry.clock_out_time), 'HH:mm')}`}
-                            </div>
-                            
-                            {entry.device_id && (
-                              <div className="flex items-center gap-1">
-                                <Smartphone className="w-4 h-4" />
-                                Device
-                              </div>
-                            )}
-                          </div>
-
-                          {hasSegments ? (
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium">
-                                Total: {totalHours.toFixed(2)}h
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {entry.time_entry_segments.map((seg, idx) => (
-                                  <Badge key={idx} className={getSegmentColor(seg.segment_type)}>
-                                    {getSegmentLabel(seg.segment_type)}: {seg.hours_decimal.toFixed(2)}h
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm">
-                              {entry.clock_out_time ? (
-                                <span className="text-muted-foreground">
-                                  Total: {totalHours.toFixed(2)}h (nesegmentat)
-                                </span>
-                              ) : (
-                                <span className="text-green-600 font-medium">În desfășurare</span>
-                              )}
-                            </div>
-                          )}
                         </div>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent>
+                      <div className="border-t p-4 space-y-3 bg-muted/30">
+                        {group.entries.map((entry) => {
+                          const totalHours = calculateTotalHours(entry);
+                          const hasSegments = entry.time_entry_segments?.length > 0;
 
-                        <div className="flex gap-2">
-                          {entry.clock_in_photo_url && (
-                            <img 
-                              src={entry.clock_in_photo_url} 
-                              alt="Clock in" 
-                              className="w-12 h-12 rounded object-cover border-2 border-green-500"
-                            />
-                          )}
-                          {entry.clock_out_photo_url && (
-                            <img 
-                              src={entry.clock_out_photo_url} 
-                              alt="Clock out" 
-                              className="w-12 h-12 rounded object-cover border-2 border-red-500"
-                            />
-                          )}
-                        </div>
+                          return (
+                            <Card 
+                              key={entry.id}
+                              className="cursor-pointer hover:bg-accent/50 transition-colors"
+                              onClick={() => setSelectedEntry(entry)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="space-y-2 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      {!entry.clock_out_time && (
+                                        <Badge variant="default" className="bg-green-500">Activ</Badge>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="w-4 h-4" />
+                                        {format(new Date(entry.clock_in_time), 'HH:mm')}
+                                        {entry.clock_out_time && ` - ${format(new Date(entry.clock_out_time), 'HH:mm')}`}
+                                      </div>
+                                      
+                                      {entry.device_id && (
+                                        <div className="flex items-center gap-1">
+                                          <Smartphone className="w-4 h-4" />
+                                          Device
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {hasSegments ? (
+                                      <div className="space-y-1">
+                                        <div className="text-sm font-medium">
+                                          Total: {totalHours.toFixed(2)}h
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                          {entry.time_entry_segments.map((seg, idx) => (
+                                            <Badge key={idx} className={getSegmentColor(seg.segment_type)}>
+                                              {getSegmentLabel(seg.segment_type)}: {seg.hours_decimal.toFixed(2)}h
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm">
+                                        {entry.clock_out_time ? (
+                                          <span className="text-muted-foreground">
+                                            Total: {totalHours.toFixed(2)}h (nesegmentat)
+                                          </span>
+                                        ) : (
+                                          <span className="text-green-600 font-medium">În desfășurare</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex gap-2">
+                                    {entry.clock_in_photo_url && (
+                                      <img 
+                                        src={entry.clock_in_photo_url} 
+                                        alt="Clock in" 
+                                        className="w-12 h-12 rounded object-cover border-2 border-green-500"
+                                      />
+                                    )}
+                                    {entry.clock_out_photo_url && (
+                                      <img 
+                                        src={entry.clock_out_photo_url} 
+                                        alt="Clock out" 
+                                        className="w-12 h-12 rounded object-cover border-2 border-red-500"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
-                    </CardContent>
+                    </CollapsibleContent>
                   </Card>
-                );
-              })
+                </Collapsible>
+              ))
             )}
           </CardContent>
         </Card>
