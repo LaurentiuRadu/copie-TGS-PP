@@ -231,23 +231,21 @@ function segmentShiftIntoTimesheets(
     
     const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
     
-    // Determină tipul de ore
-    let hoursType: string;
+    // ✅ DUAL-TRACK: Calculează AMBELE tipuri de ore
+    // TRACK 1: Ore NORMALE (bazate pe interval orar - ÎNTOTDEAUNA)
+    const normalHoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
     
+    // TRACK 2: Ore SPECIALE (bazate pe shiftType - OPȚIONAL)
+    let specialHoursType: string | null = null;
     if (shiftType === 'condus') {
-      hoursType = 'hours_driving';
-      console.log(`[Segment] → hours_driving (${hoursInSegment}h) [daily]`);
+      specialHoursType = 'hours_driving';
     } else if (shiftType === 'pasager') {
-      hoursType = 'hours_passenger';
-      console.log(`[Segment] → hours_passenger (${hoursInSegment}h) [daily]`);
+      specialHoursType = 'hours_passenger';
     } else if (shiftType === 'utilaj') {
-      hoursType = 'hours_equipment';
-      console.log(`[Segment] → hours_equipment (${hoursInSegment}h) [daily]`);
-    } else {
-      // Pentru "normal" → fragmentare bazată pe timp
-      hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
-      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [time-based]`);
+      specialHoursType = 'hours_equipment';
     }
+    
+    console.log(`[Segment Dual-Track] ${hoursInSegment}h → Normal: ${normalHoursType}${specialHoursType ? ` + Special: ${specialHoursType}` : ''}`);
     
     // Găsește sau creează pontaj pentru această zi
     const workDate = currentSegmentStart.toISOString().split('T')[0];
@@ -274,8 +272,11 @@ function segmentShiftIntoTimesheets(
       timesheets.push(existingTimesheet);
     }
     
-    // Adaugă orele la tipul corect
-    (existingTimesheet as any)[hoursType] += hoursInSegment;
+    // ✅ Adaugă ore în AMBELE tracks
+    (existingTimesheet as any)[normalHoursType] += hoursInSegment;
+    if (specialHoursType) {
+      (existingTimesheet as any)[specialHoursType] += hoursInSegment;
+    }
     
     // Avansează la următorul segment
     currentSegmentStart = new Date(currentSegmentEnd);
