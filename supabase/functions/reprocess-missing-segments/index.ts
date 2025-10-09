@@ -23,9 +23,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { mode = 'missing_segments', batch_size = 100 } = await req.json();
+    const { mode = 'missing_segments', batch_size = 100, start_date, end_date } = await req.json();
     
-    console.log(`[Reprocess] Mode: ${mode}, Batch Size: ${batch_size}`);
+    console.log(`[Reprocess] Mode: ${mode}, Batch Size: ${batch_size}`, start_date && end_date ? `| Range: ${start_date} → ${end_date}` : '');
 
     // Rulează în batch-uri până procesează TOATE entries
     let totalProcessed = 0;
@@ -76,22 +76,27 @@ Deno.serve(async (req) => {
         console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries marked for reprocessing`);
         
       } else if (mode === 'date_range') {
-        // Procesează după interval de date (nu suportă continuous, doar single batch)
-        const { start_date, end_date } = await req.json();
+        // Procesează după interval de date (single batch, fără read din nou al body-ului)
+        if (!start_date || !end_date) {
+          return new Response(
+            JSON.stringify({ error: 'start_date and end_date are required for date_range mode' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         
         const { data: entries, error } = await supabase
           .from('time_entries')
           .select('id, user_id, clock_in_time, clock_out_time, notes')
           .not('clock_out_time', 'is', null)
-          .gte('clock_out_time', start_date)
-          .lte('clock_out_time', end_date)
+          .gte('clock_out_time', `${start_date}T00:00:00Z`)
+          .lte('clock_out_time', `${end_date}T23:59:59Z`)
           .order('clock_out_time', { ascending: false })
           .limit(batch_size);
         
         if (error) throw error;
         batch = entries || [];
         
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range`);
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range ${start_date} → ${end_date}`);
         hasMore = false; // Date range nu continuă
         
       } else {
