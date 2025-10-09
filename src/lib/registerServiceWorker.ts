@@ -1,7 +1,28 @@
 // Register Service Worker pentru PWA functionality
 export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
+    let updateIntervalId: number | null = null;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    // Named handlers pentru cleanup corect
+    const handleVisibilityChange = (registration: ServiceWorkerRegistration) => () => {
+      if (!document.hidden) {
+        registration.update().catch(() => {});
+      }
+    };
+
+    const handleFocus = (registration: ServiceWorkerRegistration) => () => {
+      registration.update().catch(() => {});
+    };
+
+    const handlePageShow = (registration: ServiceWorkerRegistration) => (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        // Pagina a fost restaurată din bfcache
+        registration.update().catch(() => {});
+      }
+    };
+
+    const handleLoad = () => {
       navigator.serviceWorker
         .register('/service-worker.js')
         .then((registration) => {
@@ -9,11 +30,9 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
-          // Verifică actualizări la fiecare 10 secunde (mai agresiv pentru iOS)
-          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          // Verifică actualizări la interval
           const updateInterval = isIOS ? 10000 : 30000; // 10s pentru iOS, 30s pentru restul
-
-          setInterval(() => {
+          updateIntervalId = window.setInterval(() => {
             registration.update().catch(() => {
               // Ignoră erorile de update
             });
@@ -43,41 +62,59 @@ export function registerServiceWorker() {
             }
           });
 
-          // Forțează verificarea pentru actualizări când devine vizibilă aplicația
-          document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-              registration.update().catch(() => {});
-            }
-          });
+          // Attach event listeners cu referințe pentru cleanup
+          const visibilityHandler = handleVisibilityChange(registration);
+          document.addEventListener('visibilitychange', visibilityHandler);
 
           // Pentru iOS, verificare agresivă când aplicația devine activă
           if (isIOS) {
-            window.addEventListener('focus', () => {
-              registration.update().catch(() => {});
-            });
+            const focusHandler = handleFocus(registration);
+            const pageShowHandler = handlePageShow(registration);
             
-            window.addEventListener('pageshow', (event) => {
-              if (event.persisted) {
-                // Pagina a fost restaurată din bfcache
-                registration.update().catch(() => {});
-              }
-            });
+            window.addEventListener('focus', focusHandler);
+            window.addEventListener('pageshow', pageShowHandler);
+            
+            // Store handlers pentru potential cleanup (nu e nevoie în practică, dar best practice)
+            (registration as any)._cleanupHandlers = {
+              visibilityHandler,
+              focusHandler,
+              pageShowHandler,
+            };
+          } else {
+            (registration as any)._cleanupHandlers = {
+              visibilityHandler,
+            };
           }
         })
         .catch((error) => {
           console.error('Service Worker registration failed:', error);
         });
-    });
+    };
+
+    window.addEventListener('load', handleLoad);
 
     // Reîncarcă pagina când un nou service worker preia controlul
     let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
+    const handleControllerChange = () => {
       if (!refreshing) {
         refreshing = true;
         window.location.reload();
       }
-    });
+    };
+    
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    // Cleanup function (poate fi apelată la unmount dacă e nevoie)
+    return () => {
+      if (updateIntervalId !== null) {
+        clearInterval(updateIntervalId);
+      }
+      window.removeEventListener('load', handleLoad);
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    };
   }
+  
+  return () => {}; // noop cleanup
 }
 
 // Detect if app is running in standalone mode (PWA installed)
