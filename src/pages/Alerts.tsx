@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AdminLayout } from '@/components/AdminLayout';
+
 
 interface SecurityAlert {
   id: string;
@@ -137,8 +137,7 @@ const Alerts = () => {
   };
 
   return (
-    <AdminLayout title="Alerte Securitate">
-      <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <Button
@@ -350,8 +349,7 @@ const Alerts = () => {
           )}
         </DialogContent>
       </Dialog>
-      </div>
-    </AdminLayout>
+    </div>
   );
 };
 

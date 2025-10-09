@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AdminLayout } from "@/components/AdminLayout";
+
 import { useOptimizedTimeEntries } from "@/hooks/useOptimizedTimeEntries";
 import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 
@@ -79,8 +79,7 @@ const TimeEntries = () => {
 
 
   return (
-    <AdminLayout title="Monitorizare Pontaje Live">
-      <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
 
         {/* Entries List */}
         <Card>
@@ -304,8 +303,7 @@ const TimeEntries = () => {
           )}
         </DialogContent>
       </Dialog>
-      </div>
-    </AdminLayout>
+    </div>
   );
 };
 

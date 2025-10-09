@@ -30,6 +30,8 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import { GDPRConsentAlert } from "./components/GDPRConsentAlert";
 import { UpdateNotification } from "./components/UpdateNotification";
+import { AdminLayout } from "./components/AdminLayout";
+import { Outlet } from "react-router-dom";
 
 const App = () => {
   const [themeMode, setThemeMode] = useState<string>(() => {
@@ -62,6 +64,10 @@ const App = () => {
         <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Index />} />
+              <Route path="/landing" element={<Landing />} />
+              
+              {/* Employee Routes */}
               <Route
                 path="/mobile"
                 element={
@@ -71,84 +77,10 @@ const App = () => {
                 }
               />
               <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <Admin />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/dashboard" element={<Index />} />
-              <Route path="/landing" element={<Landing />} />
-              <Route
                 path="/vacations"
                 element={
                   <ProtectedRoute>
                     <Vacations />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/work-locations"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <WorkLocations />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/time-entries"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <TimeEntries />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/alerts"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <Alerts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/face-verifications"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <FaceVerifications />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/weekly-schedules"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <WeeklySchedules />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/edit-team-schedule"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <EditTeamSchedule />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/timesheet"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <Timesheet />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gdpr-admin"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <GDPRAdmin />
                   </ProtectedRoute>
                 }
               />
@@ -160,14 +92,28 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
+
+              {/* Admin Routes with Shared Layout */}
               <Route
-                path="/backup-restore"
                 element={
                   <ProtectedRoute allowedRole="admin">
-                    <Settings />
+                    <AdminLayout>
+                      <Outlet />
+                    </AdminLayout>
                   </ProtectedRoute>
                 }
-          />
+              >
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/time-entries" element={<TimeEntries />} />
+                <Route path="/alerts" element={<Alerts />} />
+                <Route path="/work-locations" element={<WorkLocations />} />
+                <Route path="/face-verifications" element={<FaceVerifications />} />
+                <Route path="/weekly-schedules" element={<WeeklySchedules />} />
+                <Route path="/edit-team-schedule" element={<EditTeamSchedule />} />
+                <Route path="/timesheet" element={<Timesheet />} />
+                <Route path="/gdpr-admin" element={<GDPRAdmin />} />
+                <Route path="/backup-restore" element={<Settings />} />
+              </Route>
           
           {/* Protected GDPR Pages */}
           <Route

@@ -1,4 +1,4 @@
-import { AdminLayout } from "@/components/AdminLayout";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +26,7 @@ export default function Settings() {
   };
 
   return (
-    <AdminLayout title="Setări & Configurare">
-      <div className="container max-w-6xl mx-auto p-6">
+    <div className="container max-w-6xl mx-auto p-6">
         <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="general" className="flex items-center gap-2">
@@ -214,6 +213,5 @@ export default function Settings() {
           </TabsContent>
         </Tabs>
       </div>
-    </AdminLayout>
   );
 }

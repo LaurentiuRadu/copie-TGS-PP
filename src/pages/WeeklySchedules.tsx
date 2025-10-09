@@ -19,7 +19,7 @@ import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { SimpleDateRangePicker } from '@/components/ui/simple-date-range-picker';
-import { AdminLayout } from '@/components/AdminLayout';
+
 import { cn } from '@/lib/utils';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
@@ -701,8 +701,7 @@ export default function WeeklySchedules() {
   }, [schedules, employees]);
 
   return (
-    <AdminLayout title="Programare Săptămânală">
-      <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6">
         <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1721,6 +1720,5 @@ export default function WeeklySchedules() {
         </AlertDialogContent>
       </AlertDialog>
       </div>
-    </AdminLayout>
   );
 }

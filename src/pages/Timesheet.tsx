@@ -11,7 +11,7 @@ import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, User
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminLayout } from "@/components/AdminLayout";
+
 import { cn } from "@/lib/utils";
 import { PayrollExportDialog } from "@/components/PayrollExportDialog";
 import { PayrollImportDialog } from "@/components/PayrollImportDialog";
@@ -354,8 +354,7 @@ const Timesheet = () => {
   };
 
   return (
-    <AdminLayout title="Timesheet - Payroll">
-      <div className="container mx-auto p-6 max-w-7xl space-y-4">
+    <div className="container mx-auto p-6 max-w-7xl space-y-4">
         {/* Header with Search and Export */}
         <Card>
           <CardHeader>
@@ -736,10 +735,9 @@ const Timesheet = () => {
                 </Card>
               );
             })}
-          </div>
-        )}
-      </div>
-    </AdminLayout>
+           </div>
+         )}
+       </div>
   );
 };
 

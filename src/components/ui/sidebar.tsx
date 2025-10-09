@@ -107,8 +107,7 @@ const SidebarProvider = React.forwardRef<
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delayDuration={200}>
-        <div
+      <div
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH,
@@ -122,7 +121,6 @@ const SidebarProvider = React.forwardRef<
         >
           {children}
         </div>
-      </TooltipProvider>
     </SidebarContext.Provider>
   );
 });
