@@ -1122,16 +1122,26 @@ const Mobile = () => {
       <div className="pb-safe-area-bottom">
         <main className="p-3 xs:p-4 space-y-3 xs:space-y-4 smooth-scroll">
         {/* Header cu numele utilizatorului */}
-        <Card className="shadow-custom-md animate-fade-in">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Bun venit,</p>
-                <p className="text-lg font-semibold">{user?.user_metadata?.full_name || user?.email}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <Card className="shadow-custom-md animate-fade-in">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Bun venit,</p>
+                      <p className="text-lg font-semibold">{user?.user_metadata?.full_name || user?.email}</p>
+                    </div>
+                    
+                    {locationEnabled && (
+                      <Badge 
+                        variant="outline" 
+                        className="bg-green-500/10 text-green-600 border-green-500/50 animate-pulse flex items-center gap-1.5 px-3 py-1.5"
+                      >
+                        <Navigation className="h-4 w-4" />
+                        <span className="font-semibold text-xs">GPS LIVE</span>
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
         {/* Clock Out Reminder Alert */}
         {activeTimeEntry && showReminderAlert && (
