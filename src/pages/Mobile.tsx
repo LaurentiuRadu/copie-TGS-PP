@@ -109,11 +109,24 @@ const Mobile = () => {
   useAutoDarkMode(); // Auto switch theme based on time of day
   useRealtimeTimeEntries(true); // Real-time updates pentru pontaje
   
+  // State-uri pentru recalculare INSTANT
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [recalcDebounceTimer, setRecalcDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  
   // Monitor active time entry for notifications
   const { hasActiveEntry, activeEntry: monitoredEntry, elapsed: monitoredElapsed } = useActiveTimeEntry(user?.id);
   
   // Check for tardiness when clocking in
   const tardinessInfo = useTardinessCheck(user?.id, !activeShift);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (recalcDebounceTimer) {
+        clearTimeout(recalcDebounceTimer);
+      }
+    };
+  }, [recalcDebounceTimer]);
 
   // Fetch data for history tab
   const startDate = startOfMonth(selectedMonth);
@@ -691,12 +704,111 @@ const Mobile = () => {
     }
   }, [user, triggerHaptic, activeShift, tardinessInfo]);
 
+  // Handler pentru schimbare TIP shift ÎN TIMPUL unui shift activ
+  const handleShiftTypeChange = useCallback(async (newType: ShiftType) => {
+    if (!newType || !activeTimeEntry) return;
+    
+    // 1. Clear previous debounce
+    if (recalcDebounceTimer) {
+      clearTimeout(recalcDebounceTimer);
+      setRecalcDebounceTimer(null);
+    }
+    
+    // 2. Check battery
+    if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+      toast.error(
+        `⚠️ Baterie critică (${Math.round(batteryInfo.level * 100)}%)! Conectează dispozitivul la încărcare pentru recalculare.`,
+        {
+          description: 'Recalcularea orelor necesită conexiune la încărcare când bateria e critică.',
+          duration: 6000,
+        }
+      );
+      triggerHaptic('error');
+      return;
+    }
+    
+    // 3. Check if already recalculating
+    if (isRecalculating) {
+      toast.warning('Recalculare în curs... Te rog așteaptă.', { duration: 3000 });
+      return;
+    }
+    
+    // 4. Update UI și DB instant
+    const newShiftLabel = getShiftTypeLabel(newType);
+    setActiveShift(newType);
+    
+    try {
+      // Update notes în DB
+      const { error: updateError } = await supabase
+        .from('time_entries')
+        .update({ notes: `Tip: ${newShiftLabel}` })
+        .eq('id', activeTimeEntry.id);
+      
+      if (updateError) throw updateError;
+      
+      // Update local state
+      setActiveTimeEntry({ ...activeTimeEntry, notes: `Tip: ${newShiftLabel}` });
+      
+      toast.info(
+        `🔄 Schimbare la ${newShiftLabel}. Recalculare programată în 5s...`,
+        { duration: 5000 }
+      );
+      triggerHaptic('light');
+      
+      // 5. Schedule recalc după 5s debounce
+      const timer = setTimeout(async () => {
+        setIsRecalculating(true);
+        console.log('[RecalcInstant] Starting recalculation for shift type change...');
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('calculate-time-segments', {
+            body: {
+              user_id: user?.id,
+              time_entry_id: activeTimeEntry.id,
+              clock_in_time: activeTimeEntry.clock_in_time,
+              clock_out_time: new Date().toISOString(), // ACUM (parțial)
+              notes: `Tip: ${newShiftLabel}`
+            }
+          });
+          
+          if (error) throw error;
+          
+          console.log('[RecalcInstant] ✅ Recalculare completă:', data);
+          toast.success(`✅ Ore recalculate pentru ${newShiftLabel}!`, { duration: 3000 });
+          triggerHaptic('success');
+        } catch (e: any) {
+          console.error('[RecalcInstant] ❌ Eroare recalculare:', e);
+          toast.error(
+            'Eroare la recalcularea orelor. Orele vor fi actualizate la închiderea pontajului.',
+            { duration: 5000 }
+          );
+          triggerHaptic('error');
+        } finally {
+          setIsRecalculating(false);
+          setRecalcDebounceTimer(null);
+        }
+      }, 5000);
+      
+      setRecalcDebounceTimer(timer);
+    } catch (e: any) {
+      console.error('[ShiftTypeChange] Eroare la update:', e);
+      toast.error('Eroare la schimbarea tipului de shift', { duration: 3000 });
+      triggerHaptic('error');
+    }
+  }, [activeTimeEntry, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user?.id]);
+
   const handleConfirmShiftChange = useCallback(() => {
     setConfirmDialog({ open: false, newType: null });
     if (confirmDialog.newType) {
-      handleShiftStart(confirmDialog.newType, true);
+      // Dacă există shift activ, doar schimbă tipul și recalculează
+      if (activeShift && activeTimeEntry) {
+        handleShiftTypeChange(confirmDialog.newType);
+      } else {
+        // Dacă nu există shift activ, începe unul nou
+        handleShiftStart(confirmDialog.newType, true);
+      }
     }
-  }, [confirmDialog.newType, handleShiftStart]);
+  }, [confirmDialog.newType, activeShift, activeTimeEntry, handleShiftStart, handleShiftTypeChange]);
 
   const handleCancelShiftChange = useCallback(() => {
     setConfirmDialog({ open: false, newType: null });
