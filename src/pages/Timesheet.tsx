@@ -57,40 +57,35 @@ const Timesheet = () => {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  // Fetch all users with their roles
-  const { data: users, isLoading: loadingUsers } = useQuery({
-    queryKey: ['users-with-roles'],
+  // ✅ Fetch users with roles in a single query (batched)
+  const { data: usersWithRoles, isLoading: loadingUsers } = useQuery({
+    queryKey: ['users-with-roles-batched'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select(`
           id, 
           username, 
-          full_name
+          full_name,
+          user_roles!inner(role)
         `)
         .order('full_name', { ascending: true });
 
       if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch user roles separately
-  const { data: userRoles } = useQuery({
-    queryKey: ['user-roles'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (error) throw error;
-      return data;
+      
+      // Transform to include role directly
+      return data.map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        full_name: user.full_name,
+        role: user.user_roles?.[0]?.role || 'employee'
+      }));
     },
   });
 
   // Fetch all timesheets for the current month
   const { data: allTimesheets, isLoading: loadingTimesheets } = useQuery({
-    queryKey: ['monthly-timesheets', format(monthStart, 'yyyy-MM-dd')],
+    queryKey: QUERY_KEYS.dailyTimesheets(monthStart),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('daily_timesheets')
@@ -113,9 +108,9 @@ const Timesheet = () => {
 
   // Process employee data
   const employeeData: EmployeeTimesheetData[] = useMemo(() => {
-    if (!users || !allTimesheets) return [];
+    if (!usersWithRoles || !allTimesheets) return [];
 
-    return users.map(user => {
+    return usersWithRoles.map(user => {
       const userTimesheets = allTimesheets.filter(ts => ts.employee_id === user.id);
       
       const hoursByType = userTimesheets.reduce((acc, ts) => ({
@@ -145,21 +140,17 @@ const Timesheet = () => {
       const totalHours = Object.values(hoursByType).reduce((sum, h) => sum + h, 0);
       const daysWorked = new Set(userTimesheets.map(ts => ts.work_date)).size;
 
-      // Get position from user_roles
-      const userRole = userRoles?.find(r => r.user_id === user.id);
-      const position = userRole?.role || 'Angajat';
-
       return {
         userId: user.id,
         userName: user.full_name || user.username || 'N/A',
-        position,
+        position: user.role || 'Angajat',
         totalHours,
         daysWorked,
         timesheets: userTimesheets,
         hoursByType,
       };
     }).filter(emp => emp.totalHours > 0); // Only show employees with hours
-  }, [users, allTimesheets, userRoles]);
+  }, [usersWithRoles, allTimesheets]);
 
   // Filter employees based on search
   const filteredEmployees = useMemo(() => {
@@ -230,12 +221,11 @@ const Timesheet = () => {
         );
         toast.success(data.message);
         
-        // ✅ Invalidare imediată DUPĂ success confirm (eliminare setTimeout)
+        // ✅ Invalidare imediată DUPĂ success confirm
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() }),
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() }),
-          queryClient.invalidateQueries({ queryKey: ['monthly-timesheets'] }),
-          queryClient.invalidateQueries({ queryKey: ['users-with-roles'] })
+          queryClient.invalidateQueries({ queryKey: ['users-with-roles-batched'] })
         ]);
       } else {
         throw new Error(data.error || 'Eroare necunoscută');

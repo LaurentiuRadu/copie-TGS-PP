@@ -25,6 +25,7 @@ import { getCurrentPosition, findNearestLocation } from '@/lib/geolocation';
 import { useOptimizedMyTimeEntries } from '@/hooks/useOptimizedTimeEntries';
 import { useMyDailyTimesheets } from '@/hooks/useDailyTimesheets';
 import { cn } from '@/lib/utils';
+import { QUERY_KEYS } from '@/lib/queryKeys';
 
 type ShiftType = 'condus' | 'pasager' | 'normal' | 'utilaj' | null;
 
@@ -163,7 +164,7 @@ export default function MyTimeEntries() {
 
   // Fetch correction requests
   const { data: correctionRequests = [] } = useQuery({
-    queryKey: ['my-correction-requests', user?.id],
+    queryKey: QUERY_KEYS.myCorrectionRequests(user?.id),
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
@@ -177,6 +178,7 @@ export default function MyTimeEntries() {
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 30000, // 30s
   });
 
   // Request location access on mount
@@ -298,11 +300,13 @@ export default function MyTimeEntries() {
                         preClockDialog.shiftType === 'utilaj' ? 'Condus Utilaj' :
                         'Normal';
 
+      const timestamp = new Date().toISOString();
+
       const { data: newEntry, error } = await supabase
         .from('time_entries')
         .insert({
           user_id: user.id,
-          clock_in_time: new Date().toISOString(),
+          clock_in_time: timestamp,
           clock_in_latitude: preClockDialog.latitude,
           clock_in_longitude: preClockDialog.longitude,
           clock_in_location_id: nearestLocation?.id,
@@ -322,7 +326,7 @@ export default function MyTimeEntries() {
       setConfirmationCard({
         visible: true,
         type: 'clock-in',
-        timestamp: new Date().toISOString(),
+        timestamp,
         locationName: nearestLocation?.name,
         locationDistance: nearestLocation?.distance,
         latitude: preClockDialog.latitude,
@@ -338,7 +342,7 @@ export default function MyTimeEntries() {
           open: true,
           delayMinutes,
           scheduledTime,
-          actualTime: new Date().toISOString(),
+          actualTime: timestamp,
           timeEntryId: newEntry.id,
         });
       }
@@ -402,10 +406,12 @@ export default function MyTimeEntries() {
         preClockDialog.longitude
       );
 
+      const timestamp = new Date().toISOString();
+
       const { error } = await supabase
         .from('time_entries')
         .update({
-          clock_out_time: new Date().toISOString(),
+          clock_out_time: timestamp,
           clock_out_latitude: preClockDialog.latitude,
           clock_out_longitude: preClockDialog.longitude,
           clock_out_location_id: nearestLocation?.id,
@@ -424,7 +430,7 @@ export default function MyTimeEntries() {
       setConfirmationCard({
         visible: true,
         type: 'clock-out',
-        timestamp: new Date().toISOString(),
+        timestamp,
         locationName: nearestLocation?.name,
         locationDistance: nearestLocation?.distance,
         latitude: preClockDialog.latitude,
@@ -444,7 +450,13 @@ export default function MyTimeEntries() {
     }
   };
 
-  const processTimeSegmentsWithRetry = async (entryId: string, retries = 3) => {
+  // ✅ Extract retry constant
+  const TIME_SEGMENT_RETRY_COUNT = 3;
+  const TIME_SEGMENT_RETRY_DELAY_BASE = 2000; // 2s
+
+  const processTimeSegmentsWithRetry = async (entryId: string, retries = TIME_SEGMENT_RETRY_COUNT) => {
+    const timestamp = new Date().toISOString();
+    
     for (let i = 0; i < retries; i++) {
       try {
         const { error } = await supabase.functions.invoke('calculate-time-segments', {
@@ -452,23 +464,19 @@ export default function MyTimeEntries() {
         });
 
         if (!error) {
-          console.log(`[processTimeSegments] Succes la încercarea ${i + 1}`);
-          return;
+          return; // Success
         }
 
-        console.warn(`[processTimeSegments] Eroare la încercarea ${i + 1}:`, error);
-        
-        // ✅ La ultimul retry, salvează failure state pentru manual retry
+        // ✅ Error recovery: save failure state on last retry
         if (i === retries - 1) {
           await supabase
             .from('time_entries')
             .update({ 
               needs_reprocessing: true,
-              last_reprocess_attempt: new Date().toISOString()
+              last_reprocess_attempt: timestamp
             })
             .eq('id', entryId);
           
-          // ✅ Toast persistent cu CTA
           toast.error('Procesarea automată a eșuat. Admin va verifica în secțiunea Reprocess.', {
             duration: 10000,
             action: {
@@ -477,18 +485,17 @@ export default function MyTimeEntries() {
             }
           });
         } else {
-          await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
+          // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, TIME_SEGMENT_RETRY_DELAY_BASE * (i + 1)));
         }
       } catch (error) {
-        console.error(`[processTimeSegments] Exception la încercarea ${i + 1}:`, error);
-        
-        // ✅ La ultimul retry, salvează failure state
+        // ✅ Exception handling with failure state save
         if (i === retries - 1) {
           await supabase
             .from('time_entries')
             .update({ 
               needs_reprocessing: true,
-              last_reprocess_attempt: new Date().toISOString()
+              last_reprocess_attempt: timestamp
             })
             .eq('id', entryId);
           

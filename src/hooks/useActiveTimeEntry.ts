@@ -31,7 +31,12 @@ export const useActiveTimeEntry = (userId: string | undefined) => {
       return data as ActiveTimeEntry | null;
     },
     enabled: !!userId,
-    refetchInterval: 30 * 1000, // Verifică la fiecare 30 secunde pentru iOS
+    // ✅ Conditional refetch: only when active entry exists AND app is visible
+    refetchInterval: (query) => {
+      const hasActiveEntry = query.state.data !== null && query.state.data !== undefined;
+      const isAppVisible = !document.hidden;
+      return hasActiveEntry && isAppVisible ? 30 * 1000 : false;
+    },
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });

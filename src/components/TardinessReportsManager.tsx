@@ -67,7 +67,7 @@ export const TardinessReportsManager = () => {
         .from('tardiness_reports')
         .select(`
           *,
-          profiles!tardiness_reports_user_id_fkey (
+          profiles:user_id (
             full_name,
             username
           )

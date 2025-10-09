@@ -5,6 +5,9 @@
  * ✅ Tip-safe cu TypeScript
  */
 
+type QueryKeyValue = string | number | Date | undefined | null;
+type QueryKey = ReadonlyArray<QueryKeyValue | ReadonlyArray<QueryKeyValue>>;
+
 export const QUERY_KEYS = {
   // Time Entries
   timeEntries: (date?: Date) => 
@@ -41,6 +44,13 @@ export const QUERY_KEYS = {
     userId ? ['active-entry', userId] : ['active-entry'],
 
   // GDPR
-  gdprRequests: (status?: string) => 
+  gdprRequests: (status?: string): QueryKey => 
     status ? ['gdpr-requests', status] : ['gdpr-requests'],
+
+  // Correction Requests
+  myCorrectionRequests: (userId?: string): QueryKey =>
+    userId ? ['my-correction-requests', userId] : ['my-correction-requests'],
+
+  // Admin Stats
+  adminStatsBatch: (): QueryKey => ['admin-stats-batch'],
 } as const;

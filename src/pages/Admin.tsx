@@ -18,86 +18,30 @@ import { useState } from "react";
 const Admin = () => {
   const [toolsOpen, setToolsOpen] = useState(false);
 
-  // Fetch pending correction requests count
-  const { data: pendingCount = 0 } = useQuery({
-    queryKey: ['correctionRequestsPendingCount'],
+  // ✅ Batch all admin stats in a single edge function call
+  const { data: adminStats } = useQuery({
+    queryKey: ['admin-stats-batch'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('time_entry_correction_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      if (error) throw error;
-      return count || 0;
-    },
-    refetchInterval: 30000,
-  });
-
-  // Fetch total employees
-  const { data: totalEmployees = 0 } = useQuery({
-    queryKey: ['totalEmployees'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-      if (error) throw error;
-      return count || 0;
-    },
-  });
-
-  // Fetch active today (clocked in, not clocked out)
-  const { data: activeToday = 0 } = useQuery({
-    queryKey: ['activeToday'],
-    queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const { count, error } = await supabase
-        .from('time_entries')
-        .select('*', { count: 'exact', head: true })
-        .gte('clock_in_time', `${today}T00:00:00`)
-        .is('clock_out_time', null);
-      if (error) throw error;
-      return count || 0;
-    },
-    refetchInterval: 30000,
-  });
-
-  // Fetch pending vacation requests
-  const { data: pendingVacations = 0 } = useQuery({
-    queryKey: ['pendingVacations'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('vacation_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      if (error) throw error;
-      return count || 0;
-    },
-    refetchInterval: 30000,
-  });
-
-  // Fetch average hours per day (current week)
-  const { data: avgHours = 0 } = useQuery({
-    queryKey: ['avgHoursCurrentWeek'],
-    queryFn: async () => {
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay() + 1);
-      const startDate = startOfWeek.toISOString().split('T')[0];
-
-      const { data, error } = await supabase
-        .from('daily_timesheets')
-        .select('hours_regular, hours_night, work_date')
-        .gte('work_date', startDate);
+      const { data, error } = await supabase.functions.invoke('get-admin-stats');
       
       if (error) throw error;
-      if (!data || data.length === 0) return 0;
-
-      const totalHours = data.reduce((sum, entry) => 
-        sum + (entry.hours_regular || 0) + (entry.hours_night || 0), 0
-      );
-      const uniqueDays = new Set(data.map(entry => entry.work_date)).size;
-      return uniqueDays > 0 ? (totalHours / uniqueDays).toFixed(1) : 0;
+      return data as {
+        totalEmployees: number;
+        activeToday: number;
+        pendingVacations: number;
+        pendingCorrections: number;
+        avgHours: string;
+      };
     },
+    staleTime: 60000, // 1 min
+    refetchInterval: 30000, // Refetch every 30s for real-time updates
   });
+
+  const totalEmployees = adminStats?.totalEmployees || 0;
+  const activeToday = adminStats?.activeToday || 0;
+  const pendingVacations = adminStats?.pendingVacations || 0;
+  const pendingCount = adminStats?.pendingCorrections || 0;
+  const avgHours = adminStats?.avgHours || '0.0';
 
   return (
     <AdminLayout title="Admin Dashboard">

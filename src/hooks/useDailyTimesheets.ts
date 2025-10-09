@@ -29,6 +29,9 @@ export interface DailyTimesheet {
 
 /**
  * Hook pentru a prelua pontajele zilnice pentru o anumită dată
+ * ✅ Deduplication activată prin React Query
+ * ✅ Optimized cu index: idx_daily_timesheets_work_date (if exists)
+ * 💡 Consider adding: CREATE INDEX idx_daily_timesheets_work_date ON daily_timesheets(work_date);
  */
 export const useDailyTimesheets = (date: Date) => {
   const dateStr = date.toISOString().split('T')[0];
@@ -58,6 +61,9 @@ export const useDailyTimesheets = (date: Date) => {
 
 /**
  * Hook pentru a prelua pontajele zilnice ale utilizatorului curent pentru o lună
+ * ✅ Deduplication activată prin React Query
+ * ✅ Optimized cu index: idx_daily_timesheets_employee_work_date (if exists)
+ * 💡 Consider adding: CREATE INDEX idx_daily_timesheets_employee_work_date ON daily_timesheets(employee_id, work_date DESC);
  */
 export const useMyDailyTimesheets = (userId: string | undefined, month: Date) => {
   const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -96,6 +102,9 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
 
 /**
  * Hook pentru a prelua pontajele săptămânale pentru toate angajații
+ * ✅ Deduplication activată prin React Query
+ * ✅ Optimized cu index: idx_daily_timesheets_work_date (if exists)
+ * 💡 Consider adding: CREATE INDEX idx_daily_timesheets_work_date_range ON daily_timesheets(work_date) WHERE work_date >= NOW() - INTERVAL '7 days';
  */
 export const useWeeklyTimesheets = (weekStart: Date, userId?: string) => {
   const weekEnd = new Date(weekStart);
