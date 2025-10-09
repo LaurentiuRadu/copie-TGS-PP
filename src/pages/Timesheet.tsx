@@ -57,8 +57,8 @@ const Timesheet = () => {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  // ✅ Fetch users with roles in a single query (batched)
-  const { data: usersWithRoles, isLoading: loadingUsers } = useQuery({
+  // ✅ Optional: Fetch user roles (won't block UI if fails)
+  const { data: usersWithRoles } = useQuery({
     queryKey: ['users-with-roles-batched'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -71,7 +71,10 @@ const Timesheet = () => {
         `)
         .order('full_name', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user roles:', error);
+        return [];
+      }
       
       // Transform to include role directly
       return data.map((user: any) => ({
@@ -83,7 +86,7 @@ const Timesheet = () => {
     },
   });
 
-  // Fetch all timesheets for the current month
+  // ✅ Fetch all timesheets for the current month (primary data source)
   const { data: allTimesheets, isLoading: loadingTimesheets } = useQuery({
     queryKey: QUERY_KEYS.dailyTimesheets(monthStart),
     queryFn: async () => {
@@ -106,13 +109,22 @@ const Timesheet = () => {
     },
   });
 
-  // Process employee data
+  // ✅ Process employee data FROM timesheets (not dependent on usersWithRoles)
   const employeeData: EmployeeTimesheetData[] = useMemo(() => {
-    if (!usersWithRoles || !allTimesheets) return [];
+    if (!allTimesheets) return [];
 
-    return usersWithRoles.map(user => {
-      const userTimesheets = allTimesheets.filter(ts => ts.employee_id === user.id);
-      
+    // Group timesheets by employee_id
+    const employeeMap = new Map<string, DailyTimesheet[]>();
+    
+    allTimesheets.forEach(ts => {
+      if (!employeeMap.has(ts.employee_id)) {
+        employeeMap.set(ts.employee_id, []);
+      }
+      employeeMap.get(ts.employee_id)!.push(ts);
+    });
+
+    // Convert to EmployeeTimesheetData array
+    return Array.from(employeeMap.entries()).map(([employeeId, userTimesheets]) => {
       const hoursByType = userTimesheets.reduce((acc, ts) => ({
         regular: acc.regular + ts.hours_regular,
         night: acc.night + ts.hours_night,
@@ -140,17 +152,27 @@ const Timesheet = () => {
       const totalHours = Object.values(hoursByType).reduce((sum, h) => sum + h, 0);
       const daysWorked = new Set(userTimesheets.map(ts => ts.work_date)).size;
 
+      // Get employee name from first timesheet's profile data
+      const profile = userTimesheets[0]?.profiles;
+      const userName = profile?.full_name || profile?.username || 'Necunoscut';
+
+      // Try to get role from usersWithRoles, fallback to 'Angajat'
+      const userRole = usersWithRoles?.find(u => u.id === employeeId)?.role || 'employee';
+      const position = userRole === 'admin' ? 'Administrator' : 'Angajat';
+
       return {
-        userId: user.id,
-        userName: user.full_name || user.username || 'N/A',
-        position: user.role || 'Angajat',
+        userId: employeeId,
+        userName,
+        position,
         totalHours,
         daysWorked,
         timesheets: userTimesheets,
         hoursByType,
       };
-    }).filter(emp => emp.totalHours > 0); // Only show employees with hours
-  }, [usersWithRoles, allTimesheets]);
+    })
+    .filter(emp => emp.totalHours > 0) // Only show employees with hours
+    .sort((a, b) => a.userName.localeCompare(b.userName)); // Sort by name
+  }, [allTimesheets, usersWithRoles]);
 
   // Filter employees based on search
   const filteredEmployees = useMemo(() => {
@@ -223,7 +245,7 @@ const Timesheet = () => {
         
         // ✅ Invalidare imediată DUPĂ success confirm
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() }),
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) }),
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() }),
           queryClient.invalidateQueries({ queryKey: ['users-with-roles-batched'] })
         ]);
@@ -337,7 +359,7 @@ const Timesheet = () => {
         </Collapsible>
 
         {/* Employee List */}
-        {loadingUsers || loadingTimesheets ? (
+        {loadingTimesheets ? (
           <Card>
             <CardContent className="py-8">
               <p className="text-center text-muted-foreground">Se încarcă datele...</p>
