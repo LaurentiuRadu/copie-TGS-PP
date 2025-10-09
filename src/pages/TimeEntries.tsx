@@ -49,6 +49,36 @@ const TimeEntries = () => {
   // ✅ Real-time updates automat gestionat
   useRealtimeTimeEntries(true);
 
+  // Helper functions - definite ÎNAINTE de a fi folosite
+  const calculateTotalHours = (entry: TimeEntry) => {
+    if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
+      if (!entry.clock_out_time) return 0;
+      const duration = new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime();
+      return duration / (1000 * 60 * 60);
+    }
+    
+    return entry.time_entry_segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
+  };
+
+  const getSegmentLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      normal_day: 'Regular',
+      normal_night: 'Noapte',
+      saturday: 'Sâmbătă',
+      sunday: 'Duminică',
+      holiday: 'Sărbătoare',
+    };
+    return labels[type] || type;
+  };
+
+  const getSegmentColor = (type: string) => {
+    if (type === 'holiday') return 'bg-red-500/20 text-red-900 dark:text-red-100';
+    if (type === 'sunday') return 'bg-purple-500/20 text-purple-900 dark:text-purple-100';
+    if (type === 'saturday') return 'bg-blue-500/20 text-blue-900 dark:text-blue-100';
+    if (type === 'normal_night') return 'bg-indigo-500/20 text-indigo-900 dark:text-indigo-100';
+    return 'bg-green-500/20 text-green-900 dark:text-green-100';
+  };
+
   const groupEntriesByUser = (entries: TimeEntry[]) => {
     const grouped = entries.reduce((acc, entry) => {
       const userId = entry.profiles?.full_name || 'Necunoscut';
@@ -73,36 +103,6 @@ const TimeEntries = () => {
   };
 
   const groupedUsers = groupEntriesByUser(entries);
-
-  const getSegmentLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      normal_day: 'Regular',
-      normal_night: 'Noapte',
-      saturday: 'Sâmbătă',
-      sunday: 'Duminică',
-      holiday: 'Sărbătoare',
-    };
-    return labels[type] || type;
-  };
-
-  const getSegmentColor = (type: string) => {
-    if (type === 'holiday') return 'bg-red-500/20 text-red-900 dark:text-red-100';
-    if (type === 'sunday') return 'bg-purple-500/20 text-purple-900 dark:text-purple-100';
-    if (type === 'saturday') return 'bg-blue-500/20 text-blue-900 dark:text-blue-100';
-    if (type === 'normal_night') return 'bg-indigo-500/20 text-indigo-900 dark:text-indigo-100';
-    return 'bg-green-500/20 text-green-900 dark:text-green-100';
-  };
-
-  const calculateTotalHours = (entry: TimeEntry) => {
-    if (!entry.time_entry_segments || entry.time_entry_segments.length === 0) {
-      if (!entry.clock_out_time) return 0;
-      const duration = new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime();
-      return duration / (1000 * 60 * 60);
-    }
-    
-    return entry.time_entry_segments.reduce((sum, seg) => sum + seg.hours_decimal, 0);
-  };
-
 
   return (
     <div className="container mx-auto p-6 space-y-6">
