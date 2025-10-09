@@ -26,10 +26,10 @@ const Landing = () => {
 
         {/* Selection Cards */}
         <div className="grid md:grid-cols-2 gap-6 mt-12">
-          {/* Mobile View Card */}
+          {/* Employee View Card */}
           <Card 
             className="cursor-pointer hover:border-primary transition-all hover:shadow-lg"
-            onClick={() => navigate("/mobile")}
+            onClick={() => navigate("/auth")}
           >
             <CardContent className="p-8 text-center space-y-4">
               <div className="flex justify-center">
@@ -53,7 +53,7 @@ const Landing = () => {
           {/* Admin View Card */}
           <Card 
             className="cursor-pointer hover:border-primary transition-all hover:shadow-lg"
-            onClick={() => navigate("/admin")}
+            onClick={() => navigate("/admin-login")}
           >
             <CardContent className="p-8 text-center space-y-4">
               <div className="flex justify-center">

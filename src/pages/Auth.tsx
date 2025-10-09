@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -26,20 +26,13 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [activeTab, setActiveTab] = useState<"employee" | "admin">("employee");
-
   // Employee form
   const [employeeUsername, setEmployeeUsername] = useState("");
   const [employeePassword, setEmployeePassword] = useState("");
   const [employeeFullName, setEmployeeFullName] = useState("");
 
-  // Admin form
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
-
   // Password visibility
   const [showEmployeePassword, setShowEmployeePassword] = useState(false);
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   const handleEmployeeAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,57 +97,15 @@ const Auth = () => {
     }
   };
 
-  const handleAdminAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const validated = adminSchema.parse({
-        email: adminEmail,
-        password: adminPassword,
-      });
-
-      if (isSignUp) {
-        // Signup disabled for admins too - use create-user edge function instead
-        throw new Error("Crearea contului de administrator este dezactivată. Contactează super-adminul.");
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: validated.email,
-          password: validated.password,
-        });
-
-        if (signInError) {
-          if (signInError.message.includes("Invalid")) {
-            throw new Error("Email sau parolă incorectă");
-          }
-          throw signInError;
-        }
-
-        navigate("/admin");
-      }
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        setError(err.errors[0].message);
-      } else if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("A apărut o eroare");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-hero flex items-start justify-center p-4 pt-8">
-      <Card className={`w-full max-w-md shadow-elegant transition-all duration-300 ${activeTab === "admin" ? "bg-secondary border-secondary" : "border-primary/20"}`}>
+      <Card className="w-full max-w-md shadow-elegant border-primary/20">
         <CardHeader className="text-center space-y-4">
-          <CardTitle className={`text-3xl font-bold ${activeTab === "admin" ? "text-white" : "bg-gradient-primary bg-clip-text text-transparent"}`}>
+          <CardTitle className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             TGS PP
           </CardTitle>
           <CardDescription className="text-base">
-            {isSignUp ? "Creează cont nou" : "Autentificare în sistem"}
+            {isSignUp ? "Creează cont nou" : "Autentificare Angajat"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -165,24 +116,7 @@ const Auth = () => {
             </Alert>
           )}
 
-          <Tabs defaultValue="employee" className="w-full" onValueChange={(value) => setActiveTab(value as "employee" | "admin")}>
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted">
-              <TabsTrigger 
-                value="employee" 
-                className="data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground transition-all"
-              >
-                Angajat
-              </TabsTrigger>
-              <TabsTrigger 
-                value="admin"
-                className="data-[state=active]:bg-gradient-secondary data-[state=active]:text-secondary-foreground transition-all"
-              >
-                Administrator
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="employee" className="space-y-1">
-              <form onSubmit={handleEmployeeAuth} className="space-y-4">
+          <form onSubmit={handleEmployeeAuth} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="employee-username">Username</Label>
                   <Input
@@ -242,65 +176,19 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90 transition-all shadow-md" disabled={loading}>
-                  {loading ? "Se procesează..." : isSignUp ? "Creează cont angajat" : "Autentificare angajat"}
-                </Button>
-              </form>
-            </TabsContent>
+            <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90 transition-all shadow-md" disabled={loading}>
+              {loading ? "Se procesează..." : isSignUp ? "Creează cont angajat" : "Autentificare angajat"}
+            </Button>
+          </form>
 
-            <TabsContent value="admin" className="space-y-1">
-              <form onSubmit={handleAdminAuth} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="admin-email" className="text-white">Email</Label>
-                  <Input
-                    id="admin-email"
-                    type="email"
-                    placeholder="ex: admin@example.com"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="admin-password" className="text-white">Parolă</Label>
-                  <div className="relative">
-                    <Input
-                      id="admin-password"
-                      type={showAdminPassword ? "text" : "password"}
-                      placeholder="••••••"
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      required
-                      disabled={loading}
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowAdminPassword(!showAdminPassword)}
-                      disabled={loading}
-                    >
-                      {showAdminPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full bg-gradient-secondary hover:opacity-90 transition-all shadow-md" disabled={loading}>
-                  {loading ? "Se procesează..." : isSignUp ? "Creează cont admin" : "Autentificare admin"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-
-          {/* Signup disabled - only show for reference but hide the toggle button */}
+          <div className="mt-6 text-center">
+            <Link 
+              to="/admin-login" 
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              Ești administrator? Click aici
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -30,6 +30,10 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
 
   // Utilizator neautentificat → redirect la login
   if (!user) {
+    // Redirect to admin login if trying to access admin routes
+    if (allowedRole === 'admin') {
+      return <Navigate to="/admin-login" replace />;
+    }
     return <Navigate to="/auth" replace />;
   }
 

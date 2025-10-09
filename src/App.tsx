@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Mobile from "./pages/Mobile";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import AdminAuth from "./pages/AdminAuth";
 import NotFound from "./pages/NotFound";
 import Vacations from "./pages/Vacations";
 import WorkLocations from "./pages/WorkLocations";
@@ -64,6 +65,7 @@ const App = () => {
         <Routes>
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/admin-login" element={<AdminAuth />} />
               <Route path="/dashboard" element={<Index />} />
               <Route path="/landing" element={<Landing />} />
               

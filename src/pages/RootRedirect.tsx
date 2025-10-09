@@ -16,6 +16,7 @@ const RootRedirect = () => {
   }
 
   if (!user) {
+    // Default to employee login, admin users should use /admin-login
     return <Navigate to="/auth" replace />;
   }
 
