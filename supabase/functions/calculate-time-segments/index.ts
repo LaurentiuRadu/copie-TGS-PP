@@ -394,19 +394,13 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let { user_id, time_entry_id, clock_in_time, clock_out_time, notes } = await req.json();
+    let { user_id, time_entry_id, clock_in_time, clock_out_time, notes, isIntermediateCalculation } = await req.json();
 
-    console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes });
+    console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes, isIntermediateCalculation });
 
-    // ✅ STEP 0: Detectează dacă e recalculare intermediară sau finalizare
-    const { data: currentEntry } = await supabase
-      .from('time_entries')
-      .select('clock_out_time')
-      .eq('id', time_entry_id)
-      .single();
-    
-    const isIntermediateRecalc = currentEntry?.clock_out_time === null; // Pontaj încă activ
-    console.log(`[Mode] ${isIntermediateRecalc ? '🔄 INTERMEDIATE' : '✅ FINAL'} recalculation`);
+    // ✅ STEP 0: Detectează dacă e recalculare intermediară sau finalizare prin flag explicit
+    const isIntermediateRecalc = isIntermediateCalculation === true;
+    console.log(`[Mode] ${isIntermediateRecalc ? '🔄 INTERMEDIATE' : '✅ FINAL'} recalculation (flag: ${isIntermediateCalculation})`);
     
     if (isIntermediateRecalc) {
       // ✅ RECALCULARE INTERMEDIARĂ: Salvează doar segmentul curent în time_entry_segments

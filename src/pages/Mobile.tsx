@@ -399,6 +399,7 @@ const Mobile = () => {
     clockInTime: string,
     clockOutTime: string,
     notes: string | null,
+    isIntermediateCalculation = false, // ✅ Flag explicit pentru recalculări intermediare
     maxRetries = 5  // ✅ Crește de la 3 la 5
   ): Promise<boolean> => {
     let lastError: any = null;
@@ -412,7 +413,8 @@ const Mobile = () => {
           time_entry_id: timeEntryId,
           clock_in_time: clockInTime,
           clock_out_time: clockOutTime,
-          notes
+          notes,
+          isIntermediateCalculation // ✅ Adaugă flag explicit
         }
       });
       
@@ -767,7 +769,8 @@ const Mobile = () => {
               time_entry_id: activeTimeEntry.id,
               clock_in_time: activeTimeEntry.clock_in_time,
               clock_out_time: new Date().toISOString(), // ACUM (parțial)
-              notes: `Tip: ${newShiftLabel}`
+              notes: `Tip: ${newShiftLabel}`,
+              isIntermediateCalculation: true // ✅ Flag explicit pentru recalculare intermediară
             }
           });
           
@@ -978,7 +981,8 @@ const Mobile = () => {
         activeTimeEntry!.id,
         clockInTime,
         clockOutTime,
-        activeTimeEntry!.notes
+        activeTimeEntry!.notes,
+        false // ✅ Clock-out final: isIntermediateCalculation = false
       );
 
       if (!segmentSuccess) {
