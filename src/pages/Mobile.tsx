@@ -63,13 +63,6 @@ interface DayData {
   pasagerHours: number;
 }
 
-const mockMonthData: DayData[] = [
-  { date: new Date(2025, 0, 2), normalHours: 8, condusHours: 0, pasagerHours: 0 },
-  { date: new Date(2025, 0, 3), normalHours: 0, condusHours: 7, pasagerHours: 0 },
-  { date: new Date(2025, 0, 6), normalHours: 0, condusHours: 0, pasagerHours: 8 },
-  { date: new Date(2025, 0, 7), normalHours: 8, condusHours: 0, pasagerHours: 0 },
-  { date: new Date(2025, 0, 8), normalHours: 0, condusHours: 6, pasagerHours: 0 },
-];
 
 import { Battery } from "lucide-react";
 import { useBatteryOptimization } from "@/hooks/useBatteryOptimization";
@@ -143,6 +136,14 @@ const Mobile = () => {
     acc[dayKey].push(entry);
     return acc;
   }, {});
+
+  // Process dailyTimesheets into calendar data
+  const processedMonthData: DayData[] = dailyTimesheets.map(sheet => ({
+    date: new Date(sheet.work_date),
+    normalHours: Number(sheet.hours_regular || 0),
+    condusHours: Number(sheet.hours_driving || 0) + Number(sheet.hours_equipment || 0),
+    pasagerHours: Number(sheet.hours_passenger || 0),
+  }));
 
   // Calculate monthly statistics
   const monthlyStats = dailyTimesheets
@@ -907,7 +908,7 @@ const Mobile = () => {
   }, [tardinessDialog, pendingTardinessEntry, user]);
 
   const getDayColor = (date: Date) => {
-    const dayData = mockMonthData.find(
+    const dayData = processedMonthData.find(
       (d) => format(d.date, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
     );
     
@@ -1243,9 +1244,9 @@ const Mobile = () => {
                   day_hidden: "invisible",
                 }}
                 modifiers={{
-                  condus: mockMonthData.filter(d => d.condusHours > 0).map(d => d.date),
-                  pasager: mockMonthData.filter(d => d.pasagerHours > 0).map(d => d.date),
-                  normal: mockMonthData.filter(d => d.normalHours > 0).map(d => d.date),
+                  condus: processedMonthData.filter(d => d.condusHours > 0).map(d => d.date),
+                  pasager: processedMonthData.filter(d => d.pasagerHours > 0).map(d => d.date),
+                  normal: processedMonthData.filter(d => d.normalHours > 0 && d.condusHours === 0 && d.pasagerHours === 0).map(d => d.date),
                 }}
                 modifiersClassNames={{
                   condus: "bg-blue-500/20 hover:bg-blue-500/30 text-blue-900 dark:text-blue-100 font-semibold",
