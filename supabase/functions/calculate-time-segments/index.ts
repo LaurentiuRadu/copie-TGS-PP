@@ -457,12 +457,43 @@ Deno.serve(async (req) => {
       // Segmentează pontajul
       const timesheets = segmentShiftIntoTimesheets(shift, holidayDates);
 
-      // Agregare: adună orele pentru fiecare zi
+      // Agregare: adună orele pentru fiecare zi cu CORECȚIE pentru ore noapte 00:00-06:00
       for (const timesheet of timesheets) {
-        const existing = aggregatedTimesheets.get(timesheet.work_date);
+        let adjustedWorkDate = timesheet.work_date;
+        
+        // REGULĂ CRITICĂ: Ore noapte 00:00-06:00 aparțin zilei PRECEDENTE
+        // Exemplu: Joi 00:00-06:00 → "noaptea de Miercuri" → work_date = Miercuri
+        if (timesheet.hours_night > 0) {
+          const workDate = new Date(timesheet.work_date + 'T00:00:00Z');
+          const hour = workDate.getUTCHours();
+          
+          // Dacă avem ore noapte și e segment 00:00-06:00, ajustăm la ziua precedentă
+          if (hour < 6) {
+            const previousDay = new Date(workDate);
+            previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+            adjustedWorkDate = previousDay.toISOString().split('T')[0];
+            console.log(`[Night Rule] Adjusted ${timesheet.work_date} → ${adjustedWorkDate} for ${timesheet.hours_night}h night`);
+          }
+        }
+        
+        // REGULĂ WEEKEND: Duminică 00:00-06:00 → "sâmbăta noapte" → work_date = Sâmbătă
+        if (timesheet.hours_saturday > 0) {
+          const workDate = new Date(timesheet.work_date + 'T00:00:00Z');
+          const dayOfWeek = workDate.getUTCDay();
+          const hour = workDate.getUTCHours();
+          
+          if (dayOfWeek === 0 && hour < 6) { // Duminică 00:00-06:00
+            const saturday = new Date(workDate);
+            saturday.setUTCDate(saturday.getUTCDate() - 1);
+            adjustedWorkDate = saturday.toISOString().split('T')[0];
+            console.log(`[Weekend Rule] Adjusted ${timesheet.work_date} → ${adjustedWorkDate} for ${timesheet.hours_saturday}h saturday`);
+          }
+        }
+        
+        const existing = aggregatedTimesheets.get(adjustedWorkDate);
         
         if (!existing) {
-          aggregatedTimesheets.set(timesheet.work_date, { ...timesheet });
+          aggregatedTimesheets.set(adjustedWorkDate, { ...timesheet, work_date: adjustedWorkDate });
         } else {
           // Agregare ore
           existing.hours_regular += timesheet.hours_regular;

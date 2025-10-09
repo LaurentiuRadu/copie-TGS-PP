@@ -23,73 +23,122 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { mode = 'missing_segments', limit = 100 } = await req.json();
+    const { mode = 'missing_segments', batch_size = 100 } = await req.json();
     
-    console.log(`[Reprocess] Mode: ${mode}, Limit: ${limit}`);
+    console.log(`[Reprocess] Mode: ${mode}, Batch Size: ${batch_size}`);
 
-    let query = supabase
-      .from('time_entries')
-      .select('id, user_id, clock_in_time, clock_out_time, notes')
-      .not('clock_out_time', 'is', null)
-      .order('clock_out_time', { ascending: false })
-      .limit(limit);
+    // Rulează în batch-uri până procesează TOATE entries
+    let totalProcessed = 0;
+    let totalSuccess = 0;
+    let totalFailed = 0;
+    let allErrors: string[] = [];
+    let hasMore = true;
+    let batchNumber = 0;
 
-    if (mode === 'missing_segments') {
-      // Găsește pontaje fără segmente
-      const { data: entriesWithoutSegments } = await supabase
-        .from('time_entries')
-        .select(`
-          id, user_id, clock_in_time, clock_out_time, notes,
-          time_entry_segments(id)
-        `)
-        .not('clock_out_time', 'is', null)
-        .order('clock_out_time', { ascending: false })
-        .limit(limit * 2);  // Luăm mai multe pentru a filtra
+    while (hasMore) {
+      batchNumber++;
+      console.log(`[Reprocess] ═══ Batch ${batchNumber} START ═══`);
+      
+      let batch: TimeEntry[] = [];
 
-      const missingSegments = (entriesWithoutSegments || [])
-        .filter(e => !e.time_entry_segments || e.time_entry_segments.length === 0)
-        .slice(0, limit)
-        .map(({ time_entry_segments, ...rest }) => rest as TimeEntry);
+      if (mode === 'missing_segments') {
+        // Găsește pontaje fără segmente
+        const { data: entriesWithoutSegments } = await supabase
+          .from('time_entries')
+          .select(`
+            id, user_id, clock_in_time, clock_out_time, notes,
+            time_entry_segments(id)
+          `)
+          .not('clock_out_time', 'is', null)
+          .order('clock_out_time', { ascending: false })
+          .limit(batch_size * 2);  // Luăm mai multe pentru a filtra
 
-      console.log(`[Reprocess] Found ${missingSegments.length} entries without segments`);
+        batch = (entriesWithoutSegments || [])
+          .filter(e => !e.time_entry_segments || e.time_entry_segments.length === 0)
+          .slice(0, batch_size)
+          .map(({ time_entry_segments, ...rest }) => rest as TimeEntry);
+
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries without segments`);
+        
+      } else if (mode === 'needs_reprocessing') {
+        // Procesează pontaje marcate pentru reprocesare
+        const { data: entries, error } = await supabase
+          .from('time_entries')
+          .select('id, user_id, clock_in_time, clock_out_time, notes')
+          .not('clock_out_time', 'is', null)
+          .eq('needs_reprocessing', true)
+          .order('clock_out_time', { ascending: false })
+          .limit(batch_size);
+        
+        if (error) throw error;
+        batch = entries || [];
+        
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries marked for reprocessing`);
+        
+      } else if (mode === 'date_range') {
+        // Procesează după interval de date (nu suportă continuous, doar single batch)
+        const { start_date, end_date } = await req.json();
+        
+        const { data: entries, error } = await supabase
+          .from('time_entries')
+          .select('id, user_id, clock_in_time, clock_out_time, notes')
+          .not('clock_out_time', 'is', null)
+          .gte('clock_out_time', start_date)
+          .lte('clock_out_time', end_date)
+          .order('clock_out_time', { ascending: false })
+          .limit(batch_size);
+        
+        if (error) throw error;
+        batch = entries || [];
+        
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range`);
+        hasMore = false; // Date range nu continuă
+        
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Invalid mode' }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      // Dacă nu mai avem entries, stop
+      if (!batch || batch.length === 0) {
+        console.log(`[Reprocess] Batch ${batchNumber}: No more entries, stopping.`);
+        hasMore = false;
+        break;
+      }
+
+      // Procesează batch-ul
+      const result = await processEntries(supabase, batch);
       
-      return await processEntries(supabase, missingSegments);
+      totalProcessed += result.total;
+      totalSuccess += result.success;
+      totalFailed += result.failed;
+      allErrors.push(...result.errors);
       
-    } else if (mode === 'needs_reprocessing') {
-      // Procesează pontaje marcate pentru reprocesare
-      query = query.eq('needs_reprocessing', true);
+      console.log(`[Reprocess] Batch ${batchNumber} COMPLETE: ${result.success}/${result.total} success, ${result.failed} failed`);
+      console.log(`[Reprocess] ═══ Overall Progress: ${totalProcessed} total | ${totalSuccess} ✅ | ${totalFailed} ❌ ═══`);
       
-      const { data: entries, error } = await query;
-      
-      if (error) throw error;
-      
-      console.log(`[Reprocess] Found ${entries?.length || 0} entries marked for reprocessing`);
-      
-      return await processEntries(supabase, entries || []);
-      
-    } else if (mode === 'date_range') {
-      // Procesează după interval de date
-      const { start_date, end_date } = await req.json();
-      
-      query = query
-        .gte('clock_out_time', start_date)
-        .lte('clock_out_time', end_date);
-      
-      const { data: entries, error } = await query;
-      
-      if (error) throw error;
-      
-      console.log(`[Reprocess] Found ${entries?.length || 0} entries in date range`);
-      
-      return await processEntries(supabase, entries || []);
+      // Continuă dacă am primit un batch complet (ar putea fi mai multe)
+      if (mode !== 'date_range') {
+        hasMore = batch.length === batch_size;
+      }
     }
 
+    console.log(`[Reprocess] ✅ COMPLETE: Processed ${batchNumber} batches, ${totalProcessed} total entries`);
+
     return new Response(
-      JSON.stringify({ error: 'Invalid mode' }),
-      { 
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      JSON.stringify({
+        total: totalProcessed,
+        success: totalSuccess,
+        failed: totalFailed,
+        batches: batchNumber,
+        errors: allErrors.length > 0 ? allErrors : undefined
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
