@@ -610,7 +610,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ✅ STEP 5: UPSERT agregat - exclude start_time/end_time (nu există în tabel)
+    // ✅ STEP 5: RECONCILIATION & UPSERT
+    // Șterge datele importate (marcate cu [IMPORT]) pentru zilele care urmează să fie recalculate
+    const workDates = finalTimesheets.map(t => t.work_date);
+    if (workDates.length > 0) {
+      const { error: deleteError, count: deletedCount } = await supabase
+        .from('daily_timesheets')
+        .delete({ count: 'exact' })
+        .eq('employee_id', user_id)
+        .in('work_date', workDates)
+        .like('notes', '[IMPORT]%');
+
+      if (deleteError) {
+        console.warn('[Reconciliation] Warning: Could not delete imported data:', deleteError);
+      } else if (deletedCount && deletedCount > 0) {
+        console.log(`[Reconciliation] ✅ Deleted ${deletedCount} imported timesheets for dates: ${workDates.join(', ')}`);
+      }
+    }
+
+    // UPSERT agregat - exclude start_time/end_time (nu există în tabel)
     for (const timesheet of finalTimesheets) {
       const { start_time, end_time, ...timesheetData } = timesheet;
       
