@@ -26,20 +26,22 @@ export function TimeEntryReprocessButton() {
       console.log(`[Reprocess] Starting with mode: ${mode}`);
       
       const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
-        body: { mode, limit: 100 }
+        body: { mode, batch_size: 100 }
       });
 
       if (error) throw error;
 
-      const results = data as { total: number; success: number; failed: number; errors: string[] };
+      const results = data as { total: number; success: number; failed: number; batches?: number; errors: string[] };
       
       console.log('[Reprocess] Results:', results);
       
       if (results.success > 0) {
-        toast.success(`Reprocesare completă: ${results.success} pontaje procesate cu succes`, {
-          description: results.failed > 0 
-            ? `${results.failed} pontaje au eșuat. Verifică logurile pentru detalii.`
-            : undefined,
+        toast.success(`Reprocesare completă: ${results.success}/${results.total} pontaje procesate cu succes`, {
+          description: results.batches 
+            ? `Procesate în ${results.batches} batch-uri${results.failed > 0 ? ` (${results.failed} eșuate)` : ''}`
+            : results.failed > 0 
+              ? `${results.failed} pontaje au eșuat`
+              : undefined,
           duration: 5000,
         });
       } else if (results.total === 0) {
@@ -120,7 +122,7 @@ export function TimeEntryReprocessButton() {
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Reprocesează (max 100 pontaje)
+                  Reprocesează toate pontajele
                 </>
               )}
             </Button>
