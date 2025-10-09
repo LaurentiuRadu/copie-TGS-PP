@@ -212,6 +212,56 @@ All colors MUST be HSL.
     --sidebar-border: 220 40% 15%;
     --sidebar-ring: 189 85% 55%;
   }
+
+  /* 🌙 Midnight Pro Theme - Mobile Only */
+  .admin-mobile-theme {
+    --background: 220 60% 8%;
+    --foreground: 210 30% 95%;
+    --card: 220 50% 12%;
+    --card-foreground: 210 30% 95%;
+    --popover: 220 50% 12%;
+    --popover-foreground: 210 30% 95%;
+    --primary: 200 90% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 45% 20%;
+    --secondary-foreground: 210 30% 95%;
+    --accent: 150 75% 50%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 220 50% 18%;
+    --muted-foreground: 210 20% 65%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 40% 20%;
+    --input: 220 40% 20%;
+    --ring: 200 90% 55%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(200 90% 55%), hsl(150 75% 50%));
+    --gradient-card: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(16, 185, 129, 0.05));
+    
+    /* Shadows */
+    --shadow-glow: 0 0 30px rgba(56, 189, 248, 0.3);
+  }
+  
+  /* Glass-morphism pentru carduri mobile */
+  .admin-mobile-theme .bg-card,
+  .admin-mobile-theme .stat-card {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.06));
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+  }
+  
+  /* Glow pe butoane primary */
+  .admin-mobile-theme .bg-primary {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+  }
+  
+  /* Hover effect pe carduri statistici */
+  .admin-mobile-theme .stat-card:active {
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
 }
 
 @layer base {
