@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export function TimeEntryReprocessButton() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing'>('missing_segments');
+  const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing' | 'current_month'>('missing_segments');
   const [open, setOpen] = useState(false);
 
   const handleReprocess = async () => {
@@ -25,8 +25,17 @@ export function TimeEntryReprocessButton() {
     try {
       console.log(`[Reprocess] Starting with mode: ${mode}`);
       
+      // Calculează intervalul pentru luna curentă
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+      
+      const body = mode === 'current_month' 
+        ? { mode: 'date_range', start_date: startDate, end_date: endDate, batch_size: 100 }
+        : { mode, batch_size: 100 };
+      
       const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
-        body: { mode, batch_size: 100 }
+        body
       });
 
       if (error) throw error;
@@ -102,6 +111,18 @@ export function TimeEntryReprocessButton() {
                   <div className="font-medium">Pontaje marcate pentru reprocesare</div>
                   <div className="text-sm text-muted-foreground">
                     Procesează doar pontajele care au eșuat automat
+                  </div>
+                </div>
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="current_month" id="current_month" />
+              <Label htmlFor="current_month" className="font-normal cursor-pointer">
+                <div>
+                  <div className="font-medium">Reprocesează luna curentă</div>
+                  <div className="text-sm text-muted-foreground">
+                    Recalculează toate pontajele din luna vizibilă (recomandabil pentru corecții)
                   </div>
                 </div>
               </Label>
