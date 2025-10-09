@@ -398,6 +398,77 @@ Deno.serve(async (req) => {
 
     console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes });
 
+    // ✅ STEP 0: Detectează dacă e recalculare intermediară sau finalizare
+    const { data: currentEntry } = await supabase
+      .from('time_entries')
+      .select('clock_out_time')
+      .eq('id', time_entry_id)
+      .single();
+    
+    const isIntermediateRecalc = currentEntry?.clock_out_time === null; // Pontaj încă activ
+    console.log(`[Mode] ${isIntermediateRecalc ? '🔄 INTERMEDIATE' : '✅ FINAL'} recalculation`);
+    
+    if (isIntermediateRecalc) {
+      // ✅ RECALCULARE INTERMEDIARĂ: Salvează doar segmentul curent în time_entry_segments
+      console.log('[Intermediate] Saving segment to time_entry_segments...');
+      
+      const shiftTypeMatch = notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
+      let shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+      if (shiftType === 'condus utilaj') shiftType = 'utilaj';
+      
+      // Preia ultimul segment salvat pentru a ști când a început tipul curent
+      const { data: lastSegment } = await supabase
+        .from('time_entry_segments')
+        .select('end_time')
+        .eq('time_entry_id', time_entry_id)
+        .order('end_time', { ascending: false })
+        .limit(1)
+        .single();
+      
+      const segmentStart = lastSegment?.end_time || clock_in_time;
+      const segmentEnd = clock_out_time; // Timestamp intermediar
+      const durationHours = (new Date(segmentEnd).getTime() - new Date(segmentStart).getTime()) / 3600000;
+      
+      // Mapare tip → coloană
+      const segmentTypeMap: Record<string, string> = {
+        'condus': 'hours_driving',
+        'pasager': 'hours_passenger',
+        'utilaj': 'hours_equipment',
+        'normal': 'hours_regular'
+      };
+      const segmentType = segmentTypeMap[shiftType] || 'hours_regular';
+      
+      console.log(`[Intermediate] Segment: ${segmentStart} → ${segmentEnd} (${durationHours.toFixed(3)}h, ${segmentType})`);
+      
+      // Salvează segment intermediar
+      const { error: segmentError } = await supabase
+        .from('time_entry_segments')
+        .insert({
+          time_entry_id,
+          segment_type: segmentType,
+          start_time: segmentStart,
+          end_time: segmentEnd,
+          hours_decimal: durationHours,
+          multiplier: 1.0 // Pentru condus/pasager/utilaj nu se aplică multiplicatori
+        });
+      
+      if (segmentError) {
+        console.error('[Intermediate] ❌ Error saving segment:', segmentError);
+        throw segmentError;
+      }
+      
+      console.log('[Intermediate] ✅ Segment saved successfully. Waiting for final clock-out...');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          mode: 'intermediate',
+          message: 'Segment intermediar salvat. Agregare la ieșire finală.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // ✅ VALIDARE: Pontaj max 24h (previne timeout)
     const durationMs = new Date(clock_out_time).getTime() - new Date(clock_in_time).getTime();
     const durationHours = durationMs / (1000 * 60 * 60);
@@ -506,6 +577,101 @@ Deno.serve(async (req) => {
     const aggregatedTimesheets = new Map<string, TimesheetEntry>();
 
     for (const entry of (allTimeEntries || [])) {
+      // ✅ AGREGARE SEGMENTE INTERMEDIARE: Dacă entry-ul are segmente salvate, le folosim
+      const { data: savedSegments } = await supabase
+        .from('time_entry_segments')
+        .select('*')
+        .eq('time_entry_id', entry.id)
+        .order('start_time', { ascending: true });
+      
+      if (savedSegments && savedSegments.length > 0) {
+        console.log(`[Aggregate] Entry ${entry.id} has ${savedSegments.length} saved segments (multi-type shift)`);
+        
+        // Procesează fiecare segment salvat (intermediare)
+        for (const segment of savedSegments) {
+          const segmentStart = new Date(segment.start_time);
+          const workDate = segmentStart.toISOString().split('T')[0];
+          
+          let existing = aggregatedTimesheets.get(workDate);
+          if (!existing) {
+            existing = {
+              employee_id: entry.user_id,
+              work_date: workDate,
+              hours_regular: 0,
+              hours_night: 0,
+              hours_saturday: 0,
+              hours_sunday: 0,
+              hours_holiday: 0,
+              hours_passenger: 0,
+              hours_driving: 0,
+              hours_equipment: 0,
+              hours_leave: 0,
+              hours_medical_leave: 0,
+              notes: entry.notes || null
+            };
+            aggregatedTimesheets.set(workDate, existing);
+          }
+          
+          // Adaugă orele din segment la categoria corespunzătoare
+          (existing as any)[segment.segment_type] += segment.hours_decimal;
+          console.log(`[Aggregate] → ${workDate}: ${segment.segment_type} +${segment.hours_decimal.toFixed(3)}h (intermediate)`);
+        }
+        
+        // ✅ Procesează și segmentul FINAL (de la ultimul switch până la clock_out)
+        const lastSegmentEnd = savedSegments[savedSegments.length - 1].end_time;
+        const finalStart = lastSegmentEnd;
+        const finalEnd = entry.clock_out_time!;
+        const finalDurationHours = (new Date(finalEnd).getTime() - new Date(finalStart).getTime()) / 3600000;
+        
+        if (finalDurationHours > 0.001) { // Doar dacă există timp final (>0.001h = 3.6s)
+          const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
+          let entryShiftType = entryShiftTypeMatch ? entryShiftTypeMatch[1].toLowerCase() : 'normal';
+          if (entryShiftType === 'condus utilaj') entryShiftType = 'utilaj';
+          
+          const segmentTypeMap: Record<string, string> = {
+            'condus': 'hours_driving',
+            'pasager': 'hours_passenger',
+            'utilaj': 'hours_equipment',
+            'normal': 'hours_regular'
+          };
+          const finalSegmentType = segmentTypeMap[entryShiftType] || 'hours_regular';
+          
+          const finalSegmentStart = new Date(finalStart);
+          const workDate = finalSegmentStart.toISOString().split('T')[0];
+          
+          let existing = aggregatedTimesheets.get(workDate);
+          if (!existing) {
+            existing = {
+              employee_id: entry.user_id,
+              work_date: workDate,
+              hours_regular: 0,
+              hours_night: 0,
+              hours_saturday: 0,
+              hours_sunday: 0,
+              hours_holiday: 0,
+              hours_passenger: 0,
+              hours_driving: 0,
+              hours_equipment: 0,
+              hours_leave: 0,
+              hours_medical_leave: 0,
+              notes: entry.notes || null
+            };
+            aggregatedTimesheets.set(workDate, existing);
+          }
+          
+          (existing as any)[finalSegmentType] += finalDurationHours;
+          console.log(`[Aggregate] → ${workDate}: ${finalSegmentType} +${finalDurationHours.toFixed(3)}h (final)`);
+        }
+        
+        // După agregare, șterge segmentele intermediare
+        await supabase
+          .from('time_entry_segments')
+          .delete()
+          .eq('time_entry_id', entry.id);
+        
+        console.log(`[Aggregate] ✅ Cleaned up ${savedSegments.length} segments for entry ${entry.id}`);
+        continue; // Skip procesare normală pentru acest entry
+      }
       // IMPORTANT: "Condus Utilaj" TREBUIE să fie primul în regex
       const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
       let entryShiftType = entryShiftTypeMatch ? entryShiftTypeMatch[1].toLowerCase() : 'normal';
