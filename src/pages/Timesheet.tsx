@@ -218,13 +218,15 @@ const Timesheet = () => {
 
   // ✅ Mutation pentru editare timesheet
   const updateTimesheet = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number }) => {
-      // Validare
-      if (value < 0) {
-        throw new Error('Orele nu pot fi negative');
-      }
-      if (value > 24) {
-        throw new Error('Orele nu pot depăși 24h pe zi');
+    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number | string }) => {
+      // Validare doar pentru câmpuri numerice
+      if (typeof value === 'number') {
+        if (value < 0) {
+          throw new Error('Orele nu pot fi negative');
+        }
+        if (value > 24) {
+          throw new Error('Orele nu pot depăși 24h pe zi');
+        }
       }
 
       const { error } = await supabase
@@ -261,25 +263,36 @@ const Timesheet = () => {
     }
   });
 
-  const handleCellClick = (rowId: string, field: string, currentValue: number) => {
+  const handleCellClick = (rowId: string, field: string, currentValue: number | string) => {
     setEditingCell({ rowId, field });
-    setEditValue(currentValue.toString());
+    setEditValue(currentValue?.toString() || '');
   };
 
   const handleSaveEdit = () => {
     if (!editingCell) return;
     
-    const numValue = parseFloat(editValue);
-    if (isNaN(numValue)) {
-      toast.error('Valoare invalidă');
-      return;
+    // Detectează dacă e câmp numeric sau string
+    const isNumericField = editingCell.field.startsWith('hours_');
+    
+    if (isNumericField) {
+      const numValue = parseFloat(editValue);
+      if (isNaN(numValue)) {
+        toast.error('Valoare invalidă');
+        return;
+      }
+      updateTimesheet.mutate({
+        id: editingCell.rowId,
+        field: editingCell.field,
+        value: numValue
+      });
+    } else {
+      // String field (ex: notes)
+      updateTimesheet.mutate({
+        id: editingCell.rowId,
+        field: editingCell.field,
+        value: editValue
+      });
     }
-
-    updateTimesheet.mutate({
-      id: editingCell.rowId,
-      field: editingCell.field,
-      value: numValue
-    });
   };
 
   const handleCancelEdit = () => {
@@ -675,8 +688,39 @@ const Timesheet = () => {
                                       </TableCell>
                                     );
                                   })}
-                                  <TableCell className="text-sm text-muted-foreground">
-                                    {ts.notes || 'Observații...'}
+                                  <TableCell 
+                                    className="text-sm text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+                                    onClick={() => {
+                                      const isEditing = editingCell?.rowId === ts.id && editingCell?.field === 'notes';
+                                      if (!isEditing) handleCellClick(ts.id, 'notes', ts.notes || '');
+                                    }}
+                                  >
+                                    {editingCell?.rowId === ts.id && editingCell?.field === 'notes' ? (
+                                      <div className="flex items-center gap-1">
+                                        <Input
+                                          type="text"
+                                          value={editValue}
+                                          onChange={(e) => setEditValue(e.target.value)}
+                                          className="h-8 text-sm"
+                                          autoFocus
+                                          placeholder="Observații..."
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleSaveEdit();
+                                            if (e.key === 'Escape') handleCancelEdit();
+                                          }}
+                                        />
+                                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSaveEdit}>
+                                          <Check className="h-4 w-4 text-green-600" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancelEdit}>
+                                          <X className="h-4 w-4 text-red-600" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <span className="hover:underline">
+                                        {ts.notes || 'Observații...'}
+                                      </span>
+                                    )}
                                   </TableCell>
                                   <TableCell className="text-center font-bold">
                                     {formatHours(total)}
