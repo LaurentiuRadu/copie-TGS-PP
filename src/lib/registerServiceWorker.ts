@@ -30,8 +30,8 @@ export function registerServiceWorker() {
             console.info('✅ Service Worker registered:', registration.scope);
           }
 
-          // Verifică actualizări la interval
-          const updateInterval = isIOS ? 10000 : 30000; // 10s pentru iOS, 30s pentru restul
+          // Verifică actualizări la interval - optimized for battery life
+          const updateInterval = 30 * 60 * 1000; // 30 minutes
           updateIntervalId = window.setInterval(() => {
             registration.update().catch(() => {
               // Ignoră erorile de update

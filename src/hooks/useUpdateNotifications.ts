@@ -70,10 +70,7 @@ export function useUpdateNotifications() {
         // Verificare inițială
         checkForUpdates();
 
-        // Verificare periodică adaptivă
-        const interval = setInterval(checkForUpdates, 15000); // 15 secunde
-
-        // Event listeners
+        // Event listeners - rely on native Service Worker events instead of aggressive polling
         registration.addEventListener('updatefound', () => {
           console.log('[UpdateNotifications] Update found!');
           const newWorker = registration.installing;
@@ -96,8 +93,6 @@ export function useUpdateNotifications() {
             });
           }
         });
-
-        return () => clearInterval(interval);
       });
     }
   }, []);
