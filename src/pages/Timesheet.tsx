@@ -67,7 +67,7 @@ const Timesheet = () => {
           id, 
           username, 
           full_name,
-          user_roles!inner(role)
+          user_roles(role)
         `)
         .order('full_name', { ascending: true });
 
