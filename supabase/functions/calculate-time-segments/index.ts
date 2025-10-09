@@ -557,11 +557,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ✅ STEP 5: UPSERT agregat - un singur UPSERT per zi
+    // ✅ STEP 5: UPSERT agregat - exclude start_time/end_time (nu există în tabel)
     for (const timesheet of finalTimesheets) {
+      const { start_time, end_time, ...timesheetData } = timesheet;
+      
       const { error: upsertError } = await supabase
         .from('daily_timesheets')
-        .upsert(timesheet, {
+        .upsert(timesheetData, {
           onConflict: 'employee_id,work_date'
         });
 
