@@ -111,11 +111,9 @@ const UserManagement = ({ embedded = false }: { embedded?: boolean }) => {
   };
 
   useEffect(() => {
-    // ✅ Disable auto-load când e embedded în Settings pentru a preveni loop-ul
-    if (!embedded) {
-      loadUsers();
-    }
-  }, [embedded]);
+    loadUsers(); // Auto-load on mount, regardless of embedded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -762,9 +760,11 @@ const UserManagement = ({ embedded = false }: { embedded?: boolean }) => {
                     </CardTitle>
                     <CardDescription className="mt-1">Gestionează parolele și rolurile utilizatorilor</CardDescription>
                   </div>
-                  <Badge variant="secondary" className="text-lg px-4 py-2 shadow-md">
-                    {filteredUsers.length} utilizatori
-                  </Badge>
+                  {!loading && (
+                    <Badge variant="secondary" className="text-lg px-4 py-2 shadow-md">
+                      {filteredUsers.length} utilizatori
+                    </Badge>
+                  )}
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mt-4">
