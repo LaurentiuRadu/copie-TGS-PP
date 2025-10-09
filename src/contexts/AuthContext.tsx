@@ -470,8 +470,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Redirect logic
         const currentPath = window.location.pathname;
-        const adminPaths = ['/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/gdpr-admin', '/settings'];
-        const employeePaths = ['/mobile', '/vacations', '/settings'];
+        const adminPaths = ['/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/gdpr-admin', '/settings', '/backup-restore'];
+        const employeePaths = ['/mobile', '/vacations', '/settings', '/gdpr-settings'];
         
         // Admins can access BOTH admin and employee areas; employees only employee paths
         const isOnValidPath = (role === 'admin' && (adminPaths.some(path => currentPath.startsWith(path)) || employeePaths.some(path => currentPath.startsWith(path)))) ||
