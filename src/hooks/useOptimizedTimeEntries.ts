@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfDay, endOfDay } from 'date-fns';
+import { QUERY_KEYS } from '@/lib/queryKeys';
+import { STALE_TIME, CACHE_TIME } from '@/lib/queryConfig';
 
 interface TimeEntry {
   id: string;
@@ -29,7 +31,7 @@ interface TimeEntry {
 
 export const useOptimizedTimeEntries = (selectedDate: Date) => {
   return useQuery({
-    queryKey: ['time-entries', selectedDate.toISOString()],
+    queryKey: QUERY_KEYS.timeEntries(selectedDate),
     queryFn: async () => {
       const startOfDayTime = startOfDay(selectedDate);
       const endOfDayTime = endOfDay(selectedDate);
@@ -63,15 +65,15 @@ export const useOptimizedTimeEntries = (selectedDate: Date) => {
         profiles: profilesMap.get(entry.user_id) || null
       })) as TimeEntry[];
     },
-    staleTime: 60000, // 60 secunde - date fresh pentru admin (optimizat)
-    gcTime: 60000, // 1 minut in cache
-    refetchOnWindowFocus: true, // Refresh când user revine pe tab
+    staleTime: STALE_TIME.ADMIN_DATA,
+    gcTime: CACHE_TIME.DEFAULT,
+    refetchOnWindowFocus: true,
   });
 };
 
 export const useOptimizedMyTimeEntries = (userId: string | undefined, selectedMonth: Date) => {
   return useQuery({
-    queryKey: ['my-time-entries', userId, selectedMonth.toISOString()],
+    queryKey: QUERY_KEYS.myTimeEntries(userId, selectedMonth),
     queryFn: async () => {
       if (!userId) {
         console.log('[useOptimizedMyTimeEntries] No userId provided');
@@ -108,7 +110,7 @@ export const useOptimizedMyTimeEntries = (userId: string | undefined, selectedMo
       return data || [];
     },
     enabled: !!userId,
-    staleTime: 30000, // 30 secunde
-    gcTime: 5 * 60 * 1000, // 5 minute
+    staleTime: STALE_TIME.USER_TRACKING,
+    gcTime: CACHE_TIME.STABLE,
   });
 };

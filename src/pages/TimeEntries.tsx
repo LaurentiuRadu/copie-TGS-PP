@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
 import { Clock, MapPin, Smartphone } from "lucide-react";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AdminLayout } from "@/components/AdminLayout";
+import { useOptimizedTimeEntries } from "@/hooks/useOptimizedTimeEntries";
+import { useRealtimeTimeEntries } from "@/hooks/useRealtimeTimeEntries";
 
 interface TimeEntry {
   id: string;
@@ -39,73 +39,14 @@ interface TimeEntry {
 }
 
 const TimeEntries = () => {
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const fetchEntries = async () => {
-    try {
-      setLoading(true);
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const { data, error } = await supabase
-        .from('time_entries')
-        .select(`
-          *,
-          time_entry_segments(*)
-        `)
-        .gte('clock_in_time', startOfDay.toISOString())
-        .lte('clock_in_time', endOfDay.toISOString())
-        .order('clock_in_time', { ascending: false });
-
-      if (error) throw error;
-      
-      // Fetch profiles separately
-      const entriesWithProfiles = await Promise.all(
-        (data || []).map(async (entry) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', entry.user_id)
-            .single();
-          
-          return { ...entry, profiles: profile };
-        })
-      );
-      
-      setEntries(entriesWithProfiles as TimeEntry[]);
-    } catch (error: any) {
-      console.error('Error fetching entries:', error);
-      toast.error('Eroare la încărcarea pontajelor');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEntries();
-  }, [selectedDate]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('time-entries-admin-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entries' }, () => {
-        fetchEntries();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_entry_segments' }, () => {
-        fetchEntries();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedDate]);
+  // ✅ Folosim hook-urile optimizate - eliminare N+1 + duplicate logic
+  const { data: entries = [], isLoading: loading } = useOptimizedTimeEntries(selectedDate);
+  
+  // ✅ Real-time updates automat gestionat
+  useRealtimeTimeEntries(true);
 
   const getSegmentLabel = (type: string) => {
     const labels: Record<string, string> = {

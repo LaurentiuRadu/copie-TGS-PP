@@ -17,6 +17,7 @@ import { PayrollExportDialog } from "@/components/PayrollExportDialog";
 import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
 import { toast } from "sonner";
 import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
+import { QUERY_KEYS } from "@/lib/queryKeys";
 
 type EmployeeTimesheetData = {
   userId: string;
@@ -229,13 +230,13 @@ const Timesheet = () => {
         );
         toast.success(data.message);
         
-        // ✅ Refresh soft cu query invalidation (fără reload brutal)
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ['monthly-timesheets'] });
-          queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
-          queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
-          queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-        }, 1000);
+        // ✅ Invalidare imediată DUPĂ success confirm (eliminare setTimeout)
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() }),
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() }),
+          queryClient.invalidateQueries({ queryKey: ['monthly-timesheets'] }),
+          queryClient.invalidateQueries({ queryKey: ['users-with-roles'] })
+        ]);
       } else {
         throw new Error(data.error || 'Eroare necunoscută');
       }

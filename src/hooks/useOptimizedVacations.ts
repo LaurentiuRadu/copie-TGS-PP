@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { QUERY_KEYS } from '@/lib/queryKeys';
+import { STALE_TIME, CACHE_TIME } from '@/lib/queryConfig';
 
 interface VacationRequest {
   id: string;
@@ -36,7 +38,7 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
   // Fetch vacation balance for current year
   const currentYear = new Date().getFullYear();
   const { data: balance } = useQuery({
-    queryKey: ['vacation-balance', userId, currentYear],
+    queryKey: QUERY_KEYS.vacationBalance(userId, currentYear),
     queryFn: async () => {
       if (!userId) return null;
 
@@ -51,12 +53,13 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       return data as VacationBalance | null;
     },
     enabled: !!userId,
-    staleTime: 30000,
+    staleTime: STALE_TIME.STATIC_DATA,
+    gcTime: CACHE_TIME.STABLE,
   });
 
   // Optimized query - simplificat fără JOIN complex
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ['vacation-requests', userId, isAdmin],
+    queryKey: QUERY_KEYS.vacationRequests(),
     queryFn: async () => {
       if (!userId) return [];
 
@@ -92,8 +95,8 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       return data as VacationRequest[];
     },
     enabled: !!userId,
-    staleTime: 30000, // Cache for 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    staleTime: STALE_TIME.USER_TRACKING,
+    gcTime: CACHE_TIME.STABLE,
   });
 
   // Create request mutation
@@ -113,7 +116,8 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vacation-requests'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationRequests() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationBalance() });
       toast.success('Cerere trimisă cu succes');
     },
     onError: (error: any) => {
@@ -173,7 +177,9 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['vacation-requests'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationRequests() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationBalance() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       
       const request = requests.find(r => r.id === variables.id);
       const daysCount = request?.days_count || 0;

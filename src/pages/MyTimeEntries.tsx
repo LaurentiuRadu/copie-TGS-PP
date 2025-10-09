@@ -457,13 +457,44 @@ export default function MyTimeEntries() {
         }
 
         console.warn(`[processTimeSegments] Eroare la încercarea ${i + 1}:`, error);
-        if (i < retries - 1) {
+        
+        // ✅ La ultimul retry, salvează failure state pentru manual retry
+        if (i === retries - 1) {
+          await supabase
+            .from('time_entries')
+            .update({ 
+              needs_reprocessing: true,
+              last_reprocess_attempt: new Date().toISOString()
+            })
+            .eq('id', entryId);
+          
+          // ✅ Toast persistent cu CTA
+          toast.error('Procesarea automată a eșuat. Admin va verifica în secțiunea Reprocess.', {
+            duration: 10000,
+            action: {
+              label: 'Am înțeles',
+              onClick: () => {}
+            }
+          });
+        } else {
           await new Promise(resolve => setTimeout(resolve, 2000 * (i + 1)));
         }
       } catch (error) {
         console.error(`[processTimeSegments] Exception la încercarea ${i + 1}:`, error);
+        
+        // ✅ La ultimul retry, salvează failure state
         if (i === retries - 1) {
-          toast.warning('Pontajul a fost înregistrat, dar procesarea detaliilor va fi făcută automat mai târziu.');
+          await supabase
+            .from('time_entries')
+            .update({ 
+              needs_reprocessing: true,
+              last_reprocess_attempt: new Date().toISOString()
+            })
+            .eq('id', entryId);
+          
+          toast.error('Pontajul a fost înregistrat, dar necesită procesare manuală de către admin.', {
+            duration: 10000
+          });
         }
       }
     }
