@@ -423,14 +423,27 @@ Deno.serve(async (req) => {
       const segmentEnd = clock_out_time; // Timestamp intermediar
       const durationHours = (new Date(segmentEnd).getTime() - new Date(segmentStart).getTime()) / 3600000;
       
-      // Mapare tip → coloană
-      const segmentTypeMap: Record<string, string> = {
-        'condus': 'hours_driving',
-        'pasager': 'hours_passenger',
-        'utilaj': 'hours_equipment',
-        'normal': 'hours_regular'
-      };
-      const segmentType = segmentTypeMap[shiftType] || 'hours_regular';
+      // ✅ Mapare tip → segment_type CORECT pentru time_entry_segments
+      let segmentType: string;
+      if (shiftType === 'condus') {
+        segmentType = 'driving';
+      } else if (shiftType === 'pasager') {
+        segmentType = 'passenger';
+      } else if (shiftType === 'utilaj') {
+        segmentType = 'equipment';
+      } else {
+        // Pentru 'normal': determină tipul exact de ore bazat pe timp
+        const { data: holidays } = await supabase
+          .from('holidays')
+          .select('date')
+          .gte('date', new Date(segmentStart).toISOString().split('T')[0])
+          .lte('date', new Date(segmentEnd).toISOString().split('T')[0]);
+        
+        const holidayDates = new Set(holidays?.map(h => h.date) || []);
+        const startDate = new Date(segmentStart);
+        const endDate = new Date(segmentEnd);
+        segmentType = determineHoursType(startDate, endDate, holidayDates);
+      }
       
       console.log(`[Intermediate] Segment: ${segmentStart} → ${segmentEnd} (${durationHours.toFixed(3)}h, ${segmentType})`);
       
@@ -606,9 +619,22 @@ Deno.serve(async (req) => {
             aggregatedTimesheets.set(workDate, existing);
           }
           
+          // ✅ Mapare segment_type → coloană daily_timesheets
+          const segmentTypeToColumn: Record<string, string> = {
+            'driving': 'hours_driving',
+            'passenger': 'hours_passenger',
+            'equipment': 'hours_equipment',
+            'normal_day': 'hours_regular',
+            'normal_night': 'hours_night',
+            'saturday': 'hours_saturday',
+            'sunday': 'hours_sunday',
+            'holiday': 'hours_holiday'
+          };
+          const columnName = segmentTypeToColumn[segment.segment_type] || 'hours_regular';
+          
           // Adaugă orele din segment la categoria corespunzătoare
-          (existing as any)[segment.segment_type] += segment.hours_decimal;
-          console.log(`[Aggregate] → ${workDate}: ${segment.segment_type} +${segment.hours_decimal.toFixed(3)}h (intermediate)`);
+          (existing as any)[columnName] += segment.hours_decimal;
+          console.log(`[Aggregate] → ${workDate}: ${segment.segment_type} → ${columnName} +${segment.hours_decimal.toFixed(3)}h (intermediate)`);
         }
         
         // ✅ Procesează și segmentul FINAL (de la ultimul switch până la clock_out)
