@@ -473,7 +473,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const adminPaths = ['/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/gdpr-admin', '/settings'];
         const employeePaths = ['/mobile', '/my-time-entries', '/vacations', '/settings'];
         
-        const isOnValidPath = (role === 'admin' && adminPaths.some(path => currentPath.startsWith(path))) ||
+        // Admins can access BOTH admin and employee areas; employees only employee paths
+        const isOnValidPath = (role === 'admin' && (adminPaths.some(path => currentPath.startsWith(path)) || employeePaths.some(path => currentPath.startsWith(path)))) ||
                              (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
         
         if (!isOnValidPath) {
