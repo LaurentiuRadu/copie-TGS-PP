@@ -91,7 +91,14 @@ const Timesheet = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('daily_timesheets')
-        .select('*')
+        .select(`
+          *,
+          profiles:employee_id (
+            id,
+            username,
+            full_name
+          )
+        `)
         .gte('work_date', format(monthStart, 'yyyy-MM-dd'))
         .lte('work_date', format(monthEnd, 'yyyy-MM-dd'))
         .order('work_date', { ascending: true });

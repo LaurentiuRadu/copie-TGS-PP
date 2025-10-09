@@ -71,7 +71,14 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
 
       const { data, error } = await supabase
         .from('daily_timesheets')
-        .select('*')
+        .select(`
+          *,
+          profiles:employee_id (
+            id,
+            username,
+            full_name
+          )
+        `)
         .eq('employee_id', userId)
         .gte('work_date', startDate)
         .lte('work_date', endDate)
