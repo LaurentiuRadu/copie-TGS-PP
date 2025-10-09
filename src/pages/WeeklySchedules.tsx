@@ -701,7 +701,7 @@ export default function WeeklySchedules() {
   }, [schedules, employees]);
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-4 md:p-6">
         <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
