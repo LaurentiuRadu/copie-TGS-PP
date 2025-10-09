@@ -442,9 +442,17 @@ Deno.serve(async (req) => {
     }
 
     // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
-    const shiftTypeMatch = notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
-    const shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
-    console.log(`[Main] Detected shift type: ${shiftType}`);
+    // IMPORTANT: "Condus Utilaj" TREBUIE să fie primul în regex pentru a nu fi confundat cu "Condus"
+    const shiftTypeMatch = notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
+    let shiftType = shiftTypeMatch ? shiftTypeMatch[1].toLowerCase() : 'normal';
+    
+    // Mapping explicit pentru "Condus Utilaj" → 'utilaj'
+    if (shiftType === 'condus utilaj') {
+      shiftType = 'utilaj';
+      console.log(`[Main] ✅ Parsed "Condus Utilaj" → shiftType=utilaj`);
+    } else {
+      console.log(`[Main] Detected shift type: ${shiftType}`);
+    }
 
     // Fetch holidays
     const { data: holidays } = await supabase
@@ -498,8 +506,14 @@ Deno.serve(async (req) => {
     const aggregatedTimesheets = new Map<string, TimesheetEntry>();
 
     for (const entry of (allTimeEntries || [])) {
-      const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
-      const entryShiftType = entryShiftTypeMatch ? entryShiftTypeMatch[1].toLowerCase() : 'normal';
+      // IMPORTANT: "Condus Utilaj" TREBUIE să fie primul în regex
+      const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
+      let entryShiftType = entryShiftTypeMatch ? entryShiftTypeMatch[1].toLowerCase() : 'normal';
+      
+      // Mapping explicit pentru "Condus Utilaj" → 'utilaj'
+      if (entryShiftType === 'condus utilaj') {
+        entryShiftType = 'utilaj';
+      }
       
       const shift: Shift = {
         startTime: entry.clock_in_time,
