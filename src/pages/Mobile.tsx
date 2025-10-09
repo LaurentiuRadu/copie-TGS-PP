@@ -121,10 +121,12 @@ const Mobile = () => {
   const { data: timeEntries = [], isLoading: entriesLoading } = useOptimizedMyTimeEntries(user?.id, startDate);
   const { data: dailyTimesheets = [], isLoading: timesheetsLoading } = useMyDailyTimesheets(user?.id, startDate);
 
-  // Filter time entries for selected month
+  // Filter time entries for selected month - DOAR pontaje finalizate
   const filteredTimeEntries = timeEntries.filter((entry: any) => {
     const entryDate = new Date(entry.clock_in_time);
-    return entryDate >= startDate && entryDate <= endDate;
+    const isInMonth = entryDate >= startDate && entryDate <= endDate;
+    const isFinalized = entry.clock_out_time !== null; // EXCLUDE pontaje active
+    return isInMonth && isFinalized;
   });
 
   // Convert dailyTimesheets to synthetic time entries for display
@@ -162,6 +164,13 @@ const Mobile = () => {
 
   // Combine manual and synthetic entries
   const allEntries = [...filteredTimeEntries, ...filteredSyntheticEntries];
+
+  // DEBUG: Log pentru verificare
+  console.log('[ISTORIC DEBUG] Total entries:', {
+    manual: filteredTimeEntries.length,
+    payroll: filteredSyntheticEntries.length,
+    total: allEntries.length
+  });
 
   // Group by days
   const entriesByDay = allEntries.reduce((acc: any, entry: any) => {
@@ -1345,8 +1354,20 @@ const Mobile = () => {
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="space-y-3">
-                          {entries.map((entry: any) => (
-                            <Card key={entry.id} className="p-4">
+                          {entries.length === 0 ? (
+                            <div className="p-4 text-center text-muted-foreground text-sm">
+                              Nu există pontaje finalizate pentru această zi
+                            </div>
+                          ) : (
+                            entries.map((entry: any) => {
+                              // Guard clause pentru entries invalide
+                              if (!entry.clock_in_time) {
+                                console.warn('[ISTORIC] Entry invalid:', entry.id);
+                                return null;
+                              }
+                              
+                              return (
+                                <Card key={entry.id} className="p-4">
                               <div className="space-y-2">
                                 {entry.isFromPayroll ? (
                                   <>
@@ -1414,7 +1435,9 @@ const Mobile = () => {
                                 )}
                               </div>
                             </Card>
-                          ))}
+                              );
+                            })
+                          )}
                         </AccordionContent>
                       </AccordionItem>
                     );
