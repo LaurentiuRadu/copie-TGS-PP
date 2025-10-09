@@ -215,52 +215,68 @@ All colors MUST be HSL.
 
   /* 🌙 Midnight Pro Theme - Mobile Only */
   .admin-mobile-theme {
-    --background: 220 60% 8%;
-    --foreground: 210 30% 95%;
-    --card: 220 50% 12%;
-    --card-foreground: 210 30% 95%;
-    --popover: 220 50% 12%;
-    --popover-foreground: 210 30% 95%;
-    --primary: 200 90% 55%;
+    /* Background ALMOST BLACK cu subtle navy tint */
+    --background: 220 100% 4%;
+    --foreground: 210 30% 98%;
+    
+    /* Cards dark navy cu contrast puternic */
+    --card: 220 70% 8%;
+    --card-foreground: 210 30% 98%;
+    
+    --popover: 220 70% 8%;
+    --popover-foreground: 210 30% 98%;
+    
+    /* Primary NEON BLUE */
+    --primary: 200 100% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 45% 20%;
+    
+    /* Secondary dark steel blue */
+    --secondary: 220 60% 15%;
     --secondary-foreground: 210 30% 95%;
-    --accent: 150 75% 50%;
+    
+    /* Accent ELECTRIC CYAN */
+    --accent: 190 100% 55%;
     --accent-foreground: 0 0% 100%;
-    --muted: 220 50% 18%;
-    --muted-foreground: 210 20% 65%;
+    
+    /* Muted ultra dark */
+    --muted: 220 70% 10%;
+    --muted-foreground: 210 20% 60%;
+    
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 40% 20%;
-    --input: 220 40% 20%;
-    --ring: 200 90% 55%;
     
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(200 90% 55%), hsl(150 75% 50%));
-    --gradient-card: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(16, 185, 129, 0.05));
+    /* Border subtle glow */
+    --border: 220 60% 15%;
+    --input: 220 60% 15%;
+    --ring: 200 100% 60%;
     
-    /* Shadows */
-    --shadow-glow: 0 0 30px rgba(56, 189, 248, 0.3);
+    /* Gradients NOI - Neon look */
+    --gradient-primary: linear-gradient(135deg, hsl(200 100% 60%), hsl(190 100% 55%));
+    --gradient-card: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(6, 182, 212, 0.10));
+    
+    /* Shadow cu glow mai puternic */
+    --shadow-glow: 0 0 40px rgba(56, 189, 248, 0.5);
   }
   
-  /* Glass-morphism pentru carduri mobile */
+  /* Glass-morphism UPGRADE */
   .admin-mobile-theme .bg-card,
   .admin-mobile-theme .stat-card {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(16, 185, 129, 0.06));
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(56, 189, 248, 0.2);
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(6, 182, 212, 0.12));
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
   }
   
-  /* Glow pe butoane primary */
+  /* Neon glow pe butoane cu dual-layer */
   .admin-mobile-theme .bg-primary {
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.6),
+                0 0 50px rgba(56, 189, 248, 0.3);
   }
   
-  /* Hover effect pe carduri statistici */
+  /* Hover/Active cu animație enhanced */
   .admin-mobile-theme .stat-card:active {
-    box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
-    transform: translateY(-2px);
-    transition: all 0.3s ease;
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.7);
+    transform: translateY(-3px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 

@@ -45,11 +45,17 @@ const employeeMenuItems = [
 ];
 
 export function AppSidebar() {
-  const { open } = useSidebar();
+  const { open, setOpenMobile, isMobile } = useSidebar();
   const { user, signOut } = useAuth();
   const { isAdmin, isEmployee } = useUserRole();
   const [menuItems, setMenuItems] = useState<typeof adminMenuItems>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
   
   // Versiune fixă + build number din baza de date
   const { data: currentVersion } = useQuery({
@@ -139,6 +145,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild tooltip={item.title}>
                       <NavLink
                         to={item.url}
+                        onClick={handleNavClick}
                         end
                         className={({ isActive }) =>
                           isActive
@@ -173,6 +180,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild tooltip={item.title}>
                       <NavLink
                         to={item.url}
+                        onClick={handleNavClick}
                         end
                         className={({ isActive }) =>
                           isActive
