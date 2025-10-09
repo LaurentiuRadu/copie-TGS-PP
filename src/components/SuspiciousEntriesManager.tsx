@@ -9,6 +9,8 @@ import { AlertTriangle, CheckCircle, Clock, Calendar, User } from "lucide-react"
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
 import { TimeEntryManualCorrectionDialog } from "./TimeEntryManualCorrectionDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileTableCard, MobileTableRow } from "@/components/MobileTableCard";
 
 interface SuspiciousEntry {
   id: string;
@@ -24,6 +26,7 @@ interface SuspiciousEntry {
 }
 
 export function SuspiciousEntriesManager() {
+  const isMobile = useIsMobile();
   const [selectedEntry, setSelectedEntry] = useState<SuspiciousEntry | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -135,7 +138,63 @@ export function SuspiciousEntriesManager() {
                 const duration = calculateDuration(entry.clock_in_time, entry.clock_out_time);
                 const isSuspicious = parseFloat(duration) > 24;
 
-                return (
+                return isMobile ? (
+                  <MobileTableCard key={entry.id}>
+                    <MobileTableRow
+                      label="Angajat"
+                      value={
+                        <div className="flex items-center gap-2">
+                          <User className="h-3 w-3" />
+                          <span className="font-medium">
+                            {entry.profiles.full_name || entry.profiles.username}
+                          </span>
+                          {isSuspicious && (
+                            <Badge variant="destructive" className="ml-1 text-xs">
+                              {duration}h
+                            </Badge>
+                          )}
+                        </div>
+                      }
+                    />
+                    <MobileTableRow
+                      label="Data"
+                      value={
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(new Date(entry.clock_in_time), "dd MMM yyyy", { locale: ro })}
+                        </div>
+                      }
+                    />
+                    <MobileTableRow
+                      label="Orar"
+                      value={
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {format(new Date(entry.clock_in_time), "HH:mm")} →{" "}
+                          {format(new Date(entry.clock_out_time), "HH:mm")}
+                        </div>
+                      }
+                    />
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => setSelectedEntry(entry)}
+                      >
+                        Corectează
+                      </Button>
+                      <Button
+                        className="w-full"
+                        variant="ghost"
+                        onClick={() => markAsReviewed.mutate(entry.id)}
+                        disabled={markAsReviewed.isPending}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        OK
+                      </Button>
+                    </div>
+                  </MobileTableCard>
+                ) : (
                   <div
                     key={entry.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"

@@ -28,11 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Check, X, Clock, AlertCircle } from 'lucide-react';
+import { Check, X, Clock, AlertCircle, Calendar, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileTableCard, MobileTableRow } from '@/components/MobileTableCard';
 
 interface TardinessReport {
   id: string;
@@ -52,6 +54,7 @@ interface TardinessReport {
 }
 
 export const TardinessReportsManager = () => {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [reviewDialog, setReviewDialog] = useState<{
     open: boolean;
@@ -178,6 +181,80 @@ export const TardinessReportsManager = () => {
             <div className="text-center py-8 text-muted-foreground">
               Nu există rapoarte de întârzieri
             </div>
+          ) : isMobile ? (
+            <div className="space-y-3">
+              {reports.map((report) => (
+                <MobileTableCard key={report.id}>
+                  <MobileTableRow
+                    label="Angajat"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3" />
+                        <span className="font-medium">{report.profiles.full_name}</span>
+                      </div>
+                    }
+                  />
+                  <MobileTableRow
+                    label="Data"
+                    value={
+                      <div className="flex items-center gap-1 text-sm">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                      </div>
+                    }
+                  />
+                  <MobileTableRow
+                    label="Întârziere"
+                    value={
+                      <span className="text-red-600 font-semibold text-base">
+                        +{report.delay_minutes} min
+                      </span>
+                    }
+                  />
+                  <MobileTableRow
+                    label="Motiv"
+                    value={<span className="text-sm">{report.reason}</span>}
+                    fullWidth
+                  />
+                  <MobileTableRow
+                    label="Status"
+                    value={getStatusBadge(report.status)}
+                  />
+                  {report.status === 'pending' && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        className="flex-1"
+                        variant="outline"
+                        onClick={() => {
+                          setReviewDialog({
+                            open: true,
+                            report,
+                            action: 'approve',
+                          });
+                        }}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Aprobă
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        variant="destructive"
+                        onClick={() => {
+                          setReviewDialog({
+                            open: true,
+                            report,
+                            action: 'reject',
+                          });
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Respinge
+                      </Button>
+                    </div>
+                  )}
+                </MobileTableCard>
+              ))}
+            </div>
           ) : (
             <div className="rounded-md border">
               <Table>
@@ -266,7 +343,7 @@ export const TardinessReportsManager = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[95vw] md:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>
               {reviewDialog.action === 'approve' ? 'Aprobare' : 'Respingere'} Întârziere

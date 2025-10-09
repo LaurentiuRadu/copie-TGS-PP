@@ -14,6 +14,8 @@ import { format } from "date-fns";
 import { ro } from "date-fns/locale";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle, Clock, XCircle } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileTableCard, MobileTableRow } from "@/components/MobileTableCard";
 
 interface CorrectionRequest {
   id: string;
@@ -45,6 +47,7 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
 };
 
 export function TimeEntryCorrectionRequestsManager() {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -209,6 +212,58 @@ export function TimeEntryCorrectionRequestsManager() {
             <div className="text-center py-8 text-muted-foreground">
               Nu există cereri {statusFilter !== "all" && `cu status "${statusFilter}"`}
             </div>
+          ) : isMobile ? (
+            <div className="space-y-3">
+              {requests.map((request) => (
+                <MobileTableCard key={request.id}>
+                  <MobileTableRow
+                    label="Data"
+                    value={format(new Date(request.work_date), "dd MMM yyyy", { locale: ro })}
+                  />
+                  <MobileTableRow
+                    label="Angajat"
+                    value={request.user_profile?.full_name || request.user_profile?.username || "—"}
+                  />
+                  <MobileTableRow
+                    label="Tip Problemă"
+                    value={REQUEST_TYPE_LABELS[request.request_type] || request.request_type}
+                  />
+                  <MobileTableRow
+                    label="Status"
+                    value={getStatusBadge(request.status)}
+                  />
+                  {request.status === "pending" ? (
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button
+                        className="w-full"
+                        variant="default"
+                        onClick={() => openReviewDialog(request, "approve")}
+                      >
+                        Aprobă
+                      </Button>
+                      <Button
+                        className="w-full"
+                        variant="destructive"
+                        onClick={() => openReviewDialog(request, "reject")}
+                      >
+                        Respinge
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      className="w-full mt-2"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setReviewDialogOpen(true);
+                      }}
+                    >
+                      Vezi Detalii
+                    </Button>
+                  )}
+                </MobileTableCard>
+              ))}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -274,7 +329,7 @@ export function TimeEntryCorrectionRequestsManager() {
 
       {/* Review Dialog */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl sm:max-w-[95vw] max-h-[90vh] overflow-y-auto mx-4">
           <DialogHeader>
             <DialogTitle>
               {selectedRequest?.status === "pending"
