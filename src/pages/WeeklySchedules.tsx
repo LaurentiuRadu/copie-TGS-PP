@@ -23,6 +23,7 @@ import { AdminLayout } from '@/components/AdminLayout';
 import { cn } from '@/lib/utils';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
+import { STALE_TIME } from '@/lib/queryConfig';
 
 interface ScheduleEntry {
   id?: string;
@@ -119,7 +120,8 @@ export default function WeeklySchedules() {
         .order('full_name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
 
   // Fetch locations
@@ -132,7 +134,8 @@ export default function WeeklySchedules() {
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
 
   // Fetch projects
@@ -145,7 +148,8 @@ export default function WeeklySchedules() {
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
   
   // Fetch execution items ("De executat")
@@ -158,7 +162,8 @@ export default function WeeklySchedules() {
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
   
   // Fetch schedules for all teams in the selected week

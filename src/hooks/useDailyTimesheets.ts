@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { QUERY_KEYS } from '@/lib/queryKeys';
+import { STALE_TIME } from '@/lib/queryConfig';
 
 export interface DailyTimesheet {
   id: string;
@@ -18,7 +20,7 @@ export interface DailyTimesheet {
   notes: string | null;
   created_at: string;
   updated_at: string;
-  profiles?: {
+  profiles: {
     id: string;
     username: string | null;
     full_name: string | null;
@@ -32,13 +34,13 @@ export const useDailyTimesheets = (date: Date) => {
   const dateStr = date.toISOString().split('T')[0];
 
   return useQuery({
-    queryKey: ['daily-timesheets', dateStr],
+    queryKey: QUERY_KEYS.dailyTimesheets(date),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('daily_timesheets')
         .select(`
           *,
-          profiles:employee_id (
+          profiles:employee_id!inner (
             id,
             username,
             full_name
@@ -50,7 +52,7 @@ export const useDailyTimesheets = (date: Date) => {
       if (error) throw error;
       return data as DailyTimesheet[];
     },
-    staleTime: 30000,
+    staleTime: STALE_TIME.ADMIN_DATA,
   });
 };
 
@@ -65,7 +67,7 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
   const endDate = endOfMonth.toISOString().split('T')[0];
 
   return useQuery({
-    queryKey: ['my-daily-timesheets', userId, month.toISOString()],
+    queryKey: QUERY_KEYS.myDailyTimesheets(userId, month),
     queryFn: async () => {
       if (!userId) return [];
 
@@ -73,7 +75,7 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
         .from('daily_timesheets')
         .select(`
           *,
-          profiles:employee_id (
+          profiles:employee_id!inner (
             id,
             username,
             full_name
@@ -88,7 +90,7 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
       return data as DailyTimesheet[];
     },
     enabled: !!userId,
-    staleTime: 30000,
+    staleTime: STALE_TIME.USER_TRACKING,
   });
 };
 
@@ -103,13 +105,13 @@ export const useWeeklyTimesheets = (weekStart: Date, userId?: string) => {
   const endDate = weekEnd.toISOString().split('T')[0];
 
   return useQuery({
-    queryKey: ['weekly-timesheets', startDate, userId],
+    queryKey: QUERY_KEYS.weeklyTimesheets(weekStart),
     queryFn: async () => {
       let query = supabase
         .from('daily_timesheets')
         .select(`
           *,
-          profiles:employee_id (
+          profiles:employee_id!inner (
             id,
             username,
             full_name
@@ -127,6 +129,6 @@ export const useWeeklyTimesheets = (weekStart: Date, userId?: string) => {
       if (error) throw error;
       return data as DailyTimesheet[];
     },
-    staleTime: 30000,
+    staleTime: STALE_TIME.ADMIN_DATA,
   });
 };

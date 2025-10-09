@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AdminLayout } from '@/components/AdminLayout';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface VacationRequest {
   id: string;
@@ -48,7 +49,7 @@ interface VacationRequest {
 
 const Vacations = () => {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isAdmin } = useUserRole();
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [vacationType, setVacationType] = useState<string>('vacation');
@@ -59,20 +60,6 @@ const Vacations = () => {
     user?.id,
     isAdmin
   );
-
-  useEffect(() => {
-    const checkAdminRole = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .single();
-      setIsAdmin(!!data);
-    };
-    checkAdminRole();
-  }, [user]);
 
   const handleCreateRequest = async () => {
     if (!user || !dateRange?.from || !dateRange?.to) {

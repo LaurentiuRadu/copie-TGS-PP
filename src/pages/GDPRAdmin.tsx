@@ -38,34 +38,29 @@ const GDPRAdmin = () => {
   const [adminNotes, setAdminNotes] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [usersWithoutConsents, setUsersWithoutConsents] = useState<any[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [totalProfiles, setTotalProfiles] = useState(0);
 
   const queryClient = useQueryClient();
 
-  // Fetch users without consents și total profiluri
-  useEffect(() => {
-    const fetchUsersWithoutConsents = async () => {
-      setLoadingUsers(true);
-      const users = await getUsersWithoutConsents();
-      setUsersWithoutConsents(users);
-      setLoadingUsers(false);
-    };
-    
-    const fetchTotalProfiles = async () => {
+  // Fetch users without consents (React Query)
+  const { data: usersWithoutConsents = [], isLoading: loadingUsers } = useQuery({
+    queryKey: ['users-without-consents'],
+    queryFn: getUsersWithoutConsents,
+    staleTime: 60000, // 1 min - moderately fresh
+  });
+
+  // Fetch total profiles (React Query)
+  const { data: totalProfiles = 0 } = useQuery({
+    queryKey: ['total-profiles'],
+    queryFn: async () => {
       const { count, error } = await supabase
         .from('profiles')
         .select('id', { count: 'exact', head: true });
       
-      if (!error && count !== null) {
-        setTotalProfiles(count);
-      }
-    };
-    
-    fetchUsersWithoutConsents();
-    fetchTotalProfiles();
-  }, []);
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: 300000, // 5 min - stable data
+  });
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ['gdpr-requests', statusFilter],

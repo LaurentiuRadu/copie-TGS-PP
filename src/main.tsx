@@ -8,6 +8,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import App from "./App.tsx";
 import "./index.css";
 import { registerServiceWorker, isStandalone } from "./lib/registerServiceWorker";
+import { STALE_TIME } from "./lib/queryConfig";
 
 // Register Service Worker pentru PWA
 registerServiceWorker();
@@ -20,7 +21,7 @@ if (import.meta.env.DEV && isStandalone()) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: STALE_TIME.ADMIN_DATA,
       retry: 1,
     },
   },

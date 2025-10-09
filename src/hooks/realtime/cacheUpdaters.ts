@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import { QUERY_KEYS } from '@/lib/queryKeys';
 
 /**
  * Pure functions pentru cache updates țintite
@@ -52,7 +53,7 @@ export function insertTimeEntryInCache(
   // 1. Update cache-ul pentru ziua respectivă ['time-entries', date]
   queryClient.setQueriesData(
     { 
-      queryKey: ['time-entries'],
+      queryKey: QUERY_KEYS.timeEntries(),
       exact: false,
       predicate: (query) => {
         if (!query.queryKey[1]) return false;
@@ -71,7 +72,7 @@ export function insertTimeEntryInCache(
   // 2. Update cache-ul pentru user ['my-time-entries', userId, month]
   queryClient.setQueriesData(
     {
-      queryKey: ['my-time-entries', newEntry.user_id],
+      queryKey: QUERY_KEYS.myTimeEntries(newEntry.user_id),
       exact: false,
       predicate: (query) => {
         if (query.queryKey.length < 3 || !query.queryKey[2]) return false;
@@ -87,17 +88,16 @@ export function insertTimeEntryInCache(
 
   // 3. Invalidăm DOAR agregările (daily_timesheets, weekly_timesheets)
   // Acestea necesită recalculare pe server
-  const dateKey = entryDate.toISOString().split('T')[0]; // YYYY-MM-DD
   queryClient.invalidateQueries({
-    queryKey: ['daily-timesheets'],
+    queryKey: QUERY_KEYS.dailyTimesheets(),
     exact: false
   });
   queryClient.invalidateQueries({
-    queryKey: ['my-daily-timesheets', newEntry.user_id],
+    queryKey: QUERY_KEYS.myDailyTimesheets(newEntry.user_id),
     exact: false
   });
   queryClient.invalidateQueries({
-    queryKey: ['weekly-timesheets'],
+    queryKey: QUERY_KEYS.weeklyTimesheets(),
     exact: false
   });
 
@@ -118,7 +118,7 @@ export function updateTimeEntryInCache(
 
   // Update în toate cache-urile ['time-entries', ...]
   queryClient.setQueriesData(
-    { queryKey: ['time-entries'], exact: false },
+    { queryKey: QUERY_KEYS.timeEntries(), exact: false },
     (old: any) => {
       if (!Array.isArray(old)) return old;
       return old.map(entry => 
@@ -129,7 +129,7 @@ export function updateTimeEntryInCache(
 
   // Update în cache-ul user-ului ['my-time-entries', userId, ...]
   queryClient.setQueriesData(
-    { queryKey: ['my-time-entries', updatedEntry.user_id], exact: false },
+    { queryKey: QUERY_KEYS.myTimeEntries(updatedEntry.user_id), exact: false },
     (old: any) => {
       if (!Array.isArray(old)) return old;
       return old.map(entry => 
@@ -140,11 +140,11 @@ export function updateTimeEntryInCache(
 
   // Invalidăm agregările (daily_timesheets pot fi afectate de update)
   queryClient.invalidateQueries({
-    queryKey: ['daily-timesheets'],
+    queryKey: QUERY_KEYS.dailyTimesheets(),
     exact: false
   });
   queryClient.invalidateQueries({
-    queryKey: ['my-daily-timesheets', updatedEntry.user_id],
+    queryKey: QUERY_KEYS.myDailyTimesheets(updatedEntry.user_id),
     exact: false
   });
 
@@ -165,7 +165,7 @@ export function deleteTimeEntryFromCache(
 
   // Șterge din toate cache-urile ['time-entries', ...]
   queryClient.setQueriesData(
-    { queryKey: ['time-entries'], exact: false },
+    { queryKey: QUERY_KEYS.timeEntries(), exact: false },
     (old: any) => {
       if (!Array.isArray(old)) return old;
       return old.filter(entry => entry.id !== deletedEntry.id);
@@ -174,7 +174,7 @@ export function deleteTimeEntryFromCache(
 
   // Șterge din cache-ul user-ului
   queryClient.setQueriesData(
-    { queryKey: ['my-time-entries', deletedEntry.user_id], exact: false },
+    { queryKey: QUERY_KEYS.myTimeEntries(deletedEntry.user_id), exact: false },
     (old: any) => {
       if (!Array.isArray(old)) return old;
       return old.filter(entry => entry.id !== deletedEntry.id);
@@ -183,11 +183,11 @@ export function deleteTimeEntryFromCache(
 
   // Invalidăm agregările
   queryClient.invalidateQueries({
-    queryKey: ['daily-timesheets'],
+    queryKey: QUERY_KEYS.dailyTimesheets(),
     exact: false
   });
   queryClient.invalidateQueries({
-    queryKey: ['my-daily-timesheets', deletedEntry.user_id],
+    queryKey: QUERY_KEYS.myDailyTimesheets(deletedEntry.user_id),
     exact: false
   });
 

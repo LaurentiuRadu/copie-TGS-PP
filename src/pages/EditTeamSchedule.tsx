@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Calendar, Plus, X, Save, Check, ChevronsUpDown } from 'lucide-react';
 import { AdminLayout } from '@/components/AdminLayout';
 import { cn } from '@/lib/utils';
+import { STALE_TIME } from '@/lib/queryConfig';
 
 const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
@@ -59,7 +60,8 @@ export default function EditTeamSchedule() {
         .order('full_name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
 
   // Fetch locations
@@ -72,7 +74,8 @@ export default function EditTeamSchedule() {
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
 
   // Fetch projects
@@ -85,7 +88,8 @@ export default function EditTeamSchedule() {
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
   });
 
   // Fetch locations from database
