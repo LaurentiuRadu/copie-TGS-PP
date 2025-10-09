@@ -39,10 +39,11 @@ const GDPRAdmin = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [usersWithoutConsents, setUsersWithoutConsents] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [totalProfiles, setTotalProfiles] = useState(0);
 
   const queryClient = useQueryClient();
 
-  // Fetch users without consents
+  // Fetch users without consents și total profiluri
   useEffect(() => {
     const fetchUsersWithoutConsents = async () => {
       setLoadingUsers(true);
@@ -50,7 +51,19 @@ const GDPRAdmin = () => {
       setUsersWithoutConsents(users);
       setLoadingUsers(false);
     };
+    
+    const fetchTotalProfiles = async () => {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true });
+      
+      if (!error && count !== null) {
+        setTotalProfiles(count);
+      }
+    };
+    
     fetchUsersWithoutConsents();
+    fetchTotalProfiles();
   }, []);
 
   const { data: requests, isLoading } = useQuery({
@@ -158,8 +171,8 @@ const GDPRAdmin = () => {
     return <FileText className="h-4 w-4 text-muted-foreground" />;
   };
 
-  // Statistici
-  const totalUsers = usersWithoutConsents.length + (requests?.length || 0);
+  // Statistici corecte
+  const totalUsers = totalProfiles;
   const usersWithConsents = totalUsers - usersWithoutConsents.length;
 
   return (

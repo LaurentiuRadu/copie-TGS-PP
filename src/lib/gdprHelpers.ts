@@ -50,23 +50,41 @@ export async function getMissingConsents(userId: string): Promise<string[]> {
 }
 
 /**
- * Obține toți utilizatorii fără consimțăminte complete
+ * Obține toți utilizatorii fără consimțăminte complete (DOAR angajați, nu admini)
  */
 export async function getUsersWithoutConsents() {
-  // Obținem toți utilizatorii
+  // Obținem DOAR angajații (exclude admini)
   const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
-    .select('id, username, full_name');
+    .select(`
+      id, 
+      username, 
+      full_name
+    `);
 
   if (profilesError) {
     console.error('Error fetching profiles:', profilesError);
     return [];
   }
 
-  // Verificăm consimțămintele pentru fiecare utilizator
+  // Obținem rolurile pentru toți utilizatorii
+  const { data: userRoles } = await supabase
+    .from('user_roles')
+    .select('user_id, role');
+
+  const employeeIds = new Set(
+    userRoles
+      ?.filter(ur => ur.role === 'employee')
+      .map(ur => ur.user_id) || []
+  );
+
+  // Filtrăm doar angajații
+  const employees = profiles?.filter(p => employeeIds.has(p.id)) || [];
+
+  // Verificăm consimțămintele pentru fiecare angajat
   const usersWithoutConsents = [];
   
-  for (const profile of profiles || []) {
+  for (const profile of employees) {
     const hasAllConsents = await checkUserConsents(profile.id);
     if (!hasAllConsents) {
       const missingConsents = await getMissingConsents(profile.id);

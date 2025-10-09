@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { checkUserConsents } from "@/lib/gdprHelpers";
 
 /**
@@ -12,22 +13,31 @@ import { checkUserConsents } from "@/lib/gdprHelpers";
  */
 export function GDPRConsentAlert() {
   const { user } = useAuth();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [showAlert, setShowAlert] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    // Nu afișăm banner-ul pentru admini sau dacă nu avem user
+    if (!user || roleLoading) {
       setShowAlert(false);
       return;
     }
 
+    // Skip verificare consimțăminte pentru admini
+    if (isAdmin) {
+      setShowAlert(false);
+      return;
+    }
+
+    // Verifică consimțăminte DOAR pentru angajați
     const checkConsents = async () => {
       const hasAllConsents = await checkUserConsents(user.id);
       setShowAlert(!hasAllConsents);
     };
 
     checkConsents();
-  }, [user]);
+  }, [user, isAdmin, roleLoading]);
 
   // Nu afișăm dacă utilizatorul a dat dismiss sau are toate consimțămintele
   if (!showAlert || dismissed) return null;
