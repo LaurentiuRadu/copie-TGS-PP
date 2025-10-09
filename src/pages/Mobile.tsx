@@ -1375,6 +1375,20 @@ const Mobile = () => {
                                       <Badge variant="outline" className="text-xs">
                                         📊 Date Payroll
                                       </Badge>
+                                      {(() => {
+                                        const createdAt = new Date(entry.payrollData?.created_at || entry.clock_in_time);
+                                        const updatedAt = new Date(entry.payrollData?.updated_at || entry.clock_in_time);
+                                        const hoursDiff = (updatedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+                                        
+                                        if (hoursDiff > 1) {
+                                          return (
+                                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-600">
+                                              ✏️ Ajustat de Admin
+                                            </Badge>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                     </div>
                                     {entry.payrollData && (
                                       <div className="grid grid-cols-2 gap-2 text-sm">

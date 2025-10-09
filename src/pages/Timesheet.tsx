@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw } from "lucide-react";
+import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/AdminLayout";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,10 @@ const Timesheet = () => {
     from: startOfMonth(currentMonth),
     to: endOfMonth(currentMonth),
   });
+  
+  // ✅ Editing state
+  const [editingCell, setEditingCell] = useState<{ rowId: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
   
   const queryClient = useQueryClient();
 
@@ -210,6 +214,77 @@ const Timesheet = () => {
     if (dayOfWeek === 'duminică') return 'bg-red-50 dark:bg-red-950/20';
     if (dayOfWeek === 'sâmbătă') return 'bg-yellow-50 dark:bg-yellow-950/20';
     return 'bg-green-50 dark:bg-green-950/20';
+  };
+
+  // ✅ Mutation pentru editare timesheet
+  const updateTimesheet = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number }) => {
+      // Validare
+      if (value < 0) {
+        throw new Error('Orele nu pot fi negative');
+      }
+      if (value > 24) {
+        throw new Error('Orele nu pot depăși 24h pe zi');
+      }
+
+      const { error } = await supabase
+        .from('daily_timesheets')
+        .update({ 
+          [field]: value,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Audit log
+      await supabase.rpc('log_sensitive_data_access', {
+        _action: 'update_timesheet',
+        _resource_type: 'daily_timesheets',
+        _resource_id: id,
+        _details: {
+          field,
+          new_value: value,
+          reason: 'Manual correction by admin'
+        }
+      });
+
+      return { id, field, value };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) });
+      toast.success('✅ Timesheet actualizat');
+      setEditingCell(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Eroare la salvare');
+    }
+  });
+
+  const handleCellClick = (rowId: string, field: string, currentValue: number) => {
+    setEditingCell({ rowId, field });
+    setEditValue(currentValue.toString());
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingCell) return;
+    
+    const numValue = parseFloat(editValue);
+    if (isNaN(numValue)) {
+      toast.error('Valoare invalidă');
+      return;
+    }
+
+    updateTimesheet.mutate({
+      id: editingCell.rowId,
+      field: editingCell.field,
+      value: numValue
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCell(null);
+    setEditValue('');
   };
 
   const handleReprocess = async () => {
@@ -557,36 +632,49 @@ const Timesheet = () => {
                                       </span>
                                     </div>
                                   </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_regular > 0 ? formatHours(ts.hours_regular) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_night > 0 ? formatHours(ts.hours_night) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_saturday > 0 ? formatHours(ts.hours_saturday) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_sunday > 0 ? formatHours(ts.hours_sunday) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_holiday > 0 ? formatHours(ts.hours_holiday) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_passenger > 0 ? formatHours(ts.hours_passenger) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_driving > 0 ? formatHours(ts.hours_driving) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_equipment > 0 ? formatHours(ts.hours_equipment) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_leave > 0 ? formatHours(ts.hours_leave) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    {ts.hours_medical_leave > 0 ? formatHours(ts.hours_medical_leave) : '-'}
-                                  </TableCell>
+                                  {/* ✅ Celule editabile pentru ore */}
+                                  {['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 
+                                    'hours_passenger', 'hours_driving', 'hours_equipment', 'hours_leave', 'hours_medical_leave'].map(field => {
+                                    const fieldValue = ts[field as keyof DailyTimesheet] as number;
+                                    const isEditing = editingCell?.rowId === ts.id && editingCell?.field === field;
+                                    
+                                    return (
+                                      <TableCell 
+                                        key={field}
+                                        className="text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                                        onClick={() => !isEditing && handleCellClick(ts.id, field, fieldValue)}
+                                      >
+                                        {isEditing ? (
+                                          <div className="flex items-center gap-1 justify-center">
+                                            <Input
+                                              type="number"
+                                              step="0.5"
+                                              min="0"
+                                              max="24"
+                                              value={editValue}
+                                              onChange={(e) => setEditValue(e.target.value)}
+                                              className="w-16 h-8 text-center"
+                                              autoFocus
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') handleSaveEdit();
+                                                if (e.key === 'Escape') handleCancelEdit();
+                                              }}
+                                            />
+                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSaveEdit}>
+                                              <Check className="h-4 w-4 text-green-600" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancelEdit}>
+                                              <X className="h-4 w-4 text-red-600" />
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <span className="hover:underline">
+                                            {fieldValue > 0 ? formatHours(fieldValue) : '-'}
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                    );
+                                  })}
                                   <TableCell className="text-sm text-muted-foreground">
                                     {ts.notes || 'Observații...'}
                                   </TableCell>
