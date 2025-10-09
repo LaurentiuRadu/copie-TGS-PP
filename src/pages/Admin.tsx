@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
+import { SuspiciousEntriesManager } from "@/components/SuspiciousEntriesManager";
 import { VersionManager } from "@/components/VersionManager";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery } from "@tanstack/react-query";
@@ -114,6 +115,7 @@ const Admin = () => {
 
         <TimeEntryCorrectionRequestsManager />
         <TardinessReportsManager />
+        <SuspiciousEntriesManager />
 
         {/* 📊 STATISTICI REALE */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

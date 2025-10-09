@@ -384,9 +384,39 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { user_id, time_entry_id, clock_in_time, clock_out_time, notes } = await req.json();
+    let { user_id, time_entry_id, clock_in_time, clock_out_time, notes } = await req.json();
 
     console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes });
+
+    // ✅ VALIDARE: Pontaj max 24h (previne timeout)
+    const durationMs = new Date(clock_out_time).getTime() - new Date(clock_in_time).getTime();
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    if (durationHours > 24) {
+      console.warn(`[Validation] ⚠️ Pontaj suspect: ${durationHours.toFixed(2)}h - limitare automată la 24h`);
+      
+      // Limitează automat la 24h de la clock_in
+      const maxClockOut = new Date(new Date(clock_in_time).getTime() + 24 * 60 * 60 * 1000);
+      clock_out_time = maxClockOut.toISOString();
+      
+      // Creează alertă de securitate
+      const { error: alertError } = await supabase.from('security_alerts').insert({
+        alert_type: 'excessive_duration',
+        severity: 'high',
+        message: `Pontaj ${durationHours.toFixed(2)}h redus automat la 24h`,
+        user_id,
+        time_entry_id,
+        details: { 
+          original_duration_hours: durationHours,
+          corrected_duration_hours: 24,
+          auto_corrected: true 
+        }
+      });
+
+      if (alertError) {
+        console.error('[Validation] Alert creation failed:', alertError);
+      }
+    }
 
     // ✅ Extrage tipul de tură din notes (ex: "Tip: Condus")
     const shiftTypeMatch = notes?.match(/Tip:\s*(Condus|Pasager|Normal|Utilaj)/i);
