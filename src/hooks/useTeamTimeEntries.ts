@@ -17,6 +17,18 @@ interface TeamMemberEntry {
   entries: Record<number, TimeEntryData[]>; // day_of_week -> entries
 }
 
+interface TeamLeaderInfo {
+  user_id: string;
+  full_name: string;
+  username: string;
+}
+
+interface CoordinatorInfo {
+  user_id: string;
+  full_name: string;
+  username: string;
+}
+
 export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string) => {
   return useQuery({
     queryKey: ['team-time-entries', teamId, weekStartDate],
@@ -80,7 +92,35 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
         missingProfiles = profiles || [];
       }
 
-      // 6. Grupează pontajele pe user și zi
+      // 6. Identifică șeful de echipă și coordonatorul
+      let teamLeader: TeamLeaderInfo | null = null;
+      let coordinator: CoordinatorInfo | null = null;
+
+      // Obținem primul schedule pentru a identifica șeful și coordonatorul
+      const firstSchedule = schedules[0];
+      if (firstSchedule?.team_leader_id) {
+        const leaderProfile = profiles?.find((p: any) => p.id === firstSchedule.team_leader_id);
+        if (leaderProfile) {
+          teamLeader = {
+            user_id: leaderProfile.id,
+            full_name: leaderProfile.full_name || 'Necunoscut',
+            username: leaderProfile.username || ''
+          };
+        }
+      }
+
+      if (firstSchedule?.coordinator_id) {
+        const coordinatorProfile = profiles?.find((p: any) => p.id === firstSchedule.coordinator_id);
+        if (coordinatorProfile) {
+          coordinator = {
+            user_id: coordinatorProfile.id,
+            full_name: coordinatorProfile.full_name || 'Necunoscut',
+            username: coordinatorProfile.username || ''
+          };
+        }
+      }
+
+      // 7. Grupează pontajele pe user și zi
       const memberData: Record<string, TeamMemberEntry> = {};
 
       // Construim memberData din toate profilurile colectate
@@ -124,7 +164,9 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
       return {
         teamId,
         weekStartDate,
-        members: Object.values(memberData)
+        members: Object.values(memberData),
+        teamLeader,
+        coordinator
       };
     },
     enabled: !!teamId && !!weekStartDate,

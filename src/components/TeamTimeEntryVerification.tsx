@@ -143,6 +143,24 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
               </div>
             )}
           </div>
+
+          {/* Informații Șef și Coordonator */}
+          {data && (data.teamLeader || data.coordinator) && (
+            <div className="mt-4 flex items-center gap-6 text-sm border-t pt-4">
+              {data.teamLeader && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Șef Echipă</Badge>
+                  <span className="font-medium">{data.teamLeader.full_name}</span>
+                </div>
+              )}
+              {data.coordinator && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Coordonator</Badge>
+                  <span className="font-medium">{data.coordinator.full_name}</span>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
