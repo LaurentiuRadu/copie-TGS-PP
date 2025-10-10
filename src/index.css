@@ -238,9 +238,9 @@ All colors MUST be HSL.
     --accent: 190 100% 55%;
     --accent-foreground: 0 0% 100%;
     
-    /* Muted ultra dark */
-    --muted: 220 70% 10%;
-    --muted-foreground: 210 20% 60%;
+    /* Muted ultra dark - improved contrast */
+    --muted: 220 70% 8%;
+    --muted-foreground: 210 15% 75%;
     
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
@@ -258,12 +258,17 @@ All colors MUST be HSL.
     --shadow-glow: 0 0 40px rgba(56, 189, 248, 0.5);
   }
   
-  /* Glass-morphism UPGRADE */
+  /* Glass-morphism UPGRADE - Dual-layer with dark overlay */
   .admin-mobile-theme .bg-card,
   .admin-mobile-theme .stat-card {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(6, 182, 212, 0.12));
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: 
+      linear-gradient(135deg, rgba(0, 0, 0, 0.60), rgba(0, 0, 0, 0.70)),
+      linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(6, 182, 212, 0.05));
+    backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(56, 189, 248, 0.30);
+    box-shadow: 
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+      0 2px 8px rgba(0, 0, 0, 0.30);
   }
   
   /* Neon glow pe butoane cu dual-layer */
@@ -277,6 +282,32 @@ All colors MUST be HSL.
     box-shadow: 0 0 35px rgba(56, 189, 248, 0.7);
     transform: translateY(-3px);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Force high contrast pentru text pe mobile theme */
+  .admin-mobile-theme h1,
+  .admin-mobile-theme h2,
+  .admin-mobile-theme h3,
+  .admin-mobile-theme .font-semibold,
+  .admin-mobile-theme .font-bold {
+    color: hsl(0 0% 100%);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  .admin-mobile-theme p,
+  .admin-mobile-theme .text-sm {
+    color: hsl(210 20% 92%);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  }
+
+  .admin-mobile-theme .text-muted-foreground {
+    color: hsl(210 15% 75%) !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Border-uri mai vizibile */
+  .admin-mobile-theme .border {
+    border-color: hsl(220 60% 20%) !important;
   }
 }
 
