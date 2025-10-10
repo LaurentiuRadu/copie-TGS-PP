@@ -315,15 +315,6 @@ const Alerts = () => {
                 </div>
               )}
 
-              {selectedAlert.details && (
-                <div>
-                  <h4 className="font-semibold mb-1">Detalii Tehnice:</h4>
-                  <pre className="text-xs bg-muted p-3 rounded overflow-auto max-w-full max-h-64 break-all whitespace-pre-wrap">
-                    {JSON.stringify(selectedAlert.details, null, 2)}
-                  </pre>
-                </div>
-              )}
-
               <div>
                 <h4 className="font-semibold mb-1">Data Creare:</h4>
                 <p>{format(new Date(selectedAlert.created_at), 'dd MMMM yyyy, HH:mm', { locale: ro })}</p>
