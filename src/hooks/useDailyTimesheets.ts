@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { QUERY_KEYS } from '@/lib/queryKeys';
 import { STALE_TIME } from '@/lib/queryConfig';
+import { format } from 'date-fns';
 
 export interface DailyTimesheet {
   id: string;
@@ -32,9 +33,10 @@ export interface DailyTimesheet {
  * ✅ Deduplication activată prin React Query
  * ✅ Optimized cu index: idx_daily_timesheets_work_date (if exists)
  * 💡 Consider adding: CREATE INDEX idx_daily_timesheets_work_date ON daily_timesheets(work_date);
+ * ✅ FIXED: Folosește format() în loc de toISOString() pentru a evita timezone slippage
  */
 export const useDailyTimesheets = (date: Date) => {
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = format(date, 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: QUERY_KEYS.dailyTimesheets(date),
@@ -64,13 +66,14 @@ export const useDailyTimesheets = (date: Date) => {
  * ✅ Deduplication activată prin React Query
  * ✅ Optimized cu index: idx_daily_timesheets_employee_work_date (if exists)
  * 💡 Consider adding: CREATE INDEX idx_daily_timesheets_employee_work_date ON daily_timesheets(employee_id, work_date DESC);
+ * ✅ FIXED: Folosește format() în loc de toISOString() pentru a evita timezone slippage
  */
 export const useMyDailyTimesheets = (userId: string | undefined, month: Date) => {
   const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1);
   const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0);
   
-  const startDate = startOfMonth.toISOString().split('T')[0];
-  const endDate = endOfMonth.toISOString().split('T')[0];
+  const startDate = format(startOfMonth, 'yyyy-MM-dd');
+  const endDate = format(endOfMonth, 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: QUERY_KEYS.myDailyTimesheets(userId, month),
@@ -105,13 +108,14 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
  * ✅ Deduplication activată prin React Query
  * ✅ Optimized cu index: idx_daily_timesheets_work_date (if exists)
  * 💡 Consider adding: CREATE INDEX idx_daily_timesheets_work_date_range ON daily_timesheets(work_date) WHERE work_date >= NOW() - INTERVAL '7 days';
+ * ✅ FIXED: Folosește format() în loc de toISOString() pentru a evita timezone slippage
  */
 export const useWeeklyTimesheets = (weekStart: Date, userId?: string) => {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);
   
-  const startDate = weekStart.toISOString().split('T')[0];
-  const endDate = weekEnd.toISOString().split('T')[0];
+  const startDate = format(weekStart, 'yyyy-MM-dd');
+  const endDate = format(weekEnd, 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: QUERY_KEYS.weeklyTimesheets(weekStart),

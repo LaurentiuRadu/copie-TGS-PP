@@ -76,6 +76,18 @@ function getRomaniaOffsetMs(date: Date): number {
 }
 
 /**
+ * ✅ Helper pentru a obține data României în format YYYY-MM-DD
+ * IMPORTANT: `d` este deja shifted la ora României (UTC + ROMANIA_OFFSET_MS)
+ * Folosim getUTC* pentru a extrage componentele "locale" (care sunt deja RO)
+ */
+function toRomaniaDateString(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * Găsește următorul midnight (00:00) - folosit pentru condus/pasager/utilaj
  */
 function getNextMidnight(currentTime: Date): Date {
@@ -124,9 +136,10 @@ function getNextCriticalTime(currentTime: Date): Date {
 
 /**
  * Verifică dacă o dată este sărbătoare legală românească
+ * ✅ FIXED: Folosește toRomaniaDateString pentru consistență timezone
  */
 function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = toRomaniaDateString(date);
   return holidayDates.has(dateStr);
 }
 
@@ -249,8 +262,8 @@ function segmentShiftIntoTimesheets(
       console.log(`[Segment] → ${hoursType} (${hoursInSegment}h)`);
     }
     
-    // Găsește sau creează pontaj pentru această zi
-    const workDate = currentSegmentStart.toISOString().split('T')[0];
+    // ✅ FIXED: Găsește sau creează pontaj pentru această zi (ora României)
+    const workDate = toRomaniaDateString(currentSegmentStart);
     let existingTimesheet = timesheets.find(t => t.work_date === workDate);
     
     if (!existingTimesheet) {
@@ -276,6 +289,9 @@ function segmentShiftIntoTimesheets(
     
     // Adaugă orele la o singură categorie
     (existingTimesheet as any)[hoursType] += hoursInSegment;
+    
+    // ✅ Debug log pentru segment
+    console.log(`[Segment→${workDate}] ${currentSegmentStart.toISOString()}..${currentSegmentEnd.toISOString()} → ${hoursType} (${hoursInSegment.toFixed(3)}h)`);
     
     // Avansează la următorul segment
     currentSegmentStart = new Date(currentSegmentEnd);

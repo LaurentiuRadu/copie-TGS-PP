@@ -66,6 +66,18 @@ function getRomaniaOffsetMs(date: Date): number {
 }
 
 /**
+ * ✅ Helper pentru a obține data României în format YYYY-MM-DD
+ * IMPORTANT: `d` este deja shifted la ora României (UTC + ROMANIA_OFFSET_MS)
+ * Folosim getUTC* pentru a extrage componentele "locale" (care sunt deja RO)
+ */
+function toRomaniaDateString(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * Găsește următorul moment critic de segmentare (00:00, 06:00, 06:01, 22:00)
  * ✅ FIXED: Adăugat 06:01 pentru a detecta corect tranziția Sâmbătă/Duminică/Sărbătoare
  */
@@ -104,9 +116,10 @@ function getNextCriticalTime(currentTime: Date): Date {
 
 /**
  * Check if a date is a legal holiday
+ * ✅ FIXED: Folosește toRomaniaDateString pentru consistență timezone
  */
 function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = toRomaniaDateString(date);
   return holidayDates.has(dateStr);
 }
 
@@ -200,7 +213,8 @@ function segmentShiftIntoTimesheets(
     const roundedHours = Math.round(hoursDecimal * 100) / 100;
 
     if (roundedHours > 0) {
-      const workDate = currentTime.toISOString().split('T')[0];
+      // ✅ FIXED: Folosește toRomaniaDateString pentru work_date (ora României)
+      const workDate = toRomaniaDateString(currentTime);
       
       // ✅ LOGICĂ CORECTATĂ: Determină tipul de ore bazat pe ziua săptămânii ȘI tipul de tură
       // Mai întâi, determinăm coloana bazată pe ziua săptămânii (saturday/sunday/holiday/night/regular)
