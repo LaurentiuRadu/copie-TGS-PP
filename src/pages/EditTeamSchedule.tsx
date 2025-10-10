@@ -415,7 +415,7 @@ export default function EditTeamSchedule() {
 
   return (
     <AdminLayout title={`Editare Echipa ${teamId}`}>
-      <div className="container mx-auto p-4 md:p-6">
+      <div className="w-full p-4 md:p-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

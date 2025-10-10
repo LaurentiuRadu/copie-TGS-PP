@@ -129,7 +129,7 @@ export default function FaceVerifications() {
   };
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="w-full py-8 space-y-8">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Istoricul Verificărilor Faciale</h1>

@@ -192,7 +192,7 @@ const Vacations = () => {
         )
       }
     >
-      <div className="container mx-auto p-4 md:p-6 space-y-6">
+      <div className="w-full p-4 md:p-6 space-y-6">
         {/* Vacation Balance Card */}
         {balance && (
           <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">

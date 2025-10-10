@@ -401,7 +401,7 @@ const Timesheet = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-4">
+    <div className="w-full p-4 md:p-6 space-y-4">
         {/* Header with Search and Export */}
         <Card>
           <CardHeader>
