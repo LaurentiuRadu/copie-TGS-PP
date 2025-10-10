@@ -121,6 +121,18 @@ const Alerts = () => {
     return labels[type] || type;
   };
 
+  const getAlertMessage = (type: string) => {
+    const messages: Record<string, string> = {
+      device_change: 'Pontaj din dispozitiv nou detectat',
+      suspicious_location: 'Locație neobișnuită detectată',
+      rapid_movement: 'Deplasare neobișnuit de rapidă între pontaje',
+      photo_mismatch: 'Verificare foto neconformă',
+      pattern_anomaly: 'Anomalie în modelul de pontaj',
+      excessive_duration: 'Durată excesivă de pontaj',
+    };
+    return messages[type] || 'Alertă de securitate';
+  };
+
   const getAlertIcon = (type: string) => {
     switch (type) {
       case 'suspicious_location':
@@ -256,7 +268,7 @@ const Alerts = () => {
                           </div>
                         )}
 
-                        <p className="text-sm break-words overflow-wrap-anywhere">{alert.message}</p>
+                        <p className="text-sm break-words overflow-wrap-anywhere">{getAlertMessage(alert.alert_type)}</p>
 
                         <div className="text-xs text-muted-foreground">
                           {format(new Date(alert.created_at), 'dd MMM yyyy HH:mm', { locale: ro })}
@@ -288,7 +300,7 @@ const Alerts = () => {
 
       {/* Detail Modal */}
       <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalii Alertă</DialogTitle>
           </DialogHeader>
@@ -303,7 +315,7 @@ const Alerts = () => {
                 {getSeverityBadge(selectedAlert.severity)}
               </div>
 
-              <p className="text-sm leading-relaxed break-words">{selectedAlert.message}</p>
+              <p className="text-sm leading-relaxed break-words">{getAlertMessage(selectedAlert.alert_type)}</p>
 
               {selectedAlert.profiles?.full_name && (
                 <div>
