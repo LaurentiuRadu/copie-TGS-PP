@@ -1682,9 +1682,9 @@ export default function WeeklySchedules() {
                           <TableCell>{schedule.location}</TableCell>
                           <TableCell>{schedule.activity}</TableCell>
                           <TableCell>
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex gap-1">
                               {schedule.vehicle?.split(',').map((v: string, idx: number) => (
-                                <Badge key={idx} variant="secondary" className="font-mono">
+                                <Badge key={idx} variant="secondary" className="font-mono text-xs px-1.5 py-0 whitespace-nowrap">
                                   {v.trim()}
                                 </Badge>
                               ))}
