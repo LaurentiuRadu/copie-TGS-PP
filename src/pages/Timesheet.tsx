@@ -5,9 +5,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X } from "lucide-react";
+import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X, Info } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +22,7 @@ import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker"
 import { toast } from "sonner";
 import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
 import { QUERY_KEYS } from "@/lib/queryKeys";
+import { calculateCalendarView } from "@/lib/calendarViewUtils";
 
 type EmployeeTimesheetData = {
   userId: string;
@@ -52,6 +56,9 @@ const Timesheet = () => {
     from: startOfMonth(currentMonth),
     to: endOfMonth(currentMonth),
   });
+  
+  // ✅ View mode: 'payroll' (default) or 'calendar'
+  const [viewMode, setViewMode] = useState<'payroll' | 'calendar'>('payroll');
   
   // ✅ Editing state
   const [editingCell, setEditingCell] = useState<{ rowId: string; field: string } | null>(null);
@@ -114,14 +121,54 @@ const Timesheet = () => {
     },
   });
 
+  // ✅ Fetch time_entries for calendar view calculation
+  const { data: timeEntries } = useQuery({
+    queryKey: ['time-entries-for-calendar', monthStart],
+    queryFn: async () => {
+      const { data: entries, error } = await supabase
+        .from('time_entries')
+        .select('id, user_id, clock_in_time, clock_out_time')
+        .gte('clock_in_time', monthStart.toISOString())
+        .lte('clock_in_time', monthEnd.toISOString())
+        .not('clock_out_time', 'is', null)
+        .order('clock_in_time', { ascending: true });
+
+      if (error) throw error;
+
+      // Fetch profiles separately to avoid join issues
+      const userIds = [...new Set(entries.map(e => e.user_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, full_name')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Merge profiles into entries
+      return entries.map(entry => ({
+        ...entry,
+        profiles: profiles?.find(p => p.id === entry.user_id)
+      }));
+    },
+    enabled: viewMode === 'calendar', // Only fetch when in calendar mode
+  });
+
+  // ✅ Calculate calendar view from time_entries
+  const calendarTimesheets = useMemo(() => {
+    if (viewMode !== 'calendar' || !timeEntries) return [];
+    return calculateCalendarView(timeEntries, monthStart, monthEnd);
+  }, [viewMode, timeEntries, monthStart, monthEnd]);
+
   // ✅ Process employee data FROM timesheets (not dependent on usersWithRoles)
   const employeeData: EmployeeTimesheetData[] = useMemo(() => {
-    if (!allTimesheets) return [];
+    // Use calendar view if enabled, otherwise use payroll view
+    const sourceTimesheets = viewMode === 'calendar' ? calendarTimesheets : allTimesheets;
+    if (!sourceTimesheets) return [];
 
     // Group timesheets by employee_id
     const employeeMap = new Map<string, DailyTimesheet[]>();
     
-    allTimesheets.forEach(ts => {
+    sourceTimesheets.forEach(ts => {
       if (!employeeMap.has(ts.employee_id)) {
         employeeMap.set(ts.employee_id, []);
       }
@@ -177,7 +224,7 @@ const Timesheet = () => {
     })
     .filter(emp => emp.totalHours > 0) // Only show employees with hours
     .sort((a, b) => a.userName.localeCompare(b.userName)); // Sort by name
-  }, [allTimesheets, usersWithRoles]);
+  }, [viewMode, calendarTimesheets, allTimesheets, usersWithRoles]);
 
   // Filter employees based on search
   const filteredEmployees = useMemo(() => {
@@ -389,6 +436,51 @@ const Timesheet = () => {
               </div>
             </div>
           </CardHeader>
+        </Card>
+
+        {/* View Mode Toggle with Night Rule Explanation */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="view-mode"
+                    checked={viewMode === 'calendar'}
+                    onCheckedChange={(checked) => setViewMode(checked ? 'calendar' : 'payroll')}
+                  />
+                  <Label htmlFor="view-mode" className="cursor-pointer">
+                    {viewMode === 'payroll' ? 'Mod Salarizare' : 'Mod Calendaristic'}
+                  </Label>
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Info className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p className="font-semibold mb-2">Regula de Noapte (00:00-06:00)</p>
+                      <p className="text-sm mb-2">
+                        <strong>Mod Salarizare (implicit):</strong> Orele între 00:00-06:00 sunt alocate zilei precedente conform politicii companiei pentru raportare salarială.
+                      </p>
+                      <p className="text-sm">
+                        <strong>Mod Calendaristic:</strong> Orele sunt afișate pe ziua calendaristică efectivă, fără mutare. Folosit doar pentru vizualizare.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              
+              {viewMode === 'calendar' && (
+                <Badge variant="secondary" className="gap-2">
+                  <CalendarIcon className="h-3 w-3" />
+                  Vizualizare calendaristică (nu afectează raportarea)
+                </Badge>
+              )}
+            </div>
+          </CardContent>
         </Card>
 
         {/* Re-procesare Section */}
