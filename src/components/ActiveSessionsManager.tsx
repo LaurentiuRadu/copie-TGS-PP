@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useUserRole } from "@/hooks/useUserRole";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +33,9 @@ export function ActiveSessionsManager() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutAll, setShowLogoutAll] = useState(false);
+  const { isAdmin } = useUserRole();
+  
+  const maxSessions = isAdmin ? 3 : 1;
 
   const loadSessions = async () => {
     try {
@@ -125,9 +129,26 @@ export function ActiveSessionsManager() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Sesiuni Active</CardTitle>
-              <CardDescription>
-                Gestionează dispozitivele pe care ești autentificat
+              <CardDescription className="flex items-center gap-2 flex-wrap">
+                <span>
+                  {isAdmin 
+                    ? "Poți fi conectat pe până la 3 dispozitive simultan" 
+                    : "Poți fi conectat doar pe un singur dispozitiv"}
+                </span>
+                <Badge variant={isAdmin ? "default" : "secondary"} className="text-xs">
+                  {isAdmin ? "Admin" : "Angajat"}
+                </Badge>
               </CardDescription>
+              {sessions.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Sesiuni active: <strong>{sessions.length}</strong> / {maxSessions}
+                  {isAdmin && sessions.length >= 2 && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      ⚠️ Aproape de limită
+                    </Badge>
+                  )}
+                </p>
+              )}
             </div>
             {sessions.length > 1 && (
               <Button 
