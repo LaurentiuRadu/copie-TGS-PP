@@ -309,6 +309,18 @@ All colors MUST be HSL.
   .admin-mobile-theme .border {
     border-color: hsl(220 60% 20%) !important;
   }
+
+  /* Exception pentru text tehnic (logs, progres) */
+  .admin-mobile-theme .font-mono,
+  .admin-mobile-theme code,
+  .admin-mobile-theme pre {
+    color: hsl(142 76% 65%) !important; /* Verde neon pentru readability */
+    text-shadow: 0 0 8px rgba(34, 197, 94, 0.4), 0 1px 2px rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.85) !important; /* Fundal complet opac */
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
 }
 
 @layer base {

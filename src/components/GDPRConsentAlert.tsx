@@ -4,8 +4,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRole } from "@/hooks/useUserRole";
 import { checkUserConsents } from "@/lib/gdprHelpers";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Banner persistent pentru utilizatorii care nu au acordat toate consimțămintele GDPR
@@ -13,31 +13,48 @@ import { checkUserConsents } from "@/lib/gdprHelpers";
  */
 export function GDPRConsentAlert() {
   const { user } = useAuth();
-  const { isAdmin, loading: roleLoading } = useUserRole();
   const [showAlert, setShowAlert] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Nu afișăm banner-ul pentru admini sau dacă nu avem user
-    if (!user || roleLoading) {
+    // Nu afișăm banner-ul dacă nu avem user
+    if (!user) {
       setShowAlert(false);
       return;
     }
 
-    // Skip verificare consimțăminte pentru admini
-    if (isAdmin) {
-      setShowAlert(false);
-      return;
-    }
+    const checkAdminAndConsents = async () => {
+      try {
+        // ✅ Step 1: Verifică DIRECT dacă e admin (fără dependency pe useUserRole)
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-    // Verifică consimțăminte DOAR pentru angajați
-    const checkConsents = async () => {
-      const hasAllConsents = await checkUserConsents(user.id);
-      setShowAlert(!hasAllConsents);
+        if (roleError && roleError.code !== 'PGRST116') {
+          console.error('[GDPRConsentAlert] Role check error:', roleError);
+          setShowAlert(false);
+          return;
+        }
+
+        // ✅ Admins nu au nevoie de GDPR consent banner
+        if (roleData?.role === 'admin') {
+          setShowAlert(false);
+          return;
+        }
+
+        // ✅ Step 2: Pentru employees, verifică consimțăminte
+        const hasAllConsents = await checkUserConsents(user.id);
+        setShowAlert(!hasAllConsents);
+      } catch (error) {
+        console.error('[GDPRConsentAlert] Exception:', error);
+        setShowAlert(false);
+      }
     };
 
-    checkConsents();
-  }, [user, isAdmin, roleLoading]);
+    checkAdminAndConsents();
+  }, [user]);
 
   // Nu afișăm dacă utilizatorul a dat dismiss sau are toate consimțămintele
   if (!showAlert || dismissed) return null;
