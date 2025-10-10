@@ -51,8 +51,8 @@ export const exportWeeklyScheduleToPDF = async (
   doc.text('PROGRAMARE SĂPTĂMÂNALĂ', 105, 15, { align: 'center' });
   
   // Week info
-  doc.setFontSize(10);
-  doc.setFont('Roboto', 'normal');
+  doc.setFontSize(12);
+  doc.setFont('Roboto', 'bold');
   doc.text(
     `Săptămâna ${weekNumber}: ${format(weekStartDate, 'dd.MM.yyyy')} - ${format(weekEndDate, 'dd.MM.yyyy')}`,
     105,
@@ -143,13 +143,11 @@ export const exportWeeklyScheduleToPDF = async (
       const dayName = DAYS_OF_WEEK[day - 1];
       
       // Day header
-      doc.setFillColor(229, 231, 235); // Gray
-      doc.rect(14, yPosition, 182, 6, 'F');
-      doc.setFontSize(10);
+      doc.setFontSize(12);
       doc.setFont('Roboto', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(`${dayName}, ${format(dayDate, 'dd.MM.yyyy')}`, 16, yPosition + 4.5);
-      yPosition += 8;
+      doc.text(`${dayName}, ${format(dayDate, 'dd.MM.yyyy')}`, 14, yPosition);
+      yPosition += 7;
 
       // Prepare table data
       const tableData = daySchedules.map(schedule => {
