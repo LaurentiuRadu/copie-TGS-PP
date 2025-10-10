@@ -1479,7 +1479,8 @@ export default function WeeklySchedules() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 navigate(`/edit-team-schedule?team=${summary.team_id}&week=${selectedWeek}`);
                               }}
                               title="Editează echipa"
@@ -1516,7 +1517,10 @@ export default function WeeklySchedules() {
                       </CardHeader>
                       <CardContent 
                         className="space-y-3 cursor-pointer"
-                        onClick={() => setActiveTab('details')}
+                        onClick={() => {
+                          setSelectedTeam(summary.team_id);
+                          setActiveTab('details');
+                        }}
                       >
                         <div className="pt-2 border-t">
                           <div className="text-xs text-muted-foreground mb-2">Membri echipă:</div>
