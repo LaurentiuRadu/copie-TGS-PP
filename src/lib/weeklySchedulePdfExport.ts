@@ -100,7 +100,7 @@ export const exportWeeklyScheduleToPDF = async (
     doc.setFontSize(12);
     doc.setFont('Roboto', 'bold');
     doc.text(`ECHIPA ${teamId}`, 16, yPosition + 5.5);
-    yPosition += 10;
+    yPosition += 12;
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
