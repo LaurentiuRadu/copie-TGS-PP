@@ -1,6 +1,13 @@
 import jsPDF from 'jspdf';
 
-let fontsLoaded = false;
+// Cache pentru font-urile încărcate (fetch o singură dată)
+let cachedFonts: {
+  normalB64: string | null;
+  boldB64: string | null;
+} = {
+  normalB64: null,
+  boldB64: null,
+};
 
 const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
   let binary = '';
@@ -14,25 +21,27 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
 };
 
 export const ensureDejaVuSans = async (doc: jsPDF) => {
-  if (fontsLoaded) return;
-  const [normalResp, boldResp] = await Promise.all([
-    fetch('/fonts/Roboto-Regular.ttf'),
-    fetch('/fonts/Roboto-Bold.ttf'),
-  ]);
+  // Dacă font-urile nu sunt în cache, le încărcăm de pe server
+  if (!cachedFonts.normalB64 || !cachedFonts.boldB64) {
+    const [normalResp, boldResp] = await Promise.all([
+      fetch('/fonts/Roboto-Regular.ttf'),
+      fetch('/fonts/Roboto-Bold.ttf'),
+    ]);
 
-  const [normalAb, boldAb] = await Promise.all([
-    normalResp.arrayBuffer(),
-    boldResp.arrayBuffer(),
-  ]);
+    const [normalAb, boldAb] = await Promise.all([
+      normalResp.arrayBuffer(),
+      boldResp.arrayBuffer(),
+    ]);
 
-  const normalB64 = arrayBufferToBase64(normalAb);
-  const boldB64 = arrayBufferToBase64(boldAb);
+    cachedFonts.normalB64 = arrayBufferToBase64(normalAb);
+    cachedFonts.boldB64 = arrayBufferToBase64(boldAb);
+  }
 
-  doc.addFileToVFS('Roboto-Regular.ttf', normalB64);
+  // Adăugăm font-urile în documentul jsPDF CURENT
+  // (chiar dacă am mai făcut-o pentru alt document)
+  doc.addFileToVFS('Roboto-Regular.ttf', cachedFonts.normalB64!);
   doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
 
-  doc.addFileToVFS('Roboto-Bold.ttf', boldB64);
+  doc.addFileToVFS('Roboto-Bold.ttf', cachedFonts.boldB64!);
   doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
-
-  fontsLoaded = true;
 };
