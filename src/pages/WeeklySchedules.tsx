@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { exportWeeklyScheduleToPDF } from '@/lib/weeklySchedulePdfExport';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -121,6 +122,19 @@ export default function WeeklySchedules() {
         .order('full_name');
       if (error) throw error;
       return data;
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
+  });
+
+  // Fetch all profiles for PDF export
+  const { data: allProfiles } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, username');
+      if (error) throw error;
+      return data || [];
     },
     staleTime: STALE_TIME.STATIC_DATA,
   });
@@ -767,10 +781,28 @@ export default function WeeklySchedules() {
                   onClick={goToNextWeek}
                   title="Săptămâna următoare"
                 >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button
+            onClick={() => {
+              if (schedules && schedules.length > 0 && allProfiles) {
+                exportWeeklyScheduleToPDF(
+                  schedules,
+                  selectedWeek,
+                  allProfiles,
+                  activeTab === 'details' ? selectedTeam : undefined
+                );
+              }
+            }}
+            variant="outline"
+            disabled={!schedules || schedules.length === 0}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+        </div>
             {activeTab === 'details' && (
               <div className="flex-1 min-w-[200px]">
                 <Label>Echipa</Label>
