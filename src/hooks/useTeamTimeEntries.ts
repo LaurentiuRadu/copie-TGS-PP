@@ -70,7 +70,9 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
         const userId = entry.user_id;
         if (memberData[userId]) {
           const entryDate = new Date(entry.clock_in_time);
-          const dayOfWeek = entryDate.getDay() === 0 ? 7 : entryDate.getDay(); // Convert Sunday from 0 to 7
+          // Calculăm ziua relativă la week_start_date (1-7 pentru Luni-Duminică)
+          const daysDiff = Math.floor((entryDate.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24));
+          const dayOfWeek = daysDiff + 1; // 1=Luni, 7=Duminică
 
           if (!memberData[userId].entries[dayOfWeek]) {
             memberData[userId].entries[dayOfWeek] = [];
@@ -79,10 +81,15 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
         }
       });
 
+      // Deduplicare explicită pentru a preveni duplicate
+      const uniqueMembers = Object.values(memberData).filter((member, index, self) => 
+        self.findIndex(m => m.user_id === member.user_id) === index
+      );
+
       return {
         teamId,
         weekStartDate,
-        members: Object.values(memberData)
+        members: uniqueMembers
       };
     },
     enabled: !!teamId && !!weekStartDate,
