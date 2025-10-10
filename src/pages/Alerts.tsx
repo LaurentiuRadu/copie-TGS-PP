@@ -220,12 +220,12 @@ const Alerts = () => {
             alerts.map((alert) => (
               <Card 
                 key={alert.id}
-                className={`cursor-pointer transition-colors ${
+                className={`cursor-pointer transition-colors overflow-hidden ${
                   !alert.resolved ? 'bg-red-50 dark:bg-red-950/20 border-red-200' : 'bg-accent/30'
                 }`}
                 onClick={() => setSelectedAlert(alert)}
               >
-                <CardContent className="p-4">
+                <CardContent className="p-4 overflow-hidden">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
                       <div className={`p-2 rounded-lg ${
@@ -256,7 +256,7 @@ const Alerts = () => {
                           </div>
                         )}
 
-                        <p className="text-sm">{alert.message}</p>
+                        <p className="text-sm break-words overflow-wrap-anywhere">{alert.message}</p>
 
                         <div className="text-xs text-muted-foreground">
                           {format(new Date(alert.created_at), 'dd MMM yyyy HH:mm', { locale: ro })}
