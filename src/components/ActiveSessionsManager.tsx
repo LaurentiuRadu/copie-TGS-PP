@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useUserRole } from "@/hooks/useUserRole";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -13,11 +12,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smartphone, Monitor, Tablet, MapPin, Clock, X } from "lucide-react";
+import { Smartphone, Monitor, Tablet, Clock, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Session {
   id: string;
@@ -33,9 +33,7 @@ export function ActiveSessionsManager() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLogoutAll, setShowLogoutAll] = useState(false);
-  const { isAdmin } = useUserRole();
-  
-  const maxSessions = isAdmin ? 3 : 1;
+  const { isAdmin, loading: roleLoading } = useUserRole();
 
   const loadSessions = async () => {
     try {
@@ -110,7 +108,7 @@ export function ActiveSessionsManager() {
     return `${browser || 'Browser'} pe ${os || 'OS'} (${deviceType || 'Desktop'})`;
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -122,32 +120,35 @@ export function ActiveSessionsManager() {
     );
   }
 
+  const maxSessions = isAdmin ? 3 : 1;
+  const isApproachingLimit = isAdmin && sessions.length >= 2;
+
   return (
     <>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Sesiuni Active</CardTitle>
-              <CardDescription className="flex items-center gap-2 flex-wrap">
-                <span>
-                  {isAdmin 
-                    ? "Poți fi conectat pe până la 3 dispozitive simultan" 
-                    : "Poți fi conectat doar pe un singur dispozitiv"}
-                </span>
+              <CardTitle className="flex items-center gap-2">
+                Sesiuni Active
                 <Badge variant={isAdmin ? "default" : "secondary"} className="text-xs">
                   {isAdmin ? "Admin" : "Angajat"}
                 </Badge>
+              </CardTitle>
+              <CardDescription className="mt-1">
+                {isAdmin 
+                  ? "Poți fi conectat pe până la 3 dispozitive simultan" 
+                  : "Poți fi conectat doar pe un singur dispozitiv"}
               </CardDescription>
               {sessions.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
+                <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
                   Sesiuni active: <strong>{sessions.length}</strong> / {maxSessions}
-                  {isAdmin && sessions.length >= 2 && (
-                    <Badge variant="outline" className="ml-2 text-xs">
+                  {isApproachingLimit && (
+                    <Badge variant="outline" className="text-xs">
                       ⚠️ Aproape de limită
                     </Badge>
                   )}
-                </p>
+                </div>
               )}
             </div>
             {sessions.length > 1 && (
