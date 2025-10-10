@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
-
+import { ensureDejaVuSans } from '@/lib/pdfFontLoader';
 interface ScheduleEntry {
   id: string;
   team_id: string;
@@ -26,13 +26,14 @@ interface Profile {
 
 const DAYS_OF_WEEK = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
-export const exportWeeklyScheduleToPDF = (
+export const exportWeeklyScheduleToPDF = async (
   schedules: ScheduleEntry[],
   weekStart: string,
   profiles: Profile[],
   teamFilter?: string
 ) => {
   const doc = new jsPDF();
+  await ensureDejaVuSans(doc);
   
   // Filter schedules by team if specified
   const filteredSchedules = teamFilter 
@@ -46,12 +47,12 @@ export const exportWeeklyScheduleToPDF = (
   
   // Title
   doc.setFontSize(16);
-  doc.setFont('times', 'bold');
+  doc.setFont('DejaVuSans', 'bold');
   doc.text('PROGRAMARE SĂPTĂMÂNALĂ', 105, 15, { align: 'center' });
   
   // Week info
   doc.setFontSize(10);
-  doc.setFont('times', 'normal');
+  doc.setFont('DejaVuSans', 'normal');
   doc.text(
     `Săptămâna ${weekNumber}: ${format(weekStartDate, 'dd.MM.yyyy')} - ${format(weekEndDate, 'dd.MM.yyyy')}`,
     105,
@@ -97,13 +98,13 @@ export const exportWeeklyScheduleToPDF = (
     doc.rect(14, yPosition, 182, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
-    doc.setFont('times', 'bold');
+    doc.setFont('DejaVuSans', 'bold');
     doc.text(`ECHIPA ${teamId}`, 16, yPosition + 5.5);
     yPosition += 10;
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
-    doc.setFont('times', 'normal');
+    doc.setFont('DejaVuSans', 'normal');
 
     // Get team info
     const sampleSchedule = teamSchedules[0];
@@ -145,7 +146,7 @@ export const exportWeeklyScheduleToPDF = (
       doc.setFillColor(229, 231, 235); // Gray
       doc.rect(14, yPosition, 182, 6, 'F');
       doc.setFontSize(10);
-      doc.setFont('times', 'bold');
+      doc.setFont('DejaVuSans', 'bold');
       doc.setTextColor(0, 0, 0);
       doc.text(`${dayName}, ${format(dayDate, 'dd.MM.yyyy')}`, 16, yPosition + 4.5);
       yPosition += 8;
@@ -175,7 +176,7 @@ export const exportWeeklyScheduleToPDF = (
         styles: {
           fontSize: 8,
           cellPadding: 2,
-          font: 'times',
+          font: 'DejaVuSans',
         },
         headStyles: {
           fillColor: [99, 102, 241], // Indigo
