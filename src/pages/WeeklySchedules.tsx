@@ -670,6 +670,9 @@ export default function WeeklySchedules() {
           coordinator: schedule.coordinator_id ? 
             employees?.find(e => e.id === schedule.coordinator_id) : null,
           coordinator_id: schedule.coordinator_id,
+          team_leader: schedule.team_leader_id ? 
+            employees?.find(e => e.id === schedule.team_leader_id) : null,
+          team_leader_id: schedule.team_leader_id,
           members: new Set(),
           vehicles: new Set(),
           locations: new Map(),
@@ -1496,12 +1499,20 @@ export default function WeeklySchedules() {
                             </Button>
                           </div>
                         </CardTitle>
-                        {summary.coordinator && (
-                          <CardDescription className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            Manager de Proiect: <strong>{summary.coordinator.full_name}</strong>
-                          </CardDescription>
-                        )}
+                        <div className="space-y-1">
+                          {summary.coordinator && (
+                            <CardDescription className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              Manager de Proiect: <strong>{summary.coordinator.full_name}</strong>
+                            </CardDescription>
+                          )}
+                          {summary.team_leader && (
+                            <CardDescription className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              Șef de Echipă: <strong>{summary.team_leader.full_name}</strong>
+                            </CardDescription>
+                          )}
+                        </div>
                       </CardHeader>
                       <CardContent 
                         className="space-y-3 cursor-pointer"

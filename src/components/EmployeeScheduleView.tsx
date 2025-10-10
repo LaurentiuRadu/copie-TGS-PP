@@ -66,8 +66,12 @@ export function EmployeeScheduleView() {
 
       if (teamError) throw teamError;
 
-      // Get unique user IDs from team schedules
-      const userIds = [...new Set(allTeamSchedules?.map(s => s.user_id) || [])];
+      // Get unique user IDs from team schedules and coordinators/team leaders
+      const userIds = [...new Set([
+        ...(allTeamSchedules?.map(s => s.user_id) || []),
+        ...(mySchedules?.map(s => s.team_leader_id).filter(Boolean) || []),
+        ...(mySchedules?.map(s => s.coordinator_id).filter(Boolean) || [])
+      ])];
 
       // Fetch profiles for all users
       const { data: profiles } = await supabase
@@ -88,16 +92,22 @@ export function EmployeeScheduleView() {
           )
           .map(ts => {
             const profile = profileMap.get(ts.user_id);
+            const isTeamLeader = ts.user_id === schedule.team_leader_id;
             return {
               id: ts.user_id,
               full_name: profile?.full_name || 'Unknown',
-              username: profile?.username || ''
+              username: profile?.username || '',
+              isTeamLeader
             };
           }) || [];
 
+        // Get coordinator name
+        const coordinator = schedule.coordinator_id ? profileMap.get(schedule.coordinator_id) : null;
+
         return {
           ...schedule,
-          teammates
+          teammates,
+          coordinatorName: coordinator?.full_name || null
         };
       });
 
@@ -208,7 +218,12 @@ export function EmployeeScheduleView() {
                 {schedule.activity && (
                   <div className="flex items-start gap-2">
                     <span className="text-muted-foreground text-sm">🔧</span>
-                    <span className="text-sm">{schedule.activity}</span>
+                    <span className="text-sm">
+                      {schedule.activity}
+                      {schedule.coordinatorName && (
+                        <span className="text-muted-foreground"> ({schedule.coordinatorName})</span>
+                      )}
+                    </span>
                   </div>
                 )}
                 
@@ -239,6 +254,7 @@ export function EmployeeScheduleView() {
                             className="text-xs font-normal"
                           >
                             {teammate.full_name}
+                            {teammate.isTeamLeader && ' (sef echipa)'}
                           </Badge>
                         ))}
                       </div>
