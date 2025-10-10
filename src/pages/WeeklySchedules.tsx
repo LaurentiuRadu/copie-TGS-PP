@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight, FileText, ClipboardCheck } from 'lucide-react';
 import { exportWeeklyScheduleToPDF } from '@/lib/weeklySchedulePdfExport';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 import { STALE_TIME } from '@/lib/queryConfig';
+import { TeamTimeEntryVerification } from '@/components/TeamTimeEntryVerification';
 
 interface ScheduleEntry {
   id?: string;
@@ -1467,7 +1468,7 @@ export default function WeeklySchedules() {
 
           {/* Tabs: Summary and Details */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="summary" className="gap-2">
                 <Users className="h-4 w-4" />
                 Rezumat Programări
@@ -1475,6 +1476,10 @@ export default function WeeklySchedules() {
               <TabsTrigger value="details" className="gap-2">
                 <Calendar className="h-4 w-4" />
                 Detalii Complete
+              </TabsTrigger>
+              <TabsTrigger value="verification" className="gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Verificare Pontaje
               </TabsTrigger>
             </TabsList>
 
@@ -1716,6 +1721,14 @@ export default function WeeklySchedules() {
                 </TableBody>
               </Table>
               </div>
+            </TabsContent>
+
+            {/* Verification Tab */}
+            <TabsContent value="verification" className="mt-6">
+              <TeamTimeEntryVerification 
+                selectedWeek={selectedWeek}
+                availableTeams={usedTeams}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>
