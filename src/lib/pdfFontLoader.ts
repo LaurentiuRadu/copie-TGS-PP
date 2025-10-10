@@ -16,8 +16,8 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
 export const ensureDejaVuSans = async (doc: jsPDF) => {
   if (fontsLoaded) return;
   const [normalResp, boldResp] = await Promise.all([
-    fetch('/fonts/DejaVuSans.ttf'),
-    fetch('/fonts/DejaVuSans-Bold.ttf'),
+    fetch('/fonts/Roboto-Regular.ttf'),
+    fetch('/fonts/Roboto-Bold.ttf'),
   ]);
 
   const [normalAb, boldAb] = await Promise.all([
@@ -28,11 +28,11 @@ export const ensureDejaVuSans = async (doc: jsPDF) => {
   const normalB64 = arrayBufferToBase64(normalAb);
   const boldB64 = arrayBufferToBase64(boldAb);
 
-  doc.addFileToVFS('DejaVuSans.ttf', normalB64);
-  doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal');
+  doc.addFileToVFS('Roboto-Regular.ttf', normalB64);
+  doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
 
-  doc.addFileToVFS('DejaVuSans-Bold.ttf', boldB64);
-  doc.addFont('DejaVuSans-Bold.ttf', 'DejaVuSans', 'bold');
+  doc.addFileToVFS('Roboto-Bold.ttf', boldB64);
+  doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
 
   fontsLoaded = true;
 };

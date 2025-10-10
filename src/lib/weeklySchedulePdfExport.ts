@@ -47,12 +47,12 @@ export const exportWeeklyScheduleToPDF = async (
   
   // Title
   doc.setFontSize(16);
-  doc.setFont('DejaVuSans', 'bold');
+  doc.setFont('Roboto', 'bold');
   doc.text('PROGRAMARE SĂPTĂMÂNALĂ', 105, 15, { align: 'center' });
   
   // Week info
   doc.setFontSize(10);
-  doc.setFont('DejaVuSans', 'normal');
+  doc.setFont('Roboto', 'normal');
   doc.text(
     `Săptămâna ${weekNumber}: ${format(weekStartDate, 'dd.MM.yyyy')} - ${format(weekEndDate, 'dd.MM.yyyy')}`,
     105,
@@ -98,13 +98,13 @@ export const exportWeeklyScheduleToPDF = async (
     doc.rect(14, yPosition, 182, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
-    doc.setFont('DejaVuSans', 'bold');
+    doc.setFont('Roboto', 'bold');
     doc.text(`ECHIPA ${teamId}`, 16, yPosition + 5.5);
     yPosition += 10;
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
-    doc.setFont('DejaVuSans', 'normal');
+    doc.setFont('Roboto', 'normal');
 
     // Get team info
     const sampleSchedule = teamSchedules[0];
@@ -146,7 +146,7 @@ export const exportWeeklyScheduleToPDF = async (
       doc.setFillColor(229, 231, 235); // Gray
       doc.rect(14, yPosition, 182, 6, 'F');
       doc.setFontSize(10);
-      doc.setFont('DejaVuSans', 'bold');
+      doc.setFont('Roboto', 'bold');
       doc.setTextColor(0, 0, 0);
       doc.text(`${dayName}, ${format(dayDate, 'dd.MM.yyyy')}`, 16, yPosition + 4.5);
       yPosition += 8;
@@ -176,7 +176,7 @@ export const exportWeeklyScheduleToPDF = async (
         styles: {
           fontSize: 8,
           cellPadding: 2,
-          font: 'DejaVuSans',
+          font: 'Roboto',
         },
         headStyles: {
           fillColor: [99, 102, 241], // Indigo
