@@ -46,12 +46,12 @@ export const exportWeeklyScheduleToPDF = (
   
   // Title
   doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont('times', 'bold');
   doc.text('PROGRAMARE SĂPTĂMÂNALĂ', 105, 15, { align: 'center' });
   
   // Week info
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('times', 'normal');
   doc.text(
     `Săptămâna ${weekNumber}: ${format(weekStartDate, 'dd.MM.yyyy')} - ${format(weekEndDate, 'dd.MM.yyyy')}`,
     105,
@@ -97,13 +97,13 @@ export const exportWeeklyScheduleToPDF = (
     doc.rect(14, yPosition, 182, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('times', 'bold');
     doc.text(`ECHIPA ${teamId}`, 16, yPosition + 5.5);
     yPosition += 10;
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('times', 'normal');
 
     // Get team info
     const sampleSchedule = teamSchedules[0];
@@ -145,7 +145,7 @@ export const exportWeeklyScheduleToPDF = (
       doc.setFillColor(229, 231, 235); // Gray
       doc.rect(14, yPosition, 182, 6, 'F');
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont('times', 'bold');
       doc.setTextColor(0, 0, 0);
       doc.text(`${dayName}, ${format(dayDate, 'dd.MM.yyyy')}`, 16, yPosition + 4.5);
       yPosition += 8;
@@ -175,7 +175,7 @@ export const exportWeeklyScheduleToPDF = (
         styles: {
           fontSize: 8,
           cellPadding: 2,
-          font: 'helvetica',
+          font: 'times',
         },
         headStyles: {
           fillColor: [99, 102, 241], // Indigo
