@@ -302,31 +302,6 @@ export default function EditTeamSchedule() {
           }
         }
       }
-        .eq('week_start_date', weekStart)
-        .in('user_id', selectedEmployees);
-
-      // Create new schedules
-      const scheduleEntries = [];
-      for (const dayOfWeek of selectedDays) {
-        const configs = dayConfigurations[dayOfWeek] || [];
-        for (const config of configs) {
-          for (const userId of selectedEmployees) {
-            scheduleEntries.push({
-              team_id: teamId,
-              week_start_date: weekStart,
-              user_id: userId,
-              day_of_week: dayOfWeek,
-              location: config.location,
-              activity: config.project,
-              vehicle: config.vehicle || null,
-              observations: config.to_execute || null,
-              shift_type: config.shift_type,
-              coordinator_id: projectManagerId,
-              team_leader_id: teamLeaderId
-            });
-          }
-        }
-      }
 
       const { error } = await supabase
         .from('weekly_schedules')
