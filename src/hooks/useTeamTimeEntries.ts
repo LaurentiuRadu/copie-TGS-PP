@@ -23,18 +23,20 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
     queryFn: async () => {
       if (!teamId) return null;
 
-      // 1. Obține membrii echipei din săptămâna selectată
-      const { data: schedules, error: schedulesError } = await supabase
+      // 1. Obține TOȚI membrii care au fost VREODATĂ programați în această echipă
+      // (nu doar în săptămâna selectată, ci în ultimele 60 zile)
+      const { data: allTeamSchedules, error: schedulesError } = await supabase
         .from('weekly_schedules')
-        .select('user_id, day_of_week, profiles(id, full_name, username)')
+        .select('user_id, profiles(id, full_name, username)')
         .eq('team_id', teamId)
-        .eq('week_start_date', weekStartDate);
+        .gte('week_start_date', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('week_start_date', { ascending: false });
 
       if (schedulesError) throw schedulesError;
-      if (!schedules || schedules.length === 0) return null;
+      if (!allTeamSchedules || allTeamSchedules.length === 0) return null;
 
-      // Obține user_id-uri unice din schedules
-      const scheduledUserIds = [...new Set(schedules.map((s: any) => s.user_id))];
+      // Obține user_id-uri UNICE din toți membrii echipei
+      const allTeamMemberIds = [...new Set(allTeamSchedules.map((s: any) => s.user_id))];
 
       // 2. Obține pontajele pentru toți membrii din săptămâna selectată
       const weekStart = new Date(weekStartDate);
@@ -43,7 +45,7 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
       const { data: timeEntries, error: entriesError } = await supabase
         .from('time_entries')
         .select('id, user_id, clock_in_time, clock_out_time, created_at')
-        .in('user_id', scheduledUserIds)
+        .in('user_id', allTeamMemberIds)
         .gte('clock_in_time', weekStart.toISOString())
         .lte('clock_in_time', weekEnd.toISOString())
         .order('clock_in_time');
@@ -52,7 +54,7 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
 
       // 3. Identifică membrii cu pontaje dar fără schedule
       const timeEntryUserIds = [...new Set(timeEntries?.map((e: any) => e.user_id) || [])];
-      const missingUserIds = timeEntryUserIds.filter(id => !scheduledUserIds.includes(id));
+      const missingUserIds = timeEntryUserIds.filter(id => !allTeamMemberIds.includes(id));
 
       // 4. Obține profilurile pentru membrii fără schedule
       let missingProfiles: any[] = [];
@@ -67,17 +69,23 @@ export const useTeamTimeEntries = (teamId: string | null, weekStartDate: string)
       // 5. Grupează pontajele pe user și zi
       const memberData: Record<string, TeamMemberEntry> = {};
 
-      // Adaugă toți membrii programați
-      schedules.forEach((schedule: any) => {
-        const userId = schedule.user_id;
-        if (!memberData[userId]) {
-          memberData[userId] = {
-            user_id: userId,
+      // Adaugă toți membrii echipei (cu profile unice)
+      const uniqueProfiles = new Map();
+      allTeamSchedules.forEach((schedule: any) => {
+        if (!uniqueProfiles.has(schedule.user_id)) {
+          uniqueProfiles.set(schedule.user_id, {
+            user_id: schedule.user_id,
             full_name: schedule.profiles?.full_name || 'Necunoscut',
             username: schedule.profiles?.username || '',
-            entries: {}
-          };
+          });
         }
+      });
+
+      uniqueProfiles.forEach((profile) => {
+        memberData[profile.user_id] = {
+          ...profile,
+          entries: {}
+        };
       });
 
       // Adaugă membrii cu pontaje dar fără schedule
