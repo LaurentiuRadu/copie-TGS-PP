@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -20,6 +20,16 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
   const [selectedTeam, setSelectedTeam] = useState<string | null>(
     availableTeams.size > 0 ? Array.from(availableTeams)[0] : null
   );
+
+  // Reset echipa selectată când se schimbă săptămâna sau echipele disponibile
+  useEffect(() => {
+    if (availableTeams.size > 0) {
+      const firstTeam = Array.from(availableTeams)[0];
+      setSelectedTeam(firstTeam);
+    } else {
+      setSelectedTeam(null);
+    }
+  }, [selectedWeek, availableTeams]);
 
   const { data, isLoading } = useTeamTimeEntries(selectedTeam, selectedWeek);
 
