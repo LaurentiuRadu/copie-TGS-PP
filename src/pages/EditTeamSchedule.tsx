@@ -24,6 +24,7 @@ interface DayConfiguration {
   vehicle: string;
   shift_type: 'zi' | 'noapte';
   to_execute: string;
+  observations: string;
 }
 
 export default function EditTeamSchedule() {
@@ -117,6 +118,20 @@ export default function EditTeamSchedule() {
       return data.map(p => p.name);
     }
   });
+  
+  // Fetch execution items
+  const { data: executionItems } = useQuery({
+    queryKey: ['execution_items'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('execution_items')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+    staleTime: STALE_TIME.STATIC_DATA,
+  });
 
   // Fetch existing schedules for this team
   const { data: schedules, isLoading } = useQuery({
@@ -171,7 +186,8 @@ export default function EditTeamSchedule() {
             project: schedule.activity || '',
             vehicle: schedule.vehicle || '',
             shift_type: schedule.shift_type as 'zi' | 'noapte',
-            to_execute: schedule.observations || ''
+            to_execute: schedule.observations || '',
+            observations: ''
           });
         }
       });
@@ -262,6 +278,30 @@ export default function EditTeamSchedule() {
         .from('weekly_schedules')
         .delete()
         .eq('team_id', teamId)
+        .eq('week_start_date', weekStart);
+
+      // Create new schedules
+      const scheduleEntries = [];
+      for (const employeeId of selectedEmployees) {
+        for (const dayNum of selectedDays) {
+          const configs = dayConfigurations[dayNum] || [];
+          for (const config of configs) {
+            scheduleEntries.push({
+              team_id: teamId,
+              week_start_date: weekStart,
+              user_id: employeeId,
+              day_of_week: dayNum,
+              location: config.location,
+              activity: config.project,
+              vehicle: config.vehicle || null,
+              observations: `${config.to_execute}${config.observations ? ' | ' + config.observations : ''}`.trim() || null,
+              shift_type: config.shift_type,
+              coordinator_id: projectManagerId,
+              team_leader_id: teamLeaderId
+            });
+          }
+        }
+      }
         .eq('week_start_date', weekStart)
         .in('user_id', selectedEmployees);
 
@@ -337,7 +377,8 @@ export default function EditTeamSchedule() {
             project: '',
             vehicle: selectedVehicles.join(', '),
             shift_type: 'zi',
-            to_execute: ''
+            to_execute: '',
+            observations: ''
           }];
         } else if (!newDays.includes(day)) {
           delete newConfigs[day];
@@ -359,7 +400,8 @@ export default function EditTeamSchedule() {
           project: '',
           vehicle: selectedVehicles.join(', '),
           shift_type: 'zi',
-          to_execute: ''
+          to_execute: '',
+          observations: ''
         }
       ]
     }));
@@ -720,10 +762,82 @@ export default function EditTeamSchedule() {
                           
                           <div className="md:col-span-2">
                             <Label>De executat</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full justify-between font-normal",
+                                    !config.to_execute && "text-muted-foreground"
+                                  )}
+                                >
+                                  {config.to_execute || "Selectează/adaugă activitate..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-full p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="🔍 Caută activitate..." />
+                                  <CommandEmpty>
+                                    <div className="p-2 text-sm">
+                                      Nu există activitatea. Scrie-o manual:
+                                      <Input
+                                        className="mt-2"
+                                        placeholder="Activitate nouă..."
+                                        onKeyDown={async (e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const newItem = e.currentTarget.value.trim();
+                                            if (newItem) {
+                                              updateDayConfiguration(dayNum, configIndex, 'to_execute', newItem);
+                                              try {
+                                                await supabase.from('execution_items').insert({ name: newItem });
+                                                queryClient.invalidateQueries({ queryKey: ['execution_items'] });
+                                                toast.success(`Activitate "${newItem}" adăugată`);
+                                                document.body.click();
+                                              } catch (error: any) {
+                                                if (error.code !== '23505') {
+                                                  toast.error('Eroare la salvarea activității');
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  </CommandEmpty>
+                                  <CommandGroup className="max-h-64 overflow-auto">
+                                    {executionItems?.map((item) => (
+                                      <CommandItem
+                                        key={item.id}
+                                        value={item.name}
+                                        onSelect={() => {
+                                          updateDayConfiguration(dayNum, configIndex, 'to_execute', item.name);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            config.to_execute === item.name ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        {item.name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <Label>Observații</Label>
                             <Input
-                              value={config.to_execute}
-                              onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'to_execute', e.target.value)}
-                              placeholder="Detalii despre sarcini de executat"
+                              value={config.observations}
+                              onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'observations', e.target.value)}
+                              placeholder="Notițe despre activitate..."
                             />
                           </div>
                         </div>

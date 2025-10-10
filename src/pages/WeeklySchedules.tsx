@@ -81,6 +81,7 @@ export default function WeeklySchedules() {
     activity: string;
     vehicle: string;
     shift_type: 'zi' | 'noapte';
+    to_execute: string;
     observations: string;
   }
   const [dayConfigurations, setDayConfigurations] = useState<Record<number, DayConfiguration[]>>({});
@@ -305,7 +306,7 @@ export default function WeeklySchedules() {
               location: config.location,
               activity: config.activity,
               vehicle: config.vehicle || null,
-              observations: config.observations || null,
+              observations: `${config.to_execute}${config.observations ? ' | ' + config.observations : ''}`.trim() || null,
               shift_type: config.shift_type,
               coordinator_id: projectManagerId,
               team_leader_id: teamLeaderId
@@ -515,6 +516,7 @@ export default function WeeklySchedules() {
         activity: schedule.activity || '',
         vehicle: schedule.vehicle || '',
         shift_type: schedule.shift_type,
+        to_execute: '',
         observations: schedule.observations || ''
       }];
     });
@@ -573,6 +575,7 @@ export default function WeeklySchedules() {
             activity: '',
             vehicle: selectedVehicles.join(', '),
             shift_type: 'zi',
+            to_execute: '',
             observations: ''
           }];
         } else if (!newDays.includes(day)) {
@@ -596,6 +599,7 @@ export default function WeeklySchedules() {
           activity: '',
           vehicle: selectedVehicles.join(', '),
           shift_type: 'zi',
+          to_execute: '',
           observations: ''
         }
       ]
@@ -667,6 +671,7 @@ export default function WeeklySchedules() {
             employees?.find(e => e.id === schedule.coordinator_id) : null,
           coordinator_id: schedule.coordinator_id,
           members: new Set(),
+          vehicles: new Set(),
           locations: new Map(),
           days: new Set(),
           scheduleIds: [],
@@ -676,6 +681,11 @@ export default function WeeklySchedules() {
       acc[key].members.add(schedule.profiles?.full_name || 'N/A');
       acc[key].days.add(schedule.day_of_week);
       acc[key].scheduleIds.push(schedule.id);
+      
+      // Track vehicles
+      if (schedule.vehicle) {
+        acc[key].vehicles.add(schedule.vehicle);
+      }
       
       // Track locations per day
       const dayKey = schedule.day_of_week;
@@ -692,6 +702,7 @@ export default function WeeklySchedules() {
     return Object.values(grouped).map((group: any) => ({
       ...group,
       members: Array.from(group.members),
+      vehicles: Array.from(group.vehicles),
       days: Array.from(group.days).sort(),
       locations: Array.from(group.locations.entries()).map(([day, locs]) => ({
         day,
@@ -768,7 +779,7 @@ export default function WeeklySchedules() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 10 }, (_, i) => `E${i + 1}`).map(team => {
+                  {Array.from({ length: 30 }, (_, i) => `E${i + 1}`).map(team => {
                       const isUsed = usedTeams.has(team) && team !== selectedTeam;
                       return (
                         <SelectItem 
@@ -787,7 +798,7 @@ export default function WeeklySchedules() {
               <Button onClick={() => {
                 resetForm();
                 // Alege automat următorul număr de echipă disponibil în săptămâna curentă
-                const allTeams = Array.from({ length: 10 }, (_, i) => `E${i + 1}`);
+                const allTeams = Array.from({ length: 30 }, (_, i) => `E${i + 1}`);
                 const nextTeam = allTeams.find(t => !usedTeams.has(t));
                 if (!nextTeam) {
                   toast.error('Toate numerele de echipă sunt ocupate pentru săptămâna selectată');
@@ -1212,7 +1223,7 @@ export default function WeeklySchedules() {
                               />
                             </div>
                             
-                            <div className="md:col-span-2">
+                            <div>
                               <Label>De executat</Label>
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -1221,10 +1232,10 @@ export default function WeeklySchedules() {
                                     role="combobox"
                                     className={cn(
                                       "w-full justify-between font-normal",
-                                      !config.observations && "text-muted-foreground"
+                                      !config.to_execute && "text-muted-foreground"
                                     )}
                                   >
-                                    {config.observations || "Selectează/adauga 'De executat'..."}
+                                    {config.to_execute || "Selectează/adaugă 'De executat'..."}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                   </Button>
                                 </PopoverTrigger>
@@ -1243,7 +1254,7 @@ export default function WeeklySchedules() {
                                               e.stopPropagation();
                                               const newItem = e.currentTarget.value.trim();
                                               if (newItem) {
-                                                updateDayConfiguration(dayNum, configIndex, 'observations', newItem);
+                                                updateDayConfiguration(dayNum, configIndex, 'to_execute', newItem);
                                                 try {
                                                   await supabase.from('execution_items').insert({ name: newItem });
                                                   queryClient.invalidateQueries({ queryKey: ['execution_items'] });
@@ -1266,13 +1277,13 @@ export default function WeeklySchedules() {
                                           key={item.id}
                                           value={item.name}
                                           onSelect={() => {
-                                            updateDayConfiguration(dayNum, configIndex, 'observations', item.name);
+                                            updateDayConfiguration(dayNum, configIndex, 'to_execute', item.name);
                                           }}
                                         >
                                           <Check
                                             className={cn(
                                               "mr-2 h-4 w-4",
-                                              config.observations === item.name ? "opacity-100" : "opacity-0"
+                                              config.to_execute === item.name ? "opacity-100" : "opacity-0"
                                             )}
                                           />
                                           {item.name}
@@ -1282,6 +1293,15 @@ export default function WeeklySchedules() {
                                   </Command>
                                 </PopoverContent>
                               </Popover>
+                            </div>
+                            
+                            <div>
+                              <Label>Observații</Label>
+                              <Input
+                                value={config.observations}
+                                onChange={(e) => updateDayConfiguration(dayNum, configIndex, 'observations', e.target.value)}
+                                placeholder="Notițe despre activitate..."
+                              />
                             </div>
                           </div>
                         </div>
@@ -1497,6 +1517,19 @@ export default function WeeklySchedules() {
                             ))}
                           </div>
                         </div>
+                        
+                        {summary.vehicles && summary.vehicles.length > 0 && (
+                          <div className="pt-2 border-t">
+                            <div className="text-xs text-muted-foreground mb-2">Mașini alocate:</div>
+                            <div className="flex flex-wrap gap-1">
+                              {summary.vehicles.map((vehicle: string, idx: number) => (
+                                <Badge key={idx} variant="outline" className="text-xs font-mono">
+                                  🚗 {vehicle}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="pt-2 border-t">
                           <div className="text-xs text-muted-foreground mb-2">Program săptămânal:</div>
