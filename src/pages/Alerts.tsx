@@ -303,10 +303,7 @@ const Alerts = () => {
                 {getSeverityBadge(selectedAlert.severity)}
               </div>
 
-              <div>
-                <h4 className="font-semibold mb-1">Mesaj:</h4>
-                <p>{selectedAlert.message}</p>
-              </div>
+              <p className="text-sm leading-relaxed break-words">{selectedAlert.message}</p>
 
               {selectedAlert.profiles?.full_name && (
                 <div>
