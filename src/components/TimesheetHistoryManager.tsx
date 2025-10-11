@@ -1,0 +1,439 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { ro } from 'date-fns/locale';
+import { Pencil, Lock, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+
+interface ApprovedEntry {
+  id: string;
+  user_id: string;
+  clock_in_time: string;
+  clock_out_time: string;
+  approved_at: string;
+  approved_by: string;
+  approval_notes: string;
+  profiles: {
+    full_name: string;
+    username: string;
+  };
+  approver_profile: {
+    full_name: string;
+    username: string;
+  };
+}
+
+export function TimesheetHistoryManager() {
+  const queryClient = useQueryClient();
+  
+  const [daysFilter, setDaysFilter] = useState('30');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<ApprovedEntry | null>(null);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [editClockIn, setEditClockIn] = useState('');
+  const [editClockOut, setEditClockOut] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [passwordVerified, setPasswordVerified] = useState(false);
+
+  // Query pentru pontaje aprobate
+  const { data: approvedEntries, isLoading } = useQuery({
+    queryKey: ['approved-timesheet-history', daysFilter],
+    queryFn: async () => {
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(daysFilter));
+      
+      const { data, error } = await supabase
+        .from('time_entries')
+        .select(`
+          id,
+          user_id,
+          clock_in_time,
+          clock_out_time,
+          approved_at,
+          approved_by,
+          approval_notes,
+          profiles:user_id (
+            full_name,
+            username
+          )
+        `)
+        .eq('approval_status', 'approved')
+        .gte('approved_at', daysAgo.toISOString())
+        .order('approved_at', { ascending: false });
+      
+      if (error) throw error;
+
+      // Fetch approver profiles separately
+      const approverIds = [...new Set(data.map((e: any) => e.approved_by).filter(Boolean))];
+      const { data: approvers } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', approverIds);
+
+      return data.map((entry: any) => ({
+        ...entry,
+        approver_profile: approvers?.find((a: any) => a.id === entry.approved_by) || null
+      })) as ApprovedEntry[];
+    },
+    refetchInterval: 60000,
+  });
+
+  const filteredEntries = approvedEntries?.filter(entry =>
+    entry.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleOpenPasswordDialog = (entry: ApprovedEntry) => {
+    setSelectedEntry(entry);
+    setAdminPassword('');
+    setPasswordVerified(false);
+    setPasswordDialogOpen(true);
+  };
+
+  // Verificare parolă admin
+  const verifyPassword = useMutation({
+    mutationFn: async (password: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error('Nu ești autentificat');
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: password,
+      });
+
+      if (error) throw new Error('Parolă incorectă');
+      
+      return true;
+    },
+    onSuccess: () => {
+      setPasswordVerified(true);
+      setPasswordDialogOpen(false);
+      
+      if (selectedEntry) {
+        setEditClockIn(format(new Date(selectedEntry.clock_in_time), "yyyy-MM-dd'T'HH:mm"));
+        setEditClockOut(format(new Date(selectedEntry.clock_out_time), "yyyy-MM-dd'T'HH:mm"));
+        setEditReason('');
+        setEditDialogOpen(true);
+      }
+      
+      toast.success('✅ Parolă verificată - poți edita pontajul');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Parolă incorectă');
+    },
+  });
+
+  const editHistoricalEntry = useMutation({
+    mutationFn: async ({
+      entryId,
+      clockIn,
+      clockOut,
+      reason,
+    }: {
+      entryId: string;
+      clockIn: string;
+      clockOut: string;
+      reason: string;
+    }) => {
+      const clockInDate = new Date(clockIn);
+      const clockOutDate = new Date(clockOut);
+      
+      if (clockOutDate <= clockInDate) {
+        throw new Error('Ora de ieșire trebuie să fie după ora de intrare');
+      }
+      
+      const diffHours = (clockOutDate.getTime() - clockInDate.getTime()) / 3600000;
+      if (diffHours > 24) {
+        throw new Error('Durata nu poate depăși 24 de ore');
+      }
+      
+      if (!reason.trim()) {
+        throw new Error('Motivul re-editării este obligatoriu');
+      }
+
+      const { error: updateError } = await supabase
+        .from('time_entries')
+        .update({
+          clock_in_time: clockInDate.toISOString(),
+          clock_out_time: clockOutDate.toISOString(),
+          approval_notes: `[RE-EDITAT] ${reason}`,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', entryId);
+
+      if (updateError) throw updateError;
+
+      const { error: funcError } = await supabase.functions.invoke('calculate-time-segments', {
+        body: { time_entry_id: entryId },
+      });
+
+      if (funcError) {
+        console.warn('[Edit Historical] Calculate segments warning:', funcError);
+      }
+
+      await supabase.rpc('log_sensitive_data_access', {
+        _action: 'edit_approved_timeentry_from_history',
+        _resource_type: 'time_entries',
+        _resource_id: entryId,
+        _details: {
+          old_clock_in: selectedEntry?.clock_in_time,
+          new_clock_in: clockIn,
+          old_clock_out: selectedEntry?.clock_out_time,
+          new_clock_out: clockOut,
+          reason: reason,
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approved-timesheet-history'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      
+      toast.success('✅ Pontaj istoric actualizat și timesheet recalculat');
+      setEditDialogOpen(false);
+      setPasswordVerified(false);
+      setAdminPassword('');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Eroare la salvare');
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-4 items-end">
+        <div className="flex-1">
+          <Label>Caută angajat</Label>
+          <Input
+            placeholder="Nume sau username..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="w-48">
+          <Label>Perioadă</Label>
+          <Select value={daysFilter} onValueChange={setDaysFilter}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Ultimele 7 zile</SelectItem>
+              <SelectItem value="14">Ultimele 14 zile</SelectItem>
+              <SelectItem value="30">Ultimele 30 zile</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">Se încarcă...</div>
+      ) : filteredEntries && filteredEntries.length > 0 ? (
+        <div className="space-y-3">
+          {filteredEntries.map((entry) => (
+            <Card key={entry.id} className="bg-green-50 border-green-200 dark:bg-green-950/20">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{entry.profiles.full_name}</h3>
+                      <Badge variant="outline">@{entry.profiles.username}</Badge>
+                    </div>
+                    
+                    <div className="text-sm space-y-1">
+                      <p>
+                        ⏰ Intrare: <strong>{format(new Date(entry.clock_in_time), 'dd MMM yyyy HH:mm', { locale: ro })}</strong>
+                      </p>
+                      <p>
+                        🚪 Ieșire: <strong>{format(new Date(entry.clock_out_time), 'dd MMM yyyy HH:mm', { locale: ro })}</strong>
+                      </p>
+                      <p className="text-muted-foreground">
+                        ✅ Aprobat de <strong>{entry.approver_profile?.full_name || 'Admin'}</strong> la {format(new Date(entry.approved_at), 'dd MMM HH:mm', { locale: ro })}
+                      </p>
+                      {entry.approval_notes && (
+                        <p className="text-xs italic text-muted-foreground">
+                          📝 {entry.approval_notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleOpenPasswordDialog(entry)}
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    Editează
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          Nu există pontaje aprobate în perioada selectată
+        </div>
+      )}
+
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-red-600" />
+              🔒 Confirmare Editare Istoric
+            </DialogTitle>
+            <DialogDescription>
+              Editezi un pontaj deja aprobat! Pentru securitate, introdu parola contului tău.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              ⚠️ Modificarea va suprascrie complet datele anterioare și va recalcula timesheet-ul.
+            </AlertDescription>
+          </Alert>
+
+          <div className="py-4">
+            <Label htmlFor="admin-password">Parola ta de cont</Label>
+            <Input
+              id="admin-password"
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="••••••••"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && adminPassword) {
+                  verifyPassword.mutate(adminPassword);
+                }
+              }}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Anulează
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => verifyPassword.mutate(adminPassword)}
+              disabled={!adminPassword || verifyPassword.isPending}
+            >
+              {verifyPassword.isPending ? 'Verificare...' : '✅ Confirmă și Editează'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <Pencil className="h-5 w-5 inline mr-2" />
+              Editează Pontaj Istoric - {selectedEntry?.profiles.full_name}
+            </DialogTitle>
+            <DialogDescription>
+              Modificările vor suprascrie datele anterioare
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-clock-in">Ora Intrare</Label>
+              <Input
+                id="edit-clock-in"
+                type="datetime-local"
+                value={editClockIn}
+                onChange={(e) => setEditClockIn(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-clock-out">Ora Ieșire</Label>
+              <Input
+                id="edit-clock-out"
+                type="datetime-local"
+                value={editClockOut}
+                onChange={(e) => setEditClockOut(e.target.value)}
+              />
+            </div>
+
+            {editClockIn && editClockOut && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg text-sm">
+                <p className="font-medium text-blue-900 dark:text-blue-100">
+                  Durată: {(() => {
+                    const diff = new Date(editClockOut).getTime() - new Date(editClockIn).getTime();
+                    if (diff <= 0) return 'Invalid';
+                    const hours = Math.floor(diff / 3600000);
+                    const minutes = Math.floor((diff % 3600000) / 60000);
+                    return `${hours}h ${minutes}m`;
+                  })()}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="edit-reason">
+                Motiv Re-Editare <span className="text-red-600">*</span>
+              </Label>
+              <Textarea
+                id="edit-reason"
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="Ex: Greșeală la introducerea inițială, ceas defect"
+                rows={3}
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Motivul va fi salvat în audit log și în notele de aprobare
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditDialogOpen(false);
+                setPasswordVerified(false);
+                setAdminPassword('');
+              }}
+            >
+              Anulează
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedEntry) {
+                  editHistoricalEntry.mutate({
+                    entryId: selectedEntry.id,
+                    clockIn: editClockIn,
+                    clockOut: editClockOut,
+                    reason: editReason,
+                  });
+                }
+              }}
+              disabled={!editReason.trim() || editHistoricalEntry.isPending}
+            >
+              {editHistoricalEntry.isPending ? 'Salvare...' : '💾 Salvează Modificarea'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

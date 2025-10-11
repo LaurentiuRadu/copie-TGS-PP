@@ -28,7 +28,7 @@ import {
 const adminMenuItems = [
   { title: "Dashboard", url: "/admin", icon: Home },
   { title: "Monitorizare Pontaje Live", url: "/time-entries", icon: ClipboardList },
-  { title: "Timesheet", url: "/timesheet", icon: Table },
+  { title: "Timesheet & Verificare", url: "/timesheet", icon: Table, badge: true },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
@@ -80,6 +80,21 @@ export function AppSidebar() {
   
   // Monitor pontaj activ pentru badge notification
   const { hasActiveEntry } = useActiveTimeEntry(user?.id);
+
+  // Query pentru pontaje pending (badge pentru Timesheet & Verificare)
+  const { data: pendingApprovalsCount } = useQuery({
+    queryKey: ['pending-approvals-count-sidebar'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('time_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('approval_status', 'pending_review');
+      
+      return count || 0;
+    },
+    enabled: isAdmin,
+    refetchInterval: 30000, // 30s
+  });
 
   useEffect(() => {
     // Admin-ii văd TOATE meniurile cu separare clară
@@ -140,25 +155,34 @@ export function AppSidebar() {
             <SidebarGroupLabel>Administrare</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminMenuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild tooltip={item.title}>
-                      <NavLink
-                        to={item.url}
-                        onClick={handleNavClick}
-                        end
-                        className={({ isActive }) =>
-                          isActive
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            : "!text-white hover:bg-sidebar-accent/50"
-                        }
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {adminMenuItems.map((item) => {
+                  const showBadge = item.badge && pendingApprovalsCount && pendingApprovalsCount > 0;
+                  
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild tooltip={item.title}>
+                        <NavLink
+                          to={item.url}
+                          onClick={handleNavClick}
+                          end
+                          className={({ isActive }) =>
+                            isActive
+                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                              : "!text-white hover:bg-sidebar-accent/50"
+                          }
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                          {showBadge && open && (
+                            <Badge variant="destructive" className="ml-auto">
+                              {pendingApprovalsCount}
+                            </Badge>
+                          )}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

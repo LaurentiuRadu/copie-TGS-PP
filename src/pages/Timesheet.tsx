@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { startOfMonth, endOfMonth, format, startOfWeek, addDays } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X, Info } from "lucide-react";
+import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X, Info, ClipboardCheck, FileText } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,8 @@ import { toast } from "sonner";
 import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
 import { QUERY_KEYS } from "@/lib/queryKeys";
 import { calculateCalendarView } from "@/lib/calendarViewUtils";
+import { TeamTimeApprovalManager } from "@/components/TeamTimeApprovalManager";
+import { TimesheetHistoryManager } from "@/components/TimesheetHistoryManager";
 
 type EmployeeTimesheetData = {
   userId: string;
@@ -64,7 +67,40 @@ const Timesheet = () => {
   const [editingCell, setEditingCell] = useState<{ rowId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   
+  // ✅ Tab state
+  const [activeTab, setActiveTab] = useState<'fisePontaj' | 'verificare' | 'istoric'>('fisePontaj');
+  
+  // ✅ State pentru Verificare Pontaje
+  const [selectedWeek] = useState(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  
   const queryClient = useQueryClient();
+
+  // Query pentru pontaje pending count
+  const { data: pendingCount } = useQuery({
+    queryKey: ['pending-approvals-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('time_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('approval_status', 'pending_review');
+      
+      return count || 0;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Query pentru echipe disponibile
+  const { data: availableTeams } = useQuery({
+    queryKey: ['available-teams'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('weekly_schedules')
+        .select('team_id')
+        .order('team_id');
+      
+      return new Set(data?.map(s => s.team_id) || []);
+    },
+  });
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
