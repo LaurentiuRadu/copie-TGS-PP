@@ -423,6 +423,27 @@ Deno.serve(async (req) => {
 
     console.log('Processing time entry:', { user_id, time_entry_id, clock_in_time, clock_out_time, notes, isIntermediateCalculation });
 
+    // ✅ FIX: Fetch missing data from DB if not provided in body
+    if (!user_id || !clock_in_time || !clock_out_time) {
+      console.log('[Auto-fetch] Missing data in body, fetching from DB...');
+      const { data: entry, error: fetchError } = await supabase
+        .from('time_entries')
+        .select('user_id, clock_in_time, clock_out_time, notes')
+        .eq('id', time_entry_id)
+        .single();
+
+      if (fetchError) {
+        console.error('[Auto-fetch] Error fetching time entry:', fetchError);
+        throw new Error(`Could not fetch time entry: ${fetchError.message}`);
+      }
+
+      user_id = user_id || entry.user_id;
+      clock_in_time = clock_in_time || entry.clock_in_time;
+      clock_out_time = clock_out_time || entry.clock_out_time;
+      notes = notes || entry.notes;
+      console.log('[Auto-fetch] ✅ Data fetched from DB:', { user_id, clock_in_time, clock_out_time });
+    }
+
     // ✅ STEP 0: Detectează dacă e recalculare intermediară sau finalizare prin flag explicit
     const isIntermediateRecalc = isIntermediateCalculation === true;
     console.log(`[Mode] ${isIntermediateRecalc ? '🔄 INTERMEDIATE' : '✅ FINAL'} recalculation (flag: ${isIntermediateCalculation})`);
