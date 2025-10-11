@@ -38,7 +38,6 @@ interface TeamTimeApprovalManagerProps {
 
 export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'critical'>('all');
   const [editedOnlyFilter, setEditedOnlyFilter] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'severity'>('date');
@@ -151,14 +150,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
 
   const getFilteredAndSortedEntries = () => {
     let filtered = pendingEntries;
-
-    // Filter by search (nume angajat)
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(e =>
-        e.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
 
     // Filter by severity
     if (severityFilter !== 'all') {
@@ -327,13 +318,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
 
           {/* Filtre Avansate */}
           <div className="flex flex-col md:flex-row gap-3 bg-muted/30 p-4 rounded-lg border mb-6">
-            <Input
-              placeholder="🔍 Caută angajat..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="md:max-w-xs"
-            />
-            
             <Select value={severityFilter} onValueChange={(v: any) => setSeverityFilter(v)}>
               <SelectTrigger className="md:w-[200px]">
                 <SelectValue placeholder="Severitate" />
