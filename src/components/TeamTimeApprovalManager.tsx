@@ -40,6 +40,8 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
 
   const {
     pendingEntries,
+    teamLeader,
+    coordinator,
     teamStats,
     isLoading,
     detectDiscrepancies,
@@ -182,6 +184,36 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
               </SelectContent>
             </Select>
           </div>
+
+          {/* Informații Echipă */}
+          {(teamLeader || coordinator) && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex flex-wrap items-center gap-4">
+                {teamLeader && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="bg-blue-600">
+                      Șef Echipă
+                    </Badge>
+                    <span className="font-medium">{teamLeader.full_name}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {teamLeader.username}
+                    </Badge>
+                  </div>
+                )}
+                {coordinator && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="bg-purple-600">
+                      Coordonator
+                    </Badge>
+                    <span className="font-medium">{coordinator.full_name}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {coordinator.username}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Action buttons */}
           {pendingEntries.length > 0 && (
