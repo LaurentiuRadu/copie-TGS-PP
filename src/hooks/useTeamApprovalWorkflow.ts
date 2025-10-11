@@ -49,6 +49,7 @@ interface TeamApprovalData {
   entries: TimeEntryForApproval[];
   teamLeader: { id: string; full_name: string; username: string } | null;
   coordinator: { id: string; full_name: string; username: string } | null;
+  teamMembers: { id: string; full_name: string; username: string }[];
 }
 
 export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: string) => {
@@ -58,7 +59,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
   const { data, isLoading } = useQuery<TeamApprovalData>({
     queryKey: ['team-pending-approvals', teamId, weekStartDate],
     queryFn: async (): Promise<TeamApprovalData> => {
-      if (!teamId || !weekStartDate) return { entries: [], teamLeader: null, coordinator: null };
+      if (!teamId || !weekStartDate) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 
       const weekStart = new Date(weekStartDate);
       const weekEnd = addDays(weekStart, 7);
@@ -78,7 +79,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
 
       if (userIds.length === 0) {
         console.warn('[Team Approval] ⚠️ No schedules found for this team/week');
-        return { entries: [], teamLeader: null, coordinator: null };
+        return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
       }
 
       // Extract team leader and coordinator IDs
@@ -92,7 +93,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       // Combine all IDs for profile fetch
       const allUserIds = [...new Set([...userIds, ...teamLeaderIds, ...coordinatorIds])];
 
-      if (userIds.length === 0) return { entries: [], teamLeader: null, coordinator: null };
+      if (userIds.length === 0) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 
       // Fetch pending time entries for these users in this week
       const { data: entriesData, error } = await supabase
@@ -167,10 +168,24 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       const teamLeader = profilesData?.find(p => teamLeaderIds.includes(p.id)) || null;
       const coordinator = profilesData?.find(p => coordinatorIds.includes(p.id)) || null;
 
+      // Extract unique team members (exclude team leader and coordinator)
+      const memberIds = [...new Set(schedules?.map(s => s.user_id) || [])];
+      const teamMembersData = memberIds
+        .map(memberId => profilesData?.find(p => p.id === memberId))
+        .filter((p): p is NonNullable<typeof p> => 
+          p !== null && 
+          p.id !== teamLeader?.id && 
+          p.id !== coordinator?.id
+        );
+
+      // Sort alphabetically by full_name
+      teamMembersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
+
       return { 
         entries: result as TimeEntryForApproval[], 
         teamLeader, 
-        coordinator 
+        coordinator,
+        teamMembers: teamMembersData
       };
     },
     enabled: !!teamId && !!weekStartDate,
@@ -181,6 +196,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
   const pendingEntries = data?.entries || [];
   const teamLeader = data?.teamLeader || null;
   const coordinator = data?.coordinator || null;
+  const teamMembers = data?.teamMembers || [];
 
   // 2. Calculate team statistics
   const teamStats: TeamStats = {
@@ -380,6 +396,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
     pendingEntries,
     teamLeader,
     coordinator,
+    teamMembers,
     teamStats,
     isLoading,
     detectDiscrepancies,

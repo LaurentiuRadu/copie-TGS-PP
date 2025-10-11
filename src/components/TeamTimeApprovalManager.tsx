@@ -53,6 +53,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     pendingEntries,
     teamLeader,
     coordinator,
+    teamMembers = [],
     teamStats,
     isLoading,
     detectDiscrepancies,
@@ -304,6 +305,26 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                   </div>
                 )}
               </div>
+
+              {/* Membri Echipă */}
+              {teamMembers.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-blue-300 dark:border-blue-700">
+                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                    👥 Membri Echipă ({teamMembers.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {teamMembers.map(member => (
+                      <Badge 
+                        key={member.id} 
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {member.full_name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
