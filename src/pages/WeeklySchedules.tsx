@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { toast } from 'sonner';
-import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight, FileText, ClipboardCheck } from 'lucide-react';
+import { Calendar, Plus, Trash2, Edit, Users, MapPin, Activity, Car, User, X, Check, ChevronsUpDown, Copy, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { exportWeeklyScheduleToPDF } from '@/lib/weeklySchedulePdfExport';
 import { format, startOfWeek, addDays, getWeek } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -25,7 +25,6 @@ import { cn } from '@/lib/utils';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 import { STALE_TIME } from '@/lib/queryConfig';
-import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
 
 interface ScheduleEntry {
   id?: string;
@@ -61,54 +60,6 @@ export default function WeeklySchedules() {
   useRealtimeSchedules(true);
   const [selectedWeek, setSelectedWeek] = useState(() => format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [selectedTeam, setSelectedTeam] = useState('E1');
-  
-  // Query pentru număr pontaje pending
-  const { data: pendingCount } = useQuery({
-    queryKey: ['pending-approvals-count', selectedWeek],
-    queryFn: async () => {
-      const weekStart = new Date(selectedWeek);
-      const weekEnd = addDays(weekStart, 7);
-      
-      const { count } = await supabase
-        .from('time_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('approval_status', 'pending_review')
-        .gte('clock_in_time', weekStart.toISOString())
-        .lt('clock_in_time', weekEnd.toISOString());
-      
-      return count || 0;
-    },
-    staleTime: STALE_TIME.USER_TRACKING, // 30s
-    refetchInterval: 60000, // refresh every 1 min
-  });
-
-  // Query pentru statistici săptămânale
-  const { data: weeklyStats } = useQuery({
-    queryKey: ['weekly-approval-stats', selectedWeek],
-    queryFn: async () => {
-      const weekStart = new Date(selectedWeek);
-      const weekEnd = addDays(weekStart, 7);
-      
-      const { data } = await supabase
-        .from('time_entries')
-        .select('approval_status')
-        .gte('clock_in_time', weekStart.toISOString())
-        .lt('clock_in_time', weekEnd.toISOString());
-      
-      const stats = {
-        total: data?.length || 0,
-        approved: data?.filter(e => e.approval_status === 'approved').length || 0,
-        pending: data?.filter(e => e.approval_status === 'pending_review').length || 0,
-        rejected: data?.filter(e => e.approval_status === 'rejected').length || 0,
-      };
-      
-      return {
-        ...stats,
-        approvalRate: stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0
-      };
-    },
-    staleTime: STALE_TIME.USER_TRACKING, // 30s
-  });
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
@@ -1514,35 +1465,10 @@ export default function WeeklySchedules() {
             </form>
           )}
 
-          {/* Dashboard Statistic Aprobare Săptămână */}
-          {weeklyStats && weeklyStats.total > 0 && (
-            <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-3xl font-bold text-blue-600">{weeklyStats.total}</p>
-                    <p className="text-sm text-muted-foreground">Total Pontaje</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-green-600">{weeklyStats.approved}</p>
-                    <p className="text-sm text-muted-foreground">Aprobate</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-yellow-600">{weeklyStats.pending}</p>
-                    <p className="text-sm text-muted-foreground">În Așteptare</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-bold text-purple-600">{weeklyStats.approvalRate}%</p>
-                    <p className="text-sm text-muted-foreground">Rata Aprobare</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Tabs: Summary and Details */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="summary" className="gap-2">
                 <Users className="h-4 w-4" />
                 Rezumat Programări
@@ -1550,15 +1476,6 @@ export default function WeeklySchedules() {
               <TabsTrigger value="details" className="gap-2">
                 <Calendar className="h-4 w-4" />
                 Detalii Complete
-              </TabsTrigger>
-              <TabsTrigger value="verification" className="gap-2 relative">
-                <ClipboardCheck className="h-4 w-4" />
-                Verificare Pontaje
-                {pendingCount && pendingCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    {pendingCount}
-                  </Badge>
-                )}
               </TabsTrigger>
             </TabsList>
 
@@ -1800,14 +1717,6 @@ export default function WeeklySchedules() {
                 </TableBody>
               </Table>
               </div>
-            </TabsContent>
-
-            {/* Approval Tab */}
-            <TabsContent value="verification" className="mt-6">
-              <TeamTimeApprovalManager 
-                selectedWeek={selectedWeek}
-                availableTeams={usedTeams}
-              />
             </TabsContent>
           </Tabs>
         </CardContent>
