@@ -12,12 +12,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smartphone, Monitor, Tablet, Clock, X } from "lucide-react";
+import { Smartphone, Monitor, Tablet, Clock, X, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, startOfWeek } from "date-fns";
 import { ro } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useNavigate } from "react-router-dom";
 
 interface Session {
   id: string;
@@ -27,6 +28,12 @@ interface Session {
   last_activity: string;
   created_at: string;
   expires_at: string;
+  active_time_entry?: {
+    id: string;
+    clock_in_time: string;
+    clock_out_time: string | null;
+    approval_status: string;
+  } | null;
 }
 
 export function ActiveSessionsManager() {
@@ -34,11 +41,15 @@ export function ActiveSessionsManager() {
   const [loading, setLoading] = useState(true);
   const [showLogoutAll, setShowLogoutAll] = useState(false);
   const { isAdmin, loading: roleLoading } = useUserRole();
+  const navigate = useNavigate();
 
   const loadSessions = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
-        body: { action: 'list' }
+        body: { 
+          action: 'list',
+          includeTimeEntries: true
+        }
       });
 
       if (error) throw error;
@@ -203,16 +214,52 @@ export function ActiveSessionsManager() {
                   <p className="text-xs text-muted-foreground">
                     Expiră: {format(new Date(session.expires_at), "dd MMM yyyy, HH:mm", { locale: ro })}
                   </p>
+                  
+                  {session.active_time_entry && (
+                    <div className="mt-2 pt-2 border-t">
+                      <p className="text-xs text-muted-foreground mb-1">
+                        <strong>Pontaj activ:</strong>
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Intrare: {format(new Date(session.active_time_entry.clock_in_time), "HH:mm", { locale: ro })}</span>
+                        {session.active_time_entry.clock_out_time && (
+                          <>
+                            <span>•</span>
+                            <span>Ieșire: {format(new Date(session.active_time_entry.clock_out_time), "HH:mm", { locale: ro })}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleLogoutSingle(session.session_id)}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  {session.active_time_entry?.clock_out_time && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const weekStart = format(
+                          startOfWeek(new Date(session.active_time_entry!.clock_in_time), { weekStartsOn: 1 }),
+                          'yyyy-MM-dd'
+                        );
+                        navigate(`/weekly-schedules?tab=verification&week=${weekStart}`);
+                      }}
+                    >
+                      <ClipboardCheck className="h-4 w-4 mr-1" />
+                      Verifică Pontaj
+                    </Button>
+                  )}
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleLogoutSingle(session.session_id)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))
           )}

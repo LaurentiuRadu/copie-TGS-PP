@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action, sessionId } = await req.json();
+    const body = await req.json();
+    const { action, sessionId, includeTimeEntries } = body;
 
     console.log('Session management action:', action, 'for user:', user.id);
 
@@ -48,6 +49,35 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // Dacă e cerut, adaugă time_entries active pentru fiecare sesiune
+      if (includeTimeEntries && sessions && sessions.length > 0) {
+        const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        
+        const sessionsWithEntries = await Promise.all(
+          sessions.map(async (session) => {
+            // Caută ultimul time_entry (fie în curs, fie completat în ultimele 24h)
+            const { data: timeEntry } = await supabaseClient
+              .from('time_entries')
+              .select('id, clock_in_time, clock_out_time, approval_status')
+              .eq('user_id', user.id)
+              .or(`clock_out_time.is.null,clock_out_time.gte.${cutoffTime}`)
+              .order('clock_in_time', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            return {
+              ...session,
+              active_time_entry: timeEntry || null
+            };
+          })
+        );
+        
+        return new Response(
+          JSON.stringify({ sessions: sessionsWithEntries }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       return new Response(
         JSON.stringify({ sessions: sessions || [] }),
