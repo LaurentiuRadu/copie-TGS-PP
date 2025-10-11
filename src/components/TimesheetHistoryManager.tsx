@@ -23,6 +23,9 @@ interface ApprovedEntry {
   approved_at: string;
   approved_by: string;
   approval_notes: string;
+  was_edited_by_admin: boolean;
+  original_clock_in_time: string | null;
+  original_clock_out_time: string | null;
   profiles: {
     full_name: string;
     username: string;
@@ -38,6 +41,7 @@ export function TimesheetHistoryManager() {
   
   const [daysFilter, setDaysFilter] = useState('30');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyEdited, setShowOnlyEdited] = useState(false);
   
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -58,7 +62,7 @@ export function TimesheetHistoryManager() {
       // Step 1: Fetch time_entries WITHOUT nested join
       const { data, error } = await supabase
         .from('time_entries')
-        .select('id, user_id, clock_in_time, clock_out_time, approved_at, approved_by, approval_notes')
+        .select('id, user_id, clock_in_time, clock_out_time, approved_at, approved_by, approval_notes, was_edited_by_admin, original_clock_in_time, original_clock_out_time')
         .eq('approval_status', 'approved')
         .gte('approved_at', daysAgo.toISOString())
         .order('approved_at', { ascending: false });
@@ -91,10 +95,12 @@ export function TimesheetHistoryManager() {
     refetchInterval: 60000,
   });
 
-  const filteredEntries = approvedEntries?.filter(entry =>
-    entry.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEntries = approvedEntries?.filter(entry => {
+    const matchesSearch = entry.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.profiles.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesEditFilter = showOnlyEdited ? entry.was_edited_by_admin : true;
+    return matchesSearch && matchesEditFilter;
+  });
 
   const handleOpenPasswordDialog = (entry: ApprovedEntry) => {
     setSelectedEntry(entry);
@@ -214,8 +220,8 @@ export function TimesheetHistoryManager() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4 items-end">
-        <div className="flex-1">
+      <div className="flex gap-4 items-end flex-wrap">
+        <div className="flex-1 min-w-[200px]">
           <Label>Caută angajat</Label>
           <Input
             placeholder="Nume sau username..."
@@ -237,6 +243,19 @@ export function TimesheetHistoryManager() {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="show-edited"
+            checked={showOnlyEdited}
+            onChange={(e) => setShowOnlyEdited(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <Label htmlFor="show-edited" className="cursor-pointer">
+            Doar pontaje editate
+          </Label>
+        </div>
       </div>
 
       {isLoading ? (
@@ -247,13 +266,39 @@ export function TimesheetHistoryManager() {
             <Card key={entry.id} className="bg-green-50 border-green-200 dark:bg-green-950/20">
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-medium">{entry.profiles.full_name}</h3>
                       <Badge variant="outline">@{entry.profiles.username}</Badge>
+                      {entry.was_edited_by_admin && (
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                          ✏️ Editat
+                        </Badge>
+                      )}
                     </div>
                     
+                    {entry.was_edited_by_admin && entry.original_clock_in_time && entry.original_clock_out_time && (
+                      <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-2">
+                        <p className="font-semibold text-sm text-yellow-900 dark:text-yellow-100 mb-1">
+                          📋 Pontaj Original (Angajat)
+                        </p>
+                        <div className="text-xs space-y-1 text-yellow-800 dark:text-yellow-200">
+                          <p>
+                            ⏰ Intrare: <strong>{format(new Date(entry.original_clock_in_time), 'dd MMM yyyy HH:mm', { locale: ro })}</strong>
+                          </p>
+                          <p>
+                            🚪 Ieșire: <strong>{format(new Date(entry.original_clock_out_time), 'dd MMM yyyy HH:mm', { locale: ro })}</strong>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="text-sm space-y-1">
+                      {entry.was_edited_by_admin && (
+                        <p className="font-semibold text-green-700 dark:text-green-300">
+                          🔧 Pontaj Corectat (Admin)
+                        </p>
+                      )}
                       <p>
                         ⏰ Intrare: <strong>{format(new Date(entry.clock_in_time), 'dd MMM yyyy HH:mm', { locale: ro })}</strong>
                       </p>
@@ -275,6 +320,7 @@ export function TimesheetHistoryManager() {
                     size="sm"
                     variant="destructive"
                     onClick={() => handleOpenPasswordDialog(entry)}
+                    className="shrink-0"
                   >
                     <Lock className="h-4 w-4 mr-2" />
                     Editează

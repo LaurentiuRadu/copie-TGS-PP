@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Check, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -12,6 +12,7 @@ import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditD
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Collapsible,
   CollapsibleContent,
@@ -186,6 +187,14 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           </div>
         </CardHeader>
         <CardContent>
+          {/* Info Alert */}
+          <Alert className="mb-4 bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+              💡 După aprobare, pontajele editate pot fi vizualizate în <strong>Istoric Aprobări</strong> cu orele originale și cele corectate.
+            </AlertDescription>
+          </Alert>
+
           {/* Selector echipă */}
           <div className="mb-6">
             <Label htmlFor="team-select">Selectează Echipa</Label>
