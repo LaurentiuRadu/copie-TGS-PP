@@ -55,36 +55,36 @@ export function TimesheetHistoryManager() {
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - parseInt(daysFilter));
       
+      // Step 1: Fetch time_entries WITHOUT nested join
       const { data, error } = await supabase
         .from('time_entries')
-        .select(`
-          id,
-          user_id,
-          clock_in_time,
-          clock_out_time,
-          approved_at,
-          approved_by,
-          approval_notes,
-          profiles:user_id (
-            full_name,
-            username
-          )
-        `)
+        .select('id, user_id, clock_in_time, clock_out_time, approved_at, approved_by, approval_notes')
         .eq('approval_status', 'approved')
         .gte('approved_at', daysAgo.toISOString())
         .order('approved_at', { ascending: false });
       
       if (error) throw error;
 
-      // Fetch approver profiles separately
+      // Step 2: Extract unique user IDs (employees)
+      const employeeIds = [...new Set(data.map((e: any) => e.user_id))];
+
+      // Step 3: Fetch employee profiles separately
+      const { data: employeeProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', employeeIds);
+
+      // Step 4: Fetch approver profiles separately
       const approverIds = [...new Set(data.map((e: any) => e.approved_by).filter(Boolean))];
       const { data: approvers } = await supabase
         .from('profiles')
         .select('id, full_name, username')
         .in('id', approverIds);
 
+      // Step 5: Merge all data in JavaScript
       return data.map((entry: any) => ({
         ...entry,
+        profiles: employeeProfiles?.find((p: any) => p.id === entry.user_id) || { full_name: 'Unknown', username: 'unknown' },
         approver_profile: approvers?.find((a: any) => a.id === entry.approved_by) || null
       })) as ApprovedEntry[];
     },
