@@ -21,11 +21,6 @@ export interface TimeEntryForApproval {
   scheduled_observations?: string;
   day_of_week?: number;
   calculated_hours?: {
-    hours_regular: number;
-    hours_night: number;
-    hours_saturday: number;
-    hours_sunday: number;
-    hours_holiday: number;
     total: number;
   };
 }
@@ -105,13 +100,6 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
         .select('id, full_name, username')
         .in('id', allUserIds);
 
-      // Fetch daily_timesheets pentru săptămâna selectată
-      const { data: timesheets } = await supabase
-        .from('daily_timesheets')
-        .select('employee_id, work_date, hours_regular, hours_night, hours_saturday, hours_sunday, hours_holiday')
-        .in('employee_id', userIds)
-        .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
-        .lt('work_date', format(weekEnd, 'yyyy-MM-dd'));
 
       // Merge profiles with entries and match with schedules
       const result = (entriesData || []).map(entry => {
@@ -125,24 +113,10 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
           s => s.user_id === entry.user_id && s.day_of_week === dayOfWeek
         );
 
-        // Find matching timesheet for this date
-        const matchingTimesheet = timesheets?.find(
-          ts => ts.employee_id === entry.user_id && ts.work_date === workDate
-        );
-
-        // Calculate total hours
-        const calculated_hours = matchingTimesheet ? {
-          hours_regular: Number(matchingTimesheet.hours_regular || 0),
-          hours_night: Number(matchingTimesheet.hours_night || 0),
-          hours_saturday: Number(matchingTimesheet.hours_saturday || 0),
-          hours_sunday: Number(matchingTimesheet.hours_sunday || 0),
-          hours_holiday: Number(matchingTimesheet.hours_holiday || 0),
-          total: Number(matchingTimesheet.hours_regular || 0) +
-                 Number(matchingTimesheet.hours_night || 0) +
-                 Number(matchingTimesheet.hours_saturday || 0) +
-                 Number(matchingTimesheet.hours_sunday || 0) +
-                 Number(matchingTimesheet.hours_holiday || 0),
-        } : undefined;
+        // Calculate total hours (simple clock_out - clock_in)
+        const calculated_hours = entry.clock_out_time ? {
+          total: (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60)
+        } : { total: 0 };
 
         return {
           ...entry,
