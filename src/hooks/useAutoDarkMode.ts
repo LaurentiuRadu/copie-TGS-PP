@@ -28,7 +28,7 @@ const getSunTimes = (month: number): SunTimes => {
 };
 
 export const useAutoDarkMode = (enabled: boolean = false) => {
-  const { setTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
 
   useEffect(() => {
     // Dacă nu este activat, nu face nimic
@@ -45,11 +45,26 @@ export const useAutoDarkMode = (enabled: boolean = false) => {
       const isNight = currentHour < sunrise || currentHour >= sunset;
       const newTheme = isNight ? 'dark' : 'light';
       
-      if (import.meta.env.DEV) {
-        console.info(`🌓 Auto theme: ${newTheme} (${currentHour}:00, sunrise: ${sunrise}:00, sunset: ${sunset}:00)`);
-      }
+      console.info(`🌓 Auto theme: ${newTheme} (${currentHour}:00, sunrise: ${sunrise}:00, sunset: ${sunset}:00)`);
       
       setTheme(newTheme);
+      
+      // Force-apply clasa dark pe HTML dacă next-themes nu o face automat
+      setTimeout(() => {
+        const html = document.documentElement;
+        const hasCorrectClass = newTheme === 'dark' ? html.classList.contains('dark') : !html.classList.contains('dark');
+        
+        if (!hasCorrectClass) {
+          console.warn(`⚠️ Forcing ${newTheme} class application`);
+          if (newTheme === 'dark') {
+            html.classList.add('dark');
+            html.classList.remove('light');
+          } else {
+            html.classList.remove('dark');
+            html.classList.add('light');
+          }
+        }
+      }, 100);
     };
 
     // Verifică imediat
