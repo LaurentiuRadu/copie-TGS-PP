@@ -56,6 +56,33 @@ const App = () => {
   const autoModeEnabled = themeMode === "auto";
   useAutoDarkMode(autoModeEnabled);
 
+  // Fallback: ensure the correct theme class is applied when in auto mode
+  useEffect(() => {
+    if (!autoModeEnabled) return;
+
+    const ensureThemeClass = () => {
+      const html = document.documentElement;
+      const storedTheme = localStorage.getItem("app-theme"); // next-themes storageKey
+      const hasDark = html.classList.contains("dark");
+
+      if (storedTheme === "dark" && !hasDark) {
+        html.classList.add("dark");
+        html.classList.remove("light");
+        console.warn("Forced dark class on <html> (auto mode)");
+      } else if (storedTheme === "light" && hasDark) {
+        html.classList.remove("dark");
+        html.classList.add("light");
+        console.warn("Forced light class on <html> (auto mode)");
+      }
+      console.info(`[Theme] auto ensure → app-theme=${storedTheme}, html=${html.className}`);
+    };
+
+    // run immediately and on interval
+    ensureThemeClass();
+    const id = setInterval(ensureThemeClass, 60 * 1000);
+    const t = setTimeout(ensureThemeClass, 200);
+    return () => { clearInterval(id); clearTimeout(t); };
+  }, [autoModeEnabled]);
   return (
     <TooltipProvider>
       <Toaster />
