@@ -1,23 +1,85 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
-import { ClipboardCheck } from 'lucide-react';
-import { startOfWeek, format } from 'date-fns';
+import { ClipboardCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { startOfWeek, endOfWeek, format, addWeeks, subWeeks } from 'date-fns';
+import { ro } from 'date-fns/locale';
 
 export default function TimesheetVerificare() {
-  const [selectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  const [selectedWeek, setSelectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    setSelectedWeek(current => {
+      const currentDate = new Date(current);
+      const newDate = direction === 'prev' 
+        ? subWeeks(currentDate, 1) 
+        : addWeeks(currentDate, 1);
+      return format(startOfWeek(newDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    });
+  };
+
+  const goToToday = () => {
+    setSelectedWeek(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4">
       <Card className="w-full max-w-7xl mx-auto">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardCheck className="h-6 w-6" />
-            Verificare Pontaje
-          </CardTitle>
-          <CardDescription>
-            Aprobă, editează sau respinge pontajele angajaților
-          </CardDescription>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardCheck className="h-6 w-6" />
+                  Verificare Pontaje
+                </CardTitle>
+                <CardDescription>
+                  Aprobă, editează sau respinge pontajele angajaților
+                </CardDescription>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateWeek('prev')}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Anterioara</span>
+                </Button>
+                
+                <div className="text-center px-2 sm:px-4">
+                  <div className="text-sm font-medium whitespace-nowrap">
+                    {format(new Date(selectedWeek), 'dd MMM', { locale: ro })} - {' '}
+                    {format(endOfWeek(new Date(selectedWeek), { weekStartsOn: 1 }), 'dd MMM yyyy', { locale: ro })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Săptămâna {format(new Date(selectedWeek), 'ww', { locale: ro })}
+                  </div>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateWeek('next')}
+                  className="gap-1"
+                >
+                  <span className="hidden sm:inline">Următoarea</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={goToToday}
+                >
+                  Astăzi
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
 
         <CardContent>
