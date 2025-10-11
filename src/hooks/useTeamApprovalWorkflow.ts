@@ -112,7 +112,8 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       };
     },
     enabled: !!teamId && !!weekStartDate,
-    staleTime: 0,
+    staleTime: 30000, // 30 sec cache pentru performanță
+    gcTime: 5 * 60 * 1000, // 5 min în memory
   });
 
   const pendingEntries = data?.entries || [];
