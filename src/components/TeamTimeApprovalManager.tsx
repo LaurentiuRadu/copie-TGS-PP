@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
@@ -65,6 +66,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+  const [expandedCalculatedHours, setExpandedCalculatedHours] = useState<Set<string>>(new Set());
 
   const toggleSchedule = (entryId: string) => {
     setExpandedSchedules(prev => {
@@ -79,6 +81,20 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   };
 
   const isScheduleExpanded = (entryId: string) => expandedSchedules.has(entryId);
+
+  const toggleCalculatedHours = (entryId: string) => {
+    setExpandedCalculatedHours(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(entryId)) {
+        newSet.delete(entryId);
+      } else {
+        newSet.add(entryId);
+      }
+      return newSet;
+    });
+  };
+
+  const isCalculatedHoursExpanded = (entryId: string) => expandedCalculatedHours.has(entryId);
 
   const handleToggleSelect = (entryId: string) => {
     const newSelected = new Set(selectedEntries);
@@ -362,6 +378,105 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                               </div>
                             </div>
                           </div>
+
+                          {/* Calcul Ore - COLLAPSIBLE (NOU) */}
+                          {entry.calculated_hours && (
+                            <Collapsible
+                              open={isCalculatedHoursExpanded(entry.id)}
+                              onOpenChange={() => toggleCalculatedHours(entry.id)}
+                              className="mb-3"
+                            >
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full justify-between hover:bg-green-50 dark:hover:bg-green-950/20 border-green-200 dark:border-green-800"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                                      📊 Calcul Ore
+                                    </span>
+                                    {!isCalculatedHoursExpanded(entry.id) && (
+                                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400">
+                                        Total: {entry.calculated_hours.total.toFixed(2)}h
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {isCalculatedHoursExpanded(entry.id) ? (
+                                    <ChevronUp className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-green-600" />
+                                  )}
+                                </Button>
+                              </CollapsibleTrigger>
+                              
+                              <CollapsibleContent className="pt-3 px-3 pb-2 bg-green-50/30 dark:bg-green-950/10 rounded-b-md border border-t-0 border-green-200 dark:border-green-800">
+                                <div className="space-y-2 text-sm">
+                                  {entry.calculated_hours.hours_regular > 0 && (
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-muted-foreground">✅ Ore Regular</span>
+                                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-400">
+                                        {entry.calculated_hours.hours_regular.toFixed(2)}h
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {entry.calculated_hours.hours_night > 0 && (
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-muted-foreground">🌙 Ore Noapte</span>
+                                      <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-400">
+                                        {entry.calculated_hours.hours_night.toFixed(2)}h
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {entry.calculated_hours.hours_saturday > 0 && (
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-muted-foreground">📅 Ore Sâmbătă</span>
+                                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-400">
+                                        {entry.calculated_hours.hours_saturday.toFixed(2)}h
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {entry.calculated_hours.hours_sunday > 0 && (
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-muted-foreground">📅 Ore Duminică</span>
+                                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-400">
+                                        {entry.calculated_hours.hours_sunday.toFixed(2)}h
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  {entry.calculated_hours.hours_holiday > 0 && (
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-muted-foreground">🎉 Ore Sărbătoare</span>
+                                      <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400">
+                                        {entry.calculated_hours.hours_holiday.toFixed(2)}h
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  
+                                  <Separator className="my-2" />
+                                  
+                                  <div className="flex justify-between items-center font-semibold">
+                                    <span>📊 Total Ore Lucrate</span>
+                                    <Badge className="bg-green-600 text-white dark:bg-green-700">
+                                      {entry.calculated_hours.total.toFixed(2)}h
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+
+                          {!entry.calculated_hours && entry.clock_out_time && (
+                            <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                              <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                                ⚠️ Orele nu au fost calculate încă. Recalculează pontajul sau verifică edge function.
+                              </p>
+                            </div>
+                          )}
 
                           {/* Programare - COLLAPSIBLE */}
                           {(entry.scheduled_shift || entry.scheduled_location || entry.scheduled_activity) && (

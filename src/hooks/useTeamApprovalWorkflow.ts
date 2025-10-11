@@ -20,6 +20,14 @@ export interface TimeEntryForApproval {
   scheduled_vehicle?: string;
   scheduled_observations?: string;
   day_of_week?: number;
+  calculated_hours?: {
+    hours_regular: number;
+    hours_night: number;
+    hours_saturday: number;
+    hours_sunday: number;
+    hours_holiday: number;
+    total: number;
+  };
 }
 
 interface TeamStats {
@@ -97,16 +105,44 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
         .select('id, full_name, username')
         .in('id', allUserIds);
 
+      // Fetch daily_timesheets pentru săptămâna selectată
+      const { data: timesheets } = await supabase
+        .from('daily_timesheets')
+        .select('employee_id, work_date, hours_regular, hours_night, hours_saturday, hours_sunday, hours_holiday')
+        .in('employee_id', userIds)
+        .gte('work_date', format(weekStart, 'yyyy-MM-dd'))
+        .lt('work_date', format(weekEnd, 'yyyy-MM-dd'));
+
       // Merge profiles with entries and match with schedules
       const result = (entriesData || []).map(entry => {
         const clockInDate = new Date(entry.clock_in_time);
         // Convert to day_of_week (Luni=1, Duminică=7)
         const dayOfWeek = clockInDate.getDay() === 0 ? 7 : clockInDate.getDay();
+        const workDate = format(clockInDate, 'yyyy-MM-dd');
         
         // Find matching schedule for this user and day
         const matchingSchedule = schedules?.find(
           s => s.user_id === entry.user_id && s.day_of_week === dayOfWeek
         );
+
+        // Find matching timesheet for this date
+        const matchingTimesheet = timesheets?.find(
+          ts => ts.employee_id === entry.user_id && ts.work_date === workDate
+        );
+
+        // Calculate total hours
+        const calculated_hours = matchingTimesheet ? {
+          hours_regular: Number(matchingTimesheet.hours_regular || 0),
+          hours_night: Number(matchingTimesheet.hours_night || 0),
+          hours_saturday: Number(matchingTimesheet.hours_saturday || 0),
+          hours_sunday: Number(matchingTimesheet.hours_sunday || 0),
+          hours_holiday: Number(matchingTimesheet.hours_holiday || 0),
+          total: Number(matchingTimesheet.hours_regular || 0) +
+                 Number(matchingTimesheet.hours_night || 0) +
+                 Number(matchingTimesheet.hours_saturday || 0) +
+                 Number(matchingTimesheet.hours_sunday || 0) +
+                 Number(matchingTimesheet.hours_holiday || 0),
+        } : undefined;
 
         return {
           ...entry,
@@ -121,6 +157,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
           scheduled_vehicle: matchingSchedule?.vehicle,
           scheduled_observations: matchingSchedule?.observations,
           day_of_week: dayOfWeek,
+          calculated_hours,
         };
       });
 
