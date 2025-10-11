@@ -14,6 +14,12 @@ interface TimeEntryForApproval {
     full_name: string;
     username: string;
   };
+  scheduled_shift?: string;
+  scheduled_location?: string;
+  scheduled_activity?: string;
+  scheduled_vehicle?: string;
+  scheduled_observations?: string;
+  day_of_week?: number;
 }
 
 interface TeamStats {
@@ -50,10 +56,10 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       const weekStart = new Date(weekStartDate);
       const weekEnd = addDays(weekStart, 7);
 
-      // Get user IDs from weekly schedules
+      // Get user IDs and schedules data
       const { data: schedules, error: schedError } = await supabase
         .from('weekly_schedules')
-        .select('user_id, team_leader_id, coordinator_id')
+        .select('user_id, team_leader_id, coordinator_id, day_of_week, shift_type, location, activity, vehicle, observations')
         .eq('team_id', teamId)
         .eq('week_start_date', weekStartDate);
 
@@ -91,15 +97,32 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
         .select('id, full_name, username')
         .in('id', allUserIds);
 
-      // Merge profiles with entries
-      const result = (entriesData || []).map(entry => ({
-        ...entry,
-        profiles: profilesData?.find(p => p.id === entry.user_id) || {
-          id: entry.user_id,
-          full_name: 'Unknown',
-          username: 'unknown'
-        }
-      }));
+      // Merge profiles with entries and match with schedules
+      const result = (entriesData || []).map(entry => {
+        const clockInDate = new Date(entry.clock_in_time);
+        // Convert to day_of_week (Luni=1, Duminică=7)
+        const dayOfWeek = clockInDate.getDay() === 0 ? 7 : clockInDate.getDay();
+        
+        // Find matching schedule for this user and day
+        const matchingSchedule = schedules?.find(
+          s => s.user_id === entry.user_id && s.day_of_week === dayOfWeek
+        );
+
+        return {
+          ...entry,
+          profiles: profilesData?.find(p => p.id === entry.user_id) || {
+            id: entry.user_id,
+            full_name: 'Unknown',
+            username: 'unknown'
+          },
+          scheduled_shift: matchingSchedule?.shift_type,
+          scheduled_location: matchingSchedule?.location,
+          scheduled_activity: matchingSchedule?.activity,
+          scheduled_vehicle: matchingSchedule?.vehicle,
+          scheduled_observations: matchingSchedule?.observations,
+          day_of_week: dayOfWeek,
+        };
+      });
 
       // Extract team leader and coordinator profiles
       const teamLeader = profilesData?.find(p => teamLeaderIds.includes(p.id)) || null;

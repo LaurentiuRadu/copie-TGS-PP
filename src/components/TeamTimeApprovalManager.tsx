@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, X, AlertCircle, CheckCheck } from 'lucide-react';
+import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun } from 'lucide-react';
 import { useTeamApprovalWorkflow } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -300,27 +300,103 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                             <p className="font-medium">{entry.profiles.full_name}</p>
                             <Badge variant="outline">{entry.profiles.username}</Badge>
                           </div>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Intrare</p>
-                              <p className="font-medium">
-                                {entry.clock_in_time
-                                  ? format(new Date(entry.clock_in_time), 'HH:mm', { locale: ro })
-                                  : '-'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Ieșire</p>
-                              <p className="font-medium">
-                                {entry.clock_out_time
-                                  ? format(new Date(entry.clock_out_time), 'HH:mm', { locale: ro })
-                                  : '-'}
-                              </p>
+                          {/* Data */}
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">Data</p>
+                            <p className="text-sm font-medium">
+                              {entry.clock_in_time
+                                ? format(new Date(entry.clock_in_time), 'EEEE, dd MMM yyyy', { locale: ro })
+                                : '-'}
+                            </p>
+                          </div>
+
+                          {/* Pontaj Real */}
+                          <div className="mb-3 p-3 bg-muted/30 rounded-md">
+                            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                              ⏱️ Pontaj Real
+                            </p>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <p className="text-muted-foreground text-xs">Intrare</p>
+                                <p className="font-medium">
+                                  {entry.clock_in_time
+                                    ? format(new Date(entry.clock_in_time), 'HH:mm', { locale: ro })
+                                    : '-'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground text-xs">Ieșire</p>
+                                <p className="font-medium">
+                                  {entry.clock_out_time
+                                    ? format(new Date(entry.clock_out_time), 'HH:mm', { locale: ro })
+                                    : '-'}
+                                </p>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Programare */}
+                          {(entry.scheduled_shift || entry.scheduled_location || entry.scheduled_activity) && (
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wide">
+                                📋 Programare
+                              </p>
+                              <div className="space-y-2 text-sm">
+                                {entry.scheduled_shift && (
+                                  <div className="flex items-center gap-2">
+                                    {entry.scheduled_shift.toLowerCase() === 'zi' ? (
+                                      <Sun className="h-3.5 w-3.5 text-yellow-600" />
+                                    ) : (
+                                      <Moon className="h-3.5 w-3.5 text-blue-600" />
+                                    )}
+                                    <span className="text-muted-foreground text-xs">Tură:</span>
+                                    <Badge variant={entry.scheduled_shift.toLowerCase() === 'zi' ? 'default' : 'secondary'} className="text-xs">
+                                      {entry.scheduled_shift}
+                                    </Badge>
+                                  </div>
+                                )}
+                                {entry.scheduled_location && (
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-red-600" />
+                                    <div className="flex-1">
+                                      <span className="text-muted-foreground text-xs">Locație:</span>
+                                      <p className="text-xs mt-0.5">{entry.scheduled_location}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {entry.scheduled_activity && (
+                                  <div className="flex items-start gap-2">
+                                    <Activity className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-purple-600" />
+                                    <div className="flex-1">
+                                      <span className="text-muted-foreground text-xs">Proiect:</span>
+                                      <p className="text-xs mt-0.5">{entry.scheduled_activity}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {entry.scheduled_vehicle && (
+                                  <div className="flex items-center gap-2">
+                                    <Car className="h-3.5 w-3.5 text-green-600" />
+                                    <span className="text-muted-foreground text-xs">Mașină:</span>
+                                    <p className="text-xs font-medium">{entry.scheduled_vehicle}</p>
+                                  </div>
+                                )}
+                                {entry.scheduled_observations && (
+                                  <div className="flex items-start gap-2">
+                                    <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-600" />
+                                    <div className="flex-1">
+                                      <span className="text-muted-foreground text-xs">Observații:</span>
+                                      <p className="text-xs mt-0.5 italic">{entry.scheduled_observations}</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Discrepancy */}
                           {discrepancy && (
-                            <div className="mt-2 flex items-start gap-2">
-                              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <div className="mt-2 flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800">
+                              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-yellow-600" />
                               <p className="text-xs">
                                 Discrepanță: {discrepancy.discrepancy_type === 'late_arrival' ? 'Întârziere' : 'Sosire timpurie'} 
                                 {' '}(așteptat: {discrepancy.expected_value}, real: {discrepancy.actual_value})
