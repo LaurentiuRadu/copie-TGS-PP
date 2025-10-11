@@ -2,12 +2,17 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil } from 'lucide-react';
+import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +64,21 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   const [actionNotes, setActionNotes] = useState('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
+  const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+
+  const toggleSchedule = (entryId: string) => {
+    setExpandedSchedules(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(entryId)) {
+        newSet.delete(entryId);
+      } else {
+        newSet.add(entryId);
+      }
+      return newSet;
+    });
+  };
+
+  const isScheduleExpanded = (entryId: string) => expandedSchedules.has(entryId);
 
   const handleToggleSelect = (entryId: string) => {
     const newSelected = new Set(selectedEntries);
@@ -343,62 +363,101 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                             </div>
                           </div>
 
-                          {/* Programare */}
+                          {/* Programare - COLLAPSIBLE */}
                           {(entry.scheduled_shift || entry.scheduled_location || entry.scheduled_activity) && (
-                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wide">
-                                📋 Programare
-                              </p>
-                              <div className="space-y-2 text-sm">
-                                {entry.scheduled_shift && (
+                            <Collapsible
+                              open={isScheduleExpanded(entry.id)}
+                              onOpenChange={() => toggleSchedule(entry.id)}
+                              className="mb-3"
+                            >
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full justify-between hover:bg-blue-50 dark:hover:bg-blue-950/20 border-blue-200 dark:border-blue-800"
+                                >
                                   <div className="flex items-center gap-2">
-                                    {entry.scheduled_shift.toLowerCase() === 'zi' ? (
-                                      <Sun className="h-3.5 w-3.5 text-yellow-600" />
-                                    ) : (
-                                      <Moon className="h-3.5 w-3.5 text-blue-600" />
+                                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                                      📋 Programare
+                                    </span>
+                                    {/* Badges compacte când e collapsed */}
+                                    {!isScheduleExpanded(entry.id) && (
+                                      <div className="flex items-center gap-1">
+                                        {entry.scheduled_shift && (
+                                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                            {entry.scheduled_shift.toLowerCase() === 'zi' ? '⭐' : '🌙'}
+                                          </Badge>
+                                        )}
+                                        {entry.scheduled_location && (
+                                          <Badge variant="outline" className="text-[10px] px-1 py-0 max-w-[80px] truncate">
+                                            {entry.scheduled_location}
+                                          </Badge>
+                                        )}
+                                      </div>
                                     )}
-                                    <span className="text-muted-foreground text-xs">Tură:</span>
-                                    <Badge variant={entry.scheduled_shift.toLowerCase() === 'zi' ? 'default' : 'secondary'} className="text-xs">
-                                      {entry.scheduled_shift}
-                                    </Badge>
                                   </div>
-                                )}
-                                {entry.scheduled_location && (
-                                  <div className="flex items-start gap-2">
-                                    <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-red-600" />
-                                    <div className="flex-1">
-                                      <span className="text-muted-foreground text-xs">Locație:</span>
-                                      <p className="text-xs mt-0.5">{entry.scheduled_location}</p>
-                                    </div>
+                                  {isScheduleExpanded(entry.id) ? (
+                                    <ChevronUp className="h-4 w-4 text-blue-600" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4 text-blue-600" />
+                                  )}
+                                </Button>
+                              </CollapsibleTrigger>
+
+                              <CollapsibleContent className="mt-2">
+                                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                                  <div className="space-y-2 text-sm">
+                                    {entry.scheduled_shift && (
+                                      <div className="flex items-center gap-2">
+                                        {entry.scheduled_shift.toLowerCase() === 'zi' ? (
+                                          <Sun className="h-3.5 w-3.5 text-yellow-600" />
+                                        ) : (
+                                          <Moon className="h-3.5 w-3.5 text-blue-600" />
+                                        )}
+                                        <span className="text-muted-foreground text-xs">Tură:</span>
+                                        <Badge variant={entry.scheduled_shift.toLowerCase() === 'zi' ? 'default' : 'secondary'} className="text-xs">
+                                          {entry.scheduled_shift}
+                                        </Badge>
+                                      </div>
+                                    )}
+                                    {entry.scheduled_location && (
+                                      <div className="flex items-start gap-2">
+                                        <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-red-600" />
+                                        <div className="flex-1">
+                                          <span className="text-muted-foreground text-xs">Locație:</span>
+                                          <p className="text-xs mt-0.5">{entry.scheduled_location}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {entry.scheduled_activity && (
+                                      <div className="flex items-start gap-2">
+                                        <Activity className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-purple-600" />
+                                        <div className="flex-1">
+                                          <span className="text-muted-foreground text-xs">Proiect:</span>
+                                          <p className="text-xs mt-0.5">{entry.scheduled_activity}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {entry.scheduled_vehicle && (
+                                      <div className="flex items-center gap-2">
+                                        <Car className="h-3.5 w-3.5 text-green-600" />
+                                        <span className="text-muted-foreground text-xs">Mașină:</span>
+                                        <p className="text-xs font-medium">{entry.scheduled_vehicle}</p>
+                                      </div>
+                                    )}
+                                    {entry.scheduled_observations && (
+                                      <div className="flex items-start gap-2">
+                                        <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-600" />
+                                        <div className="flex-1">
+                                          <span className="text-muted-foreground text-xs">Observații:</span>
+                                          <p className="text-xs mt-0.5 italic">{entry.scheduled_observations}</p>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                {entry.scheduled_activity && (
-                                  <div className="flex items-start gap-2">
-                                    <Activity className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-purple-600" />
-                                    <div className="flex-1">
-                                      <span className="text-muted-foreground text-xs">Proiect:</span>
-                                      <p className="text-xs mt-0.5">{entry.scheduled_activity}</p>
-                                    </div>
-                                  </div>
-                                )}
-                                {entry.scheduled_vehicle && (
-                                  <div className="flex items-center gap-2">
-                                    <Car className="h-3.5 w-3.5 text-green-600" />
-                                    <span className="text-muted-foreground text-xs">Mașină:</span>
-                                    <p className="text-xs font-medium">{entry.scheduled_vehicle}</p>
-                                  </div>
-                                )}
-                                {entry.scheduled_observations && (
-                                  <div className="flex items-start gap-2">
-                                    <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-600" />
-                                    <div className="flex-1">
-                                      <span className="text-muted-foreground text-xs">Observații:</span>
-                                      <p className="text-xs mt-0.5 italic">{entry.scheduled_observations}</p>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
                           )}
 
                           {/* Discrepancy */}
