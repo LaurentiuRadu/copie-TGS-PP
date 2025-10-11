@@ -3,12 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Collapsible,
   CollapsibleContent,
@@ -67,6 +70,9 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
   const [expandedCalculatedHours, setExpandedCalculatedHours] = useState<Set<string>>(new Set());
+  const [recalculating, setRecalculating] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const toggleSchedule = (entryId: string) => {
     setExpandedSchedules(prev => {
@@ -95,6 +101,81 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   };
 
   const isCalculatedHoursExpanded = (entryId: string) => expandedCalculatedHours.has(entryId);
+
+  const handleRecalculate = async (entry: TimeEntryForApproval) => {
+    setRecalculating(prev => new Set(prev).add(entry.id));
+    
+    try {
+      const { error } = await supabase.functions.invoke('calculate-time-segments', {
+        body: { time_entry_id: entry.id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Recalculat cu succes',
+        description: `Orele pentru ${entry.profiles.full_name} au fost recalculate.`,
+      });
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+    } catch (error: any) {
+      console.error('Error recalculating:', error);
+      toast({
+        title: '❌ Eroare la recalculare',
+        description: error.message || 'Nu s-au putut recalcula orele.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRecalculating(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(entry.id);
+        return newSet;
+      });
+    }
+  };
+
+  const handleRecalculateAll = async () => {
+    const entriesToRecalc = pendingEntries.filter(e => 
+      !e.calculated_hours || e.calculated_hours.total === 0
+    );
+
+    if (entriesToRecalc.length === 0) {
+      toast({
+        title: 'ℹ️ Nicio acțiune necesară',
+        description: 'Toate pontajele au orele calculate.',
+      });
+      return;
+    }
+
+    toast({
+      title: '🔄 Recalculare în curs...',
+      description: `Se recalculează ${entriesToRecalc.length} pontaj(e)...`,
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const entry of entriesToRecalc) {
+      try {
+        await supabase.functions.invoke('calculate-time-segments', {
+          body: { time_entry_id: entry.id }
+        });
+        successCount++;
+      } catch (error) {
+        console.error(`Error recalculating entry ${entry.id}:`, error);
+        errorCount++;
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+
+    toast({
+      title: successCount > 0 ? '✅ Recalculare completă' : '❌ Eroare',
+      description: `${successCount} pontaj(e) recalculat(e) cu succes${errorCount > 0 ? `, ${errorCount} erori` : ''}.`,
+      variant: errorCount > 0 ? 'destructive' : 'default',
+    });
+  };
 
   const handleToggleSelect = (entryId: string) => {
     const newSelected = new Set(selectedEntries);
@@ -209,6 +290,17 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                 Săptămâna {format(new Date(selectedWeek), 'dd MMM yyyy', { locale: ro })}
               </CardDescription>
             </div>
+            {pendingEntries.length > 0 && pendingEntries.some(e => !e.calculated_hours || e.calculated_hours.total === 0) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRecalculateAll}
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Recalculează Toate
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -470,13 +562,31 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                             </Collapsible>
                           )}
 
-                          {!entry.calculated_hours && entry.clock_out_time && (
-                            <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                              <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                                ⚠️ Orele nu au fost calculate încă. Recalculează pontajul sau verifică edge function.
-                              </p>
-                            </div>
-                          )}
+          {!entry.calculated_hours && entry.clock_out_time && (
+            <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mb-2">
+                    ⚠️ Orele nu au fost calculate încă.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleRecalculate(entry)}
+                  disabled={recalculating.has(entry.id)}
+                  className="shrink-0"
+                >
+                  {recalculating.has(entry.id) ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                  <span className="ml-1 text-xs">Recalculează</span>
+                </Button>
+              </div>
+            </div>
+          )}
 
                           {/* Programare - COLLAPSIBLE */}
                           {(entry.scheduled_shift || entry.scheduled_location || entry.scheduled_activity) && (
@@ -588,6 +698,21 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        {(!entry.calculated_hours || entry.calculated_hours.total === 0) && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRecalculate(entry)}
+                            disabled={recalculating.has(entry.id)}
+                            title="Recalculează ore"
+                          >
+                            {recalculating.has(entry.id) ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4 text-blue-600" />
+                            )}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"

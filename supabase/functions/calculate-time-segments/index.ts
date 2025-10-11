@@ -448,32 +448,8 @@ Deno.serve(async (req) => {
     const isIntermediateRecalc = isIntermediateCalculation === true;
     console.log(`[Mode] ${isIntermediateRecalc ? '🔄 INTERMEDIATE' : '✅ FINAL'} recalculation (flag: ${isIntermediateCalculation})`);
     
-    // ✅ APPROVAL CHECK: Pentru finalizare, verifică status-ul de aprobare
-    if (!isIntermediateRecalc) {
-      const { data: entryStatus, error: statusError } = await supabase
-        .from('time_entries')
-        .select('approval_status')
-        .eq('id', time_entry_id)
-        .single();
-
-      if (statusError) {
-        console.error('[Approval Check] Error fetching status:', statusError);
-      } else if (entryStatus?.approval_status !== 'approved') {
-        console.log(`[Approval Check] ⏸️ Entry ${time_entry_id} not approved yet (status: ${entryStatus?.approval_status})`);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            message: 'Entry pending approval',
-            status: entryStatus?.approval_status 
-          }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200
-          }
-        );
-      }
-      console.log('[Approval Check] ✅ Entry is approved, proceeding with calculation');
-    }
+    // ✅ REMOVED: Approval check eliminat - orele trebuie calculate ÎNAINTE de aprobare
+    // pentru ca adminii să poată verifica datele în pagina de verificare
     
     if (isIntermediateRecalc) {
       // ✅ RECALCULARE INTERMEDIARĂ: Salvează doar segmentul curent în time_entry_segments
