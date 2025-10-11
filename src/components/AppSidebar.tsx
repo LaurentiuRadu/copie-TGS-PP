@@ -1,4 +1,4 @@
-import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Table, RefreshCw, HardDrive, LogOut } from "lucide-react";
+import { Home, Clock, BarChart3, Calendar, Users, Settings, MapPin, ClipboardList, FileText, AlertTriangle, Shield, UserCog, CalendarDays, Table, RefreshCw, HardDrive, LogOut, ClipboardCheck, History, ChevronRight } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,15 +20,33 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 // Meniuri pentru Admin
 const adminMenuItems = [
   { title: "Dashboard", url: "/admin", icon: Home },
   { title: "Monitorizare Pontaje Live", url: "/time-entries", icon: ClipboardList },
-  { title: "Timesheet & Verificare", url: "/timesheet", icon: Table, badge: true },
+  { 
+    title: "Timesheet & Verificare", 
+    icon: Table,
+    badge: true,
+    isParent: true,
+    children: [
+      { title: "Fișe Pontaj", url: "/timesheet", icon: FileText },
+      { title: "Verificare Pontaje", url: "/timesheet/verificare", icon: ClipboardCheck, badge: true },
+      { title: "Istoric Aprobări", url: "/timesheet/istoric", icon: History },
+    ]
+  },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
   { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
@@ -156,6 +174,63 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {adminMenuItems.map((item) => {
+                  if (item.isParent && item.children) {
+                    // SUBMENIU COLLAPSIBLE
+                    const totalBadge = item.badge && pendingApprovalsCount && pendingApprovalsCount > 0 ? pendingApprovalsCount : 0;
+                    
+                    return (
+                      <Collapsible key={item.title} asChild defaultOpen className="group/collapsible">
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip={item.title}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                              {totalBadge > 0 && open && (
+                                <Badge variant="destructive" className="ml-auto">
+                                  {totalBadge}
+                                </Badge>
+                              )}
+                              <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {item.children.map((child) => {
+                                const childBadge = child.badge && pendingApprovalsCount && pendingApprovalsCount > 0;
+                                
+                                return (
+                                  <SidebarMenuSubItem key={child.title}>
+                                    <SidebarMenuSubButton asChild>
+                                      <NavLink
+                                        to={child.url}
+                                        onClick={handleNavClick}
+                                        end
+                                        className={({ isActive }) =>
+                                          isActive
+                                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                            : "!text-white hover:bg-sidebar-accent/50"
+                                        }
+                                      >
+                                        <child.icon className="h-4 w-4" />
+                                        <span>{child.title}</span>
+                                        {childBadge && (
+                                          <Badge variant="destructive" className="ml-auto">
+                                            {pendingApprovalsCount}
+                                          </Badge>
+                                        )}
+                                      </NavLink>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                );
+                              })}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    );
+                  }
+                  
+                  // ITEM NORMAL (fără submeniu)
                   const showBadge = item.badge && pendingApprovalsCount && pendingApprovalsCount > 0;
                   
                   return (
