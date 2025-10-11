@@ -99,7 +99,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       const { data: entriesData, error } = await supabase
         .from('time_entries')
         .select('id, user_id, clock_in_time, clock_out_time, approval_status, original_clock_in_time, original_clock_out_time, was_edited_by_admin, approval_notes')
-        .in('user_id', userIds)
+        .in('user_id', allUserIds)
         .gte('clock_in_time', weekStart.toISOString())
         .lt('clock_in_time', weekEnd.toISOString())
         .eq('approval_status', 'pending_review')

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -392,20 +392,21 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           {/* Lista pontaje */}
           {displayedEntries.length === 0 ? (
             <div className="text-center py-8">
-              {pendingEntries.length === 0 ? (
+              {/* Verifică dacă săptămâna este în viitor */}
+              {new Date(selectedWeek) > new Date() ? (
+                <>
+                  <Calendar className="h-12 w-12 text-blue-500 mx-auto mb-3" />
+                  <p className="text-lg font-medium">Săptămână viitoare</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Nu există pontaje încă pentru această perioadă
+                  </p>
+                </>
+              ) : (
                 <>
                   <CheckCheck className="h-12 w-12 text-green-500 mx-auto mb-3" />
                   <p className="text-lg font-medium">Toate pontajele sunt aprobate!</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Nu există pontaje în așteptare pentru această echipă
-                  </p>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-lg font-medium">Niciun pontaj găsit</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Încearcă să modifici filtrele de căutare
                   </p>
                 </>
               )}
