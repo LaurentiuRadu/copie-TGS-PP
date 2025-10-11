@@ -38,9 +38,6 @@ interface TeamTimeApprovalManagerProps {
 
 export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'critical'>('all');
-  const [editedOnlyFilter, setEditedOnlyFilter] = useState(false);
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'severity'>('date');
 
   // Reset selected team when week or available teams change
   useEffect(() => {
@@ -148,43 +145,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     }
   };
 
-  const getFilteredAndSortedEntries = () => {
-    let filtered = pendingEntries;
-
-    // Filter by severity
-    if (severityFilter !== 'all') {
-      filtered = filtered.filter(e => {
-        const disc = detectDiscrepancies(e);
-        return disc?.severity === severityFilter;
-      });
-    }
-
-    // Filter by edited status
-    if (editedOnlyFilter) {
-      filtered = filtered.filter(e => e.was_edited_by_admin);
-    }
-
-    // Sort
-    const sorted = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.profiles.full_name.localeCompare(b.profiles.full_name);
-        case 'severity': {
-          const discA = detectDiscrepancies(a);
-          const discB = detectDiscrepancies(b);
-          const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-          return (severityOrder[discB?.severity as keyof typeof severityOrder] || 0) - (severityOrder[discA?.severity as keyof typeof severityOrder] || 0);
-        }
-        case 'date':
-        default:
-          return new Date(a.clock_in_time).getTime() - new Date(b.clock_in_time).getTime();
-      }
-    });
-
-    return sorted;
-  };
-
-  const displayedEntries = getFilteredAndSortedEntries();
+  const displayedEntries = pendingEntries;
 
   const bulkEditMutation = useMutation({
     mutationFn: async () => {
@@ -314,41 +275,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Filtre Avansate */}
-          <div className="flex flex-col md:flex-row gap-3 bg-muted/30 p-4 rounded-lg border mb-6">
-            <Select value={severityFilter} onValueChange={(v: any) => setSeverityFilter(v)}>
-              <SelectTrigger className="md:w-[200px]">
-                <SelectValue placeholder="Severitate" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toate discrepanțele</SelectItem>
-                <SelectItem value="critical">🔴 Doar Critical (&gt;2h)</SelectItem>
-                <SelectItem value="high">🟠 Doar High</SelectItem>
-                <SelectItem value="medium">🟡 Doar Medium</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-              <SelectTrigger className="md:w-[180px]">
-                <SelectValue placeholder="Sortare" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date">📅 După dată</SelectItem>
-                <SelectItem value="name">👤 După nume</SelectItem>
-                <SelectItem value="severity">⚠️ După severitate</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant={editedOnlyFilter ? "default" : "outline"}
-              onClick={() => setEditedOnlyFilter(!editedOnlyFilter)}
-              className="gap-2"
-            >
-              <Pencil className="h-4 w-4" />
-              {editedOnlyFilter ? 'Afișează toate' : 'Doar editate'}
-            </Button>
           </div>
 
           {/* Informații Echipă */}
