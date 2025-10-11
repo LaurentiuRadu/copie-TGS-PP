@@ -802,8 +802,11 @@ export type Database = {
           last_reprocess_attempt: string | null
           needs_reprocessing: boolean | null
           notes: string | null
+          original_clock_in_time: string | null
+          original_clock_out_time: string | null
           updated_at: string | null
           user_id: string
+          was_edited_by_admin: boolean | null
         }
         Insert: {
           approval_notes?: string | null
@@ -828,8 +831,11 @@ export type Database = {
           last_reprocess_attempt?: string | null
           needs_reprocessing?: boolean | null
           notes?: string | null
+          original_clock_in_time?: string | null
+          original_clock_out_time?: string | null
           updated_at?: string | null
           user_id: string
+          was_edited_by_admin?: boolean | null
         }
         Update: {
           approval_notes?: string | null
@@ -854,8 +860,11 @@ export type Database = {
           last_reprocess_attempt?: string | null
           needs_reprocessing?: boolean | null
           notes?: string | null
+          original_clock_in_time?: string | null
+          original_clock_out_time?: string | null
           updated_at?: string | null
           user_id?: string
+          was_edited_by_admin?: boolean | null
         }
         Relationships: [
           {

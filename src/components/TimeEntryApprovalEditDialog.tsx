@@ -70,17 +70,36 @@ export function TimeEntryApprovalEditDialog({
         throw new Error(validationError);
       }
 
+      // Fetch current entry to check if already has originals
+      const { data: currentEntry } = await supabase
+        .from('time_entries')
+        .select('original_clock_in_time, original_clock_out_time, clock_in_time, clock_out_time')
+        .eq('id', entry.id)
+        .single();
+
+      // Prepare update data
+      const updateData: any = {
+        clock_in_time: new Date(clockIn).toISOString(),
+        clock_out_time: new Date(clockOut).toISOString(),
+        approval_status: 'approved',
+        approved_at: new Date().toISOString(),
+        approval_notes: adminNotes || null,
+        needs_reprocessing: false,
+        was_edited_by_admin: true,
+      };
+
+      // Set originals only if not already set (first edit)
+      if (currentEntry && !currentEntry.original_clock_in_time) {
+        updateData.original_clock_in_time = currentEntry.clock_in_time;
+      }
+      if (currentEntry && !currentEntry.original_clock_out_time) {
+        updateData.original_clock_out_time = currentEntry.clock_out_time;
+      }
+
       // Update time entry and auto-approve
       const { error: updateError } = await supabase
         .from('time_entries')
-        .update({
-          clock_in_time: new Date(clockIn).toISOString(),
-          clock_out_time: new Date(clockOut).toISOString(),
-          approval_status: 'approved',
-          approved_at: new Date().toISOString(),
-          approval_notes: adminNotes || null,
-          needs_reprocessing: false,
-        })
+        .update(updateData)
         .eq('id', entry.id);
 
       if (updateError) throw updateError;

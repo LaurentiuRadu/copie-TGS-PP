@@ -9,6 +9,10 @@ export interface TimeEntryForApproval {
   clock_in_time: string;
   clock_out_time: string | null;
   approval_status: string;
+  original_clock_in_time?: string;
+  original_clock_out_time?: string;
+  was_edited_by_admin?: boolean;
+  approval_notes?: string;
   profiles: {
     id: string;
     full_name: string;
@@ -85,7 +89,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       // Fetch pending time entries for these users in this week
       const { data: entriesData, error } = await supabase
         .from('time_entries')
-        .select('id, user_id, clock_in_time, clock_out_time, approval_status')
+        .select('id, user_id, clock_in_time, clock_out_time, approval_status, original_clock_in_time, original_clock_out_time, was_edited_by_admin, approval_notes')
         .in('user_id', userIds)
         .gte('clock_in_time', weekStart.toISOString())
         .lt('clock_in_time', weekEnd.toISOString())
@@ -293,69 +297,6 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
     },
   });
 
-  // 6. Reject entry
-  const rejectMutation = useMutation({
-    mutationFn: async ({ entryId, reason }: { entryId: string; reason: string }) => {
-      const { error } = await supabase
-        .from('time_entries')
-        .update({
-          approval_status: 'rejected',
-          approved_at: new Date().toISOString(),
-          approval_notes: reason,
-        })
-        .eq('id', entryId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      toast({
-        title: 'Pontaj respins',
-        description: 'Pontajul a fost respins',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Eroare',
-        description: 'Nu s-a putut respinge pontajul',
-        variant: 'destructive',
-      });
-      console.error('[Reject Error]', error);
-    },
-  });
-
-  // 7. Request correction
-  const requestCorrectionMutation = useMutation({
-    mutationFn: async ({ entryId, notes }: { entryId: string; notes: string }) => {
-      const { error } = await supabase
-        .from('time_entries')
-        .update({
-          approval_status: 'needs_correction',
-          approval_notes: notes,
-        })
-        .eq('id', entryId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      toast({
-        title: 'Corectare solicitată',
-        description: 'Pontajul necesită corectare',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Eroare',
-        description: 'Nu s-a putut solicita corectarea',
-        variant: 'destructive',
-      });
-      console.error('[Request Correction Error]', error);
-    },
-  });
-
   return {
     pendingEntries,
     teamLeader,
@@ -365,7 +306,5 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
     detectDiscrepancies,
     approveMutation,
     approveBatchMutation,
-    rejectMutation,
-    requestCorrectionMutation,
   };
 };

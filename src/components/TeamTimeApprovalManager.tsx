@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Check, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -27,7 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
 interface TeamTimeApprovalManagerProps {
@@ -57,15 +56,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     detectDiscrepancies,
     approveMutation,
     approveBatchMutation,
-    rejectMutation,
-    requestCorrectionMutation,
   } = useTeamApprovalWorkflow(selectedTeam, selectedWeek);
 
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | 'correct'>('approve');
   const [actionEntryId, setActionEntryId] = useState<string | null>(null);
-  const [actionNotes, setActionNotes] = useState('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
@@ -110,12 +105,8 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     setSelectedEntries(new Set());
   };
 
-  const handleSingleAction = (
-    entryId: string,
-    type: 'approve' | 'reject' | 'correct'
-  ) => {
+  const handleApprove = (entryId: string) => {
     setActionEntryId(entryId);
-    setActionType(type);
     setActionDialogOpen(true);
   };
 
@@ -124,22 +115,15 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     setEditDialogOpen(true);
   };
 
-  const handleConfirmAction = async () => {
+  const handleConfirmApproval = async () => {
     if (!actionEntryId) return;
 
     try {
-      if (actionType === 'approve') {
-        await approveMutation.mutateAsync({ entryId: actionEntryId, notes: actionNotes });
-      } else if (actionType === 'reject') {
-        await rejectMutation.mutateAsync({ entryId: actionEntryId, reason: actionNotes });
-      } else if (actionType === 'correct') {
-        await requestCorrectionMutation.mutateAsync({ entryId: actionEntryId, notes: actionNotes });
-      }
+      await approveMutation.mutateAsync({ entryId: actionEntryId });
       setActionDialogOpen(false);
-      setActionNotes('');
       setActionEntryId(null);
     } catch (error) {
-      console.error('[Action Error]', error);
+      console.error('[Approval Error]', error);
     }
   };
 
@@ -344,10 +328,47 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                             </p>
                           </div>
 
-                          {/* Pontaj Real */}
+                          {/* Pontaj Original (dacă a fost editat) */}
+                          {entry.was_edited_by_admin && entry.original_clock_in_time && (
+                            <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-md border border-amber-200 dark:border-amber-800">
+                              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2 uppercase tracking-wide">
+                                ⚠️ Pontaj Original (Angajat)
+                              </p>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground text-xs">Intrare</p>
+                                  <p className="font-mono text-amber-800 dark:text-amber-200">
+                                    {format(new Date(entry.original_clock_in_time), 'HH:mm')}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground text-xs">Ieșire</p>
+                                  <p className="font-mono text-amber-800 dark:text-amber-200">
+                                    {entry.original_clock_out_time
+                                      ? format(new Date(entry.original_clock_out_time), 'HH:mm')
+                                      : '-'}
+                                  </p>
+                                </div>
+                              </div>
+                              {entry.approval_notes && (
+                                <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
+                                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                                    <span className="font-medium">Motiv:</span> {entry.approval_notes}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Pontaj Curent (corectat sau original) */}
                           <div className="mb-3 p-3 bg-muted/30 rounded-md">
-                            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
-                              ⏱️ Pontaj Real
+                            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-2">
+                              ⏱️ Pontaj {entry.was_edited_by_admin ? 'Corectat' : 'Real'}
+                              {entry.was_edited_by_admin && (
+                                <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+                                  ✏️ Editat
+                                </Badge>
+                              )}
                             </p>
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               <div>
@@ -500,36 +521,18 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEdit(entry)}
-                          title="Editează orele"
+                          title="Editează orele și aprobă automat"
                         >
                           <Pencil className="h-4 w-4 text-blue-600" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleSingleAction(entry.id, 'approve')}
+                          onClick={() => handleApprove(entry.id)}
                           disabled={approveMutation.isPending}
-                          title="Aprobă"
+                          title="Aprobă pontajul așa cum este"
                         >
                           <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSingleAction(entry.id, 'correct')}
-                          disabled={requestCorrectionMutation.isPending}
-                          title="Solicită corectare"
-                        >
-                          <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSingleAction(entry.id, 'reject')}
-                          disabled={rejectMutation.isPending}
-                          title="Respinge"
-                        >
-                          <X className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
                     </div>
@@ -541,37 +544,19 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
         </CardContent>
       </Card>
 
-      {/* Action Dialog */}
+      {/* Approval Confirmation Dialog */}
       <AlertDialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {actionType === 'approve' && 'Aprobă pontaj'}
-              {actionType === 'reject' && 'Respinge pontaj'}
-              {actionType === 'correct' && 'Solicită corectare'}
-            </AlertDialogTitle>
+            <AlertDialogTitle>✅ Aprobă pontaj</AlertDialogTitle>
             <AlertDialogDescription>
-              {actionType === 'approve' && 'Confirmați aprobarea acestui pontaj?'}
-              {actionType === 'reject' && 'Introduceți motivul respingerii:'}
-              {actionType === 'correct' && 'Introduceți ce trebuie corectat:'}
+              Confirmați aprobarea acestui pontaj? Orele vor fi fragmentate automat (zi/noapte/sâmbătă/duminică) și pauza va fi aplicată conform regulamentului.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {(actionType === 'reject' || actionType === 'correct') && (
-            <div className="py-4">
-              <Label htmlFor="notes">Notițe</Label>
-              <Textarea
-                id="notes"
-                value={actionNotes}
-                onChange={(e) => setActionNotes(e.target.value)}
-                placeholder="Introduceți detalii..."
-                className="mt-2"
-              />
-            </div>
-          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Anulează</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAction}>
-              Confirmă
+            <AlertDialogAction onClick={handleConfirmApproval}>
+              Aprobă
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
