@@ -194,7 +194,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                 <SelectValue placeholder="Selectează echipa" />
               </SelectTrigger>
               <SelectContent>
-                {Array.from(availableTeams).sort().map(team => (
+                {Array.from(availableTeams).sort((a, b) => {
+                  const numA = parseInt(a.replace(/\D/g, ''), 10);
+                  const numB = parseInt(b.replace(/\D/g, ''), 10);
+                  return numA - numB;
+                }).map(team => (
                   <SelectItem key={team} value={team}>
                     Echipa {team}
                   </SelectItem>
