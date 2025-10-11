@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import {
   Collapsible,
   CollapsibleContent,
@@ -37,6 +38,10 @@ interface TeamTimeApprovalManagerProps {
 
 export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'high' | 'medium' | 'critical'>('all');
+  const [editedOnlyFilter, setEditedOnlyFilter] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'severity'>('date');
 
   // Reset selected team when week or available teams change
   useEffect(() => {
@@ -65,6 +70,9 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+  const [bulkEditMinutes, setBulkEditMinutes] = useState<number>(0);
+  const [bulkEditTarget, setBulkEditTarget] = useState<'clock_in' | 'clock_out'>('clock_in');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -130,6 +138,8 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
+      case 'critical':
+        return 'bg-red-600/20 text-red-900 dark:text-red-200 border-red-600/40 dark:bg-red-950/50 dark:border-red-700';
       case 'high':
         return 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20 dark:bg-red-950/30 dark:border-red-800';
       case 'medium':
@@ -138,6 +148,105 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
         return 'bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20 dark:bg-green-950/20 dark:border-green-800';
     }
   };
+
+  const getFilteredAndSortedEntries = () => {
+    let filtered = pendingEntries;
+
+    // Filter by search (nume angajat)
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(e =>
+        e.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Filter by severity
+    if (severityFilter !== 'all') {
+      filtered = filtered.filter(e => {
+        const disc = detectDiscrepancies(e);
+        return disc?.severity === severityFilter;
+      });
+    }
+
+    // Filter by edited status
+    if (editedOnlyFilter) {
+      filtered = filtered.filter(e => e.was_edited_by_admin);
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.profiles.full_name.localeCompare(b.profiles.full_name);
+        case 'severity': {
+          const discA = detectDiscrepancies(a);
+          const discB = detectDiscrepancies(b);
+          const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+          return (severityOrder[discB?.severity as keyof typeof severityOrder] || 0) - (severityOrder[discA?.severity as keyof typeof severityOrder] || 0);
+        }
+        case 'date':
+        default:
+          return new Date(a.clock_in_time).getTime() - new Date(b.clock_in_time).getTime();
+      }
+    });
+
+    return sorted;
+  };
+
+  const displayedEntries = getFilteredAndSortedEntries();
+
+  const bulkEditMutation = useMutation({
+    mutationFn: async () => {
+      const selectedEntriesData = pendingEntries.filter(e => selectedEntries.has(e.id));
+      
+      const updates = selectedEntriesData.map(async (entry) => {
+        const adjustedClockIn = bulkEditTarget === 'clock_in'
+          ? new Date(new Date(entry.clock_in_time).getTime() + bulkEditMinutes * 60 * 1000)
+          : new Date(entry.clock_in_time);
+
+        const adjustedClockOut = bulkEditTarget === 'clock_out' && entry.clock_out_time
+          ? new Date(new Date(entry.clock_out_time).getTime() + bulkEditMinutes * 60 * 1000)
+          : entry.clock_out_time ? new Date(entry.clock_out_time) : null;
+
+        // Save originals if first edit
+        const updateData: any = {
+          clock_in_time: adjustedClockIn.toISOString(),
+          clock_out_time: adjustedClockOut?.toISOString(),
+          was_edited_by_admin: true,
+        };
+
+        if (!entry.original_clock_in_time) {
+          updateData.original_clock_in_time = entry.clock_in_time;
+        }
+        if (!entry.original_clock_out_time && entry.clock_out_time) {
+          updateData.original_clock_out_time = entry.clock_out_time;
+        }
+
+        return supabase
+          .from('time_entries')
+          .update(updateData)
+          .eq('id', entry.id);
+      });
+
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      setBulkEditDialogOpen(false);
+      setSelectedEntries(new Set());
+      toast({
+        title: '✅ Editare în lot finalizată',
+        description: `${selectedEntries.size} pontaje au fost corectate`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: '❌ Eroare editare în lot',
+        description: error.message,
+      });
+    },
+  });
 
   if (availableTeams.size === 0) {
     return (
@@ -216,6 +325,48 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
             </Select>
           </div>
 
+          {/* Filtre Avansate */}
+          <div className="flex flex-col md:flex-row gap-3 bg-muted/30 p-4 rounded-lg border mb-6">
+            <Input
+              placeholder="🔍 Caută angajat..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="md:max-w-xs"
+            />
+            
+            <Select value={severityFilter} onValueChange={(v: any) => setSeverityFilter(v)}>
+              <SelectTrigger className="md:w-[200px]">
+                <SelectValue placeholder="Severitate" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toate discrepanțele</SelectItem>
+                <SelectItem value="critical">🔴 Doar Critical (&gt;2h)</SelectItem>
+                <SelectItem value="high">🟠 Doar High</SelectItem>
+                <SelectItem value="medium">🟡 Doar Medium</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="md:w-[180px]">
+                <SelectValue placeholder="Sortare" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">📅 După dată</SelectItem>
+                <SelectItem value="name">👤 După nume</SelectItem>
+                <SelectItem value="severity">⚠️ După severitate</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant={editedOnlyFilter ? "default" : "outline"}
+              onClick={() => setEditedOnlyFilter(!editedOnlyFilter)}
+              className="gap-2"
+            >
+              <Pencil className="h-4 w-4" />
+              {editedOnlyFilter ? 'Afișează toate' : 'Doar editate'}
+            </Button>
+          </div>
+
           {/* Informații Echipă */}
           {(teamLeader || coordinator) && (
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -248,7 +399,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
 
           {/* Action buttons */}
           {pendingEntries.length > 0 && (
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -268,6 +419,17 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                 )}
                 Aprobă selectate ({selectedEntries.size})
               </Button>
+              {selectedEntries.size > 0 && (
+                <Button
+                  onClick={() => setBulkEditDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editare în Lot ({selectedEntries.size})
+                </Button>
+              )}
             </div>
           )}
           {/* Statistici echipă */}
@@ -297,17 +459,29 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           )}
 
           {/* Lista pontaje */}
-          {pendingEntries.length === 0 ? (
+          {displayedEntries.length === 0 ? (
             <div className="text-center py-8">
-              <CheckCheck className="h-12 w-12 text-green-500 mx-auto mb-3" />
-              <p className="text-lg font-medium">Toate pontajele sunt aprobate!</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Nu există pontaje în așteptare pentru această echipă
-              </p>
+              {pendingEntries.length === 0 ? (
+                <>
+                  <CheckCheck className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                  <p className="text-lg font-medium">Toate pontajele sunt aprobate!</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Nu există pontaje în așteptare pentru această echipă
+                  </p>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-lg font-medium">Niciun pontaj găsit</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Încearcă să modifici filtrele de căutare
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingEntries.map((entry) => {
+              {displayedEntries.map((entry) => {
                 const discrepancy = detectDiscrepancies(entry);
                 const isSelected = selectedEntries.has(entry.id);
 
@@ -519,13 +693,25 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
 
                           {/* Discrepancy */}
                           {discrepancy && (
-                            <div className="mt-2 flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800">
-                              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-yellow-600" />
-                              <p className="text-xs">
-                                Discrepanță: {discrepancy.discrepancy_type === 'late_arrival' ? 'Întârziere' : 'Sosire timpurie'} 
-                                {' '}(așteptat: {discrepancy.expected_value}, real: {discrepancy.actual_value})
-                              </p>
-                            </div>
+                            <>
+                              <div className="mt-2 flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800">
+                                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-yellow-600" />
+                                <p className="text-xs">
+                                  Discrepanță: {discrepancy.discrepancy_type === 'late_arrival' ? 'Întârziere' : 'Sosire timpurie'} 
+                                  {' '}(așteptat: {discrepancy.expected_value}, real: {discrepancy.actual_value})
+                                </p>
+                              </div>
+                              {discrepancy.severity === 'critical' && (
+                                <Alert variant="destructive" className="mt-2">
+                                  <AlertCircle className="h-4 w-4" />
+                                  <AlertDescription>
+                                    ⚠️ <strong>ATENȚIE:</strong> Diferență de peste 2 ore față de media echipei!
+                                    <br />
+                                    Verifică dacă angajatul a uitat să bată cartela.
+                                  </AlertDescription>
+                                </Alert>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -586,6 +772,63 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           }}
         />
       )}
+
+      {/* Bulk Edit Dialog */}
+      <AlertDialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>✏️ Editare în Lot</AlertDialogTitle>
+            <AlertDialogDescription>
+              Aplică aceeași corectare la {selectedEntries.size} pontaje selectate
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Ajustează</Label>
+              <Select value={bulkEditTarget} onValueChange={(v: any) => setBulkEditTarget(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="clock_in">Clock-In</SelectItem>
+                  <SelectItem value="clock_out">Clock-Out</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Ajustare (minute)</Label>
+              <Input
+                type="number"
+                value={bulkEditMinutes}
+                onChange={(e) => setBulkEditMinutes(parseInt(e.target.value) || 0)}
+                placeholder="Ex: -15 (înainte), +30 (după)"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Valori negative pentru mai devreme, pozitive pentru mai târziu
+              </p>
+            </div>
+
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Exemplu: +30 min la Clock-In = toți vor fi corectați cu +30 minute
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anulează</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkEditMutation.mutate()}
+              disabled={bulkEditMutation.isPending || bulkEditMinutes === 0}
+            >
+              {bulkEditMutation.isPending ? 'Salvez...' : `Aplică la ${selectedEntries.size} pontaje`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

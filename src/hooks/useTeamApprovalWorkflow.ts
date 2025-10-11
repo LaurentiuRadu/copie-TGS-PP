@@ -73,6 +73,14 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
       if (schedError) throw schedError;
       const userIds = schedules?.map(s => s.user_id) || [];
 
+      // ✅ Debugging: log schedules found
+      console.log('[Team Approval] Schedules found:', schedules?.length, 'for team:', teamId, 'week:', weekStartDate);
+
+      if (userIds.length === 0) {
+        console.warn('[Team Approval] ⚠️ No schedules found for this team/week');
+        return { entries: [], teamLeader: null, coordinator: null };
+      }
+
       // Extract team leader and coordinator IDs
       const teamLeaderIds = schedules
         ?.map(s => s.team_leader_id)
@@ -107,15 +115,31 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
 
       // Merge profiles with entries and match with schedules
       const result = (entriesData || []).map(entry => {
+        // ✅ FIX: Convert UTC to Romania time (+3 hours) before getting day_of_week
         const clockInDate = new Date(entry.clock_in_time);
+        const romaniaTime = new Date(clockInDate.getTime() + 3 * 60 * 60 * 1000);
+        
         // Convert to day_of_week (Luni=1, Duminică=7)
-        const dayOfWeek = clockInDate.getDay() === 0 ? 7 : clockInDate.getDay();
-        const workDate = format(clockInDate, 'yyyy-MM-dd');
+        const dayOfWeek = romaniaTime.getDay() === 0 ? 7 : romaniaTime.getDay();
+        
+        console.log(`[Matching] Entry ${entry.id.slice(0, 8)}: clock_in=${clockInDate.toISOString()}, romaniaTime=${romaniaTime.toISOString()}, dayOfWeek=${dayOfWeek}`);
         
         // Find matching schedule for this user and day
         const matchingSchedule = schedules?.find(
           s => s.user_id === entry.user_id && s.day_of_week === dayOfWeek
         );
+
+        if (!matchingSchedule) {
+          console.warn(`[Matching] ⚠️ No schedule found for user ${entry.user_id} on day ${dayOfWeek}, trying fallback...`);
+        }
+
+        // Fallback: try to find any schedule for this user
+        const fallbackSchedule = !matchingSchedule ? schedules?.find(s => s.user_id === entry.user_id) : null;
+        if (fallbackSchedule && !matchingSchedule) {
+          console.log(`[Matching] 📌 Using fallback schedule for user ${entry.user_id}`);
+        }
+
+        const activeSchedule = matchingSchedule || fallbackSchedule;
 
         // Calculate total hours (simple clock_out - clock_in)
         const calculated_hours = entry.clock_out_time ? {
@@ -129,11 +153,11 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
             full_name: 'Unknown',
             username: 'unknown'
           },
-          scheduled_shift: matchingSchedule?.shift_type,
-          scheduled_location: matchingSchedule?.location,
-          scheduled_activity: matchingSchedule?.activity,
-          scheduled_vehicle: matchingSchedule?.vehicle,
-          scheduled_observations: matchingSchedule?.observations,
+          scheduled_shift: activeSchedule?.shift_type,
+          scheduled_location: activeSchedule?.location,
+          scheduled_activity: activeSchedule?.activity,
+          scheduled_vehicle: activeSchedule?.vehicle,
+          scheduled_observations: activeSchedule?.observations,
           day_of_week: dayOfWeek,
           calculated_hours,
         };
@@ -203,7 +227,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
         time_entry_id: entry.id,
         user_id: entry.user_id,
         discrepancy_type: entryMinutes > avgMinutes ? 'late_arrival' : 'early_arrival',
-        severity: diff > 60 ? 'high' : 'medium',
+        severity: diff > 120 ? 'critical' : (diff > 60 ? 'high' : 'medium'), // ✅ ADDED critical level for >2h
         expected_value: teamStats.avgClockIn,
         actual_value: format(entryClockIn, 'HH:mm'),
       };
@@ -215,6 +239,34 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
   // 4. Approve single entry
   const approveMutation = useMutation({
     mutationFn: async ({ entryId, notes }: { entryId: string; notes?: string }) => {
+      // STEP 1: Fetch entry pentru validare
+      const { data: entry, error: fetchError } = await supabase
+        .from('time_entries')
+        .select('clock_in_time, clock_out_time')
+        .eq('id', entryId)
+        .single();
+
+      if (fetchError || !entry) throw new Error('Pontaj negăsit');
+
+      // STEP 2: Validare existență clock_out
+      if (!entry.clock_out_time) {
+        throw new Error('❌ Clock-out lipsește! Nu se poate aproba pontaj incomplet.');
+      }
+
+      // STEP 3: Validare durată (1-24 ore)
+      const clockIn = new Date(entry.clock_in_time);
+      const clockOut = new Date(entry.clock_out_time);
+      const durationHours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
+
+      if (durationHours < 1) {
+        throw new Error(`❌ Durată prea scurtă: ${durationHours.toFixed(1)}h. Minimum: 1 oră.`);
+      }
+
+      if (durationHours > 24) {
+        throw new Error(`❌ Durată suspectă: ${durationHours.toFixed(1)}h. Maximum: 24 ore.`);
+      }
+
+      // STEP 4: Continue cu aprobarea
       const { error: updateError } = await supabase
         .from('time_entries')
         .update({
@@ -257,7 +309,34 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
   // 5. Approve batch (multiple entries)
   const approveBatchMutation = useMutation({
     mutationFn: async (entryIds: string[]) => {
-      // Update all entries
+      // STEP 1: Fetch all entries pentru validare
+      const { data: entries, error: fetchError } = await supabase
+        .from('time_entries')
+        .select('id, clock_in_time, clock_out_time')
+        .in('id', entryIds);
+
+      if (fetchError) throw fetchError;
+
+      // STEP 2: Validare fiecare pontaj
+      const validationErrors: string[] = [];
+      entries?.forEach(entry => {
+        if (!entry.clock_out_time) {
+          validationErrors.push(`${entry.id.slice(0, 8)}: lipsește clock-out`);
+          return;
+        }
+
+        const durationHours = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
+        
+        if (durationHours < 1 || durationHours > 24) {
+          validationErrors.push(`${entry.id.slice(0, 8)}: durată ${durationHours.toFixed(1)}h (invalid)`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        throw new Error(`❌ Validare eșuată:\n${validationErrors.join('\n')}`);
+      }
+
+      // STEP 3: Update all entries
       const { error: updateError } = await supabase
         .from('time_entries')
         .update({

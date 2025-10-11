@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
+import { ApprovalStatsDashboard } from '@/components/ApprovalStatsDashboard';
+import { Separator } from '@/components/ui/separator';
 import { ClipboardCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { startOfWeek, endOfWeek, format, addWeeks, subWeeks } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -83,10 +85,14 @@ export default function TimesheetVerificare() {
         </CardHeader>
 
         <CardContent>
-          <TeamTimeApprovalManager
-            selectedWeek={selectedWeek}
-            availableTeams={new Set(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10'])}
-          />
+          <div className="space-y-6">
+            <ApprovalStatsDashboard />
+            <Separator />
+            <TeamTimeApprovalManager
+              selectedWeek={selectedWeek}
+              availableTeams={new Set(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10'])}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

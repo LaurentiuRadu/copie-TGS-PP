@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Pencil, Lock, AlertCircle } from 'lucide-react';
+import { Pencil, Lock, AlertCircle, Download } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import * as XLSX from 'xlsx';
 
 interface ApprovedEntry {
   id: string;
@@ -101,6 +102,49 @@ export function TimesheetHistoryManager() {
     const matchesEditFilter = showOnlyEdited ? entry.was_edited_by_admin : true;
     return matchesSearch && matchesEditFilter;
   });
+
+  const handleExportExcel = () => {
+    if (!filteredEntries || filteredEntries.length === 0) {
+      toast.error('Nu există date de exportat');
+      return;
+    }
+
+    // Prepare data pentru Excel
+    const excelData = filteredEntries.map(entry => ({
+      'Angajat': entry.profiles.full_name,
+      'Username': entry.profiles.username,
+      'Clock-In Original': entry.original_clock_in_time 
+        ? format(new Date(entry.original_clock_in_time), 'dd.MM.yyyy HH:mm', { locale: ro })
+        : '-',
+      'Clock-Out Original': entry.original_clock_out_time
+        ? format(new Date(entry.original_clock_out_time), 'dd.MM.yyyy HH:mm', { locale: ro })
+        : '-',
+      'Clock-In Curent': format(new Date(entry.clock_in_time), 'dd.MM.yyyy HH:mm', { locale: ro }),
+      'Clock-Out Curent': format(new Date(entry.clock_out_time), 'dd.MM.yyyy HH:mm', { locale: ro }),
+      'Editat': entry.was_edited_by_admin ? 'DA' : 'NU',
+      'Ore Totale': ((new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60)).toFixed(2),
+      'Aprobat De': entry.approver_profile?.full_name || '-',
+      'Data Aprobare': format(new Date(entry.approved_at), 'dd.MM.yyyy HH:mm', { locale: ro }),
+      'Note Admin': entry.approval_notes || '-',
+    }));
+
+    // Create workbook
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pontaje Aprobate');
+
+    // Auto-size columns
+    const colWidths = Object.keys(excelData[0]).map(key => ({
+      wch: Math.max(key.length, 15),
+    }));
+    ws['!cols'] = colWidths;
+
+    // Download
+    const fileName = `Pontaje_Aprobate_${format(new Date(), 'dd-MM-yyyy')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    toast.success(`✅ Export finalizat: ${fileName}`);
+  };
 
   const handleOpenPasswordDialog = (entry: ApprovedEntry) => {
     setSelectedEntry(entry);
@@ -256,6 +300,15 @@ export function TimesheetHistoryManager() {
             Doar pontaje editate
           </Label>
         </div>
+
+        <Button
+          onClick={handleExportExcel}
+          className="gap-2"
+          variant="outline"
+        >
+          <Download className="h-4 w-4" />
+          Export Excel
+        </Button>
       </div>
 
       {isLoading ? (
