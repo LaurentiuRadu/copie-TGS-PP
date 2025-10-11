@@ -719,8 +719,71 @@ export type Database = {
           },
         ]
       }
+      team_time_discrepancies: {
+        Row: {
+          actual_value: string | null
+          created_at: string | null
+          discrepancy_type: string
+          expected_value: string | null
+          id: string
+          notes: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          team_id: string
+          time_entry_id: string | null
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          actual_value?: string | null
+          created_at?: string | null
+          discrepancy_type: string
+          expected_value?: string | null
+          id?: string
+          notes?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          team_id: string
+          time_entry_id?: string | null
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          actual_value?: string | null
+          created_at?: string | null
+          discrepancy_type?: string
+          expected_value?: string | null
+          id?: string
+          notes?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          team_id?: string
+          time_entry_id?: string | null
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_time_discrepancies_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
+          approval_notes: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           clock_in_latitude: number | null
           clock_in_location_id: string | null
           clock_in_longitude: number | null
@@ -743,6 +806,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approval_notes?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           clock_in_latitude?: number | null
           clock_in_location_id?: string | null
           clock_in_longitude?: number | null
@@ -765,6 +832,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approval_notes?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           clock_in_latitude?: number | null
           clock_in_location_id?: string | null
           clock_in_longitude?: number | null
@@ -1250,6 +1321,10 @@ export type Database = {
       }
     }
     Functions: {
+      auto_approve_old_entries: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       check_biometric_consent: {
         Args: { _user_id: string }
         Returns: boolean
@@ -1281,6 +1356,17 @@ export type Database = {
       cleanup_sensitive_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      detect_team_discrepancies: {
+        Args: { _team_id: string; _week_start_date: string }
+        Returns: {
+          actual_value: string
+          discrepancy_type: string
+          expected_value: string
+          severity: string
+          time_entry_id: string
+          user_id: string
+        }[]
       }
       enforce_data_retention: {
         Args: Record<PropertyKey, never>

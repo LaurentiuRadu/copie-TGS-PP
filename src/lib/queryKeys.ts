@@ -53,4 +53,8 @@ export const QUERY_KEYS = {
 
   // Admin Stats
   adminStatsBatch: (): QueryKey => ['admin-stats-batch'],
+
+  // Team Approvals
+  teamPendingApprovals: (teamId?: string, weekStart?: string): QueryKey =>
+    ['team-pending-approvals', teamId, weekStart].filter(Boolean),
 } as const;

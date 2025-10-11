@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 
 import { useRealtimeSchedules } from '@/hooks/useRealtimeSchedules';
 import { STALE_TIME } from '@/lib/queryConfig';
-import { TeamTimeEntryVerification } from '@/components/TeamTimeEntryVerification';
+import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
 
 interface ScheduleEntry {
   id?: string;
@@ -1723,9 +1723,9 @@ export default function WeeklySchedules() {
               </div>
             </TabsContent>
 
-            {/* Verification Tab */}
+            {/* Approval Tab */}
             <TabsContent value="verification" className="mt-6">
-              <TeamTimeEntryVerification 
+              <TeamTimeApprovalManager 
                 selectedWeek={selectedWeek}
                 availableTeams={usedTeams}
               />
