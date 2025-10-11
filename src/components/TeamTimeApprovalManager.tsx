@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun } from 'lucide-react';
-import { useTeamApprovalWorkflow } from '@/hooks/useTeamApprovalWorkflow';
+import { Loader2, Check, X, AlertCircle, CheckCheck, MapPin, Activity, Car, FileText, Moon, Sun, Pencil } from 'lucide-react';
+import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +57,8 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'correct'>('approve');
   const [actionEntryId, setActionEntryId] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState('');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
 
   const handleToggleSelect = (entryId: string) => {
     const newSelected = new Set(selectedEntries);
@@ -88,6 +91,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     setActionEntryId(entryId);
     setActionType(type);
     setActionDialogOpen(true);
+  };
+
+  const handleEdit = (entry: TimeEntryForApproval) => {
+    setEditEntry(entry);
+    setEditDialogOpen(true);
   };
 
   const handleConfirmAction = async () => {
@@ -409,8 +417,17 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                         <Button
                           size="sm"
                           variant="ghost"
+                          onClick={() => handleEdit(entry)}
+                          title="Editează orele"
+                        >
+                          <Pencil className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => handleSingleAction(entry.id, 'approve')}
                           disabled={approveMutation.isPending}
+                          title="Aprobă"
                         >
                           <Check className="h-4 w-4 text-green-600" />
                         </Button>
@@ -419,6 +436,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                           variant="ghost"
                           onClick={() => handleSingleAction(entry.id, 'correct')}
                           disabled={requestCorrectionMutation.isPending}
+                          title="Solicită corectare"
                         >
                           <AlertCircle className="h-4 w-4 text-yellow-600" />
                         </Button>
@@ -427,6 +445,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                           variant="ghost"
                           onClick={() => handleSingleAction(entry.id, 'reject')}
                           disabled={rejectMutation.isPending}
+                          title="Respinge"
                         >
                           <X className="h-4 w-4 text-red-600" />
                         </Button>
@@ -475,6 +494,18 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Dialog */}
+      {editEntry && (
+        <TimeEntryApprovalEditDialog
+          entry={editEntry}
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) setEditEntry(null);
+          }}
+        />
+      )}
     </>
   );
 };

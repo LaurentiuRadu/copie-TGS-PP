@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { startOfWeek, addDays, format } from 'date-fns';
 
-interface TimeEntryForApproval {
+export interface TimeEntryForApproval {
   id: string;
   user_id: string;
   clock_in_time: string;
