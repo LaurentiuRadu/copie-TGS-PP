@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useActiveTimeEntry } from "@/hooks/useActiveTimeEntry";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import tgsLogo from "@/assets/tgs-logo.png";
@@ -194,27 +195,30 @@ export function AppSidebar() {
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
-                            <SidebarMenuSub>
+                            <SidebarMenuSub className="space-y-1 py-2">
                               {item.children.map((child) => {
                                 const childBadge = child.badge && pendingApprovalsCount && pendingApprovalsCount > 0;
                                 
                                 return (
                                   <SidebarMenuSubItem key={child.title}>
-                                    <SidebarMenuSubButton asChild>
+                                    <SidebarMenuSubButton asChild className="pl-8 h-10">
                                       <NavLink
                                         to={child.url}
                                         onClick={handleNavClick}
                                         end
                                         className={({ isActive }) =>
-                                          isActive
-                                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                            : "!text-white hover:bg-sidebar-accent/50"
+                                          cn(
+                                            "transition-all duration-200",
+                                            isActive
+                                              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                                              : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                                          )
                                         }
                                       >
-                                        <child.icon className="h-4 w-4" />
+                                        <child.icon className="h-3.5 w-3.5" />
                                         <span>{child.title}</span>
                                         {childBadge && (
-                                          <Badge variant="destructive" className="ml-auto">
+                                          <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[24px]">
                                             {pendingApprovalsCount}
                                           </Badge>
                                         )}
