@@ -155,7 +155,12 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       const request = requests.find(r => r.id === id);
 
       // If withdrawn, remove from daily_timesheets
-      if (status === 'withdrawn' && request && request.status === 'approved') {
+      if (status === 'withdrawn' && request) {
+        // SAFETY CHECK: Cererea trebuie să fie 'approved' pentru a o retrage
+        if (request.status !== 'approved') {
+          throw new Error(`Această cerere nu poate fi retrasă (status actual: ${request.status})`);
+        }
+
         if (request.type === 'vacation') {
           console.log(`[Vacation Withdrawal] 🔄 Withdrawing CO request: ${id}`);
           
@@ -183,7 +188,9 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
             console.error('[Vacation Withdrawal] ❌ Withdrawal failed:', error);
             throw error;
           }
-        } else if (request.type === 'sick') {
+        }
+        
+        if (request.type === 'sick') {
           console.log(`[Medical Withdrawal] 🔄 Withdrawing CM request: ${id}`);
           
           try {

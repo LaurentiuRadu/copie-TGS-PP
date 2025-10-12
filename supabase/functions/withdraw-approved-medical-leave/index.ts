@@ -196,7 +196,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Actualizăm cererea
+    console.log(`[Withdraw Medical] 📊 Deletion summary: ${daysRemoved} removed, ${failedDates.length} failed`);
+
+    // CRITICAL: Verificăm dacă am reușit să ștergem măcar o zi
+    if (daysRemoved === 0) {
+      console.error('[Withdraw Medical] ❌ No days were removed from timesheet');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Nu s-au putut șterge zilele din pontaj. Verificați dacă cererea are zile în pontaj.',
+          days_removed: 0,
+          total_days: dateList.length,
+          failed_dates: failedDates
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // DOAR DUPĂ CE AM ȘTERS CU SUCCES ZILELE, actualizăm statusul
     const { error: updateError } = await supabaseAdmin
       .from('vacation_requests')
       .update({
@@ -210,7 +226,7 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.error('[Withdraw Medical] ❌ Failed to update request:', updateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to update request status' }),
+        JSON.stringify({ error: 'Zilele au fost șterse, dar nu s-a putut actualiza statusul cererii' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

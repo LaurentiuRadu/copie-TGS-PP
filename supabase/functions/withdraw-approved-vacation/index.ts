@@ -196,7 +196,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Actualizăm cererea
+    console.log(`[Withdraw Vacation] 📊 Deletion summary: ${daysRemoved} removed, ${failedDates.length} failed`);
+
+    // CRITICAL: Verificăm dacă am reușit să ștergem măcar o zi
+    if (daysRemoved === 0) {
+      console.error('[Withdraw Vacation] ❌ No days were removed from timesheet');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Nu s-au putut șterge zilele din pontaj. Verificați dacă cererea are zile în pontaj.',
+          days_removed: 0,
+          total_days: dateList.length,
+          failed_dates: failedDates
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // DOAR DUPĂ CE AM ȘTERS CU SUCCES ZILELE, actualizăm statusul
     const { error: updateError } = await supabaseAdmin
       .from('vacation_requests')
       .update({
@@ -210,26 +226,14 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.error('[Withdraw Vacation] ❌ Failed to update request:', updateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to update request status' }),
+        JSON.stringify({ error: 'Zilele au fost șterse, dar nu s-a putut actualiza statusul cererii' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('[Withdraw Vacation] ✅ Request status updated to withdrawn');
-
-    // Actualizăm soldul (opțional - trigger-ul ar trebui să o facă)
-    const { error: balanceError } = await supabaseAdmin
-      .from('vacation_balances')
-      .update({
-        used_days: Math.max(0, (vacationRequest.days_count || 0) - daysRemoved),
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', vacationRequest.user_id)
-      .eq('year', new Date(vacationRequest.start_date).getFullYear());
-
-    if (balanceError) {
-      console.warn('[Withdraw Vacation] ⚠️ Failed to update balance (trigger should handle):', balanceError);
-    }
+    
+    // Trigger-ul update_vacation_balance_on_request_change() va actualiza automat soldul
 
     const result = {
       success: true,
