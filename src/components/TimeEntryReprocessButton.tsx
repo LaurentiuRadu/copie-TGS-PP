@@ -16,7 +16,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export function TimeEntryReprocessButton() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing' | 'current_month'>('missing_segments');
+  const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing' | 'current_month' | 'specific_date'>('missing_segments');
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [open, setOpen] = useState(false);
 
   const handleReprocess = async () => {
@@ -25,14 +26,23 @@ export function TimeEntryReprocessButton() {
     try {
       console.log(`[Reprocess] Starting with mode: ${mode}`);
       
-      // Calculează intervalul pentru luna curentă
-      const now = new Date();
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+      let body: any;
       
-      const body = mode === 'current_month' 
-        ? { mode: 'date_range', start_date: startDate, end_date: endDate, batch_size: 100 }
-        : { mode, batch_size: 100 };
+      if (mode === 'current_month') {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        body = { mode: 'date_range', start_date: startDate, end_date: endDate, batch_size: 100 };
+      } else if (mode === 'specific_date') {
+        if (!selectedDate) {
+          toast.error('Te rog selectează o dată');
+          setIsProcessing(false);
+          return;
+        }
+        body = { mode: 'date_range', start_date: selectedDate, end_date: selectedDate, batch_size: 100 };
+      } else {
+        body = { mode, batch_size: 100 };
+      }
       
       const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
         body
@@ -127,7 +137,33 @@ export function TimeEntryReprocessButton() {
                 </div>
               </Label>
             </div>
+            
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="specific_date" id="specific_date" />
+              <Label htmlFor="specific_date" className="font-normal cursor-pointer">
+                <div>
+                  <div className="font-medium">Reprocesează o dată specifică</div>
+                  <div className="text-sm text-muted-foreground">
+                    Recalculează toate pontajele dintr-o zi anume
+                  </div>
+                </div>
+              </Label>
+            </div>
           </RadioGroup>
+          
+          {mode === 'specific_date' && (
+            <div className="mt-4">
+              <Label htmlFor="date" className="text-sm font-medium">Selectează data</Label>
+              <input
+                type="date"
+                id="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                defaultValue="2025-10-12"
+                className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
+              />
+            </div>
+          )}
           
           <div className="pt-4">
             <Button 
