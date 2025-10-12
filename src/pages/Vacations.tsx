@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
-import type { DateRange } from 'react-day-picker';
+import { SimpleDateRangePicker } from '@/components/ui/simple-date-range-picker';
+import type { DateRange } from '@/components/ui/simple-calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
@@ -160,6 +160,7 @@ const Vacations = () => {
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       vacation: 'Concediu',
+      compensatory: 'Compensare Orară',
       sick: 'Medical',
       unpaid: 'Fără plată',
       other: 'Altele',
@@ -210,6 +211,7 @@ const Vacations = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="vacation">Concediu de odihnă</SelectItem>
+                      <SelectItem value="compensatory">Compensare Orară</SelectItem>
                       <SelectItem value="sick">Medical</SelectItem>
                       <SelectItem value="unpaid">Fără plată</SelectItem>
                       <SelectItem value="other">Altele</SelectItem>
@@ -219,17 +221,15 @@ const Vacations = () => {
 
                 <div>
                   <Label>Selectează Perioada</Label>
-                  <Calendar
-                    mode="range"
+                  <SimpleDateRangePicker
                     selected={dateRange}
-                    onSelect={setDateRange}
-                    locale={ro}
-                    className="rounded-md border mt-2"
+                    onSelect={(range) => range && setDateRange(range)}
                     disabled={(date) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
                       return date < today;
                     }}
+                    className="mt-2"
                   />
                   {dateRange?.from && dateRange?.to && (() => {
                     // Calculate weekdays only
