@@ -88,9 +88,15 @@ const UserManagement = ({ embedded = false }: { embedded?: boolean }) => {
 
       if (error) {
         console.error('Error loading users:', error);
+        
+        // Afișăm mesaj specific dacă primim 403
+        const errorMessage = error.message?.includes('Admin access required') 
+          ? "Contul curent nu are rol de admin. Contactează un administrator."
+          : (data?.error || error.message || "Nu s-au putut încărca utilizatorii");
+        
         toast({
           title: "Eroare",
-          description: "Nu s-au putut încărca utilizatorii",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
