@@ -61,7 +61,7 @@ const Vacations = () => {
   const [allUsers, setAllUsers] = useState<Array<{ id: string; full_name: string }>>([]);
 
   // Folosim hook-ul optimizat cu React Query
-  const { requests, balance, isLoading, createRequest, updateStatus } = useOptimizedVacations(
+  const { requests, balance, isLoading, createRequest, updateStatus, repairWithdrawnRequest, isRepairing } = useOptimizedVacations(
     user?.id,
     isAdmin
   );
@@ -453,6 +453,25 @@ const Vacations = () => {
                                 </div>
                               )
                             )
+                          )}
+
+                          {/* Buton Repară pentru withdrawn CO/CM (doar admin) */}
+                          {isAdmin && request.status === 'withdrawn' && (request.type === 'vacation' || request.type === 'sick') && (
+                            <div className="ml-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  if (confirm('Repară această cerere retrasă? Va șterge zilele rămase în pontaj.')) {
+                                    repairWithdrawnRequest(request.id);
+                                  }
+                                }}
+                                disabled={isRepairing || processingRequestId === request.id}
+                              >
+                                🔧 {isRepairing ? 'Se repară...' : 'Repară'}
+                              </Button>
+                            </div>
                           )}
 
                           {processingRequestId === request.id && (

@@ -338,11 +338,53 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
     },
   });
 
+  // Repair withdrawn request mutation
+  const repairWithdrawnRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      console.log(`[Repair Vacation] 🔧 Repairing request: ${requestId}`);
+      
+      const { data, error } = await supabase.functions.invoke('repair-vacation-request', {
+        body: { request_id: requestId }
+      });
+
+      if (error) {
+        console.error('[Repair Vacation] ❌ Error:', error);
+        throw error;
+      }
+
+      if (!data?.success) {
+        console.error('[Repair Vacation] ❌ Failed:', data);
+        throw new Error(data?.message || 'Reparare eșuată');
+      }
+
+      console.log('[Repair Vacation] ✅ Success:', data);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationRequests() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
+      
+      if (data.days_removed > 0) {
+        toast.success(`✅ Reparare completă: ${data.days_removed} zile șterse din pontaj`);
+      } else if (data.days_not_found > 0) {
+        toast.info(`ℹ️ Nicio zi de șters - ${data.days_not_found} zile nu erau în pontaj`);
+      } else {
+        toast.info(`ℹ️ ${data.message || 'Reparare completă'}`);
+      }
+    },
+    onError: (error: any) => {
+      console.error('Error repairing request:', error);
+      toast.error(error.message || 'Eroare la reparare');
+    },
+  });
+
   return {
     requests,
     balance,
     isLoading,
     createRequest: createRequest.mutate,
     updateStatus: updateStatus.mutate,
+    repairWithdrawnRequest: repairWithdrawnRequest.mutate,
+    isRepairing: repairWithdrawnRequest.isPending,
   };
 };
