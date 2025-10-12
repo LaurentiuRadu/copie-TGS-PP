@@ -360,6 +360,24 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
             </div>
           )}
 
+          {/* Buton recalculare segmente - permanent vizibil */}
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={() => reprocessMutation.mutate()}
+              disabled={reprocessMutation.isPending}
+              variant="secondary"
+              size="sm"
+              className="gap-2"
+            >
+              {reprocessMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Recalculează Segmente
+            </Button>
+          </div>
+
           {/* Action buttons */}
           {pendingOnlyEntries.length > 0 && (
             <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -393,20 +411,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                   Editare în Lot ({selectedEntries.size})
                 </Button>
               )}
-              <Button
-                onClick={() => reprocessMutation.mutate()}
-                disabled={reprocessMutation.isPending}
-                variant="secondary"
-                size="sm"
-                className="gap-2 ml-auto"
-              >
-                {reprocessMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Recalculează Segmente
-              </Button>
             </div>
           )}
           {/* Statistici echipă */}
