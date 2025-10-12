@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.send-whatsapp-notification]
 verify_jwt = false
+
+[functions.cleanup-invalid-entries]
+verify_jwt = true
