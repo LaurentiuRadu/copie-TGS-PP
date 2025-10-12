@@ -629,7 +629,7 @@ Deno.serve(async (req) => {
 
     console.log(`[Aggregate] Found ${allTimeEntries?.length || 0} finalized time entries for affected dates`);
 
-    // ✅ STEP 3: Pentru fiecare entry, CALCULEAZĂ și SALVEAZĂ segmentele (dacă nu există)
+    // ✅ STEP 3: Pentru fiecare entry, CALCULEAZĂ și SALVEAZĂ segmentele (dacă nu există SAU dacă e marcat pentru recalculare)
     for (const entry of (allTimeEntries || [])) {
       const { data: existingSegs } = await supabase
         .from('time_entry_segments')
@@ -637,9 +637,33 @@ Deno.serve(async (req) => {
         .eq('time_entry_id', entry.id)
         .limit(1);
       
-      // Dacă entry-ul NU are segmente salvate, calculează-le și salvează-le
-      if (!existingSegs || existingSegs.length === 0) {
+      // Dacă entry-ul NU are segmente salvate SAU este marcat pentru recalculare, calculează-le
+      const needsCalculation = !existingSegs || existingSegs.length === 0;
+      
+      if (needsCalculation) {
         console.log(`[CalculateSegments] Entry ${entry.id} has NO segments - calculating now...`);
+      } else {
+        // Entry-ul are deja segmente - ștergem doar dacă e același entry ca cel procesat acum (recalculare)
+        if (entry.id === time_entry_id) {
+          console.log(`[CalculateSegments] Entry ${entry.id} is being recalculated - cleaning up old segments first...`);
+          const { error: deleteError } = await supabase
+            .from('time_entry_segments')
+            .delete()
+            .eq('time_entry_id', entry.id);
+          
+          if (deleteError) {
+            console.error(`[CalculateSegments] ❌ Failed to cleanup old segments:`, deleteError);
+          } else {
+            console.log(`[CalculateSegments] ✅ Cleaned up ${existingSegs.length} old segments before recalculation`);
+          }
+        } else {
+          console.log(`[CalculateSegments] Entry ${entry.id} already has segments - skipping`);
+          continue;
+        }
+      }
+      
+      // Continuăm cu calculul (fie că nu avea segmente, fie că le-am șters pentru recalculare)
+      if (needsCalculation || entry.id === time_entry_id) {
         
         // Extrage shift type
         const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
@@ -697,8 +721,6 @@ Deno.serve(async (req) => {
             console.log(`[CalculateSegments] ✅ Saved ${segmentsToSave.length} segments for entry ${entry.id}`);
           }
         }
-      } else {
-        console.log(`[CalculateSegments] Entry ${entry.id} already has segments - skipping`);
       }
     }
 
@@ -763,17 +785,10 @@ Deno.serve(async (req) => {
         (existing as any)[columnName] += segment.hours_decimal;
         console.log(`[Aggregate] → ${workDate}: ${segment.segment_type} → ${columnName} +${segment.hours_decimal.toFixed(3)}h`);
       }
-      // După agregare, șterge segmentele pentru acest entry
-      const { error: deleteError } = await supabase
-        .from('time_entry_segments')
-        .delete()
-        .eq('time_entry_id', entry.id);
       
-      if (deleteError) {
-        console.error(`[Aggregate] ⚠️ Failed to cleanup segments for entry ${entry.id}:`, deleteError);
-      } else {
-        console.log(`[Aggregate] ✅ Cleaned up ${savedSegments.length} segments for entry ${entry.id}`);
-      }
+      // ✅ PĂSTREAZĂ segmentele - NU ȘTERGE după agregare!
+      // Segmentele trebuie să rămână pentru audit, debugging și vizualizare
+      console.log(`[Aggregate] ✅ Keeping ${savedSegments.length} segments for entry ${entry.id} (audit trail)`);
     }
 
     // ✅ STEP 5: Rotunjire finală și validare
