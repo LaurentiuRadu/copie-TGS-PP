@@ -487,11 +487,11 @@ Deno.serve(async (req) => {
       // ✅ Mapare tip → segment_type CORECT pentru time_entry_segments
       let segmentType: string;
       if (shiftType === 'condus') {
-        segmentType = 'driving';
+        segmentType = 'hours_driving';
       } else if (shiftType === 'pasager') {
-        segmentType = 'passenger';
+        segmentType = 'hours_passenger';
       } else if (shiftType === 'utilaj') {
-        segmentType = 'equipment';
+        segmentType = 'hours_equipment';
       } else {
         // Pentru 'normal': determină tipul exact de ore bazat pe timp
         const { data: holidays } = await supabase
@@ -673,9 +673,9 @@ Deno.serve(async (req) => {
         const segmentsToSave: any[] = [];
         for (const timesheet of calculatedTimesheets) {
           const hoursMap = {
-            hours_driving: 'driving',
-            hours_passenger: 'passenger',
-            hours_equipment: 'equipment',
+            hours_driving: 'hours_driving',
+            hours_passenger: 'hours_passenger',
+            hours_equipment: 'hours_equipment',
             hours_regular: 'hours_regular',
             hours_night: 'hours_night',
             hours_saturday: 'hours_saturday',
