@@ -21,7 +21,6 @@ import { PayrollImportDialog } from "@/components/PayrollImportDialog";
 import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
 import { toast } from "sonner";
 import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
-import { CleanupTestDataButton } from "@/components/CleanupTestDataButton";
 import { QUERY_KEYS } from "@/lib/queryKeys";
 import { calculateCalendarView } from "@/lib/calendarViewUtils";
 
@@ -424,7 +423,6 @@ const Timesheet = () => {
                     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) });
                   }}
                 />
-                <CleanupTestDataButton />
                 <TimeEntryReprocessButton />
                 <PayrollExportDialog
                   allTimesheets={allTimesheets || []}

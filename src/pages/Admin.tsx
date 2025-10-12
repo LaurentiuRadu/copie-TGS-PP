@@ -1,16 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, TrendingUp, Clock, Calendar, AlertCircle, ChevronDown } from "lucide-react";
-import { MigrationTestPanel } from "@/components/MigrationTestPanel";
+import { Users, TrendingUp, Clock, Calendar, AlertCircle, ChevronDown, Wrench } from "lucide-react";
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
-
+import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
 import { SuspiciousEntriesManager } from "@/components/SuspiciousEntriesManager";
 import { VersionManager } from "@/components/VersionManager";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AutoCleanupExecutor } from "@/components/AutoCleanupExecutor";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -19,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 const Admin = () => {
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // ✅ Batch all admin stats in a single edge function call
@@ -145,16 +143,41 @@ const Admin = () => {
                   />
                 </div>
                 <CardDescription>
-                  Migrări, debug și management versiuni
+                  Management versiuni și reprocesare pontaje
                 </CardDescription>
               </CardHeader>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-6 pt-0">
-                <AutoCleanupExecutor />
                 <VersionManager />
-                <TimeSegmentDebugPanel />
-                <MigrationTestPanel />
+                <TimeEntryReprocessButton />
+                
+                {/* 🛠️ Developer Tools (Nested Collapsible) */}
+                <Collapsible open={devToolsOpen} onOpenChange={setDevToolsOpen}>
+                  <Card className="border-dashed">
+                    <CollapsibleTrigger className="w-full">
+                      <CardHeader className="cursor-pointer hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2 text-sm">
+                            <Wrench className="h-4 w-4" />
+                            Developer Tools
+                          </CardTitle>
+                          <ChevronDown 
+                            className={`h-4 w-4 transition-transform ${devToolsOpen ? 'rotate-180' : ''}`}
+                          />
+                        </div>
+                        <CardDescription className="text-xs">
+                          Instrumente avansate de debugging (doar pentru developeri)
+                        </CardDescription>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0">
+                        <TimeSegmentDebugPanel />
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
               </CardContent>
             </CollapsibleContent>
           </Card>
