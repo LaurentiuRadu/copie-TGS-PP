@@ -27,7 +27,7 @@ export default function TimesheetVerificare() {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6 md:p-8">
       <Card className="w-full max-w-7xl mx-auto">
         <CardHeader>
           <div className="flex flex-col gap-4">

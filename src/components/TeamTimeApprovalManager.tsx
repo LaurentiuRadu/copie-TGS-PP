@@ -7,6 +7,7 @@ import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Ca
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -484,9 +485,9 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                           <div className="mb-3">
                             <p className="text-xs text-muted-foreground mb-1">Data</p>
                             <p className="text-sm font-medium">
-                              {entry.clock_in_time
-                                ? format(new Date(entry.clock_in_time), 'EEEE, dd MMM yyyy', { locale: ro })
-                                : '-'}
+{entry.clock_in_time
+                                    ? formatRomania(entry.clock_in_time, 'EEEE, dd MMM yyyy')
+                                    : '-'}
                             </p>
                           </div>
 
@@ -500,14 +501,14 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                                 <div>
                                   <p className="text-muted-foreground text-xs">Intrare</p>
                                   <p className="font-mono text-amber-800 dark:text-amber-200">
-                                    {format(new Date(entry.original_clock_in_time), 'HH:mm')}
+                                    {formatRomania(entry.original_clock_in_time, 'HH:mm')}
                                   </p>
                                 </div>
                                 <div>
                                   <p className="text-muted-foreground text-xs">Ieșire</p>
                                   <p className="font-mono text-amber-800 dark:text-amber-200">
-                                    {entry.original_clock_out_time
-                                      ? format(new Date(entry.original_clock_out_time), 'HH:mm')
+{entry.original_clock_out_time
+                                      ? formatRomania(entry.original_clock_out_time, 'HH:mm')
                                       : '-'}
                                   </p>
                                 </div>
@@ -536,16 +537,16 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                               <div>
                                 <p className="text-muted-foreground text-xs">Intrare</p>
                                 <p className="font-medium">
-                                  {entry.clock_in_time
-                                    ? format(new Date(entry.clock_in_time), 'HH:mm', { locale: ro })
+{entry.clock_in_time
+                                    ? formatRomania(entry.clock_in_time, 'HH:mm')
                                     : '-'}
                                 </p>
                               </div>
                               <div>
                                 <p className="text-muted-foreground text-xs">Ieșire</p>
                                 <p className="font-medium">
-                                  {entry.clock_out_time
-                                    ? format(new Date(entry.clock_out_time), 'HH:mm', { locale: ro })
+{entry.clock_out_time
+                                    ? formatRomania(entry.clock_out_time, 'HH:mm')
                                     : '-'}
                                 </p>
                               </div>
@@ -718,7 +719,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                     {isApproved && entry.approved_at && (
                       <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800 text-xs text-muted-foreground italic flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-green-600" />
-                        Aprobat {format(new Date(entry.approved_at), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                        Aprobat {formatRomania(entry.approved_at, 'dd MMM yyyy, HH:mm')}
                       </div>
                     )}
                   </div>
