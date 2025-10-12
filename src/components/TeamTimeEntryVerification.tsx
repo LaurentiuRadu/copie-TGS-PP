@@ -144,19 +144,23 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
             )}
           </div>
 
-          {/* Informații Șef și Coordonator */}
+          {/* Informații Coordonator (Șef Echipă apare în tabel) */}
           {data && (data.teamLeader || data.coordinator) && (
             <div className="mt-4 flex items-center gap-6 text-sm border-t pt-4">
-              {data.teamLeader && (
+              {/* Dacă e doar Șef (nu și Coordonator) */}
+              {data.teamLeader && !data.coordinator && (
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">Șef Echipă</Badge>
                   <span className="font-medium">{data.teamLeader.full_name}</span>
+                  <span className="text-muted-foreground text-xs">{data.teamLeader.username}</span>
                 </div>
               )}
+              {/* Dacă e Coordonator (indiferent dacă e și Șef) */}
               {data.coordinator && (
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">Coordonator</Badge>
                   <span className="font-medium">{data.coordinator.full_name}</span>
+                  <span className="text-muted-foreground text-xs">{data.coordinator.username}</span>
                 </div>
               )}
             </div>
@@ -196,7 +200,18 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
                   {data.members.map(member => (
                     <TableRow key={member.user_id}>
                       <TableCell className="font-medium sticky left-0 bg-background z-10">
-                        {member.full_name}
+                        <div className="flex items-center gap-2">
+                          <span>{member.full_name}</span>
+                          {/* Badge Șef Echipă dacă membrul e team leader */}
+                          {data.teamLeader && member.user_id === data.teamLeader.user_id && (
+                            <Badge variant="outline" className="text-xs">
+                              Șef Echipă
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground block mt-1">
+                          {member.username}
+                        </span>
                       </TableCell>
                       {[1, 2, 3, 4, 5, 6, 7].map(dayOfWeek => {
                         const entries = member.entries[dayOfWeek] || [];
