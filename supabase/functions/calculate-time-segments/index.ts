@@ -108,6 +108,7 @@ function getNextCriticalTime(currentTime: Date): Date {
   const s = result.getSeconds();
   const totalSeconds = h * 3600 + m * 60 + s;
 
+  // Critical boundaries: 00:00, 06:00, 22:00
   // Boundaries must be STRICTLY after currentTime to avoid zero-length segments
   
   // Before 06:00 → go to 06:00
@@ -116,13 +117,7 @@ function getNextCriticalTime(currentTime: Date): Date {
     return result;
   }
   
-  // At 06:00:00 exactly → go to 06:01:00 (critical for Saturday/Sunday/Holiday transitions)
-  if (totalSeconds === 6 * 3600) {
-    result.setHours(6, 1, 0, 0);
-    return result;
-  }
-  
-  // Between 06:00:01 and 22:00 → go to 22:00
+  // Between 06:00 and 22:00 → go to 22:00
   if (totalSeconds < 22 * 3600) {
     result.setHours(22, 0, 0, 0);
     return result;
@@ -145,12 +140,12 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 
 /**
  * Determină tipul de ore bazat pe ziua săptămânii și interval orar
- * REGULI CORECTE (conform instrucțiunilor):
- * - Sărbătoare 06:00 → 23:59:59 = hours_holiday
- * - Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday
- * - Duminică 06:00 → 23:59:59 = hours_sunday
- * - Noapte 22:00 → 05:59:59 = hours_night (orice zi)
- * - Normal 06:00 → 21:59:59 = hours_regular (Luni-Vineri)
+ * PRIORITATE REGULI (de sus în jos):
+ * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate peste weekend)
+ * 2. Duminică 06:00 → 23:59:59 = hours_sunday
+ * 3. Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday (24h complet)
+ * 4. Noapte 22:00 → 05:59:59 = hours_night (DOAR Luni-Vineri + Sărbători 00:00-05:59)
+ * 5. Normal 06:00 → 21:59:59 = hours_regular (Luni-Vineri)
  */
 function determineHoursType(
   segmentStart: Date,
@@ -158,44 +153,36 @@ function determineHoursType(
   holidayDates: Set<string>
 ): string {
   const dayOfWeek = segmentStart.getDay(); // 0=Duminică, 1=Luni, ..., 6=Sâmbătă
-  const startHour = segmentStart.getHours();
-  const startMinute = segmentStart.getMinutes();
+  const hour = segmentStart.getHours();
   
-  // Verifică dacă este sărbătoare legală
-  if (isLegalHoliday(segmentStart, holidayDates)) {
-    // Sărbătoare 06:01 → 24:00
-    if (startHour > 6 || (startHour === 6 && startMinute >= 1)) {
-      return 'hours_holiday';
-    }
-    // Sărbătoare 00:00 → 06:00
-    if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
-      return 'hours_night';
-    }
+  // PRIORITATE 1: Sărbători legale (06:00 → 23:59:59)
+  // Sărbătoarea are prioritate peste weekend!
+  if (isLegalHoliday(segmentStart, holidayDates) && hour >= 6 && hour < 24) {
+    return 'hours_holiday';
   }
   
-  // SÂMBĂTĂ-DUMINICĂ (Sâmbătă 06:01 → Duminică 06:00)
-  if (
-    (dayOfWeek === 6 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) || // Sâmbătă de la 06:01
-    (dayOfWeek === 0 && (startHour < 6 || (startHour === 6 && startMinute === 0)))  // Duminică până la 06:00
-  ) {
-    return 'hours_saturday';
-  }
-  
-  // DUMINICĂ (Duminică 06:01 → 24:00)
-  if (dayOfWeek === 0 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) {
+  // PRIORITATE 2: Duminică (06:00 → 23:59:59)
+  if (dayOfWeek === 0 && hour >= 6 && hour < 24) {
     return 'hours_sunday';
   }
   
-  // NOAPTE (22:00 → 06:00) - oricare zi (Luni-Vineri)
-  if (startHour >= 22) {
+  // PRIORITATE 3: Sâmbătă (06:00 Sâmbătă → 05:59:59 Duminică)
+  // Weekend-ul "consumă" orele de noapte în intervalul său!
+  if (dayOfWeek === 6 && hour >= 6) {
+    return 'hours_saturday'; // Sâmbătă după 06:00
+  }
+  if (dayOfWeek === 0 && hour < 6) {
+    return 'hours_saturday'; // Duminică 00:00-05:59 (încă în interval Sâmbătă)
+  }
+  
+  // PRIORITATE 4: Noapte (22:00 → 05:59:59)
+  // DOAR pentru Luni-Vineri + Sărbători (înainte de 06:00)
+  // NU se aplică în Sâmbătă 06:00 → Duminică 23:59 (deja tratat mai sus)
+  if (hour >= 22 || hour < 6) {
     return 'hours_night';
   }
   
-  if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
-    return 'hours_night';
-  }
-  
-  // ORE NORMALE (06:01 → 21:59:59) - Luni-Vineri
+  // PRIORITATE 5: Normal (Luni-Vineri 06:00 → 21:59:59)
   return 'hours_regular';
 }
 
