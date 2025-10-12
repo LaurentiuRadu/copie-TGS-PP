@@ -771,7 +771,10 @@ const Mobile = () => {
 
   // Funcție pentru confirmare schimbare tip după dialog
   const confirmShiftTypeChange = useCallback(async () => {
-    if (!changeTypeDialog || !activeTimeEntry) return;
+    if (!changeTypeDialog || !activeTimeEntry || !user) {
+      console.error('[ShiftTypeChange] Missing required data');
+      return;
+    }
     
     const { toType } = changeTypeDialog;
     const previousShiftType = changeTypeDialog.fromType;
@@ -808,72 +811,113 @@ const Mobile = () => {
     // Actualizează timestamp-ul ultimei schimbări
     setLastTypeChangeTime(Date.now());
     
-    // Update UI și DB instant
     const newShiftLabel = getShiftTypeLabel(toType);
-    setActiveShift(toType);
+    const clockOutTime = new Date();
     
     try {
-      // Update notes în DB
-      const { error: updateError } = await supabase
+      console.log(`[ShiftTypeChange] Closing current entry (${previousShiftLabel}) and creating new one (${newShiftLabel})`);
+      
+      // ✅ Obține locația GPS
+      let loadingToast: string | number | undefined;
+      loadingToast = toast.info('Se obține locația GPS...', { duration: Infinity });
+      const position = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+        maxRetries: 3,
+        retryDelay: 1000
+      });
+      
+      if (loadingToast) toast.dismiss(loadingToast);
+      
+      const currentCoords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      
+      // ✅ PAS 1: Închide intrarea CURENTĂ cu clock_out_time
+      const { error: closeError } = await supabase
         .from('time_entries')
-        .update({ notes: `Tip: ${newShiftLabel}` })
+        .update({ 
+          clock_out_time: clockOutTime.toISOString(),
+          clock_out_latitude: currentCoords.latitude,
+          clock_out_longitude: currentCoords.longitude,
+          notes: activeTimeEntry.notes // păstrează notele originale (ex: "Tip: Condus")
+        })
         .eq('id', activeTimeEntry.id);
       
-      if (updateError) throw updateError;
+      if (closeError) {
+        console.error('[ShiftTypeChange] Error closing entry:', closeError);
+        throw closeError;
+      }
       
-      // Update local state
-      setActiveTimeEntry({ ...activeTimeEntry, notes: `Tip: ${newShiftLabel}` });
+      console.log(`[ShiftTypeChange] ✅ Closed entry ${activeTimeEntry.id} at ${clockOutTime.toISOString()}`);
       
-      toast.info(
-        `🔄 Schimbare la ${newShiftLabel}. Recalculare programată în 5s...`,
+      // ✅ PAS 2: Așteaptă 100ms pentru consistență DB
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // ✅ PAS 3: Invocă edge function pentru salvarea segmentelor intermediare
+      console.log(`[ShiftTypeChange] Invoking calculate-time-segments for intermediate calculation...`);
+      const { data: calcData, error: calcError } = await supabase.functions.invoke('calculate-time-segments', {
+        body: {
+          user_id: user.id,
+          time_entry_id: activeTimeEntry.id,
+          clock_in_time: activeTimeEntry.clock_in_time,
+          clock_out_time: clockOutTime.toISOString(),
+          notes: activeTimeEntry.notes,
+          previous_shift_type: previousShiftLabel,
+          current_shift_type: newShiftLabel,
+          isIntermediateCalculation: true // ✅ FLAG pentru salvare doar segmente
+        }
+      });
+      
+      if (calcError) {
+        console.error('[ShiftTypeChange] Error calculating segments:', calcError);
+        // Nu aruncăm eroare - continuăm cu crearea intrării noi
+      } else {
+        console.log(`[ShiftTypeChange] ✅ Segments saved for ${previousShiftLabel}:`, calcData);
+      }
+      
+      // ✅ PAS 4: Creează intrare NOUĂ pentru noul tip de shift
+      const { data: newEntry, error: insertError } = await supabase
+        .from('time_entries')
+        .insert({
+          user_id: user.id,
+          clock_in_time: clockOutTime.toISOString(),
+          clock_in_latitude: currentCoords.latitude,
+          clock_in_longitude: currentCoords.longitude,
+          notes: `Tip: ${newShiftLabel}`,
+          device_id: activeTimeEntry.device_id,
+          device_info: activeTimeEntry.device_info,
+          ip_address: activeTimeEntry.ip_address,
+          clock_in_location_id: activeTimeEntry.clock_in_location_id
+        })
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error('[ShiftTypeChange] Error creating new entry:', insertError);
+        throw insertError;
+      }
+      
+      console.log(`[ShiftTypeChange] ✅ Created new entry ${newEntry.id} for ${newShiftLabel}`);
+      
+      // ✅ PAS 5: Actualizează UI cu noua intrare
+      setActiveTimeEntry(newEntry);
+      setActiveShift(toType);
+      
+      toast.success(
+        `✅ Schimbat la ${newShiftLabel}!`,
         { duration: 5000 }
       );
-      triggerHaptic('light');
+      triggerHaptic('success');
       
-      // Schedule recalc după 5s debounce
-      const timer = setTimeout(async () => {
-        setIsRecalculating(true);
-        console.log('[RecalcInstant] Starting recalculation for shift type change...');
-        
-        try {
-          const { data, error } = await supabase.functions.invoke('calculate-time-segments', {
-            body: {
-              user_id: user?.id,
-              time_entry_id: activeTimeEntry.id,
-              clock_in_time: activeTimeEntry.clock_in_time,
-              clock_out_time: new Date().toISOString(),
-              notes: `Tip: ${newShiftLabel}`,
-              previous_shift_type: previousShiftLabel,
-              current_shift_type: newShiftLabel,
-              isIntermediateCalculation: true
-            }
-          });
-          
-          if (error) throw error;
-          
-          console.log('[RecalcInstant] ✅ Recalculare completă:', data);
-          toast.success(`✅ Ore recalculate pentru ${newShiftLabel}!`, { duration: 3000 });
-          triggerHaptic('success');
-        } catch (e: any) {
-          console.error('[RecalcInstant] ❌ Eroare recalculare:', e);
-          toast.error(
-            'Eroare la recalcularea orelor. Orele vor fi actualizate la închiderea pontajului.',
-            { duration: 5000 }
-          );
-          triggerHaptic('error');
-        } finally {
-          setIsRecalculating(false);
-          setRecalcDebounceTimer(null);
-        }
-      }, 5000);
-      
-      setRecalcDebounceTimer(timer);
     } catch (e: any) {
-      console.error('[ShiftTypeChange] Eroare la update:', e);
+      console.error('[ShiftTypeChange] ❌ Eroare:', e);
       toast.error('Eroare la schimbarea tipului de shift', { duration: 3000 });
       triggerHaptic('error');
     }
-  }, [changeTypeDialog, activeTimeEntry, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user?.id]);
+  }, [changeTypeDialog, activeTimeEntry, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user]);
 
   const handleConfirmShiftChange = useCallback(() => {
     setConfirmDialog({ open: false, newType: null });
