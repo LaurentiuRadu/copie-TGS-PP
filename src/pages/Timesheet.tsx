@@ -403,6 +403,17 @@ const Timesheet = () => {
                 </a>.
               </AlertDescription>
             </Alert>
+
+            {/* ✅ Banner protecție octombrie 2025 */}
+            {format(currentMonth, 'yyyy-MM') === '2025-10' && (
+              <Alert className="mt-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                <Info className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800 dark:text-amber-200">
+                  📅 <strong>Notă</strong>: Datele pentru perioada 01-12.10.2025 sunt gestionate în Payroll extern. 
+                  Sistemul automatizat de pontaj este activ începând cu 13.10.2025.
+                </AlertDescription>
+              </Alert>
+            )}
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
               <div className="flex-1 w-full sm:w-auto">

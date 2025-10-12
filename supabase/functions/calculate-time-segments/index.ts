@@ -835,8 +835,36 @@ Deno.serve(async (req) => {
     }
 
     // ✅ STEP 6: RECONCILIATION & UPSERT
+    // ✅ PROTECȚIE: Exclude perioada < 13.10.2025 (Payroll manual extern)
+    const PROTECTED_PERIOD_START = '2025-10-13';
+    
+    // Filtrează doar datele >= 13.10.2025
+    const filteredTimesheets = finalTimesheets.filter(ts => {
+      const isProtected = ts.work_date < PROTECTED_PERIOD_START;
+      if (isProtected) {
+        console.log(`[Protected Period] ⚠️ Skipping ${ts.work_date} (< ${PROTECTED_PERIOD_START})`);
+      }
+      return !isProtected;
+    });
+
+    // Verifică dacă toate au fost filtrate
+    if (filteredTimesheets.length === 0) {
+      console.log(`[Protected Period] All ${finalTimesheets.length} timesheets are in protected range - no upsert needed`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `All timesheets before ${PROTECTED_PERIOD_START} - protected from overwrite`,
+          protected: true,
+          skipped_count: finalTimesheets.length
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[Protected Period] Processing ${filteredTimesheets.length}/${finalTimesheets.length} timesheets (skipped ${finalTimesheets.length - filteredTimesheets.length} protected entries)`);
+    
     // Șterge datele importate (marcate cu [IMPORT]) pentru zilele care urmează să fie recalculate
-    const workDates = finalTimesheets.map(t => t.work_date);
+    const workDates = filteredTimesheets.map(t => t.work_date);
     if (workDates.length > 0) {
       const { error: deleteError, count: deletedCount } = await supabase
         .from('daily_timesheets')
@@ -852,8 +880,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // UPSERT agregat - exclude start_time/end_time (nu există în tabel)
-    for (const timesheet of finalTimesheets) {
+    // UPSERT doar timesheets-urile filtrate (>= 13.10.2025)
+    for (const timesheet of filteredTimesheets) {
       const { start_time, end_time, ...timesheetData } = timesheet;
       
       const { error: upsertError } = await supabase
