@@ -152,11 +152,12 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
 
       if (error) throw error;
 
-      // If withdrawn and type is 'vacation' (CO), remove from daily_timesheets
-      if (status === 'withdrawn') {
-        const request = requests.find(r => r.id === id);
-        if (request && request.type === 'vacation' && request.status === 'approved') {
-          console.log(`[Vacation Withdrawal] 🔄 Withdrawing request: ${id}`);
+      const request = requests.find(r => r.id === id);
+
+      // If withdrawn, remove from daily_timesheets
+      if (status === 'withdrawn' && request && request.status === 'approved') {
+        if (request.type === 'vacation') {
+          console.log(`[Vacation Withdrawal] 🔄 Withdrawing CO request: ${id}`);
           
           try {
             const { data, error: withdrawError } = await supabase.functions.invoke('withdraw-approved-vacation', {
@@ -168,12 +169,12 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
 
             if (withdrawError) {
               console.error('[Vacation Withdrawal] ❌ Edge function error:', withdrawError);
-              throw new Error(`Eroare la retragere: ${withdrawError.message}`);
+              throw new Error(`Eroare la retragere CO: ${withdrawError.message}`);
             }
 
             if (data?.success === false || data?.days_failed > 0) {
               console.error('[Vacation Withdrawal] ⚠️ Partial failure:', data);
-              throw new Error(`Retragere parțială: ${data.days_removed}/${data.total_days} zile eliminate. ${data.days_failed} eșuate.`);
+              throw new Error(`Retragere CO parțială: ${data.days_removed}/${data.total_days} zile eliminate. ${data.days_failed} eșuate.`);
             }
 
             console.log(`[Vacation Withdrawal] ✅ Successfully withdrawn ${data.days_removed} days`);
@@ -182,14 +183,40 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
             console.error('[Vacation Withdrawal] ❌ Withdrawal failed:', error);
             throw error;
           }
+        } else if (request.type === 'sick') {
+          console.log(`[Medical Withdrawal] 🔄 Withdrawing CM request: ${id}`);
+          
+          try {
+            const { data, error: withdrawError } = await supabase.functions.invoke('withdraw-approved-medical-leave', {
+              body: {
+                request_id: id,
+                reason: adminNotes || 'Retras de utilizator'
+              }
+            });
+
+            if (withdrawError) {
+              console.error('[Medical Withdrawal] ❌ Edge function error:', withdrawError);
+              throw new Error(`Eroare la retragere CM: ${withdrawError.message}`);
+            }
+
+            if (data?.success === false || data?.days_failed > 0) {
+              console.error('[Medical Withdrawal] ⚠️ Partial failure:', data);
+              throw new Error(`Retragere CM parțială: ${data.days_removed}/${data.total_days} zile eliminate. ${data.days_failed} eșuate.`);
+            }
+
+            console.log(`[Medical Withdrawal] ✅ Successfully withdrawn ${data.days_removed} days`);
+            return { request, withdrawResult: data };
+          } catch (error: any) {
+            console.error('[Medical Withdrawal] ❌ Withdrawal failed:', error);
+            throw error;
+          }
         }
       }
 
-      // If approved and type is 'vacation' (CO), auto-write to daily_timesheets
-      if (status === 'approved') {
-        const request = requests.find(r => r.id === id);
-        if (request && request.type === 'vacation') {
-          console.log(`[Vacation Approval] ✅ Request approved: ${id}`);
+      // If approved, auto-write to daily_timesheets
+      if (status === 'approved' && request) {
+        if (request.type === 'vacation') {
+          console.log(`[Vacation Approval] ✅ CO Request approved: ${id}`);
           console.log(`[Vacation Approval] 🔄 Processing ${request.days_count} days to timesheet...`);
           
           try {
@@ -204,12 +231,12 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
 
             if (processError) {
               console.error('[Vacation Approval] ❌ Edge function error:', processError);
-              throw new Error(`Cerere aprobată, dar eroare la procesare: ${processError.message}`);
+              throw new Error(`Cerere CO aprobată, dar eroare la procesare: ${processError.message}`);
             }
 
             if (data?.success === false || data?.days_failed > 0) {
               console.error('[Vacation Approval] ⚠️ Partial failure:', data);
-              throw new Error(`Procesare parțială: ${data.days_processed}/${data.total_days} zile adăugate. ${data.days_failed} eșuate.`);
+              throw new Error(`Procesare CO parțială: ${data.days_processed}/${data.total_days} zile adăugate. ${data.days_failed} eșuate.`);
             }
 
             console.log(`[Vacation Approval] ✅ Successfully processed ${data.days_processed} days`);
@@ -218,10 +245,40 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
             console.error('[Vacation Approval] ❌ Processing failed:', error);
             throw error;
           }
+        } else if (request.type === 'sick') {
+          console.log(`[Medical Approval] ✅ CM Request approved: ${id}`);
+          console.log(`[Medical Approval] 🔄 Processing ${request.days_count} days to timesheet...`);
+          
+          try {
+            const { data, error: processError } = await supabase.functions.invoke('process-approved-medical-leave', {
+              body: {
+                request_id: id,
+                user_id: request.user_id,
+                start_date: request.start_date,
+                end_date: request.end_date,
+              }
+            });
+
+            if (processError) {
+              console.error('[Medical Approval] ❌ Edge function error:', processError);
+              throw new Error(`Cerere CM aprobată, dar eroare la procesare: ${processError.message}`);
+            }
+
+            if (data?.success === false || data?.days_failed > 0) {
+              console.error('[Medical Approval] ⚠️ Partial failure:', data);
+              throw new Error(`Procesare CM parțială: ${data.days_processed}/${data.total_days} zile adăugate. ${data.days_failed} eșuate.`);
+            }
+
+            console.log(`[Medical Approval] ✅ Successfully processed ${data.days_processed} days`);
+            return { request, processResult: data };
+          } catch (error: any) {
+            console.error('[Medical Approval] ❌ Processing failed:', error);
+            throw error;
+          }
         }
       }
 
-      return { request: requests.find(r => r.id === id) };
+      return { request };
     },
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationRequests() });
@@ -232,24 +289,40 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       const processResult = result?.processResult;
       const withdrawResult = result?.withdrawResult;
       
-      if (variables.status === 'withdrawn' && request?.type === 'vacation') {
-        if (withdrawResult?.success) {
-          toast.success(`✅ Cerere CO retrasă! ${withdrawResult.days_removed} zile eliminate din pontaj`);
-        } else if (withdrawResult?.days_removed > 0) {
-          toast.success(`⚠️ Retragere parțială: ${withdrawResult.days_removed}/${withdrawResult.total_days} zile eliminate`);
+      if (variables.status === 'withdrawn') {
+        if (request?.type === 'vacation') {
+          if (withdrawResult?.success) {
+            toast.success(`✅ Cerere CO retrasă! ${withdrawResult.days_removed} zile eliminate din pontaj`);
+          } else if (withdrawResult?.days_removed > 0) {
+            toast.success(`⚠️ Retragere CO parțială: ${withdrawResult.days_removed}/${withdrawResult.total_days} zile eliminate`);
+          }
+        } else if (request?.type === 'sick') {
+          if (withdrawResult?.success) {
+            toast.success(`✅ Cerere CM retrasă! ${withdrawResult.days_removed} zile eliminate din pontaj`);
+          } else if (withdrawResult?.days_removed > 0) {
+            toast.success(`⚠️ Retragere CM parțială: ${withdrawResult.days_removed}/${withdrawResult.total_days} zile eliminate`);
+          }
+        } else {
+          toast.success('✅ Cerere retrasă');
         }
-      } else if (variables.status === 'approved' && request?.type === 'vacation') {
-        if (processResult?.success) {
-          toast.success(`✅ Cerere CO aprobată! ${processResult.days_processed} zile (8h/zi) adăugate în pontaj`);
-        } else if (processResult?.days_processed > 0) {
-          toast.success(`⚠️ Cerere aprobată parțial: ${processResult.days_processed}/${processResult.total_days} zile procesate`);
+      } else if (variables.status === 'approved') {
+        if (request?.type === 'vacation') {
+          if (processResult?.success) {
+            toast.success(`✅ Cerere CO aprobată! ${processResult.days_processed} zile (8h/zi) adăugate în pontaj`);
+          } else if (processResult?.days_processed > 0) {
+            toast.success(`⚠️ Cerere CO aprobată parțial: ${processResult.days_processed}/${processResult.total_days} zile procesate`);
+          }
+        } else if (request?.type === 'sick') {
+          if (processResult?.success) {
+            toast.success(`✅ Cerere CM aprobată! ${processResult.days_processed} zile (8h/zi) adăugate în pontaj`);
+          } else if (processResult?.days_processed > 0) {
+            toast.success(`⚠️ Cerere CM aprobată parțial: ${processResult.days_processed}/${processResult.total_days} zile procesate`);
+          }
+        } else {
+          toast.success('✅ Cerere aprobată');
         }
-      } else {
-        toast.success(
-          variables.status === 'approved' ? '✅ Cerere aprobată' : 
-          variables.status === 'rejected' ? '❌ Cerere respinsă' :
-          '✅ Cerere retrasă'
-        );
+      } else if (variables.status === 'rejected') {
+        toast.success('❌ Cerere respinsă');
       }
     },
     onError: (error: any) => {

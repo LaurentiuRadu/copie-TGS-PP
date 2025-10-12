@@ -41,3 +41,18 @@ verify_jwt = false
 
 [functions.cleanup-invalid-entries]
 verify_jwt = true
+
+[functions.process-approved-vacation]
+verify_jwt = true
+
+[functions.withdraw-approved-vacation]
+verify_jwt = true
+
+[functions.process-approved-medical-leave]
+verify_jwt = true
+
+[functions.withdraw-approved-medical-leave]
+verify_jwt = true
+
+[functions.test-schedule-notifications]
+verify_jwt = true

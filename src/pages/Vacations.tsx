@@ -248,7 +248,7 @@ const Vacations = () => {
                     return (
                       <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
                         <p className="text-sm font-medium text-primary">
-                          📅 {weekdaysCount} zile CO (exclude weekend-urile)
+                          📅 {weekdaysCount} zile lucrătoare (exclude weekend-urile)
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {format(dateRange.from, 'dd MMM yyyy', { locale: ro })} - {format(dateRange.to, 'dd MMM yyyy', { locale: ro })}
@@ -431,8 +431,8 @@ const Vacations = () => {
                             </div>
                           )}
 
-                          {/* Buton Retrage pentru approved CO */}
-                          {request.status === 'approved' && request.type === 'vacation' && (
+                          {/* Buton Retrage pentru approved CO sau CM */}
+                          {request.status === 'approved' && (request.type === 'vacation' || request.type === 'sick') && (
                             (isAdmin || request.user_id === user?.id) && (
                               new Date(request.end_date) >= new Date() && (
                                 <div className="ml-4">
