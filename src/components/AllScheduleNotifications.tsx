@@ -203,7 +203,9 @@ export function AllScheduleNotifications() {
                         {schedule.team_id}
                       </TableCell>
                       <TableCell className="text-center">
-                        {dayNames[schedule.day_of_week - 1]}
+                        {schedule.day_of_week && schedule.day_of_week >= 1 && schedule.day_of_week <= 7
+                          ? dayNames[schedule.day_of_week - 1]
+                          : 'N/A'}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={schedule.shift_type === 'noapte' ? 'secondary' : 'default'}>

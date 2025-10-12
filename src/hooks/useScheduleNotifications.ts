@@ -27,6 +27,10 @@ export const useScheduleNotifications = () => {
             vehicle,
             observations,
             shift_type
+          ),
+          profiles!schedule_notifications_user_id_fkey (
+            full_name,
+            username
           )
         `)
         .eq('user_id', user.id)
@@ -61,6 +65,10 @@ export const useScheduleNotifications = () => {
             vehicle,
             observations,
             shift_type
+          ),
+          profiles!schedule_notifications_user_id_fkey (
+            full_name,
+            username
           )
         `)
         .eq('user_id', user.id)

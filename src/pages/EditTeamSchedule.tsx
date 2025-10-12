@@ -102,7 +102,7 @@ export default function EditTeamSchedule() {
 
   // Fetch locations from database
   const { data: dbLocations } = useQuery({
-    queryKey: ['locations'],
+    queryKey: ['locations-names'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('locations')
