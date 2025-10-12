@@ -104,6 +104,12 @@ const Mobile = () => {
     originalShiftType?: ShiftType;
     location: { name: string; address?: string } | null;
   } | null>(null);
+  const [changeTypeDialog, setChangeTypeDialog] = useState<{
+    show: boolean;
+    fromType: ShiftType;
+    toType: ShiftType;
+    duration: number;
+  } | null>(null);
   
   const safeArea = useSafeArea();
   const { triggerHaptic } = useHapticFeedback();
@@ -130,7 +136,7 @@ const Mobile = () => {
     };
   }, [recalcDebounceTimer]);
 
-  // Cronometru pentru cooldown schimbare tip tură (30s)
+  // Cronometru pentru cooldown schimbare tip tură (10s redus de la 30s)
   useEffect(() => {
     if (!lastTypeChangeTime) {
       setTypeChangeCooldownRemaining(0);
@@ -139,7 +145,7 @@ const Mobile = () => {
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastTypeChangeTime;
-      const remaining = Math.max(0, 30000 - elapsed); // 30 secunde = 30000ms
+      const remaining = Math.max(0, 10000 - elapsed); // 10 secunde = 10000ms
       
       setTypeChangeCooldownRemaining(Math.ceil(remaining / 1000));
       
@@ -734,15 +740,15 @@ const Mobile = () => {
   const handleShiftTypeChange = useCallback(async (newType: ShiftType) => {
     if (!newType || !activeTimeEntry) return;
     
-    // 1. Check cooldown de 30s
+    // 1. Check cooldown de 10s (redus de la 30s)
     if (lastTypeChangeTime) {
       const elapsed = Date.now() - lastTypeChangeTime;
-      if (elapsed < 30000) { // 30 secunde
-        const remainingSeconds = Math.ceil((30000 - elapsed) / 1000);
+      if (elapsed < 10000) { // 10 secunde
+        const remainingSeconds = Math.ceil((10000 - elapsed) / 1000);
         toast.error(
           `Așteaptă ${remainingSeconds}s înainte să schimbi tipul turii`,
           {
-            description: "Pentru a preveni fragmentarea orelor",
+            description: "Pentru a preveni apăsări accidentale",
             duration: 3000
           }
         );
@@ -751,13 +757,36 @@ const Mobile = () => {
       }
     }
     
-    // 2. Clear previous debounce
+    // 2. Calculează durata turei actuale
+    const currentDuration = (Date.now() - new Date(activeTimeEntry.clock_in_time).getTime()) / 1000;
+    
+    // 3. Deschide dialog de confirmare
+    setChangeTypeDialog({
+      show: true,
+      fromType: activeShift,
+      toType: newType,
+      duration: currentDuration
+    });
+  }, [activeTimeEntry, activeShift, lastTypeChangeTime, triggerHaptic]);
+
+  // Funcție pentru confirmare schimbare tip după dialog
+  const confirmShiftTypeChange = useCallback(async () => {
+    if (!changeTypeDialog || !activeTimeEntry) return;
+    
+    const { toType } = changeTypeDialog;
+    const previousShiftType = changeTypeDialog.fromType;
+    const previousShiftLabel = previousShiftType ? getShiftTypeLabel(previousShiftType) : null;
+    
+    // Închide dialog-ul
+    setChangeTypeDialog(null);
+    
+    // Clear previous debounce
     if (recalcDebounceTimer) {
       clearTimeout(recalcDebounceTimer);
       setRecalcDebounceTimer(null);
     }
     
-    // 3. Check battery
+    // Check battery
     if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
       toast.error(
         `⚠️ Baterie critică (${Math.round(batteryInfo.level * 100)}%)! Conectează dispozitivul la încărcare pentru recalculare.`,
@@ -770,22 +799,18 @@ const Mobile = () => {
       return;
     }
     
-    // 4. Check if already recalculating
+    // Check if already recalculating
     if (isRecalculating) {
       toast.warning('Recalculare în curs... Te rog așteaptă.', { duration: 3000 });
       return;
     }
     
-    // 5. **ACTUALIZEAZĂ timestamp-ul ultimei schimbări ÎNAINTE de orice altceva**
+    // Actualizează timestamp-ul ultimei schimbări
     setLastTypeChangeTime(Date.now());
     
-    // 6. ✅ CRUCIAL: Capturează shift-ul anterior ÎNAINTE să-l actualizezi
-    const previousShiftType = activeShift;
-    const previousShiftLabel = previousShiftType ? getShiftTypeLabel(previousShiftType) : null;
-    
-    // 7. Update UI și DB instant
-    const newShiftLabel = getShiftTypeLabel(newType);
-    setActiveShift(newType);
+    // Update UI și DB instant
+    const newShiftLabel = getShiftTypeLabel(toType);
+    setActiveShift(toType);
     
     try {
       // Update notes în DB
@@ -805,7 +830,7 @@ const Mobile = () => {
       );
       triggerHaptic('light');
       
-      // 5. Schedule recalc după 5s debounce
+      // Schedule recalc după 5s debounce
       const timer = setTimeout(async () => {
         setIsRecalculating(true);
         console.log('[RecalcInstant] Starting recalculation for shift type change...');
@@ -816,11 +841,11 @@ const Mobile = () => {
               user_id: user?.id,
               time_entry_id: activeTimeEntry.id,
               clock_in_time: activeTimeEntry.clock_in_time,
-              clock_out_time: new Date().toISOString(), // ACUM (parțial)
+              clock_out_time: new Date().toISOString(),
               notes: `Tip: ${newShiftLabel}`,
-              previous_shift_type: previousShiftLabel, // ✅ Shift-ul ANTERIOR (pentru segment intermediar)
-              current_shift_type: newShiftLabel,       // ✅ Shift-ul NOU (pentru tracking)
-              isIntermediateCalculation: true // ✅ Flag explicit pentru recalculare intermediară
+              previous_shift_type: previousShiftLabel,
+              current_shift_type: newShiftLabel,
+              isIntermediateCalculation: true
             }
           });
           
@@ -848,7 +873,7 @@ const Mobile = () => {
       toast.error('Eroare la schimbarea tipului de shift', { duration: 3000 });
       triggerHaptic('error');
     }
-  }, [activeTimeEntry, lastTypeChangeTime, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user?.id]);
+  }, [changeTypeDialog, activeTimeEntry, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user?.id]);
 
   const handleConfirmShiftChange = useCallback(() => {
     setConfirmDialog({ open: false, newType: null });
@@ -1819,6 +1844,42 @@ const Mobile = () => {
           location={preClockDialog.location}
           loading={isProcessing}
         />
+      )}
+
+      {/* Shift Type Change Confirmation Dialog */}
+      {changeTypeDialog?.show && (
+        <AlertDialog open={true} onOpenChange={() => setChangeTypeDialog(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Schimbare Tip Tură</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3">
+                <p>
+                  Vrei să schimbi din <strong className="text-foreground">{getShiftTypeLabel(changeTypeDialog.fromType)}</strong> în <strong className="text-foreground">{getShiftTypeLabel(changeTypeDialog.toType)}</strong>?
+                </p>
+                
+                {changeTypeDialog.duration < 600 && (
+                  <p className="mt-2 text-orange-600 dark:text-orange-400 font-semibold">
+                    ⚠️ Tura actuală a durat doar {Math.round(changeTypeDialog.duration / 60)} minute. 
+                    Sigur vrei să o închizi?
+                  </p>
+                )}
+                
+                <p className="text-sm text-muted-foreground">
+                  Tura actuală (<strong>{getShiftTypeLabel(changeTypeDialog.fromType)}</strong>) va fi închisă 
+                  și va începe o tură nouă de tip <strong>{getShiftTypeLabel(changeTypeDialog.toType)}</strong>.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setChangeTypeDialog(null)}>
+                ❌ Anulează
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={confirmShiftTypeChange}>
+                ✅ Confirmă Schimbarea
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
       </div>
     </AdminLayout>
