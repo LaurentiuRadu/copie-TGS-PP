@@ -600,82 +600,7 @@ Deno.serve(async (req) => {
     
     const holidayDates = new Set((holidays || []).map(h => h.date));
 
-    // ✅ STEP 1: SALVEAZĂ SEGMENTELE pentru entry-ul curent ÎNAINTE de agregare
-    console.log('[SaveSegments] Calculating and saving segments for current entry...');
-    
-    // Verifică dacă entry-ul curent are deja segmente intermediare salvate
-    const { data: existingSegments } = await supabase
-      .from('time_entry_segments')
-      .select('*')
-      .eq('time_entry_id', time_entry_id)
-      .order('end_time', { ascending: false })
-      .limit(1);
-    
-    // Calculează segmentul final (de la ultimul switch sau de la clock_in până la clock_out)
-    const finalSegmentStart = existingSegments && existingSegments.length > 0 
-      ? existingSegments[0].end_time 
-      : clock_in_time;
-    
-    const finalSegmentEnd = clock_out_time;
-    const finalDurationHours = (new Date(finalSegmentEnd).getTime() - new Date(finalSegmentStart).getTime()) / 3600000;
-    
-    console.log(`[SaveSegments] Final segment: ${finalSegmentStart} → ${finalSegmentEnd} (${finalDurationHours.toFixed(3)}h, type: ${shiftType})`);
-    
-    // Calculează toate segmentele folosind logica existentă
-    const shift: Shift = {
-      startTime: finalSegmentStart,
-      endTime: finalSegmentEnd,
-      employeeId: user_id,
-      notes,
-      shiftType
-    };
-    
-    const calculatedTimesheets = segmentShiftIntoTimesheets(shift, holidayDates);
-    
-    // Transformă timesheets în segmente pentru salvare
-    const segmentsToSave: any[] = [];
-    for (const timesheet of calculatedTimesheets) {
-      // Pentru fiecare categorie de ore din timesheet, creează un segment
-      const hoursMap = {
-        hours_driving: 'driving',
-        hours_passenger: 'passenger',
-        hours_equipment: 'equipment',
-        hours_regular: 'hours_regular',
-        hours_night: 'hours_night',
-        hours_saturday: 'hours_saturday',
-        hours_sunday: 'hours_sunday',
-        hours_holiday: 'hours_holiday'
-      };
-      
-      for (const [hoursField, segmentType] of Object.entries(hoursMap)) {
-        const hoursValue = (timesheet as any)[hoursField];
-        if (hoursValue > 0) {
-          segmentsToSave.push({
-            time_entry_id,
-            segment_type: segmentType,
-            start_time: timesheet.start_time || finalSegmentStart,
-            end_time: timesheet.end_time || finalSegmentEnd,
-            hours_decimal: hoursValue,
-            multiplier: 1.0
-          });
-        }
-      }
-    }
-    
-    if (segmentsToSave.length > 0) {
-      const { error: saveError } = await supabase
-        .from('time_entry_segments')
-        .insert(segmentsToSave);
-      
-      if (saveError) {
-        console.error('[SaveSegments] ❌ Error saving segments:', saveError);
-        throw new Error(`Failed to save segments: ${saveError.message}`);
-      }
-      
-      console.log(`[SaveSegments] ✅ Saved ${segmentsToSave.length} segments for entry ${time_entry_id}`);
-    }
-
-    // ✅ STEP 2: Identifică zilele afectate de acest time_entry
+    // ✅ STEP 1: Identifică zilele afectate de acest time_entry
     const startUTC = new Date(clock_in_time);
     const endUTC = new Date(clock_out_time);
     const ROMANIA_OFFSET_MS = getRomaniaOffsetMs(startUTC);
@@ -700,7 +625,7 @@ Deno.serve(async (req) => {
     
     console.log(`[Aggregate] Affected dates: ${Array.from(affectedDates).join(', ')}`);
 
-    // ✅ STEP 3: Găsește TOATE pontajele finalizate pentru user pentru zilele afectate
+    // ✅ STEP 2: Găsește TOATE pontajele finalizate pentru user pentru zilele afectate
     const { data: allTimeEntries, error: fetchError } = await supabase
       .from('time_entries')
       .select('id, user_id, clock_in_time, clock_out_time, notes')
@@ -716,7 +641,80 @@ Deno.serve(async (req) => {
 
     console.log(`[Aggregate] Found ${allTimeEntries?.length || 0} finalized time entries for affected dates`);
 
-    // ✅ STEP 4: AGREGARE BAZATĂ DOAR PE SEGMENTE SALVATE (NU recalculare!)
+    // ✅ STEP 3: Pentru fiecare entry, CALCULEAZĂ și SALVEAZĂ segmentele (dacă nu există)
+    for (const entry of (allTimeEntries || [])) {
+      const { data: existingSegs } = await supabase
+        .from('time_entry_segments')
+        .select('id')
+        .eq('time_entry_id', entry.id)
+        .limit(1);
+      
+      // Dacă entry-ul NU are segmente salvate, calculează-le și salvează-le
+      if (!existingSegs || existingSegs.length === 0) {
+        console.log(`[CalculateSegments] Entry ${entry.id} has NO segments - calculating now...`);
+        
+        // Extrage shift type
+        const entryShiftTypeMatch = entry.notes?.match(/Tip:\s*(Condus Utilaj|Utilaj|Condus|Pasager|Normal)/i);
+        let entryShiftType = entryShiftTypeMatch ? entryShiftTypeMatch[1].toLowerCase() : 'normal';
+        if (entryShiftType === 'condus utilaj') entryShiftType = 'utilaj';
+        
+        // Calculează segmentele
+        const entryShift: Shift = {
+          startTime: entry.clock_in_time,
+          endTime: entry.clock_out_time!,
+          employeeId: entry.user_id,
+          notes: entry.notes,
+          shiftType: entryShiftType
+        };
+        
+        const calculatedTimesheets = segmentShiftIntoTimesheets(entryShift, holidayDates);
+        
+        // Transformă în segmente
+        const segmentsToSave: any[] = [];
+        for (const timesheet of calculatedTimesheets) {
+          const hoursMap = {
+            hours_driving: 'driving',
+            hours_passenger: 'passenger',
+            hours_equipment: 'equipment',
+            hours_regular: 'hours_regular',
+            hours_night: 'hours_night',
+            hours_saturday: 'hours_saturday',
+            hours_sunday: 'hours_sunday',
+            hours_holiday: 'hours_holiday'
+          };
+          
+          for (const [hoursField, segmentType] of Object.entries(hoursMap)) {
+            const hoursValue = (timesheet as any)[hoursField];
+            if (hoursValue > 0) {
+              segmentsToSave.push({
+                time_entry_id: entry.id,
+                segment_type: segmentType,
+                start_time: timesheet.start_time || entry.clock_in_time,
+                end_time: timesheet.end_time || entry.clock_out_time,
+                hours_decimal: hoursValue,
+                multiplier: 1.0
+              });
+            }
+          }
+        }
+        
+        if (segmentsToSave.length > 0) {
+          const { error: saveError } = await supabase
+            .from('time_entry_segments')
+            .insert(segmentsToSave);
+          
+          if (saveError) {
+            console.error(`[CalculateSegments] ❌ Error saving segments for entry ${entry.id}:`, saveError);
+          } else {
+            console.log(`[CalculateSegments] ✅ Saved ${segmentsToSave.length} segments for entry ${entry.id}`);
+          }
+        }
+      } else {
+        console.log(`[CalculateSegments] Entry ${entry.id} already has segments - skipping`);
+      }
+    }
+
+    // ✅ STEP 4: AGREGARE BAZATĂ DOAR PE SEGMENTE SALVATE
     const aggregatedTimesheets = new Map<string, TimesheetEntry>();
 
     for (const entry of (allTimeEntries || [])) {
@@ -728,7 +726,7 @@ Deno.serve(async (req) => {
         .order('start_time', { ascending: true });
       
       if (!savedSegments || savedSegments.length === 0) {
-        console.warn(`[Aggregate] ⚠️ Entry ${entry.id} has NO saved segments - skipping (should not happen!)`);
+        console.warn(`[Aggregate] ⚠️ Entry ${entry.id} has NO saved segments - skipping`);
         continue;
       }
       
@@ -776,7 +774,6 @@ Deno.serve(async (req) => {
         (existing as any)[columnName] += segment.hours_decimal;
         console.log(`[Aggregate] → ${workDate}: ${segment.segment_type} → ${columnName} +${segment.hours_decimal.toFixed(3)}h`);
       }
-      
       // După agregare, șterge segmentele pentru acest entry
       const { error: deleteError } = await supabase
         .from('time_entry_segments')

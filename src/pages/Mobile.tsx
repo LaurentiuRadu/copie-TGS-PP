@@ -19,6 +19,7 @@ import { useOptimizedMyTimeEntries } from '@/hooks/useOptimizedTimeEntries';
 import { useMyDailyTimesheets } from '@/hooks/useDailyTimesheets';
 import { cn } from '@/lib/utils';
 import { QUERY_KEYS } from '@/lib/queryKeys';
+import { QuickReprocessTest } from "@/components/QuickReprocessTest";
 import {
   Sheet,
   SheetContent,

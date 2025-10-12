@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Users, TrendingUp, Clock, Calendar, AlertCircle, ChevronDown } from "lucide-react";
 import { MigrationTestPanel } from "@/components/MigrationTestPanel";
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
+import { ManualReprocessButton } from "@/components/ManualReprocessButton";
+import { QuickReprocessTest } from "@/components/QuickReprocessTest";
 
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { HistoricalDataMigration } from "@/components/HistoricalDataMigration";
@@ -152,6 +154,7 @@ const Admin = () => {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-6 pt-0">
+                <ManualReprocessButton />
                 <AutoCleanupExecutor />
                 <VersionManager />
                 <HistoricalDataMigration />
