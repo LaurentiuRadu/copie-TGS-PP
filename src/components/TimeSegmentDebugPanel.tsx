@@ -19,6 +19,7 @@ interface Segment {
 export const TimeSegmentDebugPanel = () => {
   const [clockInTime, setClockInTime] = useState("2025-10-03T14:45:57");
   const [clockOutTime, setClockOutTime] = useState("2025-10-04T08:00:00");
+  const [shiftType, setShiftType] = useState<'normal' | 'condus' | 'pasager' | 'utilaj'>('normal');
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
 
@@ -106,33 +107,56 @@ export const TimeSegmentDebugPanel = () => {
       }
 
       const calculatedSegments: Segment[] = [];
-      let currentTime = new Date(start);
 
-      while (currentTime < end) {
-        const nextCritical = getNextCriticalTime(currentTime);
-        const segmentEnd = nextCritical > end ? end : nextCritical;
-
-        const hoursDecimal = (segmentEnd.getTime() - currentTime.getTime()) / (1000 * 60 * 60);
+      // Verifică tipul de shift
+      if (shiftType === 'condus' || shiftType === 'pasager' || shiftType === 'utilaj') {
+        // Pentru shift-uri speciale: toată durata într-o singură categorie
+        const hoursDecimal = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         const roundedHours = Math.round(hoursDecimal * 100) / 100;
+        
+        const typeMap = {
+          'condus': 'hours_driving',
+          'pasager': 'hours_passenger',
+          'utilaj': 'hours_equipment'
+        };
 
-        if (roundedHours > 0) {
-          const hoursType = determineHoursType(currentTime);
-          const dayOfWeek = getDayName(currentTime.getDay());
+        calculatedSegments.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          hours: roundedHours,
+          type: typeMap[shiftType],
+          dayOfWeek: getDayName(start.getDay()),
+        });
+      } else {
+        // Pentru shift "normal": segmentare automată pe zi/noapte/weekend
+        let currentTime = new Date(start);
 
-          calculatedSegments.push({
-            start: currentTime.toISOString(),
-            end: segmentEnd.toISOString(),
-            hours: roundedHours,
-            type: hoursType,
-            dayOfWeek,
-          });
+        while (currentTime < end) {
+          const nextCritical = getNextCriticalTime(currentTime);
+          const segmentEnd = nextCritical > end ? end : nextCritical;
+
+          const hoursDecimal = (segmentEnd.getTime() - currentTime.getTime()) / (1000 * 60 * 60);
+          const roundedHours = Math.round(hoursDecimal * 100) / 100;
+
+          if (roundedHours > 0) {
+            const hoursType = determineHoursType(currentTime);
+            const dayOfWeek = getDayName(currentTime.getDay());
+
+            calculatedSegments.push({
+              start: currentTime.toISOString(),
+              end: segmentEnd.toISOString(),
+              hours: roundedHours,
+              type: hoursType,
+              dayOfWeek,
+            });
+          }
+
+          currentTime = segmentEnd;
         }
-
-        currentTime = segmentEnd;
       }
 
       setSegments(calculatedSegments);
-      toast.success(`Segmentat în ${calculatedSegments.length} intervale`);
+      toast.success(`Segmentat în ${calculatedSegments.length} intervale (Tip: ${shiftType})`);
     } catch (error) {
       console.error("Error calculating segments:", error);
       toast.error("Eroare la calcularea segmentelor");
@@ -153,6 +177,12 @@ export const TimeSegmentDebugPanel = () => {
         return "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20";
       case "hours_holiday":
         return "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20";
+      case "hours_driving":
+        return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
+      case "hours_passenger":
+        return "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20";
+      case "hours_equipment":
+        return "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20";
       default:
         return "bg-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/20";
     }
@@ -170,6 +200,12 @@ export const TimeSegmentDebugPanel = () => {
         return "Duminică";
       case "hours_holiday":
         return "Sărbătoare";
+      case "hours_driving":
+        return "Condus";
+      case "hours_passenger":
+        return "Pasager";
+      case "hours_equipment":
+        return "Utilaj";
       default:
         return type;
     }
@@ -193,7 +229,7 @@ export const TimeSegmentDebugPanel = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Input Section */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="clock-in" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -219,6 +255,26 @@ export const TimeSegmentDebugPanel = () => {
               onChange={(e) => setClockOutTime(e.target.value)}
               placeholder="2025-10-04T08:00:00"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="shift-type" className="flex items-center gap-2">
+              <Split className="h-4 w-4" />
+              Tip Shift
+            </Label>
+            <select
+              id="shift-type"
+              value={shiftType}
+              onChange={(e) => setShiftType(e.target.value as 'normal' | 'condus' | 'pasager' | 'utilaj')}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="normal">Normal (segmentare automată)</option>
+              <option value="condus">Condus</option>
+              <option value="pasager">Pasager</option>
+              <option value="utilaj">Utilaj</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              {shiftType === 'normal' ? 'Segmentare zi/noapte/weekend' : 'Toată durata în categoria selectată'}
+            </p>
           </div>
         </div>
 
