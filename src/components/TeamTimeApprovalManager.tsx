@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, Lock, CheckCircle2 } from 'lucide-react';
+import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, Lock, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -153,6 +153,34 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   
   // Display pending first, then approved (informative)
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
+
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
+        body: { 
+          mode: 'missing_segments',
+          batch_size: 100
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      toast({
+        title: '✅ Recalculare finalizată',
+        description: `${data.success}/${data.total} pontaje procesate cu succes`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: '❌ Eroare recalculare',
+        description: error.message,
+      });
+    },
+  });
 
   const bulkEditMutation = useMutation({
     mutationFn: async () => {
@@ -365,6 +393,20 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                   Editare în Lot ({selectedEntries.size})
                 </Button>
               )}
+              <Button
+                onClick={() => reprocessMutation.mutate()}
+                disabled={reprocessMutation.isPending}
+                variant="secondary"
+                size="sm"
+                className="gap-2 ml-auto"
+              >
+                {reprocessMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Recalculează Segmente
+              </Button>
             </div>
           )}
           {/* Statistici echipă */}
