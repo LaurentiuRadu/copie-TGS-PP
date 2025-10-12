@@ -30,7 +30,7 @@ export default function Settings() {
   return (
     <div className="container max-w-6xl mx-auto p-4 md:p-6">
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-[900px]">
+          <TabsList className="inline-flex w-full overflow-x-auto lg:w-[900px]">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Setări Generale</span>

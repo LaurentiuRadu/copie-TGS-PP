@@ -188,10 +188,12 @@ export function AllScheduleNotifications() {
                         {notif.notification_type === 'team_reassignment' ? (
                           <Badge variant="secondary" className="gap-1">
                             <ArrowRightLeft className="h-3 w-3" />
-                            Mutare
+                            {notif.metadata?.previous_team_id} → {notif.metadata?.new_team_id}
                           </Badge>
                         ) : notif.notification_type === 'schedule_updated' ? (
-                          <Badge variant="outline">Modificare</Badge>
+                          <Badge variant="outline">
+                            {notif.metadata?.shift_type === 'zi' ? '☀️' : '🌙'} {notif.metadata?.location || 'Modificare'}
+                          </Badge>
                         ) : (
                           <Badge>Nouă</Badge>
                         )}
