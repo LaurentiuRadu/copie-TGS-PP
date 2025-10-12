@@ -8,9 +8,101 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const Admin = () => {
   const isMobile = useIsMobile();
+  const [isReprocessing, setIsReprocessing] = useState(false);
+
+  // 🔧 Auto-reprocess old entries (9-11 octombrie) fără segmente
+  useEffect(() => {
+    const reprocessOldEntries = async () => {
+      if (isReprocessing) return;
+      
+      try {
+        setIsReprocessing(true);
+        console.log('[Admin] Checking for old entries without segments...');
+        
+        // Verifică dacă există pontaje fără segmente din 9-11 octombrie
+        const { data: entriesWithoutSegments, error: checkError } = await supabase
+          .from('time_entries')
+          .select('id, time_entry_segments(id)')
+          .not('clock_out_time', 'is', null)
+          .gte('clock_out_time', '2025-10-09T00:00:00Z')
+          .lte('clock_out_time', '2025-10-11T23:59:59Z');
+
+        if (checkError) throw checkError;
+
+        const missingSegments = (entriesWithoutSegments || []).filter(
+          e => !e.time_entry_segments || e.time_entry_segments.length === 0
+        );
+
+        if (missingSegments.length === 0) {
+          console.log('[Admin] ✅ No old entries need reprocessing');
+          return;
+        }
+
+        console.log(`[Admin] 🔧 Found ${missingSegments.length} old entries without segments, starting reprocess...`);
+        
+        toast.loading(`Reprocesare ${missingSegments.length} pontaje vechi...`, {
+          id: 'reprocess-old-entries',
+        });
+
+        // Apelează edge function pentru reprocesare
+        const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
+          body: { mode: 'missing_segments', batch_size: 100 }
+        });
+
+        if (error) throw error;
+
+        const results = data as { total: number; success: number; failed: number; batches?: number };
+        
+        console.log('[Admin] Reprocess results:', results);
+
+        if (results.success > 0) {
+          toast.success(
+            `✅ Reprocesare completă: ${results.success}/${results.total} pontaje procesate`,
+            {
+              id: 'reprocess-old-entries',
+              description: results.batches 
+                ? `Procesate în ${results.batches} batch-uri${results.failed > 0 ? ` (${results.failed} eșuate)` : ''}`
+                : results.failed > 0 
+                  ? `${results.failed} pontaje au eșuat`
+                  : undefined,
+              duration: 5000,
+            }
+          );
+        } else if (results.total === 0) {
+          toast.info('Toate pontajele au fost deja procesate', {
+            id: 'reprocess-old-entries',
+          });
+        } else {
+          toast.error(`Reprocesarea a eșuat pentru ${results.failed} pontaje`, {
+            id: 'reprocess-old-entries',
+            description: 'Verifică logurile pentru detalii',
+            duration: 5000,
+          });
+        }
+
+      } catch (error: any) {
+        console.error('[Admin] Reprocess error:', error);
+        toast.error('Eroare la reprocesare automată', {
+          id: 'reprocess-old-entries',
+          description: error.message,
+        });
+      } finally {
+        setIsReprocessing(false);
+      }
+    };
+
+    // Rulează o singură dată la mount, cu un delay de 2 secunde
+    const timer = setTimeout(() => {
+      reprocessOldEntries();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []); // Empty deps = run once on mount
 
   // ✅ Batch all admin stats in a single edge function call
   const { data: adminStats } = useQuery({
