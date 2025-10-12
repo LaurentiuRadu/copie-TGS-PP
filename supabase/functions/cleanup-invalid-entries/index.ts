@@ -91,13 +91,12 @@ Deno.serve(async (req) => {
     // Trigger reprocessing
     console.log(`[Cleanup] Triggering reprocessing for user ${user_id}...`);
     
-    const reprocessResponse = await supabase.functions.invoke('reprocess-all-timesheets', {
+    const reprocessResponse = await supabase.functions.invoke('reprocess-missing-segments', {
       body: {
-        mode: 'user_ids',
-        user_ids: [user_id],
+        mode: 'date_range',
         start_date,
         end_date,
-        dry_run: false
+        batch_size: 100
       }
     });
 

@@ -362,12 +362,12 @@ const Timesheet = () => {
 
       setReprocessProgress(`Re-procesare pentru ${startDate} → ${endDate}...`);
 
-      const { data, error } = await supabase.functions.invoke('reprocess-all-timesheets', {
+      const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
         body: {
-          mode: 'all',
+          mode: 'date_range',
           start_date: startDate,
           end_date: endDate,
-          dry_run: false,
+          batch_size: 100
         },
       });
 
