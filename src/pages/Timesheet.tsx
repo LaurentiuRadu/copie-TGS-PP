@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, ChevronRight, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X, Info } from "lucide-react";
+import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Info, Lock } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,10 +60,6 @@ const Timesheet = () => {
   
   // ✅ View mode: 'payroll' (default) or 'calendar'
   const [viewMode, setViewMode] = useState<'payroll' | 'calendar'>('payroll');
-  
-  // ✅ Editing state
-  const [editingCell, setEditingCell] = useState<{ rowId: string; field: string } | null>(null);
-  const [editValue, setEditValue] = useState<string>('');
   
   const queryClient = useQueryClient();
 
@@ -227,6 +224,7 @@ const Timesheet = () => {
   }, [viewMode, calendarTimesheets, allTimesheets, usersWithRoles]);
 
   // ✅ Extend employee timesheets cu 7 zile consecutive (X-3 → X+3)
+  // IMPORTANT: Citim direct din allTimesheets (daily_timesheets DB) - sursa primară pentru date APROBATE
   const employeeDataWithFullWeek = useMemo(() => {
     const today = new Date();
     
@@ -238,14 +236,18 @@ const Timesheet = () => {
     });
 
     return employeeData.map(employee => {
-      // Merge timesheets existente cu zile placeholder
+      // ✅ CRITICAL: Căutăm în allTimesheets (DB) în loc de employee.timesheets
       const filledTimesheets = daysToShow.map(dateStr => {
-        const existing = employee.timesheets.find(ts => ts.work_date === dateStr);
+        // Căutăm în allTimesheets (sursa primară din DB pentru date APROBATE)
+        const existing = allTimesheets?.find(ts => 
+          ts.employee_id === employee.userId && 
+          ts.work_date === dateStr
+        );
         
         if (existing) {
-          return existing;
+          return existing; // Date REALE din daily_timesheets (APROBATE)
         } else {
-          // Placeholder pentru zile fără ore
+          // Placeholder DOAR pentru zile fără date aprobate în DB
           return {
             id: `placeholder-${employee.userId}-${dateStr}`,
             employee_id: employee.userId,
@@ -279,7 +281,7 @@ const Timesheet = () => {
         )
       };
     });
-  }, [employeeData]);
+  }, [employeeData, allTimesheets]); // ✅ Adăugat allTimesheets în dependencies
 
   // Filter employees based on search
   const filteredEmployees = useMemo(() => {
@@ -321,95 +323,8 @@ const Timesheet = () => {
     return 'bg-green-50 dark:bg-green-950/20';
   };
 
-  // ✅ Mutation pentru editare timesheet
-  const updateTimesheet = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number | string }) => {
-      // Validare doar pentru câmpuri numerice
-      if (typeof value === 'number') {
-        if (value < 0) {
-          throw new Error('Orele nu pot fi negative');
-        }
-        if (value > 24) {
-          throw new Error('Orele nu pot depăși 24h pe zi');
-        }
-      }
-
-      const { error } = await supabase
-        .from('daily_timesheets')
-        .update({ 
-          [field]: value,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // Audit log
-      await supabase.rpc('log_sensitive_data_access', {
-        _action: 'update_timesheet',
-        _resource_type: 'daily_timesheets',
-        _resource_id: id,
-        _details: {
-          field,
-          new_value: value,
-          reason: 'Manual correction by admin'
-        }
-      });
-
-      return { id, field, value };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) });
-      toast.success('✅ Timesheet actualizat');
-      setEditingCell(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Eroare la salvare');
-    }
-  });
-
-  const handleCellClick = (rowId: string, field: string, currentValue: number | string) => {
-    // ❌ Nu permitem editare pe zile placeholder
-    if (rowId.startsWith('placeholder-')) {
-      toast.info('Nu există date pentru această zi. Pontajul va fi generat automat la clock-in.');
-      return;
-    }
-    
-    setEditingCell({ rowId, field });
-    setEditValue(currentValue?.toString() || '');
-  };
-
-  const handleSaveEdit = () => {
-    if (!editingCell) return;
-    
-    // Detectează dacă e câmp numeric sau string
-    const isNumericField = editingCell.field.startsWith('hours_');
-    
-    if (isNumericField) {
-      const numValue = parseFloat(editValue);
-      if (isNaN(numValue)) {
-        toast.error('Valoare invalidă');
-        return;
-      }
-      updateTimesheet.mutate({
-        id: editingCell.rowId,
-        field: editingCell.field,
-        value: numValue
-      });
-    } else {
-      // String field (ex: notes)
-      updateTimesheet.mutate({
-        id: editingCell.rowId,
-        field: editingCell.field,
-        value: editValue
-      });
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingCell(null);
-    setEditValue('');
-  };
+  // ❌ REMOVED: Editing functionality (page is READ-ONLY)
+  // All timesheet editing is now done in TimesheetVerificare.tsx
 
   const handleReprocess = async () => {
     if (!dateRange.from || !dateRange.to) {
@@ -466,63 +381,30 @@ const Timesheet = () => {
 
   return (
     <div className="w-full p-4 md:p-6 space-y-4">
-        {/* 🎯 STICKY HEADER pentru editare */}
-        {editingCell && (() => {
-          // Găsește row-ul editat pentru context
-          const editedTimesheet = filteredEmployees
-            .flatMap(emp => emp.timesheets)
-            .find(ts => ts.id === editingCell.rowId);
-          
-          if (!editedTimesheet) return null;
-          
-          const employee = filteredEmployees.find(emp => emp.userId === editedTimesheet.employee_id);
-          const fieldLabels: Record<string, string> = {
-            hours_regular: 'Ore Zi',
-            hours_night: 'Ore Noapte',
-            hours_saturday: 'Ore Sâmbătă',
-            hours_sunday: 'Ore Duminică',
-            hours_holiday: 'Ore Sărbători',
-            hours_passenger: 'Ore Pasager',
-            hours_driving: 'Ore Șofat',
-            hours_equipment: 'Ore Echipament',
-            hours_leave: 'Ore CO',
-            hours_medical_leave: 'Ore CM',
-            notes: 'Notițe'
-          };
-          
-          const fieldLabel = fieldLabels[editingCell.field] || editingCell.field;
-          const workDate = format(new Date(editedTimesheet.work_date), 'EEEE, dd MMM yyyy', { locale: ro });
-          
-          return (
-            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-              <Card className="shadow-2xl border-2 border-primary/50 bg-background/95 backdrop-blur-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 text-sm font-medium">
-                    <Badge variant="outline" className="gap-1">
-                      <User className="h-3 w-3" />
-                      {employee?.userName || 'Angajat'}
-                    </Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    <Badge variant="outline" className="gap-1">
-                      <CalendarIcon className="h-3 w-3" />
-                      {workDate}
-                    </Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    <Badge className="gap-1 bg-primary/10 text-primary border-primary/30">
-                      <Clock className="h-3 w-3" />
-                      {fieldLabel}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          );
-        })()}
-        
         {/* Header with Search and Export */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Timesheet General - Pontaje Aprobate</CardTitle>
+            </div>
+            <CardDescription>
+              Ore lucrate pe angajați și categorii (doar pontaje aprobate)
+            </CardDescription>
+            
+            {/* ✅ Banner informativ READ-ONLY */}
+            <Alert className="mt-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>Notă:</strong> Această pagină afișează <strong>doar pontajele aprobate</strong> de administrator.
+                Pentru corecturi sau modificări, contactați un administrator sau accesați pagina{' '}
+                <a href="/timesheet-verificare" className="underline font-medium hover:text-blue-600">
+                  Verificare Pontaje
+                </a>.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
               <div className="flex-1 w-full sm:w-auto">
                 <Input
                   placeholder="Căutați angajat după nume sau poziție..."
@@ -857,82 +739,39 @@ const Timesheet = () => {
                                       </span>
                                     </div>
                                   </TableCell>
-                                  {/* ✅ Celule editabile pentru ore */}
+                                  {/* ✅ Celule READ-ONLY cu badge-uri */}
                                   {['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 
                                     'hours_passenger', 'hours_driving', 'hours_equipment', 'hours_leave', 'hours_medical_leave'].map(field => {
                                     const fieldValue = ts[field as keyof DailyTimesheet] as number;
-                                    const isEditing = editingCell?.rowId === ts.id && editingCell?.field === field;
                                     
                                     return (
-                                      <TableCell 
-                                        key={field}
-                                        className="text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                                        onClick={() => !isEditing && handleCellClick(ts.id, field, fieldValue)}
-                                      >
-                                        {isEditing ? (
-                                          <div className="flex items-center gap-1 justify-center">
-                                            <Input
-                                              type="number"
-                                              step="0.5"
-                                              min="0"
-                                              max="24"
-                                              value={editValue}
-                                              onChange={(e) => setEditValue(e.target.value)}
-                                              className="w-16 h-8 text-center"
-                                              autoFocus
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleSaveEdit();
-                                                if (e.key === 'Escape') handleCancelEdit();
-                                              }}
-                                            />
-                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSaveEdit}>
-                                              <Check className="h-4 w-4 text-green-600" />
-                                            </Button>
-                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancelEdit}>
-                                              <X className="h-4 w-4 text-red-600" />
-                                            </Button>
-                                          </div>
-                                        ) : (
-                                          <span className="hover:underline">
-                                            {fieldValue > 0 ? formatHours(fieldValue) : '-'}
-                                          </span>
-                                        )}
+                                      <TableCell key={field} className="text-center">
+                                        <Badge
+                                          variant="secondary"
+                                          className={cn(
+                                            "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                            fieldValue > 0 
+                                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                              : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                            isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                          )}
+                                        >
+                                          {fieldValue > 0 ? formatHours(fieldValue) : '0'}
+                                        </Badge>
                                       </TableCell>
                                     );
                                   })}
-                                  <TableCell 
-                                    className="text-sm text-muted-foreground cursor-pointer hover:bg-muted/50 transition-colors"
-                                    onClick={() => {
-                                      const isEditing = editingCell?.rowId === ts.id && editingCell?.field === 'notes';
-                                      if (!isEditing) handleCellClick(ts.id, 'notes', ts.notes || '');
-                                    }}
-                                  >
-                                    {editingCell?.rowId === ts.id && editingCell?.field === 'notes' ? (
-                                      <div className="flex items-center gap-1">
-                                        <Input
-                                          type="text"
-                                          value={editValue}
-                                          onChange={(e) => setEditValue(e.target.value)}
-                                          className="h-8 text-sm"
-                                          autoFocus
-                                          placeholder="Observații..."
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleSaveEdit();
-                                            if (e.key === 'Escape') handleCancelEdit();
-                                          }}
-                                        />
-                                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSaveEdit}>
-                                          <Check className="h-4 w-4 text-green-600" />
-                                        </Button>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancelEdit}>
-                                          <X className="h-4 w-4 text-red-600" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <span className="hover:underline">
-                                        {ts.notes || 'Observații...'}
-                                      </span>
-                                    )}
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        "text-xs max-w-[150px] truncate",
+                                        !ts.notes && "text-muted-foreground bg-gray-50 dark:bg-gray-900",
+                                        isPlaceholder && "opacity-50"
+                                      )}
+                                    >
+                                      {ts.notes || 'Fără observații'}
+                                    </Badge>
                                   </TableCell>
                                   <TableCell className="text-center font-bold">
                                     {formatHours(total)}
