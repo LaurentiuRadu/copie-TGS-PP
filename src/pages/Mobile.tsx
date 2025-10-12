@@ -76,6 +76,8 @@ const Mobile = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastClickTime, setLastClickTime] = useState<Record<string, number>>({});
   const [lastShiftType, setLastShiftType] = useState<ShiftType>(null);
+  const [lastTypeChangeTime, setLastTypeChangeTime] = useState<number | null>(null);
+  const [typeChangeCooldownRemaining, setTypeChangeCooldownRemaining] = useState<number>(0);
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
   const [activeTimeEntry, setActiveTimeEntry] = useState<any>(null);
@@ -127,6 +129,28 @@ const Mobile = () => {
       }
     };
   }, [recalcDebounceTimer]);
+
+  // Cronometru pentru cooldown schimbare tip tură (30s)
+  useEffect(() => {
+    if (!lastTypeChangeTime) {
+      setTypeChangeCooldownRemaining(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastTypeChangeTime;
+      const remaining = Math.max(0, 30000 - elapsed); // 30 secunde = 30000ms
+      
+      setTypeChangeCooldownRemaining(Math.ceil(remaining / 1000));
+      
+      if (remaining === 0) {
+        setLastTypeChangeTime(null);
+        clearInterval(interval);
+      }
+    }, 100); // Update la fiecare 100ms pentru precizie
+
+    return () => clearInterval(interval);
+  }, [lastTypeChangeTime]);
 
   // Fetch data for history tab
   const startDate = startOfMonth(selectedMonth);
@@ -710,13 +734,30 @@ const Mobile = () => {
   const handleShiftTypeChange = useCallback(async (newType: ShiftType) => {
     if (!newType || !activeTimeEntry) return;
     
-    // 1. Clear previous debounce
+    // 1. Check cooldown de 30s
+    if (lastTypeChangeTime) {
+      const elapsed = Date.now() - lastTypeChangeTime;
+      if (elapsed < 30000) { // 30 secunde
+        const remainingSeconds = Math.ceil((30000 - elapsed) / 1000);
+        toast.error(
+          `Așteaptă ${remainingSeconds}s înainte să schimbi tipul turii`,
+          {
+            description: "Pentru a preveni fragmentarea orelor",
+            duration: 3000
+          }
+        );
+        triggerHaptic('warning');
+        return;
+      }
+    }
+    
+    // 2. Clear previous debounce
     if (recalcDebounceTimer) {
       clearTimeout(recalcDebounceTimer);
       setRecalcDebounceTimer(null);
     }
     
-    // 2. Check battery
+    // 3. Check battery
     if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
       toast.error(
         `⚠️ Baterie critică (${Math.round(batteryInfo.level * 100)}%)! Conectează dispozitivul la încărcare pentru recalculare.`,
@@ -729,17 +770,20 @@ const Mobile = () => {
       return;
     }
     
-    // 3. Check if already recalculating
+    // 4. Check if already recalculating
     if (isRecalculating) {
       toast.warning('Recalculare în curs... Te rog așteaptă.', { duration: 3000 });
       return;
     }
     
-    // ✅ CRUCIAL: Capturează shift-ul anterior ÎNAINTE să-l actualizezi
+    // 5. **ACTUALIZEAZĂ timestamp-ul ultimei schimbări ÎNAINTE de orice altceva**
+    setLastTypeChangeTime(Date.now());
+    
+    // 6. ✅ CRUCIAL: Capturează shift-ul anterior ÎNAINTE să-l actualizezi
     const previousShiftType = activeShift;
     const previousShiftLabel = previousShiftType ? getShiftTypeLabel(previousShiftType) : null;
     
-    // 4. Update UI și DB instant
+    // 7. Update UI și DB instant
     const newShiftLabel = getShiftTypeLabel(newType);
     setActiveShift(newType);
     
@@ -804,7 +848,7 @@ const Mobile = () => {
       toast.error('Eroare la schimbarea tipului de shift', { duration: 3000 });
       triggerHaptic('error');
     }
-  }, [activeTimeEntry, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user?.id]);
+  }, [activeTimeEntry, lastTypeChangeTime, recalcDebounceTimer, batteryInfo, isRecalculating, triggerHaptic, user?.id]);
 
   const handleConfirmShiftChange = useCallback(() => {
     setConfirmDialog({ open: false, newType: null });
@@ -1201,8 +1245,19 @@ const Mobile = () => {
                 <div className="grid grid-cols-1 gap-2 xs:gap-3">
                   <Button
                     size="lg"
-                    onClick={() => handleShiftStart("condus")}
-                    disabled={!locationEnabled || isProcessing}
+                    onClick={() => {
+                      if (activeTimeEntry && activeShift !== 'condus') {
+                        handleShiftTypeChange('condus');
+                      } else {
+                        handleShiftStart('condus');
+                      }
+                    }}
+                    disabled={
+                      !locationEnabled || 
+                      isProcessing || 
+                      activeShift === 'condus' ||
+                      typeChangeCooldownRemaining > 0
+                    }
                     className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "condus" ? "animate-glow-blue border-2 border-blue-400" : ""}`}
                   >
                     {isProcessing ? (
@@ -1213,14 +1268,30 @@ const Mobile = () => {
                     ) : (
                       <>
                         <Car className="h-5 w-5 xs:h-6 xs:w-6" />
-                        INTRARE CONDUS
+                        {activeShift === 'condus' ? 'LUCREZI ÎN CONDUS' : 'INTRARE CONDUS'}
+                        {typeChangeCooldownRemaining > 0 && activeShift !== 'condus' && (
+                          <span className="ml-2 text-xs opacity-70">
+                            ({typeChangeCooldownRemaining}s)
+                          </span>
+                        )}
                       </>
                     )}
                   </Button>
                   <Button
                     size="lg"
-                    onClick={() => handleShiftStart("pasager")}
-                    disabled={!locationEnabled || isProcessing}
+                    onClick={() => {
+                      if (activeTimeEntry && activeShift !== 'pasager') {
+                        handleShiftTypeChange('pasager');
+                      } else {
+                        handleShiftStart('pasager');
+                      }
+                    }}
+                    disabled={
+                      !locationEnabled || 
+                      isProcessing || 
+                      activeShift === 'pasager' ||
+                      typeChangeCooldownRemaining > 0
+                    }
                     className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "pasager" ? "animate-glow-green border-2 border-green-400" : ""}`}
                   >
                     {isProcessing ? (
@@ -1231,14 +1302,30 @@ const Mobile = () => {
                     ) : (
                       <>
                         <Users className="h-5 w-5 xs:h-6 xs:w-6" />
-                        INTRARE PASAGER
+                        {activeShift === 'pasager' ? 'LUCREZI ÎN PASAGER' : 'INTRARE PASAGER'}
+                        {typeChangeCooldownRemaining > 0 && activeShift !== 'pasager' && (
+                          <span className="ml-2 text-xs opacity-70">
+                            ({typeChangeCooldownRemaining}s)
+                          </span>
+                        )}
                       </>
                     )}
                   </Button>
                   <Button
                     size="lg"
-                    onClick={() => handleShiftStart("normal")}
-                    disabled={!locationEnabled || isProcessing}
+                    onClick={() => {
+                      if (activeTimeEntry && activeShift !== 'normal') {
+                        handleShiftTypeChange('normal');
+                      } else {
+                        handleShiftStart('normal');
+                      }
+                    }}
+                    disabled={
+                      !locationEnabled || 
+                      isProcessing || 
+                      activeShift === 'normal' ||
+                      typeChangeCooldownRemaining > 0
+                    }
                     className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "normal" ? "animate-glow-purple border-2 border-purple-400" : ""}`}
                   >
                     {isProcessing ? (
@@ -1249,7 +1336,12 @@ const Mobile = () => {
                     ) : (
                       <>
                         <Briefcase className="h-5 w-5 xs:h-6 xs:w-6" />
-                        INTRARE NORMAL
+                        {activeShift === 'normal' ? 'LUCREZI ÎN NORMAL' : 'INTRARE NORMAL'}
+                        {typeChangeCooldownRemaining > 0 && activeShift !== 'normal' && (
+                          <span className="ml-2 text-xs opacity-70">
+                            ({typeChangeCooldownRemaining}s)
+                          </span>
+                        )}
                       </>
                     )}
                   </Button>
@@ -1257,8 +1349,19 @@ const Mobile = () => {
                   {canSeeEquipmentButton && (
                     <Button
                       size="lg"
-                      onClick={() => handleShiftStart("utilaj")}
-                      disabled={!locationEnabled || isProcessing}
+                      onClick={() => {
+                        if (activeTimeEntry && activeShift !== 'utilaj') {
+                          handleShiftTypeChange('utilaj');
+                        } else {
+                          handleShiftStart('utilaj');
+                        }
+                      }}
+                      disabled={
+                        !locationEnabled || 
+                        isProcessing || 
+                        activeShift === 'utilaj' ||
+                        typeChangeCooldownRemaining > 0
+                      }
                       className={`touch-target no-select h-14 xs:h-16 text-responsive-sm bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 xs:gap-3 transition-all active:scale-95 ${activeShift === "utilaj" ? "animate-glow-orange border-2 border-orange-400" : ""}`}
                     >
                       {isProcessing ? (
@@ -1268,8 +1371,13 @@ const Mobile = () => {
                         </>
                       ) : (
                         <>
-                          <Car className="h-5 w-5 xs:h-6 xs:w-6" />
-                          INTRARE CONDUS UTILAJ
+                          <Wrench className="h-5 w-5 xs:h-6 xs:w-6" />
+                          {activeShift === 'utilaj' ? 'LUCREZI ÎN UTILAJ' : 'INTRARE CONDUS UTILAJ'}
+                          {typeChangeCooldownRemaining > 0 && activeShift !== 'utilaj' && (
+                            <span className="ml-2 text-xs opacity-70">
+                              ({typeChangeCooldownRemaining}s)
+                            </span>
+                          )}
                         </>
                       )}
                     </Button>
