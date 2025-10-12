@@ -11,6 +11,7 @@ import { SuspiciousEntriesManager } from "@/components/SuspiciousEntriesManager"
 import { VersionManager } from "@/components/VersionManager";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AutoCleanupExecutor } from "@/components/AutoCleanupExecutor";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -151,6 +152,7 @@ const Admin = () => {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <CardContent className="space-y-6 pt-0">
+                <AutoCleanupExecutor />
                 <VersionManager />
                 <HistoricalDataMigration />
                 <TimeSegmentDebugPanel />
