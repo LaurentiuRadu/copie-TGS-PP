@@ -120,20 +120,16 @@ Deno.serve(async (req) => {
       user: vacationRequest.user_id
     });
 
-    // Generăm lista de zile lucrătoare (exclude weekend)
+    // Generăm lista TUTUROR zilelor din interval (inclusiv weekend-uri)
     const startDate = new Date(vacationRequest.start_date);
     const endDate = new Date(vacationRequest.end_date);
     const dateList: string[] = [];
     
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dayOfWeek = d.getDay();
-      // Skip Saturday (6) and Sunday (0)
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        dateList.push(d.toISOString().split('T')[0]);
-      }
+      dateList.push(d.toISOString().split('T')[0]);
     }
 
-    console.log(`[Repair Vacation] 📅 Processing ${dateList.length} weekdays`);
+    console.log(`[Repair Vacation] 📅 Processing ${dateList.length} total days (including weekends)`);
 
     // Ștergem zilele din daily_timesheets
     let daysRemoved = 0;

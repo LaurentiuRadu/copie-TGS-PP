@@ -131,24 +131,16 @@ Deno.serve(async (req) => {
       days: medicalRequest.days_count
     });
 
-    // Generăm lista de zile, EXCLUDING weekends
+    // Generăm lista TUTUROR zilelor din interval (inclusiv weekend-uri)
     const startDate = new Date(medicalRequest.start_date);
     const endDate = new Date(medicalRequest.end_date);
     const dateList: string[] = [];
-    let weekendsSkipped = 0;
     
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-      const dayOfWeek = d.getDay();
-      
-      // Skip Saturday (6) and Sunday (0)
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        dateList.push(d.toISOString().split('T')[0]);
-      } else {
-        weekendsSkipped++;
-      }
+      dateList.push(d.toISOString().split('T')[0]);
     }
 
-    console.log(`[Withdraw Medical] 📅 Generated ${dateList.length} weekdays (${weekendsSkipped} weekends skipped):`, dateList);
+    console.log(`[Withdraw Medical] 📅 Generated ${dateList.length} total days (including weekends):`, dateList);
 
     // Ștergem/resetăm zilele din daily_timesheets
     let daysRemoved = 0;
