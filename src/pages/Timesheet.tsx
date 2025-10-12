@@ -760,6 +760,8 @@ const Timesheet = () => {
                               <TableHead>Data</TableHead>
                               <TableHead className="text-center">Zi</TableHead>
                               <TableHead className="text-center">Noapte</TableHead>
+                              <TableHead className="text-center">Săm</TableHead>
+                              <TableHead className="text-center">Dum</TableHead>
                               <TableHead className="text-center">Sârb</TableHead>
                               <TableHead className="text-center">Pasager</TableHead>
                               <TableHead className="text-center">Condus</TableHead>
@@ -772,7 +774,7 @@ const Timesheet = () => {
                           </TableHeader>
                           <TableBody>
                             {employee.timesheets.map((ts) => {
-                              const total = ts.hours_regular + ts.hours_night + ts.hours_holiday + 
+                              const total = ts.hours_regular + ts.hours_night + ts.hours_saturday + ts.hours_sunday + ts.hours_holiday + 
                                           ts.hours_passenger + ts.hours_driving + ts.hours_equipment + 
                                           ts.hours_leave + ts.hours_medical_leave;
                               
@@ -787,7 +789,7 @@ const Timesheet = () => {
                                     </div>
                                   </TableCell>
                                   {/* ✅ Celule editabile pentru ore */}
-                                  {['hours_regular', 'hours_night', 'hours_holiday', 
+                                  {['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 
                                     'hours_passenger', 'hours_driving', 'hours_equipment', 'hours_leave', 'hours_medical_leave'].map(field => {
                                     const fieldValue = ts[field as keyof DailyTimesheet] as number;
                                     const isEditing = editingCell?.rowId === ts.id && editingCell?.field === field;
