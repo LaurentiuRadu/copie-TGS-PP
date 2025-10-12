@@ -145,13 +145,12 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 
 /**
  * Determină tipul de ore bazat pe ziua săptămânii și interval orar
- * Conform pseudo-cod:
- * - Sărbătoare 06:01 → 24:00 = hours_holiday (2.0x)
- * - Sărbătoare 00:00 → 06:00 = hours_night (1.25x)
- * - Sâmbătă 06:01 → Duminică 06:00 = hours_saturday (1.50x)
- * - Duminică 06:01 → 24:00 = hours_sunday (2.0x)
- * - Noapte 22:00 → 06:00 = hours_night (1.25x)
- * - Normal 06:01 → 22:00 = hours_regular (1.0x)
+ * REGULI CORECTE (conform instrucțiunilor):
+ * - Sărbătoare 06:00 → 23:59:59 = hours_holiday
+ * - Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday
+ * - Duminică 06:00 → 23:59:59 = hours_sunday
+ * - Noapte 22:00 → 05:59:59 = hours_night (orice zi)
+ * - Normal 06:00 → 21:59:59 = hours_regular (Luni-Vineri)
  */
 function determineHoursType(
   segmentStart: Date,
@@ -246,7 +245,7 @@ function segmentShiftIntoTimesheets(
     
     // ✅ SINGLE-TRACK CORECT: Shift-uri speciale (Condus/Pasager/Utilaj) → PRIORITATE ABSOLUTĂ
     // Regula: Condus pe Duminică = hours_driving (tarif unic per șofer)
-    //         Normal pe Duminică = hours_sunday (bonus 2.0x)
+    //         Normal pe Duminică = hours_sunday
     let hoursType: string;
     
     if (shiftType === 'condus') {
@@ -519,7 +518,7 @@ Deno.serve(async (req) => {
           start_time: segmentStart,
           end_time: segmentEnd,
           hours_decimal: durationHours,
-          multiplier: 1.0 // Pentru condus/pasager/utilaj nu se aplică multiplicatori
+          multiplier: 1.0
         });
       
       if (segmentError) {
