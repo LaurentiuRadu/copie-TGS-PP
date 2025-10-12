@@ -284,12 +284,28 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
             </Select>
           </div>
 
-          {/* Informații Echipă */}
-          {(teamLeader || coordinator) && (
+          {/* Informații Echipă - DOAR Coordonator */}
+          {coordinator && (
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Badge variant="default" className="bg-purple-600">
+                  Coordonator
+                </Badge>
+                <span className="font-medium">{coordinator.full_name}</span>
+                <Badge variant="outline" className="text-xs">
+                  {coordinator.username}
+                </Badge>
+              </div>
+            </div>
+          )}
+
+          {/* Membri - Șef Echipă pe prima linie, apoi membri fără badge */}
+          {(teamLeader || teamMembers.length > 0) && (
+            <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
+              <div className="space-y-2">
+                {/* Șef Echipă - prima linie */}
                 {teamLeader && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 pb-2">
                     <Badge variant="default" className="bg-blue-600">
                       Șef Echipă
                     </Badge>
@@ -299,38 +315,20 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                     </Badge>
                   </div>
                 )}
-                {coordinator && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default" className="bg-purple-600">
-                      Coordonator
-                    </Badge>
-                    <span className="font-medium">{coordinator.full_name}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {coordinator.username}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* Membri Echipă */}
-              {teamMembers.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-blue-300 dark:border-blue-700">
-                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                    👥 Membri Echipă ({teamMembers.length})
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {teamMembers.map(member => (
-                      <Badge 
-                        key={member.id} 
-                        variant="secondary"
-                        className="text-xs"
-                      >
-                        {member.full_name}
+                
+                {/* Membri simpli - fără badge */}
+                {teamMembers
+                  .filter(m => m.id !== teamLeader?.id)
+                  .map(member => (
+                    <div key={member.id} className="flex items-center gap-2 text-sm">
+                      <span>{member.full_name}</span>
+                      <Badge variant="outline" className="text-xs opacity-60">
+                        {member.username}
                       </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  ))
+                }
+              </div>
             </div>
           )}
 
