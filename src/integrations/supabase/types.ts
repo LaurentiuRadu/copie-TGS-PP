@@ -366,6 +366,83 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_delivery_logs: {
+        Row: {
+          channel: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          message_content: string | null
+          notification_id: string | null
+          sent_at: string | null
+          status: string
+          twilio_message_sid: string | null
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_content?: string | null
+          notification_id?: string | null
+          sent_at?: string | null
+          status: string
+          twilio_message_sid?: string | null
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_content?: string | null
+          notification_id?: string | null
+          sent_at?: string | null
+          status?: string
+          twilio_message_sid?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_delivery_logs_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string | null
+          user_id: string
+          whatsapp_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string | null
+          user_id: string
+          whatsapp_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string | null
+          user_id?: string
+          whatsapp_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           clock_out_reminder_enabled: boolean | null
@@ -406,6 +483,8 @@ export type Database = {
           reference_photo_url: string | null
           updated_at: string | null
           username: string | null
+          whatsapp_notifications_enabled: boolean | null
+          whatsapp_number: string | null
         }
         Insert: {
           created_at?: string | null
@@ -416,6 +495,8 @@ export type Database = {
           reference_photo_url?: string | null
           updated_at?: string | null
           username?: string | null
+          whatsapp_notifications_enabled?: boolean | null
+          whatsapp_number?: string | null
         }
         Update: {
           created_at?: string | null
@@ -426,6 +507,8 @@ export type Database = {
           reference_photo_url?: string | null
           updated_at?: string | null
           username?: string | null
+          whatsapp_notifications_enabled?: boolean | null
+          whatsapp_number?: string | null
         }
         Relationships: []
       }

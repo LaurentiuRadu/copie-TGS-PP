@@ -3,11 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Upload, Database, HardDrive, Info, Shield, Bell, Users, Settings as SettingsIcon, Palette } from "lucide-react";
+import { Download, Upload, Database, HardDrive, Info, Shield, Bell, Users, Settings as SettingsIcon, Palette, MessageCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ThemeSettings } from "@/components/ThemeSettings";
 import UserManagement from "./UserManagement";
 import { AllScheduleNotifications } from "@/components/AllScheduleNotifications";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 
 export default function Settings() {
   const handleBackup = () => {
@@ -29,7 +30,7 @@ export default function Settings() {
   return (
     <div className="container max-w-6xl mx-auto p-4 md:p-6">
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[900px]">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Setări Generale</span>
@@ -44,6 +45,11 @@ export default function Settings() {
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notificări</span>
               <span className="sm:hidden">Notif</span>
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
+              <span className="sm:hidden">WA</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -216,6 +222,11 @@ export default function Settings() {
           {/* Notificări Tab */}
           <TabsContent value="notifications">
             <AllScheduleNotifications />
+          </TabsContent>
+
+          {/* WhatsApp Tab */}
+          <TabsContent value="whatsapp">
+            <NotificationPreferences />
           </TabsContent>
 
           {/* Aspect Tab */}

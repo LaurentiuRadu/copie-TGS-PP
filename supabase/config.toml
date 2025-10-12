@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.reprocess-missing-segments]
 verify_jwt = true
+
+[functions.send-whatsapp-notification]
+verify_jwt = false
