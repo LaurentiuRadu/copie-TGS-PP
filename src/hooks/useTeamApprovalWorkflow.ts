@@ -13,6 +13,8 @@ export interface TimeEntryForApproval {
   original_clock_out_time?: string;
   was_edited_by_admin?: boolean;
   approval_notes?: string;
+  approved_at?: string;
+  approved_by?: string;
   profiles: {
     id: string;
     full_name: string;
@@ -95,14 +97,15 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
 
       if (userIds.length === 0) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 
-      // Fetch pending time entries for these users in this week
+      // Fetch time entries (pending + approved) for these users in this week
       const { data: entriesData, error } = await supabase
         .from('time_entries')
-        .select('id, user_id, clock_in_time, clock_out_time, approval_status, original_clock_in_time, original_clock_out_time, was_edited_by_admin, approval_notes')
+        .select('id, user_id, clock_in_time, clock_out_time, approval_status, original_clock_in_time, original_clock_out_time, was_edited_by_admin, approval_notes, approved_at, approved_by')
         .in('user_id', allUserIds)
         .gte('clock_in_time', weekStart.toISOString())
         .lt('clock_in_time', weekEnd.toISOString())
-        .eq('approval_status', 'pending_review')
+        .in('approval_status', ['pending_review', 'approved'])
+        .order('approval_status', { ascending: false })
         .order('clock_in_time', { ascending: true });
 
       if (error) throw error;
@@ -198,20 +201,22 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
   const coordinator = data?.coordinator || null;
   const teamMembers = data?.teamMembers || [];
 
-  // 2. Calculate team statistics
+  // 2. Calculate team statistics (only for pending entries)
+  const pendingOnlyEntries = pendingEntries.filter(e => e.approval_status === 'pending_review');
+  
   const teamStats: TeamStats = {
     avgClockIn: null,
     avgClockOut: null,
     totalEntries: pendingEntries.length,
-    pendingCount: pendingEntries.length,
+    pendingCount: pendingOnlyEntries.length,
   };
 
-  if (pendingEntries.length > 0) {
-    const clockIns = pendingEntries
+  if (pendingOnlyEntries.length > 0) {
+    const clockIns = pendingOnlyEntries
       .map(e => e.clock_in_time ? new Date(e.clock_in_time).getHours() * 60 + new Date(e.clock_in_time).getMinutes() : null)
       .filter((t): t is number => t !== null);
 
-    const clockOuts = pendingEntries
+    const clockOuts = pendingOnlyEntries
       .map(e => e.clock_out_time ? new Date(e.clock_out_time).getHours() * 60 + new Date(e.clock_out_time).getMinutes() : null)
       .filter((t): t is number => t !== null);
 

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, Lock, CheckCircle2 } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -98,10 +98,10 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
   };
 
   const handleSelectAll = () => {
-    if (selectedEntries.size === pendingEntries.length) {
+    if (selectedEntries.size === pendingOnlyEntries.length) {
       setSelectedEntries(new Set());
     } else {
-      setSelectedEntries(new Set(pendingEntries.map(e => e.id)));
+      setSelectedEntries(new Set(pendingOnlyEntries.map(e => e.id)));
     }
   };
 
@@ -146,11 +146,16 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     }
   };
 
-  const displayedEntries = pendingEntries;
+  // Separate entries by approval status
+  const approvedEntries = pendingEntries.filter(e => e.approval_status === 'approved');
+  const pendingOnlyEntries = pendingEntries.filter(e => e.approval_status === 'pending_review');
+  
+  // Display pending first, then approved (informative)
+  const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
 
   const bulkEditMutation = useMutation({
     mutationFn: async () => {
-      const selectedEntriesData = pendingEntries.filter(e => selectedEntries.has(e.id));
+      const selectedEntriesData = pendingOnlyEntries.filter(e => selectedEntries.has(e.id));
       
       const updates = selectedEntriesData.map(async (entry) => {
         const adjustedClockIn = bulkEditTarget === 'clock_in'
@@ -329,14 +334,14 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           )}
 
           {/* Action buttons */}
-          {pendingEntries.length > 0 && (
+          {pendingOnlyEntries.length > 0 && (
             <div className="flex items-center gap-2 mb-6 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleSelectAll}
               >
-                {selectedEntries.size === pendingEntries.length ? 'Deselectează tot' : 'Selectează tot'}
+                {selectedEntries.size === pendingOnlyEntries.length ? 'Deselectează tot' : 'Selectează tot'}
               </Button>
               <Button
                 onClick={handleBatchApprove}
@@ -365,25 +370,41 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
           )}
           {/* Statistici echipă */}
           {teamStats.totalEntries > 0 && (
-            <div className="mb-6 p-4 bg-muted/50 rounded-lg flex items-center gap-6">
-              <div>
-                <p className="text-sm text-muted-foreground">Total pontaje</p>
-                <p className="text-2xl font-bold">{teamStats.totalEntries}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">În așteptare</p>
-                <p className="text-2xl font-bold text-yellow-600">{teamStats.pendingCount}</p>
-              </div>
-              {teamStats.avgClockIn && (
+            <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-6 flex-wrap">
                 <div>
-                  <p className="text-sm text-muted-foreground">Medie intrare</p>
-                  <p className="text-2xl font-bold">{teamStats.avgClockIn}</p>
+                  <p className="text-sm text-muted-foreground">Total pontaje</p>
+                  <p className="text-2xl font-bold">{teamStats.totalEntries}</p>
                 </div>
-              )}
-              {teamStats.avgClockOut && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Medie ieșire</p>
-                  <p className="text-2xl font-bold">{teamStats.avgClockOut}</p>
+                  <p className="text-sm text-muted-foreground">În așteptare</p>
+                  <p className="text-2xl font-bold text-yellow-600">{teamStats.pendingCount}</p>
+                </div>
+                {approvedEntries.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Deja aprobate</p>
+                    <p className="text-2xl font-bold text-green-600">{approvedEntries.length}</p>
+                  </div>
+                )}
+                {teamStats.avgClockIn && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Medie intrare</p>
+                    <p className="text-2xl font-bold">{teamStats.avgClockIn}</p>
+                  </div>
+                )}
+                {teamStats.avgClockOut && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Medie ieșire</p>
+                    <p className="text-2xl font-bold">{teamStats.avgClockOut}</p>
+                  </div>
+                )}
+              </div>
+              {approvedEntries.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-muted-foreground/20">
+                  <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    {approvedEntries.length} pontaje aprobate (vizualizare informativă)
+                  </Badge>
                 </div>
               )}
             </div>
@@ -416,22 +437,44 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
               {displayedEntries.map((entry) => {
                 const discrepancy = detectDiscrepancies(entry);
                 const isSelected = selectedEntries.has(entry.id);
+                const isApproved = entry.approval_status === 'approved';
 
                 return (
                   <div
                     key={entry.id}
-                    className={`p-4 border rounded-lg transition-colors ${
-                      isSelected ? 'bg-primary/5 border-primary' : 'hover:bg-muted/50'
-                    } ${discrepancy ? getSeverityColor(discrepancy.severity) : ''}`}
+                    className={`p-4 border rounded-lg transition-colors relative ${
+                      isApproved
+                        ? 'bg-green-50/30 dark:bg-green-950/10 border-green-200 dark:border-green-800 opacity-70'
+                        : isSelected
+                        ? 'bg-primary/5 border-primary'
+                        : 'hover:bg-muted/50'
+                    } ${discrepancy && !isApproved ? getSeverityColor(discrepancy.severity) : ''}`}
                   >
+                    {/* Badge APPROVED - top-right */}
+                    {isApproved && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Deja Aprobat
+                        </Badge>
+                      </div>
+                    )}
+
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 flex-1">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelect(entry.id)}
-                          className="mt-1"
-                        />
+                        {/* Checkbox pentru pending / Lock pentru approved */}
+                        {!isApproved ? (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(entry.id)}
+                            className="mt-1"
+                          />
+                        ) : (
+                          <div className="mt-1">
+                            <Lock className="h-5 w-5 text-green-600" />
+                          </div>
+                        )}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium">{entry.profiles.full_name}</p>
@@ -647,26 +690,37 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEdit(entry)}
-                          title="Editează orele și aprobă automat"
-                        >
-                          <Pencil className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleApprove(entry.id)}
-                          disabled={approveMutation.isPending}
-                          title="Aprobă pontajul așa cum este"
-                        >
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                      </div>
+                      {/* Action buttons - HIDDEN pentru approved */}
+                      {!isApproved && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEdit(entry)}
+                            title="Editează orele și aprobă automat"
+                          >
+                            <Pencil className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleApprove(entry.id)}
+                            disabled={approveMutation.isPending}
+                            title="Aprobă pontajul așa cum este"
+                          >
+                            <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Info footer pentru approved */}
+                    {isApproved && entry.approved_at && (
+                      <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800 text-xs text-muted-foreground italic flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-green-600" />
+                        Aprobat {format(new Date(entry.approved_at), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
