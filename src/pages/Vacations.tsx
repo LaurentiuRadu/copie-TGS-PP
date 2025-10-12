@@ -57,6 +57,8 @@ const Vacations = () => {
   const [vacationType, setVacationType] = useState<string>('vacation');
   const [reason, setReason] = useState('');
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [allUsers, setAllUsers] = useState<Array<{ id: string; full_name: string }>>([]);
 
   // Folosim hook-ul optimizat cu React Query
   const { requests, balance, isLoading, createRequest, updateStatus } = useOptimizedVacations(
@@ -64,15 +66,40 @@ const Vacations = () => {
     isAdmin
   );
 
+  // Fetch users pentru admin (pentru Select)
+  useEffect(() => {
+    if (isAdmin) {
+      const fetchUsers = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .order('full_name');
+        
+        setAllUsers(data || []);
+      };
+      fetchUsers();
+    }
+  }, [isAdmin]);
+
+  // Set default user când se deschide dialogul
+  useEffect(() => {
+    if (showNewRequest && user?.id && !selectedUserId) {
+      setSelectedUserId(user.id);
+    }
+  }, [showNewRequest, user?.id, selectedUserId]);
+
   const handleCreateRequest = async () => {
-    if (!user || !dateRange?.from || !dateRange?.to) {
+    if (!dateRange?.from || !dateRange?.to) {
       return;
     }
+
+    const targetUserId = isAdmin && selectedUserId ? selectedUserId : user?.id;
+    if (!targetUserId) return;
 
     const daysCount = differenceInDays(dateRange.to, dateRange.from) + 1;
 
     createRequest({
-      user_id: user.id,
+      user_id: targetUserId,
       start_date: format(dateRange.from, 'yyyy-MM-dd'),
       end_date: format(dateRange.to, 'yyyy-MM-dd'),
       days_count: daysCount,
@@ -84,9 +111,10 @@ const Vacations = () => {
     setDateRange(undefined);
     setReason('');
     setVacationType('vacation');
+    setSelectedUserId('');
   };
 
-  const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected', adminNotes?: string) => {
+  const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected' | 'withdrawn', adminNotes?: string) => {
     if (!user) return;
     
     setProcessingRequestId(id);
@@ -109,6 +137,8 @@ const Vacations = () => {
         return <Badge className="bg-green-500">Aprobat</Badge>;
       case 'rejected':
         return <Badge className="bg-red-500">Respins</Badge>;
+      case 'withdrawn':
+        return <Badge className="bg-gray-500">Retras</Badge>;
       default:
         return <Badge className="bg-yellow-500">În așteptare</Badge>;
     }
@@ -128,20 +158,37 @@ const Vacations = () => {
     <AdminLayout 
       title="Concedii"
       actions={
-        !isAdmin && (
-          <Dialog open={showNewRequest} onOpenChange={setShowNewRequest}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Cerere Nouă
-              </Button>
-            </DialogTrigger>
+        <Dialog open={showNewRequest} onOpenChange={setShowNewRequest}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Cerere Nouă
+            </Button>
+          </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Cerere Concediu Nouă</DialogTitle>
               </DialogHeader>
               
               <div className="space-y-4">
+                {isAdmin && (
+                  <div>
+                    <Label>Angajat</Label>
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selectează angajat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label>Tip Concediu</Label>
                   <Select value={vacationType} onValueChange={setVacationType}>
@@ -198,9 +245,8 @@ const Vacations = () => {
               </div>
             </DialogContent>
           </Dialog>
-        )
-      }
-    >
+        }
+      >
       <div className="w-full p-6 md:p-8">
         <Tabs defaultValue="cereri" className="w-full">
           <TabsList className="grid w-full grid-cols-2 max-w-md mb-6">
@@ -326,6 +372,7 @@ const Vacations = () => {
                             )}
                           </div>
 
+                          {/* Admin actions pentru pending */}
                           {isAdmin && request.status === 'pending' && (
                             <div className="flex gap-2 ml-4">
                               <Button
@@ -349,6 +396,30 @@ const Vacations = () => {
                                 Respinge
                               </Button>
                             </div>
+                          )}
+
+                          {/* Buton Retrage pentru approved CO */}
+                          {request.status === 'approved' && request.type === 'vacation' && (
+                            (isAdmin || request.user_id === user?.id) && (
+                              new Date(request.end_date) >= new Date() && (
+                                <div className="ml-4">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-orange-600 hover:bg-orange-50"
+                                    onClick={() => {
+                                      if (confirm('Sigur vrei să retragi această cerere aprobată? Zilele vor fi eliminate din pontaj.')) {
+                                        handleUpdateStatus(request.id, 'withdrawn');
+                                      }
+                                    }}
+                                    disabled={processingRequestId === request.id}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-1" />
+                                    {processingRequestId === request.id ? 'Se retrage...' : 'Retrage'}
+                                  </Button>
+                                </div>
+                              )
+                            )
                           )}
 
                           {processingRequestId === request.id && (

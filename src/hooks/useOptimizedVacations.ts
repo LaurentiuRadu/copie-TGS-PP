@@ -135,7 +135,7 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       reviewedBy,
     }: {
       id: string;
-      status: 'approved' | 'rejected';
+      status: 'approved' | 'rejected' | 'withdrawn';
       adminNotes?: string;
       reviewedBy: string;
     }) => {
@@ -151,6 +151,39 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
         .eq('id', id);
 
       if (error) throw error;
+
+      // If withdrawn and type is 'vacation' (CO), remove from daily_timesheets
+      if (status === 'withdrawn') {
+        const request = requests.find(r => r.id === id);
+        if (request && request.type === 'vacation' && request.status === 'approved') {
+          console.log(`[Vacation Withdrawal] 🔄 Withdrawing request: ${id}`);
+          
+          try {
+            const { data, error: withdrawError } = await supabase.functions.invoke('withdraw-approved-vacation', {
+              body: {
+                request_id: id,
+                reason: adminNotes || 'Retras de utilizator'
+              }
+            });
+
+            if (withdrawError) {
+              console.error('[Vacation Withdrawal] ❌ Edge function error:', withdrawError);
+              throw new Error(`Eroare la retragere: ${withdrawError.message}`);
+            }
+
+            if (data?.success === false || data?.days_failed > 0) {
+              console.error('[Vacation Withdrawal] ⚠️ Partial failure:', data);
+              throw new Error(`Retragere parțială: ${data.days_removed}/${data.total_days} zile eliminate. ${data.days_failed} eșuate.`);
+            }
+
+            console.log(`[Vacation Withdrawal] ✅ Successfully withdrawn ${data.days_removed} days`);
+            return { request, withdrawResult: data };
+          } catch (error: any) {
+            console.error('[Vacation Withdrawal] ❌ Withdrawal failed:', error);
+            throw error;
+          }
+        }
+      }
 
       // If approved and type is 'vacation' (CO), auto-write to daily_timesheets
       if (status === 'approved') {
@@ -197,8 +230,15 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       
       const request = result?.request;
       const processResult = result?.processResult;
+      const withdrawResult = result?.withdrawResult;
       
-      if (variables.status === 'approved' && request?.type === 'vacation') {
+      if (variables.status === 'withdrawn' && request?.type === 'vacation') {
+        if (withdrawResult?.success) {
+          toast.success(`✅ Cerere CO retrasă! ${withdrawResult.days_removed} zile eliminate din pontaj`);
+        } else if (withdrawResult?.days_removed > 0) {
+          toast.success(`⚠️ Retragere parțială: ${withdrawResult.days_removed}/${withdrawResult.total_days} zile eliminate`);
+        }
+      } else if (variables.status === 'approved' && request?.type === 'vacation') {
         if (processResult?.success) {
           toast.success(`✅ Cerere CO aprobată! ${processResult.days_processed} zile (8h/zi) adăugate în pontaj`);
         } else if (processResult?.days_processed > 0) {
@@ -206,7 +246,9 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
         }
       } else {
         toast.success(
-          variables.status === 'approved' ? '✅ Cerere aprobată' : '❌ Cerere respinsă'
+          variables.status === 'approved' ? '✅ Cerere aprobată' : 
+          variables.status === 'rejected' ? '❌ Cerere respinsă' :
+          '✅ Cerere retrasă'
         );
       }
     },
