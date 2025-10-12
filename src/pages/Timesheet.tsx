@@ -226,16 +226,71 @@ const Timesheet = () => {
     .sort((a, b) => a.userName.localeCompare(b.userName)); // Sort by name
   }, [viewMode, calendarTimesheets, allTimesheets, usersWithRoles]);
 
+  // ✅ Extend employee timesheets cu 7 zile consecutive (X-3 → X+3)
+  const employeeDataWithFullWeek = useMemo(() => {
+    const today = new Date();
+    
+    // Calculăm intervalul de 7 zile
+    const daysToShow = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - 3 + i);
+      return format(date, 'yyyy-MM-dd');
+    });
+
+    return employeeData.map(employee => {
+      // Merge timesheets existente cu zile placeholder
+      const filledTimesheets = daysToShow.map(dateStr => {
+        const existing = employee.timesheets.find(ts => ts.work_date === dateStr);
+        
+        if (existing) {
+          return existing;
+        } else {
+          // Placeholder pentru zile fără ore
+          return {
+            id: `placeholder-${employee.userId}-${dateStr}`,
+            employee_id: employee.userId,
+            work_date: dateStr,
+            hours_regular: 0,
+            hours_night: 0,
+            hours_saturday: 0,
+            hours_sunday: 0,
+            hours_holiday: 0,
+            hours_passenger: 0,
+            hours_driving: 0,
+            hours_equipment: 0,
+            hours_leave: 0,
+            hours_medical_leave: 0,
+            notes: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            profiles: employee.timesheets[0]?.profiles || {
+              id: employee.userId,
+              username: null,
+              full_name: null
+            }
+          } as DailyTimesheet;
+        }
+      });
+
+      return {
+        ...employee,
+        timesheets: filledTimesheets.sort((a, b) => 
+          new Date(a.work_date).getTime() - new Date(b.work_date).getTime()
+        )
+      };
+    });
+  }, [employeeData]);
+
   // Filter employees based on search
   const filteredEmployees = useMemo(() => {
-    if (!searchQuery) return employeeData;
+    if (!searchQuery) return employeeDataWithFullWeek;
     
     const query = searchQuery.toLowerCase();
-    return employeeData.filter(emp => 
+    return employeeDataWithFullWeek.filter(emp => 
       emp.userName.toLowerCase().includes(query) ||
       emp.position.toLowerCase().includes(query)
     );
-  }, [employeeData, searchQuery]);
+  }, [employeeDataWithFullWeek, searchQuery]);
 
   const toggleEmployee = (userId: string) => {
     const newExpanded = new Set(expandedEmployees);
@@ -256,7 +311,10 @@ const Timesheet = () => {
     return format(date, 'EEEE', { locale: ro }).toLowerCase();
   };
 
-  const getRowBackground = (dateStr: string) => {
+  const getRowBackground = (dateStr: string, isPlaceholder: boolean = false) => {
+    if (isPlaceholder) {
+      return 'bg-gray-100 dark:bg-gray-900/30 opacity-50';
+    }
     const dayOfWeek = getDayOfWeek(dateStr);
     if (dayOfWeek === 'duminică') return 'bg-red-50 dark:bg-red-950/20';
     if (dayOfWeek === 'sâmbătă') return 'bg-yellow-50 dark:bg-yellow-950/20';
@@ -311,6 +369,12 @@ const Timesheet = () => {
   });
 
   const handleCellClick = (rowId: string, field: string, currentValue: number | string) => {
+    // ❌ Nu permitem editare pe zile placeholder
+    if (rowId.startsWith('placeholder-')) {
+      toast.info('Nu există date pentru această zi. Pontajul va fi generat automat la clock-in.');
+      return;
+    }
+    
     setEditingCell({ rowId, field });
     setEditValue(currentValue?.toString() || '');
   };
@@ -778,8 +842,13 @@ const Timesheet = () => {
                                           ts.hours_passenger + ts.hours_driving + ts.hours_equipment + 
                                           ts.hours_leave + ts.hours_medical_leave;
                               
+                              const isPlaceholder = ts.id.startsWith('placeholder-');
+                              
                               return (
-                                <TableRow key={ts.id} className={getRowBackground(ts.work_date)}>
+                                <TableRow key={ts.id} className={cn(
+                                  getRowBackground(ts.work_date, isPlaceholder),
+                                  "hover:bg-muted/80 transition-colors"
+                                )}>
                                   <TableCell className="font-medium">
                                     <div className="flex flex-col">
                                       <span>{format(new Date(ts.work_date), 'EEEE', { locale: ro })}</span>
