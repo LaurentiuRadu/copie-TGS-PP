@@ -13,9 +13,13 @@ import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton"
 import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { RefreshCw } from "lucide-react";
 
 export default function Settings() {
   const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const [reprocessingVacations, setReprocessingVacations] = useState(false);
+
   const handleBackup = () => {
     toast({
       title: "Backup în curs",
@@ -30,6 +34,76 @@ export default function Settings() {
       description: "Funcționalitatea de restore va fi implementată curând.",
     });
     // TODO: Implementează logica de restore
+  };
+
+  const handleReprocessApprovedVacations = async () => {
+    setReprocessingVacations(true);
+    
+    try {
+      // Fetch all approved vacation requests
+      const { data: approvedRequests, error: fetchError } = await supabase
+        .from('vacation_requests')
+        .select('*')
+        .eq('status', 'approved')
+        .eq('type', 'vacation');
+
+      if (fetchError) throw fetchError;
+
+      if (!approvedRequests || approvedRequests.length === 0) {
+        toast({
+          title: "Nicio cerere de reprocesar",
+          description: "Nu există cereri CO aprobate.",
+        });
+        return;
+      }
+
+      toast({
+        title: "Reprocesare în curs",
+        description: `Se reprocesează ${approvedRequests.length} cereri CO aprobate...`,
+      });
+
+      let successCount = 0;
+      let failureCount = 0;
+
+      // Process each request
+      for (const request of approvedRequests) {
+        try {
+          const { error: processError } = await supabase.functions.invoke('process-approved-vacation', {
+            body: {
+              request_id: request.id,
+              user_id: request.user_id,
+              start_date: request.start_date,
+              end_date: request.end_date,
+            }
+          });
+
+          if (processError) {
+            console.error(`Failed to reprocess ${request.id}:`, processError);
+            failureCount++;
+          } else {
+            successCount++;
+          }
+        } catch (error) {
+          console.error(`Error reprocessing ${request.id}:`, error);
+          failureCount++;
+        }
+      }
+
+      toast({
+        title: "Reprocesare finalizată",
+        description: `✅ ${successCount} cereri procesate cu succes${failureCount > 0 ? `, ❌ ${failureCount} eșuate` : ''}`,
+        variant: failureCount > 0 ? "destructive" : "default",
+      });
+    } catch (error: any) {
+      console.error('Reprocess error:', error);
+      toast({
+        title: "Eroare",
+        description: error.message || "Eroare la reprocesarea cererilor",
+        variant: "destructive",
+      });
+    } finally {
+      setReprocessingVacations(false);
+    }
   };
 
   return (
@@ -254,6 +328,27 @@ export default function Settings() {
               <CardContent className="space-y-6">
                 <VersionManager />
                 <TimeEntryReprocessButton />
+
+                {/* Reprocess Approved Vacations */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold">Reprocesare CO Aprobate</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Reprocesează toate cererile de CO aprobate și actualizează pontajele în daily_timesheets.
+                    Util pentru situații în care procesarea automată a eșuat.
+                  </p>
+                  <Button 
+                    onClick={handleReprocessApprovedVacations}
+                    disabled={reprocessingVacations}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${reprocessingVacations ? 'animate-spin' : ''}`} />
+                    {reprocessingVacations ? 'Se reprocesează...' : 'Reprocesează CO Aprobate'}
+                  </Button>
+                </div>
                 
                 {/* Developer Tools - Collapsible */}
                 <Collapsible open={devToolsOpen} onOpenChange={setDevToolsOpen}>

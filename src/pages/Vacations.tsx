@@ -56,6 +56,7 @@ const Vacations = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [vacationType, setVacationType] = useState<string>('vacation');
   const [reason, setReason] = useState('');
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   // Folosim hook-ul optimizat cu React Query
   const { requests, balance, isLoading, createRequest, updateStatus } = useOptimizedVacations(
@@ -88,12 +89,18 @@ const Vacations = () => {
   const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected', adminNotes?: string) => {
     if (!user) return;
     
-    updateStatus({
-      id,
-      status,
-      adminNotes,
-      reviewedBy: user.id,
-    });
+    setProcessingRequestId(id);
+    
+    try {
+      await updateStatus({
+        id,
+        status,
+        adminNotes,
+        reviewedBy: user.id,
+      });
+    } finally {
+      setProcessingRequestId(null);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -326,19 +333,28 @@ const Vacations = () => {
                                 variant="outline"
                                 className="text-green-600 hover:bg-green-50"
                                 onClick={() => handleUpdateStatus(request.id, 'approved')}
+                                disabled={processingRequestId === request.id}
                               >
                                 <CheckCircle className="w-4 h-4 mr-1" />
-                                Aprobă
+                                {processingRequestId === request.id ? 'Se procesează...' : 'Aprobă'}
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="text-red-600 hover:bg-red-50"
                                 onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                                disabled={processingRequestId === request.id}
                               >
                                 <XCircle className="w-4 h-4 mr-1" />
                                 Respinge
                               </Button>
+                            </div>
+                          )}
+
+                          {processingRequestId === request.id && (
+                            <div className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
+                              <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                              Procesare automată în timesheet...
                             </div>
                           )}
                         </div>

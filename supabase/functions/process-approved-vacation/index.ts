@@ -24,8 +24,9 @@ Deno.serve(async (req) => {
 
     const { request_id, user_id, start_date, end_date }: ProcessVacationRequest = await req.json();
 
-    console.log(`[Process Vacation] Processing request ${request_id} for user ${user_id}`);
-    console.log(`[Process Vacation] Date range: ${start_date} to ${end_date}`);
+    console.log(`[Process Vacation] ✅ Request received: ${request_id}`);
+    console.log(`[Process Vacation] 👤 User: ${user_id}`);
+    console.log(`[Process Vacation] 📅 Date range: ${start_date} → ${end_date}`);
 
     // Parse dates
     const startDate = new Date(start_date);
@@ -40,47 +41,70 @@ Deno.serve(async (req) => {
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    console.log(`[Process Vacation] Processing ${dates.length} days`);
+    console.log(`[Process Vacation] 📊 Processing ${dates.length} days...`);
 
-    // Upsert 8h hours_leave for each day
+    // Upsert 8h hours_leave for each day with detailed logging
+    let successCount = 0;
+    let failureCount = 0;
+    const processedDates: string[] = [];
+    const failedDates: string[] = [];
+
     const upsertPromises = dates.map(async (workDate) => {
-      const { error } = await supabaseClient
-        .from('daily_timesheets')
-        .upsert({
-          employee_id: user_id,
-          work_date: workDate,
-          hours_leave: 8.0,
-          hours_regular: 0,
-          hours_night: 0,
-          hours_saturday: 0,
-          hours_sunday: 0,
-          hours_holiday: 0,
-          hours_passenger: 0,
-          hours_driving: 0,
-          hours_equipment: 0,
-          hours_medical_leave: 0,
-        }, {
-          onConflict: 'employee_id,work_date',
-          ignoreDuplicates: false,
-        });
+      try {
+        const { error } = await supabaseClient
+          .from('daily_timesheets')
+          .upsert({
+            employee_id: user_id,
+            work_date: workDate,
+            hours_leave: 8.0,
+            hours_regular: 0,
+            hours_night: 0,
+            hours_saturday: 0,
+            hours_sunday: 0,
+            hours_holiday: 0,
+            hours_passenger: 0,
+            hours_driving: 0,
+            hours_equipment: 0,
+            hours_medical_leave: 0,
+          }, {
+            onConflict: 'employee_id,work_date',
+            ignoreDuplicates: false,
+          });
 
-      if (error) {
-        console.error(`[Process Vacation] Error upserting ${workDate}:`, error);
-        throw error;
+        if (error) {
+          console.error(`[Process Vacation] ❌ Failed ${workDate}:`, error.message);
+          failureCount++;
+          failedDates.push(workDate);
+          throw error;
+        }
+
+        console.log(`[Process Vacation] ✅ Processed ${workDate} - 8h CO added`);
+        successCount++;
+        processedDates.push(workDate);
+        return { date: workDate, success: true };
+      } catch (error) {
+        return { date: workDate, success: false, error };
       }
-
-      return { date: workDate, success: true };
     });
 
     const results = await Promise.all(upsertPromises);
     
-    console.log(`[Process Vacation] Successfully processed ${results.length} days`);
+    console.log(`[Process Vacation] 📈 Summary: ${successCount} success, ${failureCount} failures`);
+    if (processedDates.length > 0) {
+      console.log(`[Process Vacation] ✅ Successfully processed dates:`, processedDates);
+    }
+    if (failedDates.length > 0) {
+      console.error(`[Process Vacation] ❌ Failed dates:`, failedDates);
+    }
 
     return new Response(
       JSON.stringify({
-        success: true,
-        days_processed: results.length,
-        dates: dates,
+        success: successCount === dates.length,
+        days_processed: successCount,
+        days_failed: failureCount,
+        total_days: dates.length,
+        processed_dates: processedDates,
+        failed_dates: failedDates,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

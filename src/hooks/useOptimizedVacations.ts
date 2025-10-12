@@ -156,39 +156,57 @@ export const useOptimizedVacations = (userId: string | undefined, isAdmin: boole
       if (status === 'approved') {
         const request = requests.find(r => r.id === id);
         if (request && request.type === 'vacation') {
-          console.log(`[Vacation Approval] Processing CO request ${id} - writing 8h/day to daily_timesheets`);
+          console.log(`[Vacation Approval] ✅ Request approved: ${id}`);
+          console.log(`[Vacation Approval] 🔄 Processing ${request.days_count} days to timesheet...`);
           
-          const { error: processError } = await supabase.functions.invoke('process-approved-vacation', {
-            body: {
-              request_id: id,
-              user_id: request.user_id,
-              start_date: request.start_date,
-              end_date: request.end_date,
+          try {
+            const { data, error: processError } = await supabase.functions.invoke('process-approved-vacation', {
+              body: {
+                request_id: id,
+                user_id: request.user_id,
+                start_date: request.start_date,
+                end_date: request.end_date,
+              }
+            });
+
+            if (processError) {
+              console.error('[Vacation Approval] ❌ Edge function error:', processError);
+              throw new Error(`Cerere aprobată, dar eroare la procesare: ${processError.message}`);
             }
-          });
 
-          if (processError) {
-            console.error('[Vacation Approval] Error processing vacation:', processError);
-            throw new Error(`Cerere aprobată, dar eroare la actualizarea pontajului: ${processError.message}`);
+            if (data?.success === false || data?.days_failed > 0) {
+              console.error('[Vacation Approval] ⚠️ Partial failure:', data);
+              throw new Error(`Procesare parțială: ${data.days_processed}/${data.total_days} zile adăugate. ${data.days_failed} eșuate.`);
+            }
+
+            console.log(`[Vacation Approval] ✅ Successfully processed ${data.days_processed} days`);
+            return { request, processResult: data };
+          } catch (error: any) {
+            console.error('[Vacation Approval] ❌ Processing failed:', error);
+            throw error;
           }
-
-          console.log(`[Vacation Approval] Successfully wrote hours_leave for request ${id}`);
         }
       }
+
+      return { request: requests.find(r => r.id === id) };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationRequests() });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.vacationBalance() });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       
-      const request = requests.find(r => r.id === variables.id);
-      const daysCount = request?.days_count || 0;
+      const request = result?.request;
+      const processResult = result?.processResult;
       
       if (variables.status === 'approved' && request?.type === 'vacation') {
-        toast.success(`Cerere CO aprobată! 8h/zi adăugate în pontaj pentru ${daysCount} zile`);
+        if (processResult?.success) {
+          toast.success(`✅ Cerere CO aprobată! ${processResult.days_processed} zile (8h/zi) adăugate în pontaj`);
+        } else if (processResult?.days_processed > 0) {
+          toast.success(`⚠️ Cerere aprobată parțial: ${processResult.days_processed}/${processResult.total_days} zile procesate`);
+        }
       } else {
         toast.success(
-          variables.status === 'approved' ? 'Cerere aprobată' : 'Cerere respinsă'
+          variables.status === 'approved' ? '✅ Cerere aprobată' : '❌ Cerere respinsă'
         );
       }
     },
