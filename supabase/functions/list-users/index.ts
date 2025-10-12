@@ -36,9 +36,6 @@ Deno.serve(async (req) => {
       supabaseUrl,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       {
-        global: {
-          headers: { Authorization: authHeader }
-        },
         auth: {
           persistSession: false,
           autoRefreshToken: false
@@ -46,30 +43,43 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
     
     if (userError || !user) {
-      console.error('Auth error:', userError)
+      console.error('[list-users] ❌ Auth error:', userError)
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    console.log('[list-users] ✅ Auth OK - User:', user.id)
+
     // Check if user is admin
-    const { data: roles } = await supabaseAdmin
+    const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .eq('role', 'admin')
-      .single()
+      .maybeSingle()
+
+    if (roleError) {
+      console.error('[list-users] ❌ Role check error:', roleError)
+      return new Response(
+        JSON.stringify({ error: 'Error checking permissions' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     if (!roles) {
+      console.log('[list-users] ❌ Role denied - User is not admin')
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('[list-users] ✅ Role OK - User is admin')
 
     // Get all users
     const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
@@ -113,6 +123,8 @@ Deno.serve(async (req) => {
       const nameB = b.fullName.toLowerCase().trim()
       return nameA.localeCompare(nameB, 'ro')
     })
+
+    console.log(`[list-users] ✅ Users fetched: ${usersWithRoles.length}`)
 
     return new Response(
       JSON.stringify({ users: usersWithRoles }),
