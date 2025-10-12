@@ -244,22 +244,28 @@ function segmentShiftIntoTimesheets(
     
     const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
     
-    // ❗ SINGLE-TRACK: fiecare pontaj merge într-o singură categorie
-    // Dacă e condus/pasager/utilaj → folosește categoria specială
-    // Altfel → determină tipul de ore normale (zi/noapte/weekend/sărbătoare)
+    // ✅ PRIORITATE NOUĂ: Weekend/Sărbători > Shift-uri Speciale
+    // Logica: Condus pe Duminică = ore duminică (2.0x), NU ore condus
+    // Condus într-o zi normală = ore condus
     let hoursType: string;
-    if (shiftType === 'condus') {
+    
+    // PASUL 1: Determină categoria de bază (zi/noapte/weekend/sărbătoare)
+    const baseHoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
+    
+    // PASUL 2: Aplică override DOAR dacă e zi normală (hours_regular sau hours_night)
+    if (shiftType === 'condus' && (baseHoursType === 'hours_regular' || baseHoursType === 'hours_night')) {
       hoursType = 'hours_driving';
-      console.log(`[Segment] → hours_driving (${hoursInSegment}h)`);
-    } else if (shiftType === 'pasager') {
+      console.log(`[Segment] → hours_driving (${hoursInSegment}h) [override pentru zi normală]`);
+    } else if (shiftType === 'pasager' && (baseHoursType === 'hours_regular' || baseHoursType === 'hours_night')) {
       hoursType = 'hours_passenger';
-      console.log(`[Segment] → hours_passenger (${hoursInSegment}h)`);
-    } else if (shiftType === 'utilaj') {
+      console.log(`[Segment] → hours_passenger (${hoursInSegment}h) [override pentru zi normală]`);
+    } else if (shiftType === 'utilaj' && (baseHoursType === 'hours_regular' || baseHoursType === 'hours_night')) {
       hoursType = 'hours_equipment';
-      console.log(`[Segment] → hours_equipment (${hoursInSegment}h)`);
+      console.log(`[Segment] → hours_equipment (${hoursInSegment}h) [override pentru zi normală]`);
     } else {
-      hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
-      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h)`);
+      // Pentru weekend/sărbători: prioritate la categoria weekend/sărbătoare
+      hoursType = baseHoursType;
+      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [prioritate weekend/sărbătoare]`);
     }
     
     // ✅ FIXED: Găsește sau creează pontaj pentru această zi (ora României)
@@ -758,10 +764,11 @@ Deno.serve(async (req) => {
         }
         
         // ✅ Mapare segment_type → coloană daily_timesheets
+        // IMPORTANT: Keys trebuie să matcheze exact cum sunt salvate segmentele (cu prefix 'hours_')
         const segmentTypeToColumn: Record<string, string> = {
-          'driving': 'hours_driving',
-          'passenger': 'hours_passenger',
-          'equipment': 'hours_equipment',
+          'hours_driving': 'hours_driving',
+          'hours_passenger': 'hours_passenger',
+          'hours_equipment': 'hours_equipment',
           'hours_regular': 'hours_regular',
           'hours_night': 'hours_night',
           'hours_saturday': 'hours_saturday',
