@@ -139,50 +139,36 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 }
 
 /**
- * Determină tipul de ore bazat pe ziua săptămânii și interval orar
+ * Determină tipul de ore bazat pe interval orar și sărbători
  * PRIORITATE REGULI (de sus în jos):
- * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate peste weekend)
- * 2. Duminică 06:00 → 23:59:59 = hours_sunday
- * 3. Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday (24h complet)
- * 4. Noapte 22:00 → 05:59:59 = hours_night (DOAR Luni-Vineri + Sărbători 00:00-05:59)
- * 5. Normal 06:00 → 21:59:59 = hours_regular (Luni-Vineri)
+ * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate absolută)
+ * 2. Noapte 22:00 → 05:59:59 = hours_night (pentru TOATE zilele)
+ * 3. Zi 06:00 → 21:59:59 = hours_regular (pentru TOATE zilele, include weekend)
+ * 
+ * NOTE: hours_saturday și hours_sunday vor fi calculate SEPARAT în agregare
+ * bazat pe work_date (ziua săptămânii), NU pe segment_type
  */
 function determineHoursType(
   segmentStart: Date,
   segmentEnd: Date,
   holidayDates: Set<string>
 ): string {
-  const dayOfWeek = segmentStart.getDay(); // 0=Duminică, 1=Luni, ..., 6=Sâmbătă
   const hour = segmentStart.getHours();
   
   // PRIORITATE 1: Sărbători legale (06:00 → 23:59:59)
-  // Sărbătoarea are prioritate peste weekend!
+  // Sărbătoarea are prioritate peste orice altceva!
   if (isLegalHoliday(segmentStart, holidayDates) && hour >= 6 && hour < 24) {
     return 'hours_holiday';
   }
   
-  // PRIORITATE 2: Duminică (06:00 → 23:59:59)
-  if (dayOfWeek === 0 && hour >= 6 && hour < 24) {
-    return 'hours_sunday';
-  }
-  
-  // PRIORITATE 3: Sâmbătă (06:00 Sâmbătă → 05:59:59 Duminică)
-  // Weekend-ul "consumă" orele de noapte în intervalul său!
-  if (dayOfWeek === 6 && hour >= 6) {
-    return 'hours_saturday'; // Sâmbătă după 06:00
-  }
-  if (dayOfWeek === 0 && hour < 6) {
-    return 'hours_saturday'; // Duminică 00:00-05:59 (încă în interval Sâmbătă)
-  }
-  
-  // PRIORITATE 4: Noapte (22:00 → 05:59:59)
-  // DOAR pentru Luni-Vineri + Sărbători (înainte de 06:00)
-  // NU se aplică în Sâmbătă 06:00 → Duminică 23:59 (deja tratat mai sus)
+  // PRIORITATE 2: Noapte (22:00 → 05:59:59) pentru TOATE zilele
+  // Include luni, marți, miercuri, joi, vineri, SÂMBĂTĂ, DUMINICĂ
   if (hour >= 22 || hour < 6) {
     return 'hours_night';
   }
   
-  // PRIORITATE 5: Normal (Luni-Vineri 06:00 → 21:59:59)
+  // PRIORITATE 3: Zi (06:00 → 21:59:59) pentru TOATE zilele
+  // Include luni, marți, miercuri, joi, vineri, SÂMBĂTĂ, DUMINICĂ
   return 'hours_regular';
 }
 
@@ -245,9 +231,9 @@ function segmentShiftIntoTimesheets(
       hoursType = 'hours_equipment';
       console.log(`[Segment] → hours_equipment (${hoursInSegment}h) [tarif unic utilaj]`);
     } else {
-      // DOAR pentru shift-uri normale ("zi" / "noapte") → aplică reguli weekend/sărbători
+      // DOAR pentru shift-uri normale ("zi" / "noapte") → aplică reguli sărbători/ore
       hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
-      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [shift normal]`);
+      console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [shift normal - include weekend]`);
     }
     
     // ✅ FIXED: Găsește sau creează pontaj pentru această zi (ora României)
@@ -791,7 +777,28 @@ Deno.serve(async (req) => {
       console.log(`[Aggregate] ✅ Keeping ${savedSegments.length} segments for entry ${entry.id} (audit trail)`);
     }
 
-    // ✅ STEP 5: Rotunjire finală și validare
+    // ✅ STEP 5: Calculează hours_saturday și hours_sunday bazat pe work_date
+    // hours_saturday și hours_sunday sunt populate pentru payroll/raportare
+    // dar segmentele sunt clasificate în hours_regular/hours_night pentru vizualizare
+    for (const [workDate, timesheet] of aggregatedTimesheets.entries()) {
+      const dateObj = new Date(workDate + 'T12:00:00Z'); // Noon to avoid timezone issues
+      const dayOfWeek = dateObj.getUTCDay(); // 0=Sunday, 6=Saturday
+      
+      // Calculează totalul de ore normale (zi + noapte) pentru această zi
+      const normalHours = timesheet.hours_regular + timesheet.hours_night;
+      
+      if (dayOfWeek === 6 && normalHours > 0) {
+        // Sâmbătă: agregă ore normale în hours_saturday
+        timesheet.hours_saturday = normalHours;
+        console.log(`[Weekend Aggregate] ${workDate} (Saturday): hours_saturday = ${normalHours.toFixed(2)}h (from regular + night)`);
+      } else if (dayOfWeek === 0 && normalHours > 0) {
+        // Duminică: agregă ore normale în hours_sunday
+        timesheet.hours_sunday = normalHours;
+        console.log(`[Weekend Aggregate] ${workDate} (Sunday): hours_sunday = ${normalHours.toFixed(2)}h (from regular + night)`);
+      }
+    }
+
+    // ✅ STEP 6: Rotunjire finală și validare
     const finalTimesheets = Array.from(aggregatedTimesheets.values());
     
     finalTimesheets.forEach(t => {
