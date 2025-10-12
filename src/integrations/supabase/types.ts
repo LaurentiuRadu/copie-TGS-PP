@@ -544,6 +544,9 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          metadata: Json | null
+          notification_type: string | null
+          previous_team_id: string | null
           read_at: string | null
           schedule_id: string
           user_id: string
@@ -551,6 +554,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          metadata?: Json | null
+          notification_type?: string | null
+          previous_team_id?: string | null
           read_at?: string | null
           schedule_id: string
           user_id: string
@@ -558,6 +564,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          metadata?: Json | null
+          notification_type?: string | null
+          previous_team_id?: string | null
           read_at?: string | null
           schedule_id?: string
           user_id?: string

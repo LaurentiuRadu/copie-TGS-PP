@@ -1,8 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Calendar, MapPin, Wrench, Car, MessageSquare, Users, X } from 'lucide-react';
+import { Calendar, MapPin, Wrench, Car, MessageSquare, X, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const dayNames = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
@@ -30,12 +30,43 @@ export function ScheduleNotificationDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-3xl font-bold flex items-center gap-3">
-            <Calendar className="h-8 w-8" />
-            Programare Nouă
+            {notification.notification_type === 'team_reassignment' ? (
+              <>
+                <ArrowRightLeft className="h-8 w-8 text-amber-500" />
+                🔄 Realocare în Altă Echipă
+              </>
+            ) : notification.notification_type === 'schedule_updated' ? (
+              <>
+                <Calendar className="h-8 w-8" />
+                ✏️ Programare Modificată
+              </>
+            ) : (
+              <>
+                <Calendar className="h-8 w-8" />
+                📅 Programare Nouă
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Alertă specială pentru mutări */}
+          {notification.notification_type === 'team_reassignment' && notification.previous_team_id && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700 rounded-lg p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <ArrowRightLeft className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                <p className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+                  Ai fost realocat din echipa <strong>{notification.previous_team_id}</strong> în echipa <strong>{schedule.team_id}</strong>
+                </p>
+              </div>
+              <div className="text-sm text-amber-800 dark:text-amber-200 space-y-1">
+                <p>📅 Ziua: <strong>{dayNames[schedule.day_of_week - 1]}</strong></p>
+                <p>📆 Data: <strong>{format(addDays(new Date(schedule.week_start_date), schedule.day_of_week - 1), 'dd MMMM yyyy', { locale: ro })}</strong></p>
+                <p className="mt-3 italic">⚠️ Te rugăm să verifici noul program și să te prezinți la echipa corectă.</p>
+              </div>
+            </div>
+          )}
+
           {/* Echipa și Tura */}
           <div className="bg-primary/10 rounded-lg p-6 space-y-3">
             <div className="flex items-center justify-between">

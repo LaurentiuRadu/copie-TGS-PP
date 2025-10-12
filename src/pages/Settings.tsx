@@ -7,6 +7,7 @@ import { Download, Upload, Database, HardDrive, Info, Shield, Bell, Users, Setti
 import { toast } from "@/hooks/use-toast";
 import { ThemeSettings } from "@/components/ThemeSettings";
 import UserManagement from "./UserManagement";
+import { AllScheduleNotifications } from "@/components/AllScheduleNotifications";
 
 export default function Settings() {
   const handleBackup = () => {
@@ -28,7 +29,7 @@ export default function Settings() {
   return (
     <div className="container max-w-6xl mx-auto p-4 md:p-6">
         <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Setări Generale</span>
@@ -38,6 +39,11 @@ export default function Settings() {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Utilizatori</span>
               <span className="sm:hidden">Useri</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notificări</span>
+              <span className="sm:hidden">Notif</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -205,6 +211,11 @@ export default function Settings() {
           {/* Gestionare Utilizatori Tab */}
           <TabsContent value="users">
             <UserManagement embedded={true} />
+          </TabsContent>
+
+          {/* Notificări Tab */}
+          <TabsContent value="notifications">
+            <AllScheduleNotifications />
           </TabsContent>
 
           {/* Aspect Tab */}

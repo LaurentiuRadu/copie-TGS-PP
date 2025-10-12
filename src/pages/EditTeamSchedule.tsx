@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Calendar, Plus, X, Save, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, Calendar, Plus, X, Save, Check, ChevronsUpDown, ArrowRightLeft, Loader2 } from 'lucide-react';
 import { AdminLayout } from '@/components/AdminLayout';
 import { cn } from '@/lib/utils';
 import { STALE_TIME } from '@/lib/queryConfig';
@@ -45,6 +46,12 @@ export default function EditTeamSchedule() {
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [locationSearch, setLocationSearch] = useState('');
   const [projectSearch, setProjectSearch] = useState('');
+  
+  // State pentru Realocare
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
+  const [reassignSelectedEmployee, setReassignSelectedEmployee] = useState<string>('');
+  const [reassignTargetTeam, setReassignTargetTeam] = useState<string>('');
+  const [reassignSelectedDays, setReassignSelectedDays] = useState<number[]>([]);
 
   const AVAILABLE_VEHICLES = [
     'B-119-ARF', 'B-169-TGS', 'B-777-TGS', 'B-997-TGS', 'BC-19-TGS',
@@ -144,6 +151,22 @@ export default function EditTeamSchedule() {
         .eq('week_start_date', weekStart);
       if (error) throw error;
       return data;
+    },
+    enabled: !!teamId && !!weekStart
+  });
+
+  // Query pentru echipe disponibile (pentru realocări)
+  const { data: availableTeams } = useQuery({
+    queryKey: ['available-teams', teamId, weekStart],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('weekly_schedules')
+        .select('team_id')
+        .eq('week_start_date', weekStart)
+        .neq('team_id', teamId);
+      
+      if (error) throw error;
+      return [...new Set(data.map(s => s.team_id))].sort();
     },
     enabled: !!teamId && !!weekStart
   });
@@ -320,6 +343,38 @@ export default function EditTeamSchedule() {
     }
   });
 
+  // Mutation pentru realocare angajat în altă echipă
+  const reassignMutation = useMutation({
+    mutationFn: async () => {
+      if (!reassignSelectedEmployee || !reassignTargetTeam || reassignSelectedDays.length === 0) {
+        throw new Error('Selectează angajat, echipă destinație și cel puțin o zi');
+      }
+
+      const { error } = await supabase
+        .from('weekly_schedules')
+        .update({ team_id: reassignTargetTeam })
+        .eq('user_id', reassignSelectedEmployee)
+        .eq('team_id', teamId)
+        .eq('week_start_date', weekStart)
+        .in('day_of_week', reassignSelectedDays);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('✅ Angajat realocat! Notificare trimisă automat.');
+      queryClient.invalidateQueries({ queryKey: ['weekly-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['team-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['team-approval-data'] });
+      setReassignDialogOpen(false);
+      setReassignSelectedEmployee('');
+      setReassignTargetTeam('');
+      setReassignSelectedDays([]);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Eroare la realocarea angajatului');
+    }
+  });
+
   const toggleEmployee = (employeeId: string) => {
     setSelectedEmployees(prev => 
       prev.includes(employeeId) 
@@ -425,10 +480,21 @@ export default function EditTeamSchedule() {
                 </Button>
                 Editare Echipa {teamId}
               </CardTitle>
-              <Button onClick={() => updateSchedules.mutate()} disabled={updateSchedules.isPending}>
-                <Save className="h-4 w-4 mr-2" />
-                {updateSchedules.isPending ? 'Se salvează...' : 'Salvează Modificările'}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setReassignDialogOpen(true)}
+                  disabled={selectedEmployees.length === 0}
+                >
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Realocă Angajat
+                </Button>
+                
+                <Button onClick={() => updateSchedules.mutate()} disabled={updateSchedules.isPending}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateSchedules.isPending ? 'Se salvează...' : 'Salvează Modificările'}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -824,6 +890,107 @@ export default function EditTeamSchedule() {
             )}
           </CardContent>
         </Card>
+
+        {/* Dialog Realocă Angajat */}
+        <Dialog open={reassignDialogOpen} onOpenChange={setReassignDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowRightLeft className="h-5 w-5" />
+                Realocă Angajat în Altă Echipă
+              </DialogTitle>
+              <DialogDescription>
+                Mută un angajat din echipa <strong>{teamId}</strong> în altă echipă pentru zilele selectate
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Dropdown Angajat */}
+              <div className="space-y-2">
+                <Label>Selectează Angajat *</Label>
+                <Select value={reassignSelectedEmployee} onValueChange={setReassignSelectedEmployee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Alege angajatul de mutat" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedEmployees.map(empId => {
+                      const emp = employees?.find(e => e.id === empId);
+                      return (
+                        <SelectItem key={empId} value={empId}>
+                          👤 {emp?.full_name || emp?.username}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Dropdown Echipă Destinație */}
+              <div className="space-y-2">
+                <Label>Echipa Destinație *</Label>
+                <Select value={reassignTargetTeam} onValueChange={setReassignTargetTeam}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selectează echipa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTeams?.map(team => (
+                      <SelectItem key={team} value={team}>
+                        📋 Echipa {team}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Checkbox-uri Zile */}
+              <div className="space-y-2">
+                <Label>Selectează Zilele *</Label>
+                <div className="grid grid-cols-4 gap-2 border rounded-md p-3">
+                  {selectedDays.map(dayNum => (
+                    <div key={dayNum} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`reassign-day-${dayNum}`}
+                        checked={reassignSelectedDays.includes(dayNum)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setReassignSelectedDays([...reassignSelectedDays, dayNum]);
+                          } else {
+                            setReassignSelectedDays(reassignSelectedDays.filter(d => d !== dayNum));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`reassign-day-${dayNum}`} className="text-sm cursor-pointer">
+                        {dayNames[dayNum - 1].slice(0, 2)}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setReassignDialogOpen(false)}>
+                Anulează
+              </Button>
+              <Button 
+                onClick={() => reassignMutation.mutate()}
+                disabled={reassignMutation.isPending || !reassignSelectedEmployee || !reassignTargetTeam || reassignSelectedDays.length === 0}
+              >
+                {reassignMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Se mută...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRightLeft className="h-4 w-4 mr-2" />
+                    Confirmă Mutarea
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
