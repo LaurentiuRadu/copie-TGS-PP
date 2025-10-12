@@ -23,6 +23,7 @@ export const TimeSegmentDebugPanel = () => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // Helper function to get next critical time (00:00, 06:00, 22:00)
   const getNextCriticalTime = (currentTime: Date): Date => {
     const result = new Date(currentTime);
     const h = result.getHours();
@@ -30,59 +31,59 @@ export const TimeSegmentDebugPanel = () => {
     const s = result.getSeconds();
     const totalSeconds = h * 3600 + m * 60 + s;
 
+    // Critical boundaries: 00:00, 06:00, 22:00
+    // Boundaries must be STRICTLY after currentTime to avoid zero-length segments
+    
     // Before 06:00 → go to 06:00
     if (totalSeconds < 6 * 3600) {
       result.setHours(6, 0, 0, 0);
       return result;
     }
     
-    // At 06:00:00 exactly → go to 06:01:00 (critical for Saturday/Sunday/Holiday transitions)
-    if (totalSeconds === 6 * 3600) {
-      result.setHours(6, 1, 0, 0);
-      return result;
-    }
-    
-    // Between 06:00:01 and 22:00 → go to 22:00
+    // Between 06:00 and 22:00 → go to 22:00
     if (totalSeconds < 22 * 3600) {
       result.setHours(22, 0, 0, 0);
       return result;
     }
-
-    // >= 22:00 → next day 00:00
+    
+    // After 22:00 → go to next day 00:00
     result.setDate(result.getDate() + 1);
     result.setHours(0, 0, 0, 0);
     return result;
   };
 
+  // Helper function to determine hours type
+  // PRIORITATE REGULI (de sus în jos):
+  // 1. Duminică 06:00 → 23:59:59 = hours_sunday
+  // 2. Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday (24h complet)
+  // 3. Noapte 22:00 → 05:59:59 = hours_night (DOAR Luni-Vineri)
+  // 4. Normal 06:00 → 21:59:59 = hours_regular (Luni-Vineri)
   const determineHoursType = (segmentStart: Date): string => {
-    const dayOfWeek = segmentStart.getDay(); // 0=Duminică, 6=Sâmbătă
-    const startHour = segmentStart.getHours();
-    const startMinute = segmentStart.getMinutes();
-
-    // SÂMBĂTĂ-DUMINICĂ (Sâmbătă 06:01 → Duminică 06:00)
-    if (
-      (dayOfWeek === 6 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) || // Sâmbătă de la 06:01
-      (dayOfWeek === 0 && (startHour < 6 || (startHour === 6 && startMinute === 0)))  // Duminică până la 06:00
-    ) {
-      return "hours_saturday";
+    const dayOfWeek = segmentStart.getDay(); // 0=Duminică, 1=Luni, ..., 6=Sâmbătă
+    const hour = segmentStart.getHours();
+    
+    // PRIORITATE 1: Duminică (06:00 → 23:59:59)
+    if (dayOfWeek === 0 && hour >= 6 && hour < 24) {
+      return 'hours_sunday';
     }
     
-    // DUMINICĂ (Duminică 06:01 → 24:00)
-    if (dayOfWeek === 0 && (startHour > 6 || (startHour === 6 && startMinute >= 1))) {
-      return "hours_sunday";
+    // PRIORITATE 2: Sâmbătă (06:00 Sâmbătă → 05:59:59 Duminică)
+    // Weekend-ul "consumă" orele de noapte în intervalul său!
+    if (dayOfWeek === 6 && hour >= 6) {
+      return 'hours_saturday'; // Sâmbătă după 06:00
+    }
+    if (dayOfWeek === 0 && hour < 6) {
+      return 'hours_saturday'; // Duminică 00:00-05:59 (încă în interval Sâmbătă)
     }
     
-    // NOAPTE (22:00 → 06:00)
-    if (startHour >= 22) {
-      return "hours_night";
+    // PRIORITATE 3: Noapte (22:00 → 05:59:59)
+    // DOAR pentru Luni-Vineri (NU se aplică în weekend, deja tratat mai sus)
+    if (hour >= 22 || hour < 6) {
+      return 'hours_night';
     }
     
-    if (startHour < 6 || (startHour === 6 && startMinute === 0)) {
-      return "hours_night";
-    }
-    
-    // ORE NORMALE (06:01 → 21:59:59)
-    return "hours_regular";
+    // PRIORITATE 4: Normal (Luni-Vineri 06:00 → 21:59:59)
+    return 'hours_regular';
   };
 
   const getDayName = (dayOfWeek: number): string => {
