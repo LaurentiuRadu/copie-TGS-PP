@@ -1,16 +1,21 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Upload, Database, HardDrive, Info, Shield, Bell, Users, Settings as SettingsIcon, Palette, MessageCircle } from "lucide-react";
+import { Download, Upload, Database, HardDrive, Info, Shield, Bell, Users, Settings as SettingsIcon, Palette, MessageCircle, Wrench, Code, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ThemeSettings } from "@/components/ThemeSettings";
 import UserManagement from "./UserManagement";
 import { AllScheduleNotifications } from "@/components/AllScheduleNotifications";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
+import { VersionManager } from "@/components/VersionManager";
+import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
+import { TimeSegmentDebugPanel } from "@/components/TimeSegmentDebugPanel";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState } from "react";
 
 export default function Settings() {
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
   const handleBackup = () => {
     toast({
       title: "Backup în curs",
@@ -50,6 +55,11 @@ export default function Settings() {
               <MessageCircle className="h-4 w-4" />
               <span className="hidden sm:inline">WhatsApp</span>
               <span className="sm:hidden">WA</span>
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Instrumente</span>
+              <span className="sm:hidden">Tools</span>
             </TabsTrigger>
             <TabsTrigger value="appearance" className="flex items-center gap-2">
               <Palette className="h-4 w-4" />
@@ -227,6 +237,52 @@ export default function Settings() {
           {/* WhatsApp Tab */}
           <TabsContent value="whatsapp">
             <NotificationPreferences />
+          </TabsContent>
+
+          {/* Instrumente Tab */}
+          <TabsContent value="tools" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5 text-primary" />
+                  <CardTitle>Instrumente Tehnice</CardTitle>
+                </div>
+                <CardDescription>
+                  Management versiuni și reprocesare pontaje
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <VersionManager />
+                <TimeEntryReprocessButton />
+                
+                {/* Developer Tools - Collapsible */}
+                <Collapsible open={devToolsOpen} onOpenChange={setDevToolsOpen}>
+                  <Card className="border-dashed">
+                    <CollapsibleTrigger className="w-full">
+                      <CardHeader className="cursor-pointer hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2 text-sm">
+                            <Code className="h-4 w-4" />
+                            Developer Tools
+                          </CardTitle>
+                          <ChevronDown 
+                            className={`h-4 w-4 transition-transform ${devToolsOpen ? 'rotate-180' : ''}`}
+                          />
+                        </div>
+                        <CardDescription className="text-xs">
+                          Instrumente avansate de debugging
+                        </CardDescription>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0">
+                        <TimeSegmentDebugPanel />
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Aspect Tab */}
