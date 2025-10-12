@@ -177,7 +177,6 @@ export function PayrollExportDialog({ allTimesheets, employees, currentMonth }: 
             <div className="font-semibold text-sm">📊 Raportul va include:</div>
             <ul className="text-xs text-muted-foreground space-y-1 ml-4">
               <li>• Rezumat per angajat cu ore pe categorii</li>
-              <li>• Calcul ore plătibile cu multiplicatori (1.0x, 1.25x, 1.5x, 2.0x)</li>
               <li>• Detalii zilnice pentru fiecare pontaj</li>
               <li>• Format Excel optimizat pentru departamentul salarizare</li>
             </ul>

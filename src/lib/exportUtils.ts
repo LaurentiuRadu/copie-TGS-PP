@@ -240,12 +240,6 @@ interface PayrollSummary {
   hoursEquipment: number;
   hoursLeave: number;
   hoursMedicalLeave: number;
-  // Ore plătibile cu multiplicatori
-  payableRegular: number;  // 1.0x
-  payableNight: number;    // 1.25x
-  payableSaturday: number; // 1.5x
-  payableSundayHoliday: number; // 2.0x
-  totalPayableHours: number;
 }
 
 export const exportMonthlyPayrollReport = (
@@ -285,11 +279,6 @@ export const exportMonthlyPayrollReport = (
         hoursEquipment: 0,
         hoursLeave: 0,
         hoursMedicalLeave: 0,
-        payableRegular: 0,
-        payableNight: 0,
-        payableSaturday: 0,
-        payableSundayHoliday: 0,
-        totalPayableHours: 0,
       });
     }
 
@@ -306,12 +295,6 @@ export const exportMonthlyPayrollReport = (
     summary.hoursLeave += entry.hours_leave;
     summary.hoursMedicalLeave += entry.hours_medical_leave;
     summary.daysWorked += 1;
-
-    // Calcul ore plătibile cu multiplicatori
-    summary.payableRegular += entry.hours_regular * 1.0;
-    summary.payableNight += entry.hours_night * 1.25;
-    summary.payableSaturday += entry.hours_saturday * 1.5;
-    summary.payableSundayHoliday += (entry.hours_sunday + entry.hours_holiday) * 2.0;
   });
 
   // Calculare total-uri
@@ -321,10 +304,6 @@ export const exportMonthlyPayrollReport = (
       summary.hoursSunday + summary.hoursHoliday + summary.hoursPassenger +
       summary.hoursDriving + summary.hoursEquipment + summary.hoursLeave +
       summary.hoursMedicalLeave;
-    
-    summary.totalPayableHours = 
-      summary.payableRegular + summary.payableNight + summary.payableSaturday +
-      summary.payableSundayHoliday;
   });
 
   // Creare Excel cu formatare
@@ -335,29 +314,23 @@ export const exportMonthlyPayrollReport = (
     'Angajat': s.employeeName,
     'Zile Lucrate': s.daysWorked,
     'Total Ore Lucrate': formatRomanianNumber(s.totalHours),
-    'Ore Regulate (1.0x)': formatRomanianNumber(s.hoursRegular),
-    'Ore Noapte (1.25x)': formatRomanianNumber(s.hoursNight),
-    'Ore Sâmbătă (1.5x)': formatRomanianNumber(s.hoursSaturday),
-    'Ore Dum/Sârb (2.0x)': formatRomanianNumber(s.hoursSunday + s.hoursHoliday),
+    'Ore Normale': formatRomanianNumber(s.hoursRegular),
+    'Ore Noapte': formatRomanianNumber(s.hoursNight),
+    'Ore Sâmbătă': formatRomanianNumber(s.hoursSaturday),
+    'Ore Duminică': formatRomanianNumber(s.hoursSunday),
+    'Ore Sărbători': formatRomanianNumber(s.hoursHoliday),
     'Ore Pasager': formatRomanianNumber(s.hoursPassenger),
     'Ore Condus': formatRomanianNumber(s.hoursDriving),
     'Ore Utilaj': formatRomanianNumber(s.hoursEquipment),
     'Ore CO': formatRomanianNumber(s.hoursLeave),
     'Ore CM': formatRomanianNumber(s.hoursMedicalLeave),
-    '---': '---',
-    'Ore Plătibile Regulate': formatRomanianNumber(s.payableRegular),
-    'Ore Plătibile Noapte': formatRomanianNumber(s.payableNight),
-    'Ore Plătibile Sâmbătă': formatRomanianNumber(s.payableSaturday),
-    'Ore Plătibile Dum/Sârb': formatRomanianNumber(s.payableSundayHoliday),
-    'TOTAL ORE PLĂTIBILE': formatRomanianNumber(s.totalPayableHours),
   }));
 
   const wsSummary = XLSX.utils.json_to_sheet(summaryData);
   wsSummary['!cols'] = [
-    { wch: 25 }, { wch: 12 }, { wch: 16 }, { wch: 18 }, { wch: 18 },
-    { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
-    { wch: 10 }, { wch: 10 }, { wch: 5 }, { wch: 20 }, { wch: 20 },
-    { wch: 20 }, { wch: 20 }, { wch: 20 }
+    { wch: 25 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 }, { wch: 10 }, { wch: 10 }
   ];
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Rezumat Salarizare');
 
