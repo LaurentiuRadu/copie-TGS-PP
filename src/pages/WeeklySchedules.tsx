@@ -189,7 +189,6 @@ export default function WeeklySchedules() {
         .from('weekly_schedules')
         .select('*')
         .eq('week_start_date', selectedWeek)
-        .order('team_id')
         .order('day_of_week');
       if (error) throw error;
       
@@ -202,10 +201,19 @@ export default function WeeklySchedules() {
           .in('id', userIds);
         
         // Merge employee names into schedules
-        return data.map(schedule => ({
+        const schedulesWithProfiles = data.map(schedule => ({
           ...schedule,
           profiles: profiles?.find(p => p.id === schedule.user_id) || null
         }));
+        
+        // Custom numeric sort by team_id (E1, E2, ..., E10, E11)
+        return schedulesWithProfiles.sort((a, b) => {
+          const numA = parseInt(a.team_id.replace('E', ''));
+          const numB = parseInt(b.team_id.replace('E', ''));
+          
+          if (numA !== numB) return numA - numB;
+          return a.day_of_week - b.day_of_week;
+        });
       }
       
       return data;
