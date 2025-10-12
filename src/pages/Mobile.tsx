@@ -716,15 +716,15 @@ const Mobile = () => {
       
       // Enhanced toast message for shift changes
       if (previousShiftType && previousShiftType !== type) {
-        toast.success(`Tură ${getShiftTypeLabel(previousShiftType)} închisă. Tură ${getShiftTypeLabel(type)} începută`);
+        toast.success(`Tură ${getShiftTypeLabel(previousShiftType)} închisă. Tură ${getShiftTypeLabel(type)} începută`, { duration: 5000 });
       } else {
-        toast.success(`Pontaj început cu succes`);
+        toast.success(`Pontaj început cu succes`, { duration: 4000 });
       }
       
     } catch (error: any) {
       console.error('Failed to start shift:', error);
       triggerHaptic('error');
-      toast.error(error.message || "Eroare la începerea pontajului");
+      toast.error(error.message || "Eroare la începerea pontajului", { duration: 7000 });
     } finally {
       setIsProcessing(false);
     }
@@ -1061,7 +1061,7 @@ const Mobile = () => {
         longitude: currentCoords.longitude,
       });
       
-      toast.success(`Pontaj terminat cu succes`);
+      toast.success(`Pontaj terminat cu succes`, { duration: 4000 });
       setActiveShift(null);
       setShiftSeconds(0);
       setActiveTimeEntry(null);
@@ -1069,7 +1069,7 @@ const Mobile = () => {
     } catch (error: any) {
       console.error('Failed to end shift:', error);
       triggerHaptic('error');
-      toast.error(error.message || "Eroare la terminarea pontajului");
+      toast.error(error.message || "Eroare la terminarea pontajului", { duration: 7000 });
     } finally {
       setIsProcessing(false);
     }
