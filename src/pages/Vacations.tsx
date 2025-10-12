@@ -96,7 +96,20 @@ const Vacations = () => {
     const targetUserId = isAdmin && selectedUserId ? selectedUserId : user?.id;
     if (!targetUserId) return;
 
-    const daysCount = differenceInDays(dateRange.to, dateRange.from) + 1;
+    // Calculate days count EXCLUDING weekends (Sat=6, Sun=0)
+    let daysCount = 0;
+    const currentDate = new Date(dateRange.from);
+    const endDate = new Date(dateRange.to);
+    
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        daysCount++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    console.log(`[Vacation Request] 📅 ${daysCount} weekdays selected (excluding weekends)`);
 
     createRequest({
       user_id: targetUserId,
@@ -218,11 +231,31 @@ const Vacations = () => {
                       return date < today;
                     }}
                   />
-                  {dateRange?.from && dateRange?.to && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {differenceInDays(dateRange.to, dateRange.from) + 1} zile selectate
-                    </p>
-                  )}
+                  {dateRange?.from && dateRange?.to && (() => {
+                    // Calculate weekdays only
+                    let weekdaysCount = 0;
+                    const currentDate = new Date(dateRange.from);
+                    const endDate = new Date(dateRange.to);
+                    
+                    while (currentDate <= endDate) {
+                      const dayOfWeek = currentDate.getDay();
+                      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        weekdaysCount++;
+                      }
+                      currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                    
+                    return (
+                      <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <p className="text-sm font-medium text-primary">
+                          📅 {weekdaysCount} zile CO (exclude weekend-urile)
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(dateRange.from, 'dd MMM yyyy', { locale: ro })} - {format(dateRange.to, 'dd MMM yyyy', { locale: ro })}
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>

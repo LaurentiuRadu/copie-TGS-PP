@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X, Info } from "lucide-react";
+import { User, ChevronDown, ChevronUp, ChevronRight, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Check, X, Info } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -402,6 +402,59 @@ const Timesheet = () => {
 
   return (
     <div className="w-full p-4 md:p-6 space-y-4">
+        {/* 🎯 STICKY HEADER pentru editare */}
+        {editingCell && (() => {
+          // Găsește row-ul editat pentru context
+          const editedTimesheet = filteredEmployees
+            .flatMap(emp => emp.timesheets)
+            .find(ts => ts.id === editingCell.rowId);
+          
+          if (!editedTimesheet) return null;
+          
+          const employee = filteredEmployees.find(emp => emp.userId === editedTimesheet.employee_id);
+          const fieldLabels: Record<string, string> = {
+            hours_regular: 'Ore Zi',
+            hours_night: 'Ore Noapte',
+            hours_saturday: 'Ore Sâmbătă',
+            hours_sunday: 'Ore Duminică',
+            hours_holiday: 'Ore Sărbători',
+            hours_passenger: 'Ore Pasager',
+            hours_driving: 'Ore Șofat',
+            hours_equipment: 'Ore Echipament',
+            hours_leave: 'Ore CO',
+            hours_medical_leave: 'Ore CM',
+            notes: 'Notițe'
+          };
+          
+          const fieldLabel = fieldLabels[editingCell.field] || editingCell.field;
+          const workDate = format(new Date(editedTimesheet.work_date), 'EEEE, dd MMM yyyy', { locale: ro });
+          
+          return (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <Card className="shadow-2xl border-2 border-primary/50 bg-background/95 backdrop-blur-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 text-sm font-medium">
+                    <Badge variant="outline" className="gap-1">
+                      <User className="h-3 w-3" />
+                      {employee?.userName || 'Angajat'}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <Badge variant="outline" className="gap-1">
+                      <CalendarIcon className="h-3 w-3" />
+                      {workDate}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <Badge className="gap-1 bg-primary/10 text-primary border-primary/30">
+                      <Clock className="h-3 w-3" />
+                      {fieldLabel}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()}
+        
         {/* Header with Search and Export */}
         <Card>
           <CardHeader>

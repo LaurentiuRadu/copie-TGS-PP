@@ -32,16 +32,25 @@ Deno.serve(async (req) => {
     const startDate = new Date(start_date);
     const endDate = new Date(end_date);
 
-    // Generate all dates in range
+    // Generate all dates in range, EXCLUDING weekends
     const dates: string[] = [];
     const currentDate = new Date(startDate);
+    let weekendsSkipped = 0;
     
     while (currentDate <= endDate) {
-      dates.push(currentDate.toISOString().split('T')[0]);
+      const dayOfWeek = currentDate.getDay();
+      
+      // Skip Saturday (6) and Sunday (0)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        dates.push(currentDate.toISOString().split('T')[0]);
+      } else {
+        weekendsSkipped++;
+      }
+      
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    console.log(`[Process Vacation] 📊 Processing ${dates.length} days...`);
+    console.log(`[Process Vacation] 📊 Processing ${dates.length} weekdays (${weekendsSkipped} weekends skipped)...`);
 
     // Upsert 8h hours_leave for each day with detailed logging
     let successCount = 0;
