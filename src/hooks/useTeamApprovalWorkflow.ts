@@ -15,6 +15,7 @@ export interface TimeEntryForApproval {
   approval_notes?: string;
   approved_at?: string;
   approved_by?: string;
+  pontajNumber?: number;
   profiles: {
     id: string;
     full_name: string;
@@ -126,6 +127,9 @@ export const useTeamApprovalWorkflow = (
         .in('id', allUserIds);
 
 
+      // Track pontaj numbers per user for multiple entries per day
+      const pontajCountByUser = new Map<string, number>();
+
       // Merge profiles with entries and match with schedules
       const result = (entriesData || []).map(entry => {
         // ✅ FIX: Convert UTC to Romania time (+3 hours) before getting day_of_week
@@ -136,6 +140,10 @@ export const useTeamApprovalWorkflow = (
         const dayOfWeek = romaniaTime.getDay() === 0 ? 7 : romaniaTime.getDay();
         
         console.log(`[Matching] Entry ${entry.id.slice(0, 8)}: clock_in=${clockInDate.toISOString()}, romaniaTime=${romaniaTime.toISOString()}, dayOfWeek=${dayOfWeek}`);
+        
+        // ✅ Calculate pontaj number for this user
+        const currentCount = (pontajCountByUser.get(entry.user_id) || 0) + 1;
+        pontajCountByUser.set(entry.user_id, currentCount);
         
         // Find matching schedule for this user and day
         const matchingSchedule = schedules?.find(
@@ -161,6 +169,7 @@ export const useTeamApprovalWorkflow = (
 
         return {
           ...entry,
+          pontajNumber: currentCount,
           profiles: profilesData?.find(p => p.id === entry.user_id) || {
             id: entry.user_id,
             full_name: 'Unknown',

@@ -320,13 +320,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             </div>
           ) : (
             <div className="space-y-3">
-              {displayedEntries.map((entry, index, array) => {
+              {displayedEntries.map((entry) => {
                 const discrepancy = detectDiscrepancies(entry);
                 const isApproved = entry.approval_status === 'approved';
-                
-                const userEntries = array.filter(e => e.user_id === entry.user_id);
-                const pontajNumber = userEntries.findIndex(e => e.id === entry.id) + 1;
-                const hasMultiplePontaje = userEntries.length > 1;
+                const hasMultiplePontaje = entry.pontajNumber && entry.pontajNumber > 1;
+                const isComplete = !!entry.clock_out_time;
 
                 return (
                   <div
@@ -348,12 +346,21 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
 
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <p className="font-medium">{entry.profiles.full_name}</p>
                           <Badge variant="outline">{entry.profiles.username}</Badge>
                           {hasMultiplePontaje && (
                             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                              Pontaj #{pontajNumber}
+                              Pontaj #{entry.pontajNumber}
+                            </Badge>
+                          )}
+                          {isComplete ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950/30 dark:text-green-300">
+                              ✅ COMPLET
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950/30 dark:text-yellow-300">
+                              ⏳ ÎN CURS
                             </Badge>
                           )}
                         </div>
@@ -388,28 +395,32 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                         <div className="flex items-center gap-1">
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => handleEdit(entry)}
-                            title="Editează"
+                            className="gap-1"
                           >
-                            <Pencil className="h-4 w-4 text-blue-600" />
+                            <Pencil className="h-4 w-4" />
+                            <span className="hidden sm:inline">Editează</span>
                           </Button>
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="default"
                             onClick={() => handleApprove(entry.id)}
                             disabled={approveMutation.isPending || !entry.clock_out_time}
-                            title={!entry.clock_out_time ? "Nu poți aproba - lipsește clock-out" : "Aprobă"}
+                            className="gap-1"
+                            title={!entry.clock_out_time ? "❌ Nu poți aproba - lipsește clock-out. Editează pontajul pentru a seta manual." : "Aprobă pontaj"}
                           >
-                            <Check className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4" />
+                            <span className="hidden sm:inline">Aprobă</span>
                           </Button>
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="destructive"
                             onClick={() => handleDelete(entry)}
-                            title="Șterge"
+                            className="gap-1"
                           >
-                            <Trash2 className="h-4 w-4 text-red-600" />
+                            <Trash2 className="h-4 w-4" />
+                            <span className="hidden sm:inline">Șterge</span>
                           </Button>
                         </div>
                       )}
