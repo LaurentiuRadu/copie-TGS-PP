@@ -2,19 +2,18 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Loader2, Check, AlertCircle, CheckCheck, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, Lock, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2 } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
+import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import {
   Collapsible,
   CollapsibleContent,
@@ -41,7 +40,6 @@ interface TeamTimeApprovalManagerProps {
 export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
-  // Reset selected team when week, day or available teams change
   useEffect(() => {
     if (availableTeams.size > 0) {
       const firstTeam = Array.from(availableTeams)[0];
@@ -60,18 +58,15 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
     isLoading,
     detectDiscrepancies,
     approveMutation,
-    approveBatchMutation,
   } = useTeamApprovalWorkflow(selectedTeam, selectedWeek, selectedDayOfWeek);
 
-  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [actionEntryId, setActionEntryId] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<TimeEntryForApproval | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteEntry, setDeleteEntry] = useState<TimeEntryForApproval | null>(null);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
-  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
-  const [bulkEditMinutes, setBulkEditMinutes] = useState<number>(0);
-  const [bulkEditTarget, setBulkEditTarget] = useState<'clock_in' | 'clock_out'>('clock_in');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -89,30 +84,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
 
   const isScheduleExpanded = (entryId: string) => expandedSchedules.has(entryId);
 
-  const handleToggleSelect = (entryId: string) => {
-    const newSelected = new Set(selectedEntries);
-    if (newSelected.has(entryId)) {
-      newSelected.delete(entryId);
-    } else {
-      newSelected.add(entryId);
-    }
-    setSelectedEntries(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (selectedEntries.size === pendingOnlyEntries.length) {
-      setSelectedEntries(new Set());
-    } else {
-      setSelectedEntries(new Set(pendingOnlyEntries.map(e => e.id)));
-    }
-  };
-
-  const handleBatchApprove = async () => {
-    if (selectedEntries.size === 0) return;
-    await approveBatchMutation.mutateAsync(Array.from(selectedEntries));
-    setSelectedEntries(new Set());
-  };
-
   const handleApprove = (entryId: string) => {
     setActionEntryId(entryId);
     setActionDialogOpen(true);
@@ -121,6 +92,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
   const handleEdit = (entry: TimeEntryForApproval) => {
     setEditEntry(entry);
     setEditDialogOpen(true);
+  };
+
+  const handleDelete = (entry: TimeEntryForApproval) => {
+    setDeleteEntry(entry);
+    setDeleteDialogOpen(true);
   };
 
   const handleConfirmApproval = async () => {
@@ -148,11 +124,8 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
     }
   };
 
-  // Separate entries by approval status
   const approvedEntries = pendingEntries.filter(e => e.approval_status === 'approved');
   const pendingOnlyEntries = pendingEntries.filter(e => e.approval_status === 'pending_review');
-  
-  // Display pending first, then approved (informative)
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
 
   const reprocessMutation = useMutation({
@@ -178,59 +151,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
       toast({
         variant: 'destructive',
         title: '❌ Eroare recalculare',
-        description: error.message,
-      });
-    },
-  });
-
-  const bulkEditMutation = useMutation({
-    mutationFn: async () => {
-      const selectedEntriesData = pendingOnlyEntries.filter(e => selectedEntries.has(e.id));
-      
-      const updates = selectedEntriesData.map(async (entry) => {
-        const adjustedClockIn = bulkEditTarget === 'clock_in'
-          ? new Date(new Date(entry.clock_in_time).getTime() + bulkEditMinutes * 60 * 1000)
-          : new Date(entry.clock_in_time);
-
-        const adjustedClockOut = bulkEditTarget === 'clock_out' && entry.clock_out_time
-          ? new Date(new Date(entry.clock_out_time).getTime() + bulkEditMinutes * 60 * 1000)
-          : entry.clock_out_time ? new Date(entry.clock_out_time) : null;
-
-        // Save originals if first edit
-        const updateData: any = {
-          clock_in_time: adjustedClockIn.toISOString(),
-          clock_out_time: adjustedClockOut?.toISOString(),
-          was_edited_by_admin: true,
-        };
-
-        if (!entry.original_clock_in_time) {
-          updateData.original_clock_in_time = entry.clock_in_time;
-        }
-        if (!entry.original_clock_out_time && entry.clock_out_time) {
-          updateData.original_clock_out_time = entry.clock_out_time;
-        }
-
-        return supabase
-          .from('time_entries')
-          .update(updateData)
-          .eq('id', entry.id);
-      });
-
-      await Promise.all(updates);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      setBulkEditDialogOpen(false);
-      setSelectedEntries(new Set());
-      toast({
-        title: '✅ Editare în lot finalizată',
-        description: `${selectedEntries.size} pontaje au fost corectate`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: '❌ Eroare editare în lot',
         description: error.message,
       });
     },
@@ -284,15 +204,13 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
           </div>
         </CardHeader>
         <CardContent>
-          {/* Info Alert */}
           <Alert className="mb-4 bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
             <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
-              💡 După aprobare, pontajele editate pot fi vizualizate în <strong>Istoric Aprobări</strong> cu orele originale și cele corectate.
+              💡 Fiecare pontaj poate fi editat, aprobat sau șters individual.
             </AlertDescription>
           </Alert>
 
-          {/* Selector echipă */}
           <div className="mb-6">
             <Label htmlFor="team-select">Selectează Echipa</Label>
             <Select value={selectedTeam || ''} onValueChange={setSelectedTeam}>
@@ -313,7 +231,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             </Select>
           </div>
 
-          {/* Informații Echipă - DOAR Coordonator */}
           {coordinator && (
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
               <div className="flex items-center gap-2">
@@ -328,11 +245,9 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             </div>
           )}
 
-          {/* Membri - Șef Echipă pe prima linie, apoi membri fără badge */}
           {(teamLeader || teamMembers.length > 0) && (
             <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
               <div className="space-y-2">
-                {/* Șef Echipă - prima linie */}
                 {teamLeader && (
                   <div className="flex items-center gap-2 pb-2">
                     <Badge variant="default" className="bg-blue-600">
@@ -345,7 +260,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                   </div>
                 )}
                 
-                {/* Membri simpli - fără badge */}
                 {teamMembers
                   .filter(m => m.id !== teamLeader?.id)
                   .map(member => (
@@ -361,7 +275,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             </div>
           )}
 
-          {/* Buton recalculare segmente - permanent vizibil */}
           <div className="flex justify-end mb-4">
             <Button
               onClick={() => reprocessMutation.mutate()}
@@ -379,42 +292,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             </Button>
           </div>
 
-          {/* Action buttons */}
-          {pendingOnlyEntries.length > 0 && (
-            <div className="flex items-center gap-2 mb-6 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSelectAll}
-              >
-                {selectedEntries.size === pendingOnlyEntries.length ? 'Deselectează tot' : 'Selectează tot'}
-              </Button>
-              <Button
-                onClick={handleBatchApprove}
-                disabled={selectedEntries.size === 0 || approveBatchMutation.isPending}
-                size="sm"
-              >
-                {approveBatchMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <CheckCheck className="h-4 w-4 mr-2" />
-                )}
-                Aprobă selectate ({selectedEntries.size})
-              </Button>
-              {selectedEntries.size > 0 && (
-                <Button
-                  onClick={() => setBulkEditDialogOpen(true)}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Editare în Lot ({selectedEntries.size})
-                </Button>
-              )}
-            </div>
-          )}
-          {/* Statistici echipă */}
           {teamStats.totalEntries > 0 && (
             <div className="mb-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-6 flex-wrap">
@@ -432,58 +309,24 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                     <p className="text-2xl font-bold text-green-600">{approvedEntries.length}</p>
                   </div>
                 )}
-                {teamStats.avgClockIn && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Medie intrare</p>
-                    <p className="text-2xl font-bold">{teamStats.avgClockIn}</p>
-                  </div>
-                )}
-                {teamStats.avgClockOut && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Medie ieșire</p>
-                    <p className="text-2xl font-bold">{teamStats.avgClockOut}</p>
-                  </div>
-                )}
               </div>
-              {approvedEntries.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-muted-foreground/20">
-                  <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    {approvedEntries.length} pontaje aprobate (vizualizare informativă)
-                  </Badge>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Lista pontaje */}
           {displayedEntries.length === 0 ? (
             <div className="text-center py-8">
-              {/* Verifică dacă săptămâna este în viitor */}
-              {new Date(selectedWeek) > new Date() ? (
-                <>
-                  <Calendar className="h-12 w-12 text-blue-500 mx-auto mb-3" />
-                  <p className="text-lg font-medium">Săptămână viitoare</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Nu există pontaje încă pentru această perioadă
-                  </p>
-                </>
-              ) : (
-                <>
-                  <CheckCheck className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                  <p className="text-lg font-medium">Toate pontajele sunt aprobate!</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Nu există pontaje în așteptare pentru această echipă
-                  </p>
-                </>
-              )}
+              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-lg font-medium">Nu există pontaje</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {displayedEntries.map((entry) => {
+              {displayedEntries.map((entry, index, array) => {
                 const discrepancy = detectDiscrepancies(entry);
-                const isSelected = selectedEntries.has(entry.id);
                 const isApproved = entry.approval_status === 'approved';
+                
+                const userEntries = array.filter(e => e.user_id === entry.user_id);
+                const pontajNumber = userEntries.findIndex(e => e.id === entry.id) + 1;
+                const hasMultiplePontaje = userEntries.length > 1;
 
                 return (
                   <div
@@ -491,12 +334,9 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                     className={`p-4 border rounded-lg transition-colors relative ${
                       isApproved
                         ? 'bg-green-50/30 dark:bg-green-950/10 border-green-200 dark:border-green-800 opacity-70'
-                        : isSelected
-                        ? 'bg-primary/5 border-primary'
                         : 'hover:bg-muted/50'
                     } ${discrepancy && !isApproved ? getSeverityColor(discrepancy.severity) : ''}`}
                   >
-                    {/* Badge APPROVED - top-right */}
                     {isApproved && (
                       <div className="absolute top-2 right-2 z-10">
                         <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 flex items-center gap-1">
@@ -507,243 +347,50 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                     )}
 
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        {/* Checkbox pentru pending / Lock pentru approved */}
-                        {!isApproved ? (
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleSelect(entry.id)}
-                            className="mt-1"
-                          />
-                        ) : (
-                          <div className="mt-1">
-                            <Lock className="h-5 w-5 text-green-600" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="font-medium">{entry.profiles.full_name}</p>
-                            <Badge variant="outline">{entry.profiles.username}</Badge>
-                          </div>
-                          {/* Data */}
-                          <div className="mb-3">
-                            <p className="text-xs text-muted-foreground mb-1">Data</p>
-                            <p className="text-sm font-medium">
-{entry.clock_in_time
-                                    ? formatRomania(entry.clock_in_time, 'EEEE, dd MMM yyyy')
-                                    : '-'}
-                            </p>
-                          </div>
-
-                          {/* Pontaj Original (dacă a fost editat) */}
-                          {entry.was_edited_by_admin && entry.original_clock_in_time && (
-                            <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-md border border-amber-200 dark:border-amber-800">
-                              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-2 uppercase tracking-wide">
-                                ⚠️ Pontaj Original (Angajat)
-                              </p>
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground text-xs">Intrare</p>
-                                  <p className="font-mono text-amber-800 dark:text-amber-200">
-                                    {formatRomania(entry.original_clock_in_time, 'HH:mm')}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground text-xs">Ieșire</p>
-                                  <p className="font-mono text-amber-800 dark:text-amber-200">
-{entry.original_clock_out_time
-                                      ? formatRomania(entry.original_clock_out_time, 'HH:mm')
-                                      : '-'}
-                                  </p>
-                                </div>
-                              </div>
-                              {entry.approval_notes && (
-                                <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
-                                  <p className="text-xs text-amber-700 dark:text-amber-300">
-                                    <span className="font-medium">Motiv:</span> {entry.approval_notes}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Pontaj Curent (corectat sau original) */}
-                          <div className="mb-3 p-3 bg-muted/30 rounded-md">
-                            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-2">
-                              ⏱️ Pontaj {entry.was_edited_by_admin ? 'Corectat' : 'Real'}
-                              {entry.was_edited_by_admin && (
-                                <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
-                                  ✏️ Editat
-                                </Badge>
-                              )}
-                            </p>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">Intrare</p>
-                                <p className="font-medium">
-{entry.clock_in_time
-                                    ? formatRomania(entry.clock_in_time, 'HH:mm')
-                                    : '-'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">Ieșire</p>
-                                <p className="font-medium">
-{entry.clock_out_time
-                                    ? formatRomania(entry.clock_out_time, 'HH:mm')
-                                    : '-'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Total Ore Brute */}
-                          {entry.calculated_hours && entry.calculated_hours.total > 0 ? (
-                            <div className="mb-3 flex items-center gap-2 text-sm">
-                              <span className="text-muted-foreground">📊 Total Ore Brute:</span>
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400">
-                                {entry.calculated_hours.total.toFixed(2)}h
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                (pauza se aplică automat după aprobare)
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="mb-3 text-sm text-amber-600">
-                              ⚠️ Clock-out lipsește
-                            </div>
-                          )}
-
-                          {/* Programare - COLLAPSIBLE */}
-                          {(entry.scheduled_shift || entry.scheduled_location || entry.scheduled_activity) && (
-                            <Collapsible
-                              open={isScheduleExpanded(entry.id)}
-                              onOpenChange={() => toggleSchedule(entry.id)}
-                              className="mb-3"
-                            >
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full justify-between hover:bg-blue-50 dark:hover:bg-blue-950/20 border-blue-200 dark:border-blue-800"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
-                                      📋 Programare
-                                    </span>
-                                    {/* Badges compacte când e collapsed */}
-                                    {!isScheduleExpanded(entry.id) && (
-                                      <div className="flex items-center gap-1">
-                                        {entry.scheduled_shift && (
-                                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                                            {entry.scheduled_shift.toLowerCase() === 'zi' ? '⭐' : '🌙'}
-                                          </Badge>
-                                        )}
-                                        {entry.scheduled_location && (
-                                          <Badge variant="outline" className="text-[10px] px-1 py-0 max-w-[80px] truncate">
-                                            {entry.scheduled_location}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                  {isScheduleExpanded(entry.id) ? (
-                                    <ChevronUp className="h-4 w-4 text-blue-600" />
-                                  ) : (
-                                    <ChevronDown className="h-4 w-4 text-blue-600" />
-                                  )}
-                                </Button>
-                              </CollapsibleTrigger>
-
-                              <CollapsibleContent className="mt-2">
-                                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                                  <div className="space-y-2 text-sm">
-                                    {entry.scheduled_shift && (
-                                      <div className="flex items-center gap-2">
-                                        {entry.scheduled_shift.toLowerCase() === 'zi' ? (
-                                          <Sun className="h-3.5 w-3.5 text-yellow-600" />
-                                        ) : (
-                                          <Moon className="h-3.5 w-3.5 text-blue-600" />
-                                        )}
-                                        <span className="text-muted-foreground text-xs">Tură:</span>
-                                        <Badge variant={entry.scheduled_shift.toLowerCase() === 'zi' ? 'default' : 'secondary'} className="text-xs">
-                                          {entry.scheduled_shift}
-                                        </Badge>
-                                      </div>
-                                    )}
-                                    {entry.scheduled_location && (
-                                      <div className="flex items-start gap-2">
-                                        <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-red-600" />
-                                        <div className="flex-1">
-                                          <span className="text-muted-foreground text-xs">Locație:</span>
-                                          <p className="text-xs mt-0.5">{entry.scheduled_location}</p>
-                                        </div>
-                                      </div>
-                                    )}
-                                    {entry.scheduled_activity && (
-                                      <div className="flex items-start gap-2">
-                                        <Activity className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-purple-600" />
-                                        <div className="flex-1">
-                                          <span className="text-muted-foreground text-xs">Proiect:</span>
-                                          <p className="text-xs mt-0.5">{entry.scheduled_activity}</p>
-                                        </div>
-                                      </div>
-                                    )}
-                                    {entry.scheduled_vehicle && (
-                                      <div className="flex items-center gap-2">
-                                        <Car className="h-3.5 w-3.5 text-green-600" />
-                                        <span className="text-muted-foreground text-xs">Mașină:</span>
-                                        <p className="text-xs font-medium">{entry.scheduled_vehicle}</p>
-                                      </div>
-                                    )}
-                                    {entry.scheduled_observations && (
-                                      <div className="flex items-start gap-2">
-                                        <FileText className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-600" />
-                                        <div className="flex-1">
-                                          <span className="text-muted-foreground text-xs">Observații:</span>
-                                          <p className="text-xs mt-0.5 italic">{entry.scheduled_observations}</p>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-
-                          {/* Discrepancy */}
-                          {discrepancy && (
-                            <>
-                              <div className="mt-2 flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded border border-yellow-200 dark:border-yellow-800">
-                                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-yellow-600" />
-                                <p className="text-xs">
-                                  Discrepanță: {discrepancy.discrepancy_type === 'late_arrival' ? 'Întârziere' : 'Sosire timpurie'} 
-                                  {' '}(așteptat: {discrepancy.expected_value}, real: {discrepancy.actual_value})
-                                </p>
-                              </div>
-                              {discrepancy.severity === 'critical' && (
-                                <Alert variant="destructive" className="mt-2">
-                                  <AlertCircle className="h-4 w-4" />
-                                  <AlertDescription>
-                                    ⚠️ <strong>ATENȚIE:</strong> Diferență de peste 2 ore față de media echipei!
-                                    <br />
-                                    Verifică dacă angajatul a uitat să bată cartela.
-                                  </AlertDescription>
-                                </Alert>
-                              )}
-                            </>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <p className="font-medium">{entry.profiles.full_name}</p>
+                          <Badge variant="outline">{entry.profiles.username}</Badge>
+                          {hasMultiplePontaje && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                              Pontaj #{pontajNumber}
+                            </Badge>
                           )}
                         </div>
+
+                        
+                        <div className="mb-3 p-3 bg-muted/30 rounded-md">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground text-xs">Intrare</p>
+                              <p className="font-medium">
+                                {entry.clock_in_time ? formatRomania(entry.clock_in_time, 'HH:mm') : '-'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground text-xs">Ieșire</p>
+                              <p className="font-medium">
+                                {entry.clock_out_time ? formatRomania(entry.clock_out_time, 'HH:mm') : '-'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {entry.calculated_hours && entry.calculated_hours.total > 0 && (
+                          <div className="mb-3 flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">📊 Total Ore:</span>
+                            <Badge variant="secondary">{entry.calculated_hours.total.toFixed(2)}h</Badge>
+                          </div>
+                        )}
                       </div>
-                      {/* Action buttons - HIDDEN pentru approved */}
+
                       {!isApproved && (
                         <div className="flex items-center gap-1">
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEdit(entry)}
-                            title="Editează orele și aprobă automat"
+                            title="Editează"
                           >
                             <Pencil className="h-4 w-4 text-blue-600" />
                           </Button>
@@ -751,22 +398,22 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                             size="sm"
                             variant="ghost"
                             onClick={() => handleApprove(entry.id)}
-                            disabled={approveMutation.isPending}
-                            title="Aprobă pontajul așa cum este"
+                            disabled={approveMutation.isPending || !entry.clock_out_time}
+                            title={!entry.clock_out_time ? "Nu poți aproba - lipsește clock-out" : "Aprobă"}
                           >
                             <Check className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDelete(entry)}
+                            title="Șterge"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
                           </Button>
                         </div>
                       )}
                     </div>
-
-                    {/* Info footer pentru approved */}
-                    {isApproved && entry.approved_at && (
-                      <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800 text-xs text-muted-foreground italic flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-green-600" />
-                        Aprobat {formatRomania(entry.approved_at, 'dd MMM yyyy, HH:mm')}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -775,13 +422,12 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
         </CardContent>
       </Card>
 
-      {/* Approval Confirmation Dialog */}
       <AlertDialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>✅ Aprobă pontaj</AlertDialogTitle>
             <AlertDialogDescription>
-              Confirmați aprobarea acestui pontaj? Orele vor fi fragmentate automat (zi/noapte/sâmbătă/duminică) și pauza va fi aplicată conform regulamentului.
+              Confirmați aprobarea acestui pontaj?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -793,7 +439,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Edit Dialog */}
       {editEntry && (
         <TimeEntryApprovalEditDialog
           entry={editEntry}
@@ -805,62 +450,17 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
         />
       )}
 
-      {/* Bulk Edit Dialog */}
-      <AlertDialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>✏️ Editare în Lot</AlertDialogTitle>
-            <AlertDialogDescription>
-              Aplică aceeași corectare la {selectedEntries.size} pontaje selectate
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Ajustează</Label>
-              <Select value={bulkEditTarget} onValueChange={(v: any) => setBulkEditTarget(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="clock_in">Clock-In</SelectItem>
-                  <SelectItem value="clock_out">Clock-Out</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Ajustare (minute)</Label>
-              <Input
-                type="number"
-                value={bulkEditMinutes}
-                onChange={(e) => setBulkEditMinutes(parseInt(e.target.value) || 0)}
-                placeholder="Ex: -15 (înainte), +30 (după)"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Valori negative pentru mai devreme, pozitive pentru mai târziu
-              </p>
-            </div>
-
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                Exemplu: +30 min la Clock-In = toți vor fi corectați cu +30 minute
-              </AlertDescription>
-            </Alert>
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Anulează</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => bulkEditMutation.mutate()}
-              disabled={bulkEditMutation.isPending || bulkEditMinutes === 0}
-            >
-              {bulkEditMutation.isPending ? 'Salvez...' : `Aplică la ${selectedEntries.size} pontaje`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteEntry && (
+        <DeleteTimeEntryDialog
+          entry={deleteEntry}
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) setDeleteEntry(null);
+          }}
+        />
+      )}
     </>
   );
 };
+

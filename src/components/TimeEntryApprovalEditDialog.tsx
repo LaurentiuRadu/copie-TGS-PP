@@ -23,7 +23,7 @@ interface TimeEntryApprovalEditDialogProps {
     id: string;
     user_id: string;
     clock_in_time: string;
-    clock_out_time: string;
+    clock_out_time: string | null;
     profiles: {
       full_name: string;
       username: string;
@@ -42,7 +42,9 @@ export function TimeEntryApprovalEditDialog({
     format(new Date(entry.clock_in_time), "yyyy-MM-dd'T'HH:mm")
   );
   const [clockOut, setClockOut] = useState(
-    format(new Date(entry.clock_out_time), "yyyy-MM-dd'T'HH:mm")
+    entry.clock_out_time 
+      ? format(new Date(entry.clock_out_time), "yyyy-MM-dd'T'HH:mm")
+      : ""
   );
   const [adminNotes, setAdminNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +52,9 @@ export function TimeEntryApprovalEditDialog({
   const queryClient = useQueryClient();
 
   const validateDuration = () => {
+    if (!clockOut) {
+      return "Clock-out lipsește";
+    }
     const start = new Date(clockIn);
     const end = new Date(clockOut);
     const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -150,6 +155,7 @@ export function TimeEntryApprovalEditDialog({
   };
 
   const calculateDuration = () => {
+    if (!clockOut) return '0';
     const start = new Date(clockIn);
     const end = new Date(clockOut);
     const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
