@@ -54,24 +54,29 @@ interface TeamApprovalData {
   teamMembers: { id: string; full_name: string; username: string }[];
 }
 
-export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: string) => {
+export const useTeamApprovalWorkflow = (
+  teamId: string | null, 
+  weekStartDate: string,
+  selectedDayOfWeek: number
+) => {
   const queryClient = useQueryClient();
 
   // 1. Fetch pending time entries pentru echipă și săptămână
   const { data, isLoading } = useQuery<TeamApprovalData>({
-    queryKey: ['team-pending-approvals', teamId, weekStartDate],
+    queryKey: ['team-pending-approvals', teamId, weekStartDate, selectedDayOfWeek],
     queryFn: async (): Promise<TeamApprovalData> => {
       if (!teamId || !weekStartDate) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 
       const weekStart = new Date(weekStartDate);
       const weekEnd = addDays(weekStart, 7);
 
-      // Get user IDs and schedules data
+      // Get user IDs and schedules data - filtrare pe zi selectată
       const { data: schedules, error: schedError } = await supabase
         .from('weekly_schedules')
         .select('user_id, team_leader_id, coordinator_id, day_of_week, shift_type, location, activity, vehicle, observations')
         .eq('team_id', teamId)
-        .eq('week_start_date', weekStartDate);
+        .eq('week_start_date', weekStartDate)
+        .eq('day_of_week', selectedDayOfWeek);
 
       if (schedError) throw schedError;
       const userIds = schedules?.map(s => s.user_id) || [];
@@ -97,13 +102,17 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
 
       if (userIds.length === 0) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 
-      // Fetch time entries (pending + approved) for these users in this week
+      // Calculăm data exactă pentru ziua selectată
+      const targetDate = addDays(weekStart, selectedDayOfWeek - 1);
+      const nextDay = addDays(targetDate, 1);
+
+      // Fetch time entries pentru ziua selectată
       const { data: entriesData, error } = await supabase
         .from('time_entries')
         .select('id, user_id, clock_in_time, clock_out_time, approval_status, original_clock_in_time, original_clock_out_time, was_edited_by_admin, approval_notes, approved_at, approved_by')
         .in('user_id', allUserIds)
-        .gte('clock_in_time', weekStart.toISOString())
-        .lt('clock_in_time', weekEnd.toISOString())
+        .gte('clock_in_time', targetDate.toISOString())
+        .lt('clock_in_time', nextDay.toISOString())
         .in('approval_status', ['pending_review', 'approved'])
         .order('approval_status', { ascending: false })
         .order('clock_in_time', { ascending: true });
@@ -191,7 +200,7 @@ export const useTeamApprovalWorkflow = (teamId: string | null, weekStartDate: st
         teamMembers: teamMembersData
       };
     },
-    enabled: !!teamId && !!weekStartDate,
+    enabled: !!teamId && !!weekStartDate && !!selectedDayOfWeek,
     staleTime: 30000, // 30 sec cache pentru performanță
     gcTime: 5 * 60 * 1000, // 5 min în memory
   });

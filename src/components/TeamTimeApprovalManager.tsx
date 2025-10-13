@@ -34,13 +34,14 @@ import { Label } from '@/components/ui/label';
 
 interface TeamTimeApprovalManagerProps {
   selectedWeek: string;
+  selectedDayOfWeek: number;
   availableTeams: Set<string>;
 }
 
-export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
+export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
-  // Reset selected team when week or available teams change
+  // Reset selected team when week, day or available teams change
   useEffect(() => {
     if (availableTeams.size > 0) {
       const firstTeam = Array.from(availableTeams)[0];
@@ -48,7 +49,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     } else {
       setSelectedTeam(null);
     }
-  }, [selectedWeek, availableTeams]);
+  }, [selectedWeek, selectedDayOfWeek, availableTeams]);
 
   const {
     pendingEntries,
@@ -60,7 +61,7 @@ export const TeamTimeApprovalManager = ({ selectedWeek, availableTeams }: TeamTi
     detectDiscrepancies,
     approveMutation,
     approveBatchMutation,
-  } = useTeamApprovalWorkflow(selectedTeam, selectedWeek);
+  } = useTeamApprovalWorkflow(selectedTeam, selectedWeek, selectedDayOfWeek);
 
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [actionDialogOpen, setActionDialogOpen] = useState(false);

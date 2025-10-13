@@ -8,9 +8,29 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { startOfWeek, endOfWeek, format, addWeeks, subWeeks } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function TimesheetVerificare() {
   const [selectedWeek, setSelectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(new Date().getDay() || 7); // 1=luni, 7=duminică
+  
+  // Fetch echipele disponibile pentru ziua selectată
+  const { data: availableTeams } = useQuery({
+    queryKey: ['teams-for-day', selectedWeek, selectedDayOfWeek],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('weekly_schedules')
+        .select('team_id')
+        .eq('week_start_date', selectedWeek)
+        .eq('day_of_week', selectedDayOfWeek);
+      
+      return new Set(data?.map(s => s.team_id) || []);
+    },
+    enabled: !!selectedWeek && !!selectedDayOfWeek,
+  });
   
   const navigateWeek = (direction: 'prev' | 'next') => {
     setSelectedWeek(current => {
@@ -82,6 +102,30 @@ export default function TimesheetVerificare() {
                 </Button>
               </div>
             </div>
+            
+            {/* Selector de zi */}
+            <div className="flex items-center gap-2 mt-4">
+              <Label htmlFor="day-selector" className="text-sm font-medium">
+                Selectează ziua:
+              </Label>
+              <Select 
+                value={selectedDayOfWeek.toString()} 
+                onValueChange={(v) => setSelectedDayOfWeek(Number(v))}
+              >
+                <SelectTrigger id="day-selector" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">📅 Luni</SelectItem>
+                  <SelectItem value="2">📅 Marți</SelectItem>
+                  <SelectItem value="3">📅 Miercuri</SelectItem>
+                  <SelectItem value="4">📅 Joi</SelectItem>
+                  <SelectItem value="5">📅 Vineri</SelectItem>
+                  <SelectItem value="6">📅 Sâmbătă</SelectItem>
+                  <SelectItem value="7">📅 Duminică</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
 
@@ -110,7 +154,8 @@ export default function TimesheetVerificare() {
             
             <TeamTimeApprovalManager
               selectedWeek={selectedWeek}
-              availableTeams={new Set(['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10'])}
+              selectedDayOfWeek={selectedDayOfWeek}
+              availableTeams={availableTeams || new Set()}
             />
           </div>
         </CardContent>
