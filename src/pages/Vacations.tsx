@@ -8,7 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
-import { Calendar as CalendarIcon, CheckCircle, XCircle, Plus, TrendingUp } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, XCircle, Plus, TrendingUp, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useOptimizedVacations } from '@/hooks/useOptimizedVacations';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -292,61 +293,71 @@ const Vacations = () => {
           </TabsList>
 
           <TabsContent value="cereri" className="space-y-6">
-            {/* Vacation Balance Card */}
+            {/* Vacation Balance Card - Collapsible */}
             {balance && (
-              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-primary" />
-                    Sold Concediu de Odihnă (CO) - {balance.year}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <div className="text-2xl font-bold text-blue-600">{balance.total_days}</div>
-                      <div className="text-sm text-muted-foreground">Total zile</div>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <div className="text-2xl font-bold text-green-600">{balance.used_days}</div>
-                      <div className="text-sm text-muted-foreground">Zile folosite</div>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <div className="text-2xl font-bold text-yellow-600">{balance.pending_days}</div>
-                      <div className="text-sm text-muted-foreground">În așteptare</div>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/20">
-                      <div className="text-2xl font-bold text-primary">{balance.remaining_days}</div>
-                      <div className="text-sm text-muted-foreground">Zile disponibile</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Progres utilizare</span>
-                      <span className="font-medium">
-                        {Math.round(((balance.used_days + balance.pending_days) / balance.total_days) * 100)}%
-                      </span>
-                    </div>
-                    <Progress 
-                      value={((balance.used_days + balance.pending_days) / balance.total_days) * 100}
-                      className="h-3"
-                    />
-                    <div className="flex gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 rounded-full bg-primary" />
-                        <span>Folosite + În așteptare</span>
+              <Collapsible defaultOpen={true}>
+                <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+                      <div className="flex items-center justify-between w-full">
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-primary" />
+                          Sold CO - {balance.year}: {balance.remaining_days} zile disponibile
+                        </CardTitle>
+                        <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200 data-[state=open]:rotate-180" />
                       </div>
-                    </div>
-                  </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <div className="text-2xl font-bold text-blue-600">{balance.total_days}</div>
+                          <div className="text-sm text-muted-foreground">Total zile</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                          <div className="text-2xl font-bold text-green-600">{balance.used_days}</div>
+                          <div className="text-sm text-muted-foreground">Zile folosite</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <div className="text-2xl font-bold text-yellow-600">{balance.pending_days}</div>
+                          <div className="text-sm text-muted-foreground">În așteptare</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/20">
+                          <div className="text-2xl font-bold text-primary">{balance.remaining_days}</div>
+                          <div className="text-sm text-muted-foreground">Zile disponibile</div>
+                        </div>
+                      </div>
 
-                  {balance.notes && (
-                    <div className="text-sm text-muted-foreground italic border-l-2 border-primary pl-3">
-                      {balance.notes}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Progres utilizare</span>
+                          <span className="font-medium">
+                            {Math.round(((balance.used_days + balance.pending_days) / balance.total_days) * 100)}%
+                          </span>
+                        </div>
+                        <Progress 
+                          value={((balance.used_days + balance.pending_days) / balance.total_days) * 100}
+                          className="h-3"
+                        />
+                        <div className="flex gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded-full bg-primary" />
+                            <span>Folosite + În așteptare</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {balance.notes && (
+                        <div className="text-sm text-muted-foreground italic border-l-2 border-primary pl-3">
+                          {balance.notes}
+                        </div>
+                      )}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             )}
 
             {/* Requests List */}
