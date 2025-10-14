@@ -5,15 +5,15 @@ import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
 import { ApprovalStatsDashboard } from '@/components/ApprovalStatsDashboard';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, RotateCcw, AlertTriangle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { startOfWeek, endOfWeek, format, addWeeks, subWeeks, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
 // Funcție pentru a calcula ziua de verificare default (X-1 cu regula de luni)
@@ -348,6 +348,28 @@ export default function TimesheetVerificare() {
                         Toate verificate!
                       </Badge>
                     )}
+                    
+                    {/* 🆕 Badge pentru pontaje pending cu Tooltip */}
+                    {hasPendingEntries && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-300 cursor-help">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              ⏳ {pendingCountForDay} pending
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs">
+                            <p className="text-sm">
+                              <strong>{pendingCountForDay} pontaj{pendingCountForDay !== 1 ? 'e' : ''}</strong> în așteptare pentru această zi.
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              💡 Poți naviga înapoi la zilele anterioare, dar nu poți avansa până termini aprobarea.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
 
                   {/* Coloana 2: Selector de zi */}
@@ -385,6 +407,37 @@ export default function TimesheetVerificare() {
                         <SelectItem value="7" disabled={hasPendingEntries && 7 >= selectedDayOfWeek}>📅 Duminică</SelectItem>
                       </SelectContent>
                     </Select>
+
+                    {/* 🆕 Warning icon pentru zi curentă */}
+                    {(() => {
+                      const today = new Date();
+                      const todayDayOfWeek = today.getDay() || 7;
+                      const isVerifyingToday = selectedDayOfWeek === todayDayOfWeek;
+                      
+                      return isVerifyingToday && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950/30 cursor-help hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors">
+                                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-xs bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-700">
+                              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                ⚠️ Verifici ziua CURENTĂ!
+                              </p>
+                              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                Majoritatea pontajelor pot fi incomplete (clock-out lipsește).
+                              </p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+                                <Info className="h-3 w-3" />
+                                <strong>Recomandare:</strong> verifică mâine pentru date complete.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })()}
                   </div>
 
                   {/* Coloana 3: Reset Status */}
@@ -460,37 +513,8 @@ export default function TimesheetVerificare() {
               </div>
             )}
 
-            {/* Alert pentru pontaje pending */}
-            {hasPendingEntries && (
-              <Alert className="mt-4 bg-yellow-50 border-yellow-300 dark:bg-yellow-950/20 dark:border-yellow-800">
-                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                <AlertDescription className="text-sm text-yellow-900 dark:text-yellow-100">
-                  ⏳ Există <strong>{pendingCountForDay} pontaj{pendingCountForDay !== 1 ? 'e' : ''}</strong> în așteptare pentru această zi.
-                  <br />
-                  Poți naviga înapoi la zilele anterioare (deja aprobate), dar nu poți avansa până termini aprobarea.
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
         </CardHeader>
-
-        {/* Warning for verifying current day */}
-        {(() => {
-          const today = new Date();
-          const todayDayOfWeek = today.getDay() || 7;
-          const isVerifyingToday = selectedDayOfWeek === todayDayOfWeek;
-          
-          return isVerifyingToday && (
-            <Alert className="mx-6 mb-6 bg-blue-50 border-blue-300 dark:bg-blue-950/20 dark:border-blue-800">
-              <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
-                ⚠️ <strong>Verifici ziua CURENTĂ!</strong> Majoritatea pontajelor pot fi incomplete (clock-out lipsește).
-                <br />
-                💡 <strong>Recomandare:</strong> verifică mâine pentru date complete.
-              </AlertDescription>
-            </Alert>
-          );
-        })()}
 
         <CardContent>
           <div className="space-y-6">
