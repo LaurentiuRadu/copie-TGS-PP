@@ -102,7 +102,7 @@ export function AppSidebar() {
   const { hasActiveEntry } = useActiveTimeEntry(user?.id);
 
   // Query pentru pontaje pending (badge pentru Timesheet & Verificare)
-  const { data: pendingApprovalsCount } = useQuery({
+  const { data: pendingApprovalsCount = 0 } = useQuery({
     queryKey: ['pending-approvals-count-sidebar'],
     queryFn: async () => {
       const { count } = await supabase
@@ -117,7 +117,7 @@ export function AppSidebar() {
   });
 
   // Query pentru rapoarte întârzieri pending (badge pentru Rapoarte întârzieri)
-  const { data: pendingTardinessCount } = useQuery({
+  const { data: pendingTardinessCount = 0 } = useQuery({
     queryKey: ['pending-tardiness-count-sidebar'],
     queryFn: async () => {
       const { count } = await supabase
