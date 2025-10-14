@@ -8,10 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { startOfMonth, endOfMonth, format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Info, Lock } from "lucide-react";
+import { User, ChevronDown, ChevronUp, Sun, Moon, Calendar as CalendarIcon, Users, Truck, Wrench, Briefcase, HeartPulse, TrendingUp, Clock, RefreshCw, Info, Lock, AlertCircle } from "lucide-react";
 import { DailyTimesheet } from "@/hooks/useDailyTimesheets";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -386,33 +385,55 @@ const Timesheet = () => {
             <div className="flex items-center gap-2 mb-4">
               <Lock className="h-5 w-5 text-muted-foreground" />
               <CardTitle>Timesheet General - Pontaje Aprobate</CardTitle>
+              
+              {/* 🆕 Badge compact cu tooltip */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-400 dark:bg-blue-950/30 dark:text-blue-300 cursor-help">
+                      <Lock className="h-3 w-3 mr-1" />
+                      Doar aprobate
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-sm">
+                    <p className="text-sm">
+                      <strong>Notă:</strong> Această pagină afișează <strong>doar pontajele aprobate</strong> de administrator.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pentru corecturi sau modificări, accesați{' '}
+                      <a href="/timesheet-verificare" className="underline font-medium hover:text-blue-600">
+                        Verificare Pontaje
+                      </a>.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* 🆕 Badge compact pentru octombrie 2025 */}
+              {format(currentMonth, 'yyyy-MM') === '2025-10' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-400 dark:bg-amber-950/30 dark:text-amber-300 cursor-help">
+                        <Info className="h-3 w-3 mr-1" />
+                        📅 Octombrie 2025*
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-sm bg-amber-50 border-amber-300 dark:bg-amber-950 dark:border-amber-700">
+                      <p className="text-sm text-amber-900 dark:text-amber-100">
+                        📅 <strong>Notă:</strong> Datele pentru perioada 01-12.10.2025 sunt gestionate în Payroll extern.
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                        Sistemul automatizat de pontaj este activ începând cu <strong>13.10.2025</strong>.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
             <CardDescription>
               Ore lucrate pe angajați și categorii (doar pontaje aprobate)
             </CardDescription>
-            
-            {/* ✅ Banner informativ READ-ONLY */}
-            <Alert className="mt-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
-                <strong>Notă:</strong> Această pagină afișează <strong>doar pontajele aprobate</strong> de administrator.
-                Pentru corecturi sau modificări, contactați un administrator sau accesați pagina{' '}
-                <a href="/timesheet-verificare" className="underline font-medium hover:text-blue-600">
-                  Verificare Pontaje
-                </a>.
-              </AlertDescription>
-            </Alert>
-
-            {/* ✅ Banner protecție octombrie 2025 */}
-            {format(currentMonth, 'yyyy-MM') === '2025-10' && (
-              <Alert className="mt-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-                <Info className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800 dark:text-amber-200">
-                  📅 <strong>Notă</strong>: Datele pentru perioada 01-12.10.2025 sunt gestionate în Payroll extern. 
-                  Sistemul automatizat de pontaj este activ începând cu 13.10.2025.
-                </AlertDescription>
-              </Alert>
-            )}
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
               <div className="flex-1 w-full sm:w-auto">
@@ -454,18 +475,18 @@ const Timesheet = () => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Info className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 cursor-help hover:bg-primary/20 transition-colors">
+                        <Info className="h-4 w-4 text-primary" />
+                      </div>
                     </TooltipTrigger>
-                    <TooltipContent className="max-w-sm">
-                      <p className="font-semibold mb-2">Regula de Noapte (00:00-06:00)</p>
-                      <p className="text-sm mb-2">
-                        <strong>Mod Salarizare (implicit):</strong> Orele între 00:00-06:00 sunt alocate zilei precedente conform politicii companiei pentru raportare salarială.
-                      </p>
-                      <p className="text-sm">
-                        <strong>Mod Calendaristic:</strong> Orele sunt afișate pe ziua calendaristică efectivă, fără mutare. Folosit doar pentru vizualizare.
-                      </p>
+                    <TooltipContent side="bottom" className="max-w-md">
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold">🌙 Regulă Noapte (00:00-06:00)</p>
+                        <div className="text-xs space-y-1">
+                          <p><strong>Mod Salarizare (implicit):</strong> Orele între 00:00-06:00 sunt alocate zilei precedente conform politicii companiei pentru raportare salarială.</p>
+                          <p><strong>Mod Calendaristic:</strong> Orele sunt afișate pe ziua calendaristică efectivă, fără mutare. Folosit doar pentru vizualizare.</p>
+                        </div>
+                      </div>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
