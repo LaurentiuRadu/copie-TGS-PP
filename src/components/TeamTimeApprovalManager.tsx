@@ -142,9 +142,10 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
           });
         } else {
           toast({
-            title: '🎉 Toate echipele au fost verificate!',
-            description: 'Nu mai există echipe neverificate pentru această zi.',
+            title: '🎉 Toate echipele verificate!',
+            description: 'Poți schimba ziua acum sau continua editarea.',
           });
+          // NU schimbăm ziua automat - user decide manual
         }
       }
     } catch (error) {
@@ -537,9 +538,10 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                 });
               } else {
                 toast({
-                  title: '🎉 Toate echipele au fost verificate!',
-                  description: 'Nu mai există echipe neverificate pentru această zi.',
+                  title: '🎉 Toate echipele verificate!',
+                  description: 'Poți schimba ziua acum sau continua editarea.',
                 });
+                // NU schimbăm ziua automat - user decide manual
               }
             }
           }}

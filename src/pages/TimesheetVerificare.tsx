@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 export default function TimesheetVerificare() {
   const [selectedWeek, setSelectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
@@ -69,6 +70,19 @@ export default function TimesheetVerificare() {
   });
 
   const hasPendingEntries = pendingCountForDay > 0;
+  const { toast } = useToast();
+  
+  // Guard pentru persistență zi - previne schimbări automate
+  const previousDayRef = useRef(selectedDayOfWeek);
+
+  useEffect(() => {
+    previousDayRef.current = selectedDayOfWeek;
+  }, [selectedDayOfWeek]);
+
+  const getDayName = (day: number) => {
+    const days = ['', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
+    return days[day];
+  };
   
   const navigateWeek = (direction: 'prev' | 'next') => {
     setSelectedWeek(current => {
@@ -107,6 +121,7 @@ export default function TimesheetVerificare() {
                   onClick={() => navigateWeek('prev')}
                   className="gap-1"
                   disabled={hasPendingEntries}
+                  title={hasPendingEntries ? "Termină aprobările din ziua curentă" : "Săptămâna anterioară"}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   <span className="hidden sm:inline">Anterioara</span>
@@ -128,6 +143,7 @@ export default function TimesheetVerificare() {
                   onClick={() => navigateWeek('next')}
                   className="gap-1"
                   disabled={hasPendingEntries}
+                  title={hasPendingEntries ? "Termină aprobările din ziua curentă" : "Săptămâna următoare"}
                 >
                   <span className="hidden sm:inline">Următoarea</span>
                   <ChevronRight className="h-4 w-4" />
@@ -138,6 +154,7 @@ export default function TimesheetVerificare() {
                   size="sm"
                   onClick={goToToday}
                   disabled={hasPendingEntries}
+                  title={hasPendingEntries ? "Termină aprobările din ziua curentă" : "Mergi la ziua curentă"}
                 >
                   Astăzi
                 </Button>
@@ -151,20 +168,35 @@ export default function TimesheetVerificare() {
               </Label>
               <Select 
                 value={selectedDayOfWeek.toString()} 
-                onValueChange={(v) => setSelectedDayOfWeek(Number(v))}
-                disabled={hasPendingEntries}
+                onValueChange={(v) => {
+                  const targetDay = Number(v);
+                  if (!hasPendingEntries) {
+                    // Liber să navighezi oriunde dacă nu ai pending
+                    setSelectedDayOfWeek(targetDay);
+                  } else if (targetDay < selectedDayOfWeek) {
+                    // Poți merge DOAR la zile ANTERIOARE când ai pending
+                    setSelectedDayOfWeek(targetDay);
+                  } else {
+                    // Blocare pentru zile curente sau viitoare
+                    toast({
+                      title: '⚠️ Nu poți avansa',
+                      description: `Termină aprobarea celor ${pendingCountForDay} pontaje din ${getDayName(selectedDayOfWeek)}.`,
+                      variant: 'destructive'
+                    });
+                  }
+                }}
               >
                 <SelectTrigger id="day-selector" className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">📅 Luni</SelectItem>
-                  <SelectItem value="2">📅 Marți</SelectItem>
-                  <SelectItem value="3">📅 Miercuri</SelectItem>
-                  <SelectItem value="4">📅 Joi</SelectItem>
-                  <SelectItem value="5">📅 Vineri</SelectItem>
-                  <SelectItem value="6">📅 Sâmbătă</SelectItem>
-                  <SelectItem value="7">📅 Duminică</SelectItem>
+                  <SelectItem value="1" disabled={hasPendingEntries && 1 >= selectedDayOfWeek}>📅 Luni</SelectItem>
+                  <SelectItem value="2" disabled={hasPendingEntries && 2 >= selectedDayOfWeek}>📅 Marți</SelectItem>
+                  <SelectItem value="3" disabled={hasPendingEntries && 3 >= selectedDayOfWeek}>📅 Miercuri</SelectItem>
+                  <SelectItem value="4" disabled={hasPendingEntries && 4 >= selectedDayOfWeek}>📅 Joi</SelectItem>
+                  <SelectItem value="5" disabled={hasPendingEntries && 5 >= selectedDayOfWeek}>📅 Vineri</SelectItem>
+                  <SelectItem value="6" disabled={hasPendingEntries && 6 >= selectedDayOfWeek}>📅 Sâmbătă</SelectItem>
+                  <SelectItem value="7" disabled={hasPendingEntries && 7 >= selectedDayOfWeek}>📅 Duminică</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -176,7 +208,7 @@ export default function TimesheetVerificare() {
                 <AlertDescription className="text-sm text-yellow-900 dark:text-yellow-100">
                   ⏳ Există <strong>{pendingCountForDay} pontaj{pendingCountForDay !== 1 ? 'e' : ''}</strong> în așteptare pentru această zi.
                   <br />
-                  Termină aprobarea pentru a putea schimba ziua sau săptămâna.
+                  Poți naviga înapoi la zilele anterioare (deja aprobate), dar nu poți avansa până termini aprobarea.
                 </AlertDescription>
               </Alert>
             )}
