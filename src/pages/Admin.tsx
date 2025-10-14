@@ -6,6 +6,7 @@ import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
 import { SuspiciousEntriesManager } from "@/components/SuspiciousEntriesManager";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ApprovalStatsDashboard } from "@/components/ApprovalStatsDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -77,6 +78,10 @@ const Admin = () => {
         
         <ErrorBoundary>
           <SuspiciousEntriesManager />
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          <ApprovalStatsDashboard />
         </ErrorBoundary>
 
         {/* 📊 STATISTICI REALE */}

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
-import { ApprovalStatsDashboard } from '@/components/ApprovalStatsDashboard';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, RotateCcw, AlertTriangle, Info } from 'lucide-react';
@@ -568,26 +567,6 @@ export default function TimesheetVerificare() {
 
         <CardContent>
           <div className="space-y-6">
-            {/* Dashboard restrângibil */}
-            <Collapsible defaultOpen={false} className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  📊 Statistici Săptămână Curentă
-                </h3>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    <span className="text-xs">Afișează/Ascunde</span>
-                    <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
-                  </Button>
-                </CollapsibleTrigger>
-              </div>
-              
-              <CollapsibleContent className="space-y-4">
-                <ApprovalStatsDashboard />
-              </CollapsibleContent>
-            </Collapsible>
-
-            <Separator />
             
             <TeamTimeApprovalManager
               selectedWeek={selectedWeek}
