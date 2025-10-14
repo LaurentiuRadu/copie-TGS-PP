@@ -429,39 +429,51 @@ export const TeamTimeApprovalManager = ({
                         )}
                       </div>
 
-                      {!isApproved && (
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1">
+                        {isApproved ? (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleEdit(entry)}
-                            className="gap-1"
+                            className="gap-1 border-green-300 dark:border-green-700"
                           >
-                            <Pencil className="h-4 w-4" />
-                            <span className="hidden sm:inline">Editează</span>
+                            <RotateCcw className="h-4 w-4" />
+                            <span className="hidden sm:inline">Re-editează</span>
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleApprove(entry.id)}
-                            disabled={approveMutation.isPending || !entry.clock_out_time}
-                            className="gap-1"
-                            title={!entry.clock_out_time ? "❌ Nu poți aproba - lipsește clock-out. Editează pontajul pentru a seta manual." : "Aprobă pontaj"}
-                          >
-                            <Check className="h-4 w-4" />
-                            <span className="hidden sm:inline">Aprobă</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(entry)}
-                            className="gap-1"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Șterge</span>
-                          </Button>
-                        </div>
-                      )}
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(entry)}
+                              className="gap-1"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="hidden sm:inline">Editează</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleApprove(entry.id)}
+                              disabled={approveMutation.isPending || !entry.clock_out_time}
+                              className="gap-1"
+                              title={!entry.clock_out_time ? "❌ Nu poți aproba - lipsește clock-out. Editează pontajul pentru a seta manual." : "Aprobă pontaj"}
+                            >
+                              <Check className="h-4 w-4" />
+                              <span className="hidden sm:inline">Aprobă</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDelete(entry)}
+                              className="gap-1"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="hidden sm:inline">Șterge</span>
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
