@@ -13,14 +13,8 @@ export type UserRole = 'admin' | 'employee' | null;
  * 
  * @param roles - Array of role strings from user_roles table
  * @returns The primary role for the user
- * 
- * TODO: Implement role priority logic
- * - Check if 'admin' exists in roles array → return 'admin'
- * - Check if 'employee' exists in roles array → return 'employee'
- * - Otherwise return null
  */
 export function deriveUserRole(roles: string[]): UserRole {
-  // TODO: Implement role derivation
   if (roles.includes('admin')) return 'admin';
   if (roles.includes('employee')) return 'employee';
   return null;
@@ -33,12 +27,6 @@ export function deriveUserRole(roles: string[]): UserRole {
  * @param userId - UUID of the user
  * @param existingRoles - Current roles from DB
  * @returns Promise<boolean> - true if role was added, false if already exists
- * 
- * TODO: Implement auto-role assignment
- * - Check if existingRoles is empty or undefined
- * - If empty, insert { user_id: userId, role: 'employee' } into user_roles table
- * - Handle errors gracefully (log but don't throw)
- * - Return true if insertion was successful
  */
 export async function ensureEmployeeRole(
   userId: string,

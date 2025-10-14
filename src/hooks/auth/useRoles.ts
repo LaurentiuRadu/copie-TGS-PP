@@ -41,7 +41,6 @@ export function useRoles(userId: string | undefined): UseRolesResult {
 
     setLoading(true);
     try {
-      // TODO: Fetch from user_roles table
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -54,7 +53,6 @@ export function useRoles(userId: string | undefined): UseRolesResult {
         const roles = data?.map(r => r.role) || [];
         console.debug('[useRoles] Fetched roles:', roles);
         
-        // TODO: Auto-assign employee role if empty
         if (roles.length === 0) {
           const assigned = await ensureEmployeeRole(userId, roles);
           if (assigned) {

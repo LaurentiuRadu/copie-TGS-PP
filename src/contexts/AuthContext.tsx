@@ -38,22 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const TOKEN_KEY_REFRESH = 'pwa_auth_refresh_token';
   const TOKEN_KEY_ACCESS = 'pwa_auth_access_token';
 
-  const deriveRoleFromUser = (u: User): Exclude<UserRole, null> | null => {
-    const email = u.email || (u.user_metadata as any)?.email || "";
-    if (email.endsWith("@company.local")) return 'employee';
-    if (email === 'demoadmin@test.com' || email.endsWith('@tgservices.ro')) return 'admin';
-    return null;
-  };
-
-  const ensureRoleExists = async (u: User, role: Exclude<UserRole, null>) => {
-    try {
-      await supabase
-        .from('user_roles')
-        .insert({ user_id: u.id, role });
-    } catch (e) {
-      // ignore insert errors (duplicate, etc.)
-    }
-  };
 
   useEffect(() => {
     console.log('[AuthProvider] 🔧 Mounting auth provider');
@@ -265,12 +249,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (fetchError) {
               console.error('Role fetch error:', fetchError);
-              const derived = deriveRoleFromUser(session.user);
-              setUserRole(derived);
+              setUserRole(null);
               return;
             }
             
-            let role = (roleData?.role as UserRole) ?? deriveRoleFromUser(session.user);
+            let role = (roleData?.role as UserRole) ?? null;
             setUserRole(role);
             
             // Check if password change is required
@@ -289,21 +272,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const hasConsents = await checkUserConsents(session.user.id);
               if (!hasConsents) {
                 setNeedsGDPRConsent(true);
-              }
-            }
-            
-            // Only try to create role if none exists and we have a derived role
-            if (!roleData && role) {
-              // Check if role already exists before inserting
-              const { data: existingRole } = await supabase
-                .from('user_roles')
-                .select('id')
-                .eq('user_id', session.user.id)
-                .eq('role', role)
-                .maybeSingle();
-              
-              if (!existingRole) {
-                await ensureRoleExists(session.user, role);
               }
             }
           } catch (err) {
@@ -454,19 +422,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         let role = (roleData?.role as UserRole) ?? null;
-        if (!role) {
-          const derived = deriveRoleFromUser(session.user);
-          if (derived) {
-            role = derived;
-            setUserRole(role);
-            // Don't await, just fire and forget
-            ensureRoleExists(session.user, role).catch(() => {});
-          } else {
-            setUserRole(null);
-          }
-        } else {
-          setUserRole(role);
-        }
+        setUserRole(role);
 
         // Redirect logic
         const currentPath = window.location.pathname;
