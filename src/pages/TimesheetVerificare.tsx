@@ -16,9 +16,38 @@ import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
+// Funcție pentru a calcula ziua de verificare default (X-1 cu regula de luni)
+const getDefaultVerificationDay = (): number => {
+  const today = new Date();
+  const todayDayOfWeek = today.getDay() || 7; // 1=luni, 7=duminică
+  
+  if (todayDayOfWeek === 1) {
+    // 📅 LUNI: verificăm VINERI din săptămâna trecută (ziua 5)
+    return 5;
+  } else {
+    // 📅 ALTE ZILE: verificăm ziua de IERI (X-1)
+    return todayDayOfWeek - 1 === 0 ? 7 : todayDayOfWeek - 1;
+  }
+};
+
+// Funcție pentru a calcula săptămâna de verificare (săptămâna trecută pentru luni)
+const getDefaultVerificationWeek = (): string => {
+  const today = new Date();
+  const todayDayOfWeek = today.getDay() || 7;
+  
+  if (todayDayOfWeek === 1) {
+    // 📅 LUNI: folosim săptămâna TRECUTĂ pentru vineri/sâmbătă/duminică
+    const lastWeek = subWeeks(today, 1);
+    return format(startOfWeek(lastWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  } else {
+    // 📅 ALTE ZILE: săptămâna curentă
+    return format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  }
+};
+
 export default function TimesheetVerificare() {
-  const [selectedWeek, setSelectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
-  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(new Date().getDay() || 7); // 1=luni, 7=duminică
+  const [selectedWeek, setSelectedWeek] = useState(getDefaultVerificationWeek());
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(getDefaultVerificationDay());
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
   
@@ -37,9 +66,8 @@ export default function TimesheetVerificare() {
     enabled: !!selectedWeek && !!selectedDayOfWeek,
   });
 
-  // Reset edited teams și selectează prima echipă când schimbăm săptămâna sau ziua
+  // NU resetăm edited teams când schimbăm ziua - doar când schimbăm săptămâna
   useEffect(() => {
-    setEditedTeams(new Set());
     if (availableTeams && availableTeams.size > 0) {
       const firstTeam = Array.from(availableTeams)[0];
       setSelectedTeam(firstTeam);
@@ -47,6 +75,11 @@ export default function TimesheetVerificare() {
       setSelectedTeam(null);
     }
   }, [selectedWeek, selectedDayOfWeek, availableTeams]);
+
+  // Reset edited teams DOAR când schimbăm săptămâna
+  useEffect(() => {
+    setEditedTeams(new Set());
+  }, [selectedWeek]);
 
   // Fetch numărul de pontaje pending pentru ziua curentă
   const { data: pendingCountForDay = 0 } = useQuery({
@@ -124,7 +157,10 @@ export default function TimesheetVerificare() {
                   Verificare Pontaje
                 </CardTitle>
                 <CardDescription>
-                  Aprobă, editează sau respinge pontajele angajaților
+                  {new Date().getDay() === 1 
+                    ? "📅 Este luni - verifică vineri, sâmbătă și duminică din săptămâna trecută"
+                    : "Aprobă, editează sau respinge pontajele de ieri"
+                  }
                 </CardDescription>
               </div>
               
@@ -226,20 +262,36 @@ export default function TimesheetVerificare() {
                     <SelectValue placeholder="Selectează echipa" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from(availableTeams).sort((a, b) => {
-                      const numA = parseInt(a.replace(/\D/g, ''), 10);
-                      const numB = parseInt(b.replace(/\D/g, ''), 10);
-                      return numA - numB;
-                    }).map(team => (
-                      <SelectItem key={team} value={team}>
-                        <div className="flex items-center gap-2">
-                          {editedTeams.has(team) && (
-                            <CheckCircle2 className="h-3 w-3 text-green-600" />
-                          )}
-                          Echipa {team}
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {Array.from(availableTeams)
+                      .sort((a, b) => {
+                        const numA = parseInt(a.replace(/\D/g, ''), 10);
+                        const numB = parseInt(b.replace(/\D/g, ''), 10);
+                        
+                        // Prioritate 1: Neverificate (nu sunt în editedTeams)
+                        const aEdited = editedTeams.has(a);
+                        const bEdited = editedTeams.has(b);
+                        
+                        if (!aEdited && bEdited) return -1; // a (neverificată) înainte de b (verificată)
+                        if (aEdited && !bEdited) return 1;  // b (neverificată) înainte de a (verificată)
+                        
+                        // Dacă ambele sunt în aceeași categorie, sortează alfabetic/numeric
+                        return numA - numB;
+                      })
+                      .map(team => {
+                        const isEdited = editedTeams.has(team);
+                        return (
+                          <SelectItem key={team} value={team}>
+                            <div className="flex items-center gap-2">
+                              {isEdited ? (
+                                <CheckCircle2 className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <AlertCircle className="h-3 w-3 text-yellow-600" />
+                              )}
+                              Echipa {team}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
                 {editedTeams.size > 0 && (

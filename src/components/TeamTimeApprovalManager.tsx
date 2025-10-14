@@ -119,24 +119,13 @@ export const TeamTimeApprovalManager = ({
       setActionDialogOpen(false);
       setActionEntryId(null);
       
-      // Auto-scroll la următoarea echipă needitată
+      // ✅ Marchează echipa ca editată, DAR NU schimba automat echipa
       if (selectedTeam) {
         onTeamEdited(selectedTeam);
-        
-        const nextTeam = getNextUneditedTeam();
-        if (nextTeam) {
-          onTeamChange(nextTeam);
-          toast({
-            title: '✅ Pontaj aprobat',
-            description: `Trecem automat la echipa ${nextTeam}`,
-          });
-        } else {
-          toast({
-            title: '🎉 Toate echipele verificate!',
-            description: 'Poți schimba ziua acum sau continua editarea.',
-          });
-          // NU schimbăm ziua automat - user decide manual
-        }
+        toast({
+          title: '✅ Pontaj aprobat',
+          description: 'Selectează manual următoarea echipă din dropdown.',
+        });
       }
     } catch (error) {
       console.error('[Approval Error]', error);
