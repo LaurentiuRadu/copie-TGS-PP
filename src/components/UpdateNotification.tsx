@@ -14,6 +14,23 @@ const APP_VERSION_KEY = 'app_version';
 const CURRENT_VERSION = "10"; // Actualizează manual după fiecare publish în package.json
 const DISMISSED_VERSION_KEY = 'dismissedAppVersion';
 
+// Helper pentru a verifica dacă suntem în program de lucru (05:00 - 24:00)
+const isBusinessHours = (): boolean => {
+  const currentHour = new Date().getHours();
+  // Program lucru: 05:00 - 23:59 (true)
+  // Noapte: 00:00 - 04:59 (false)
+  return currentHour >= 5;
+};
+
+// Helper pentru interval adaptiv cu business hours
+const getBusinessHoursInterval = (baseInterval: number): number => {
+  if (!isBusinessHours()) {
+    // Noapte: interval de 2 ore (minimal checks)
+    return 2 * 60 * 60 * 1000;
+  }
+  return baseInterval;
+};
+
 export function UpdateNotification() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -38,7 +55,13 @@ export function UpdateNotification() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 5 * 60 * 1000, // Check every 5 minutes
+    refetchInterval: (query) => {
+      if (!isBusinessHours()) {
+        console.log('[UpdateNotification] Skipping DB check - outside business hours (00:00-05:00)');
+        return false; // Oprește verificările
+      }
+      return 6 * 60 * 60 * 1000; // Check every 6 hours (05:00, 11:00, 17:00, 23:00)
+    },
   });
 
   useEffect(() => {
@@ -61,17 +84,30 @@ export function UpdateNotification() {
       navigator.serviceWorker.ready.then((reg) => {
         setRegistration(reg);
 
-        // Interval adaptiv bazat pe baterie
+        // Interval adaptiv bazat pe baterie ȘI business hours
         const updateCheckInterval = () => {
-          const interval = getRecommendedPollingInterval();
-          console.log(`[UpdateNotification] Using ${interval}ms interval (battery: ${Math.round(batteryInfo.level * 100)}%, charging: ${batteryInfo.charging})`);
-          return interval;
+          const batteryInterval = getRecommendedPollingInterval();
+          const finalInterval = getBusinessHoursInterval(batteryInterval);
+          
+          if (!isBusinessHours()) {
+            console.log(`[UpdateNotification] Night mode - using 2h interval`);
+          } else {
+            console.log(`[UpdateNotification] Using ${finalInterval}ms interval (battery: ${Math.round(batteryInfo.level * 100)}%, charging: ${batteryInfo.charging})`);
+          }
+          
+          return finalInterval;
         };
 
         const checkForUpdates = () => {
           // Nu verifica dacă bateria e critică și nu e în încărcare
           if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
             console.log('[UpdateNotification] Skipping check - critical battery');
+            return;
+          }
+          
+          // Nu verifica dacă suntem în afara business hours (00:00-05:00)
+          if (!isBusinessHours()) {
+            console.log('[UpdateNotification] Skipping check - outside business hours');
             return;
           }
           
@@ -117,11 +153,18 @@ export function UpdateNotification() {
       });
     }
 
-    // Pentru iOS PWA - verificare mai puțin agresivă
+    // Pentru iOS PWA - verificare mai puțin agresivă cu business hours
     if (isIOSPWA()) {
-      // Verificare doar la 5 minute pentru iOS
+      // Verificare la 30 minute, doar în business hours
       const iosCheckInterval = setInterval(async () => {
+        // Skip dacă baterie critică
         if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+          return;
+        }
+        
+        // Skip dacă suntem în afara business hours (00:00-05:00)
+        if (!isBusinessHours()) {
+          console.log('[UpdateNotification] Skipping iOS check - outside business hours');
           return;
         }
         
@@ -138,7 +181,7 @@ export function UpdateNotification() {
             console.debug('iOS update check failed:', error);
           }
         }
-      }, 5 * 60 * 1000); // 5 minute
+      }, 30 * 60 * 1000); // 30 minute
 
       return () => {
         clearInterval(iosCheckInterval);
