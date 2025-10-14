@@ -52,14 +52,20 @@ export default function TimesheetVerificare() {
   const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
   
   // Fetch echipele disponibile pentru ziua selectată
+  // Exclude teams containing only external contractors or office staff
   const { data: availableTeams } = useQuery({
     queryKey: ['teams-for-day', selectedWeek, selectedDayOfWeek],
     queryFn: async () => {
       const { data } = await supabase
         .from('weekly_schedules')
-        .select('team_id')
+        .select(`
+          team_id,
+          profiles!inner(is_external_contractor, is_office_staff)
+        `)
         .eq('week_start_date', selectedWeek)
-        .eq('day_of_week', selectedDayOfWeek);
+        .eq('day_of_week', selectedDayOfWeek)
+        .eq('profiles.is_external_contractor', false)
+        .eq('profiles.is_office_staff', false);
       
       return new Set(data?.map(s => s.team_id) || []);
     },

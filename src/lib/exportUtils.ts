@@ -49,6 +49,8 @@ interface DailyTimesheetForExport {
   profiles?: {
     username: string | null;
     full_name: string | null;
+    is_external_contractor?: boolean;
+    is_office_staff?: boolean;
   };
 }
 
@@ -88,7 +90,13 @@ const mapTimesheetToExportRow = (entry: DailyTimesheetForExport): ExportTimeEntr
 };
 
 export const exportToExcel = (data: DailyTimesheetForExport[], filename: string = 'pontaje.xlsx') => {
-  const exportData: ExportTimeEntry[] = data.map(entry => mapTimesheetToExportRow(entry));
+  // Filter out external contractors and office staff
+  const filteredData = data.filter(entry => 
+    !entry.profiles?.is_external_contractor && 
+    !entry.profiles?.is_office_staff
+  );
+  
+  const exportData: ExportTimeEntry[] = filteredData.map(entry => mapTimesheetToExportRow(entry));
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   
@@ -117,7 +125,13 @@ export const exportToExcel = (data: DailyTimesheetForExport[], filename: string 
 };
 
 export const exportToCSV = (data: DailyTimesheetForExport[], filename: string = 'pontaje.csv') => {
-  const exportData: ExportTimeEntry[] = data.map(entry => mapTimesheetToExportRow(entry));
+  // Filter out external contractors and office staff
+  const filteredData = data.filter(entry => 
+    !entry.profiles?.is_external_contractor && 
+    !entry.profiles?.is_office_staff
+  );
+  
+  const exportData: ExportTimeEntry[] = filteredData.map(entry => mapTimesheetToExportRow(entry));
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   const csv = XLSX.utils.sheet_to_csv(ws);
@@ -172,8 +186,13 @@ export const exportToPayrollCSV = (
   console.log(`[Payroll Export] Date range: ${startDateStr} - ${endDateStr}`);
   console.log(`[Payroll Export] Total records from DB: ${data.length}`);
 
-  // 1. Filter data within date range using string comparison to avoid timezone issues
+  // 1. Filter data within date range and exclude contractors/office staff
   const filteredData = data.filter(entry => {
+    // Exclude external contractors and office staff
+    if (entry.profiles?.is_external_contractor || entry.profiles?.is_office_staff) {
+      return false;
+    }
+    
     // Extract YYYY-MM-DD from work_date (handles both "2025-10-03" and "2025-10-03T00:00:00")
     const workDateStr = entry.work_date.split('T')[0];
     return workDateStr >= startDateStr && workDateStr <= endDateStr;
@@ -249,10 +268,10 @@ export const exportMonthlyPayrollReport = (
 ) => {
   const dateName = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' });
   
-  // Filtrare opțională per angajat
-  const filteredData = selectedEmployeeId 
-    ? data.filter(d => d.employee_id === selectedEmployeeId)
-    : data;
+  // Filtrare: exclude contractori și personal birou, apoi filtrează per angajat dacă e cazul
+  const filteredData = data
+    .filter(entry => !entry.profiles?.is_external_contractor && !entry.profiles?.is_office_staff)
+    .filter(d => !selectedEmployeeId || d.employee_id === selectedEmployeeId);
 
   if (filteredData.length === 0) {
     throw new Error('Nu există date pentru perioada selectată');

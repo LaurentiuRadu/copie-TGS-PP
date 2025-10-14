@@ -72,12 +72,26 @@ export const useTeamApprovalWorkflow = (
       const weekEnd = addDays(weekStart, 7);
 
       // Get user IDs and schedules data - filtrare pe zi selectată
+      // Exclude external contractors and office staff
       const { data: schedules, error: schedError } = await supabase
         .from('weekly_schedules')
-        .select('user_id, team_leader_id, coordinator_id, day_of_week, shift_type, location, activity, vehicle, observations')
+        .select(`
+          user_id, 
+          team_leader_id, 
+          coordinator_id, 
+          day_of_week, 
+          shift_type, 
+          location, 
+          activity, 
+          vehicle, 
+          observations,
+          profiles!inner(is_external_contractor, is_office_staff)
+        `)
         .eq('team_id', teamId)
         .eq('week_start_date', weekStartDate)
-        .eq('day_of_week', selectedDayOfWeek);
+        .eq('day_of_week', selectedDayOfWeek)
+        .eq('profiles.is_external_contractor', false)
+        .eq('profiles.is_office_staff', false);
 
       if (schedError) throw schedError;
       const userIds = schedules?.map(s => s.user_id) || [];
