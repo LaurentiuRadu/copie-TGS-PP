@@ -91,7 +91,7 @@ export default function TimesheetVerificare() {
     enabled: !!selectedWeek && !!selectedDayOfWeek,
   });
 
-  // 🆕 Fetch pending count per team pentru status vizual
+  // 🆕 Fetch pending and incomplete counts per team pentru status vizual
   const { data: teamPendingCounts = {} } = useQuery({
     queryKey: ['team-pending-counts', selectedWeek, selectedDayOfWeek, Array.from(availableTeams || [])],
     queryFn: async () => {
@@ -125,19 +125,32 @@ export default function TimesheetVerificare() {
 
       if (entriesError) throw entriesError;
 
-      // Filtrare pontaje valide (>= 10 min)
-      const validEntries = timeEntries.filter(entry => {
+      // Separare pontaje complete vs incomplete
+      const completeEntries = timeEntries.filter(entry => {
         if (!entry.clock_out_time) return false;
         const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
-        return duration >= 0.17; // 10 min
+        return duration >= 0.17; // >= 10 min
       });
 
-      // Grupare pe echipă
-      const counts: Record<string, number> = {};
+      const incompleteEntries = timeEntries.filter(entry => !entry.clock_out_time);
+
+      // Count pending complete entries and incomplete entries per team
+      const counts: Record<string, { pending: number; incomplete: number; total: number }> = {};
+      
       schedules.forEach(schedule => {
-        const userEntries = validEntries.filter(e => e.user_id === schedule.user_id);
-        const pendingCount = userEntries.filter(e => e.approval_status === 'pending_review').length;
-        counts[schedule.team_id] = (counts[schedule.team_id] || 0) + pendingCount;
+        const userComplete = completeEntries.filter(e => e.user_id === schedule.user_id);
+        const userIncomplete = incompleteEntries.filter(e => e.user_id === schedule.user_id);
+        
+        const pendingCount = userComplete.filter(e => e.approval_status === 'pending_review').length;
+        const incompleteCount = userIncomplete.length;
+        
+        if (!counts[schedule.team_id]) {
+          counts[schedule.team_id] = { pending: 0, incomplete: 0, total: 0 };
+        }
+        
+        counts[schedule.team_id].pending += pendingCount;
+        counts[schedule.team_id].incomplete += incompleteCount;
+        counts[schedule.team_id].total += pendingCount + incompleteCount;
       });
 
       return counts;
@@ -218,8 +231,8 @@ export default function TimesheetVerificare() {
   const verificationProgress = {
     total: availableTeams?.size || 0,
     verified: Array.from(availableTeams || []).filter(team => {
-      const pending = teamPendingCounts[team] || 0;
-      return pending === 0;
+      const teamData = teamPendingCounts[team] || { pending: 0, incomplete: 0, total: 0 };
+      return teamData.total === 0; // No pending and no incomplete entries
     }).length,
   };
   
@@ -400,18 +413,18 @@ export default function TimesheetVerificare() {
                           const numA = parseInt(a.replace(/\D/g, ''), 10);
                           const numB = parseInt(b.replace(/\D/g, ''), 10);
                           
-                          // Prioritate 1: Echipe cu pontaje pending (neverificate)
-                          const aPending = teamPendingCounts[a] || 0;
-                          const bPending = teamPendingCounts[b] || 0;
+                          // Prioritate 1: Echipe cu pontaje pending sau incomplete (neverificate)
+                          const aData = teamPendingCounts[a] || { pending: 0, incomplete: 0, total: 0 };
+                          const bData = teamPendingCounts[b] || { pending: 0, incomplete: 0, total: 0 };
                           
-                          if (aPending > 0 && bPending === 0) return -1;
-                          if (aPending === 0 && bPending > 0) return 1;
+                          if (aData.total > 0 && bData.total === 0) return -1;
+                          if (aData.total === 0 && bData.total > 0) return 1;
                           
                           return numA - numB;
                         })
                         .map(team => {
-                          const pendingCount = teamPendingCounts[team] || 0;
-                          const isFullyVerified = pendingCount === 0;
+                          const teamData = teamPendingCounts[team] || { pending: 0, incomplete: 0, total: 0 };
+                          const isFullyVerified = teamData.total === 0;
 
                           return (
                             <SelectItem 
@@ -432,7 +445,9 @@ export default function TimesheetVerificare() {
                                   </Badge>
                                 ) : (
                                   <Badge variant="outline" className="ml-2 bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 text-xs">
-                                    ⏳ {pendingCount} {pendingCount === 1 ? 'pontaj' : 'pontaje'}
+                                    {teamData.pending > 0 && `⏳ ${teamData.pending} pending`}
+                                    {teamData.incomplete > 0 && teamData.pending > 0 && ' | '}
+                                    {teamData.incomplete > 0 && `🔄 ${teamData.incomplete} nefinalizat${teamData.incomplete > 1 ? 'e' : ''}`}
                                   </Badge>
                                 )}
                               </div>
@@ -458,6 +473,24 @@ export default function TimesheetVerificare() {
             )}
           </div>
         </CardHeader>
+
+        {/* Warning for verifying current day */}
+        {(() => {
+          const today = new Date();
+          const todayDayOfWeek = today.getDay() || 7;
+          const isVerifyingToday = selectedDayOfWeek === todayDayOfWeek;
+          
+          return isVerifyingToday && (
+            <Alert className="mx-6 mb-6 bg-blue-50 border-blue-300 dark:bg-blue-950/20 dark:border-blue-800">
+              <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertDescription className="text-sm text-blue-900 dark:text-blue-100">
+                ⚠️ <strong>Verifici ziua CURENTĂ!</strong> Majoritatea pontajelor pot fi incomplete (clock-out lipsește).
+                <br />
+                💡 <strong>Recomandare:</strong> verifică mâine pentru date complete.
+              </AlertDescription>
+            </Alert>
+          );
+        })()}
 
         <CardContent>
           <div className="space-y-6">
@@ -490,9 +523,9 @@ export default function TimesheetVerificare() {
               editedTeams={editedTeams}
               onTeamEdited={(teamId) => {
                 setEditedTeams(prev => new Set([...prev, teamId]));
-                // Auto-marchează ca verificată dacă nu mai are pontaje pending
-                const pendingCount = teamPendingCounts[teamId] || 0;
-                if (pendingCount === 0) {
+                // Auto-marchează ca verificată dacă nu mai are pontaje pending sau incomplete
+                const teamData = teamPendingCounts[teamId] || { pending: 0, incomplete: 0, total: 0 };
+                if (teamData.total === 0) {
                   setVerifiedTeams(prev => new Set([...prev, teamId]));
                 }
               }}
