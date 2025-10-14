@@ -1,12 +1,30 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Calendar, TrendingUp, Award } from "lucide-react";
+import { Clock, Calendar, TrendingUp, Award, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import heroImage from "@/assets/hero-team.jpg";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Query pentru alerte securitate nerezolvate
+  const { data: unresolvedAlertsCount = 0 } = useQuery({
+    queryKey: ['unresolved-alerts-count-dashboard'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('security_alerts')
+        .select('*', { count: 'exact', head: true })
+        .eq('resolved', false);
+      
+      return count || 0;
+    },
+    refetchInterval: 30000, // 30s
+  });
 
   return (
     <SidebarProvider>
@@ -106,6 +124,23 @@ const Index = () => {
                   <CardContent>
                     <div className="text-xl md:text-2xl font-bold">21</div>
                     <p className="text-xs text-muted-foreground mt-1">Zile rămase</p>
+                  </CardContent>
+                </Card>
+
+                <Card 
+                  className="shadow-md hover:shadow-lg transition-shadow cursor-pointer" 
+                  onClick={() => navigate('/alerts')}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <span className="hidden sm:inline">Alerte Securitate</span>
+                      <span className="sm:hidden">Alerte</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl md:text-2xl font-bold text-destructive">{unresolvedAlertsCount}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Nerezolvate</p>
                   </CardContent>
                 </Card>
               </div>
