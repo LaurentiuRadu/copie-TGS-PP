@@ -44,9 +44,9 @@ const adminMenuItems = [
     isParent: true,
     children: [
       { title: "Fișe Pontaj", url: "/timesheet", icon: FileText },
-      { title: "Verificare Pontaje", url: "/timesheet/verificare", icon: ClipboardCheck, badge: true },
+      { title: "Verificare Pontaje", url: "/timesheet/verificare", icon: ClipboardCheck, badge: true, badgeType: 'approvals' },
       { title: "Istoric Aprobări", url: "/timesheet/istoric", icon: History },
-      { title: "Rapoarte întârzieri", url: "/timesheet/rapoarte-intarzieri", icon: AlertTriangle },
+      { title: "Rapoarte întârzieri", url: "/timesheet/rapoarte-intarzieri", icon: AlertTriangle, badge: true, badgeType: 'tardiness' },
     ]
   },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
@@ -116,6 +116,21 @@ export function AppSidebar() {
     refetchInterval: 30000, // 30s
   });
 
+  // Query pentru rapoarte întârzieri pending (badge pentru Rapoarte întârzieri)
+  const { data: pendingTardinessCount } = useQuery({
+    queryKey: ['pending-tardiness-count-sidebar'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('tardiness_reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      
+      return count || 0;
+    },
+    enabled: isAdmin,
+    refetchInterval: 30000, // 30s
+  });
+
   useEffect(() => {
     // Admin-ii văd TOATE meniurile cu separare clară
     if (isAdmin) {
@@ -177,8 +192,10 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminMenuItems.map((item) => {
                   if (item.isParent && item.children) {
-                    // SUBMENIU COLLAPSIBLE
-                    const totalBadge = item.badge && pendingApprovalsCount && pendingApprovalsCount > 0 ? pendingApprovalsCount : 0;
+                    // SUBMENIU COLLAPSIBLE - suma ambelor badge-uri pentru parent
+                    const totalBadge = item.badge 
+                      ? (pendingApprovalsCount || 0) + (pendingTardinessCount || 0)
+                      : 0;
                     
                     return (
                       <Collapsible key={item.title} asChild className="group/collapsible">
@@ -198,7 +215,11 @@ export function AppSidebar() {
                           <CollapsibleContent>
                             <SidebarMenuSub className="space-y-1 py-2">
                               {item.children.map((child) => {
-                                const childBadge = child.badge && pendingApprovalsCount && pendingApprovalsCount > 0;
+                                // Determină badge-ul în funcție de tipul copilului
+                                const badgeCount = child.badgeType === 'tardiness' 
+                                  ? pendingTardinessCount 
+                                  : pendingApprovalsCount;
+                                const childBadge = child.badge && badgeCount && badgeCount > 0;
                                 
                                 return (
                                   <SidebarMenuSubItem key={child.title}>
@@ -220,7 +241,7 @@ export function AppSidebar() {
                                         <span>{child.title}</span>
                                         {childBadge && (
                                           <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 min-w-[24px]">
-                                            {pendingApprovalsCount}
+                                            {badgeCount}
                                           </Badge>
                                         )}
                                       </NavLink>
