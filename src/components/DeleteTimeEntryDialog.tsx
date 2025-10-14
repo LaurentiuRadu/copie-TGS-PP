@@ -58,9 +58,12 @@ export function DeleteTimeEntryDialog({
       if (entryError) throw entryError;
     },
     onSuccess: () => {
+      // Invalidare cache pentru refresh instant
       queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['team-time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-time-entries'] });
       
       toast({
         title: "✅ Pontaj șters",
