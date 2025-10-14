@@ -448,7 +448,7 @@ export function TimeEntryApprovalEditDialog({
                         • Total calculat din pontaj: <strong>{totalHours.toFixed(2)}h</strong><br/>
                         • Total segmentat manual: <strong>{allocatedHours.toFixed(2)}h</strong><br/>
                         • Diferență: <strong className={allocatedHours > totalHours ? 'text-green-600' : 'text-red-600'}>
-                          {allocatedHours > totalHours ? '+' : ''}{(allocatedHours - allocatedHours).toFixed(2)}h
+                          {allocatedHours > totalHours ? '+' : ''}{(allocatedHours - totalHours).toFixed(2)}h
                         </strong>
                       </p>
                       <p className="text-sm font-semibold mt-2 text-orange-900 dark:text-orange-200">
@@ -519,7 +519,7 @@ export function TimeEntryApprovalEditDialog({
                         // La blur: parsează, validează, rotunjește
                         const value = e.target.value.replace(',', '.');
                         const num = parseFloat(value);
-                        const final = isNaN(num) || num < 0 ? 0 : Math.min(num, totalHours);
+                        const final = isNaN(num) || num < 0 ? 0 : parseFloat(num.toFixed(2));
                         setManualHoursDraft(prev => ({
                           ...prev,
                           [key]: final.toFixed(2)
@@ -577,8 +577,7 @@ export function TimeEntryApprovalEditDialog({
             onClick={handleSave} 
             disabled={
               updateAndApprove.isPending || 
-              !!validateDuration() ||
-              (manualSegmentation && Math.abs(remainingHours) > 0.01)
+              !!validateDuration()
             }
           >
             {updateAndApprove.isPending ? "Salvez..." : "Salvează și Aprobă"}
