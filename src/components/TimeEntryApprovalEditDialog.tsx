@@ -158,12 +158,14 @@ export function TimeEntryApprovalEditDialog({
   const validateManualSegmentation = (): string | null => {
     if (!manualSegmentation) return null;
     
-    if (Math.abs(remainingHours) > 0.01) {
-      if (remainingHours > 0) {
-        return `❌ Mai rămân ${remainingHours.toFixed(2)}h nerepartizate! Alocă-le înainte de salvare.`;
-      } else {
-        return `❌ Ai depășit totalul cu ${Math.abs(remainingHours).toFixed(2)}h! Reduce orele alocate.`;
-      }
+    // Permite override: doar verifică că există ore alocate
+    if (allocatedHours <= 0) {
+      return `❌ Trebuie să aloci cel puțin 1 oră!`;
+    }
+    
+    // Warning în consolă pentru override detection
+    if (Math.abs(totalHours - allocatedHours) > 0.1) {
+      console.warn('[OVERRIDE MANUAL] Total calculat:', totalHours, 'h | Total manual:', allocatedHours, 'h');
     }
     
     return null;
@@ -187,6 +189,12 @@ export function TimeEntryApprovalEditDialog({
       if (manualSegmentation) {
         const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
         
+        // Detectează override
+        const isOverride = Math.abs(totalHours - allocatedHours) > 0.1;
+        const overrideNote = isOverride 
+          ? `[OVERRIDE MANUAL: ${allocatedHours.toFixed(2)}h din ${totalHours.toFixed(2)}h calculate] ` 
+          : '[SEGMENTARE MANUALĂ] ';
+        
         const { error: timesheetError } = await supabase
           .from('daily_timesheets')
           .upsert({
@@ -202,7 +210,7 @@ export function TimeEntryApprovalEditDialog({
             hours_equipment: manualHoursParsed.hours_equipment,
             hours_leave: 0,
             hours_medical_leave: 0,
-            notes: `[SEGMENTARE MANUALĂ ADMIN] ${adminNotes || 'Repartizare corectată manual'}`,
+            notes: `${overrideNote}${adminNotes || 'Repartizare corectată manual'}`,
           }, {
             onConflict: 'employee_id,work_date'
           });
@@ -294,6 +302,19 @@ export function TimeEntryApprovalEditDialog({
     if (segmentationError) {
       setError(segmentationError);
       return;
+    }
+    
+    // Validare: adminNotes obligatorii când există override
+    if (manualSegmentation && Math.abs(totalHours - allocatedHours) > 0.1) {
+      if (!adminNotes.trim()) {
+        setError('❌ Când modifici totalul de ore, trebuie să explici motivul în "Note Admin"!');
+        toast({
+          variant: "destructive",
+          title: "Note obligatorii",
+          description: "Explică de ce modifici totalul de ore (ex: pontaj greșit, corecție solicitată, etc.)",
+        });
+        return;
+      }
     }
     
     updateAndApprove.mutate();
@@ -399,20 +420,35 @@ export function TimeEntryApprovalEditDialog({
                 </div>
               </div>
 
-              {/* Alert Status */}
-              {remainingHours !== 0 && (
-                <Alert variant={remainingHours > 0 ? 'default' : 'destructive'}>
-                  <AlertCircle className="h-4 w-4" />
+              {/* Warning Override Manual */}
+              {Math.abs(totalHours - allocatedHours) > 0.1 && allocatedHours > 0 && (
+                <Alert className="bg-orange-50 dark:bg-orange-950/20 border-orange-400">
+                  <AlertCircle className="h-4 w-4 text-orange-600" />
                   <AlertDescription>
-                    {remainingHours > 0 
-                      ? `⚠️ Rămân ${remainingHours.toFixed(2)}h nerepartizate! Nu poți salva până nu aloci tot.` 
-                      : `❌ Ai depășit totalul cu ${Math.abs(remainingHours).toFixed(2)}h! Reduce orele alocate.`
-                    }
+                    <div className="space-y-1">
+                      <p className="font-semibold text-orange-800 dark:text-orange-300">
+                        ⚠️ OVERRIDE MANUAL ACTIV
+                      </p>
+                      <p className="text-sm">
+                        • Total calculat din pontaj: <strong>{totalHours.toFixed(2)}h</strong><br/>
+                        • Total segmentat manual: <strong>{allocatedHours.toFixed(2)}h</strong><br/>
+                        • Diferență: <strong className={allocatedHours > totalHours ? 'text-green-600' : 'text-red-600'}>
+                          {allocatedHours > totalHours ? '+' : ''}{(allocatedHours - totalHours).toFixed(2)}h
+                        </strong>
+                      </p>
+                      <p className="text-sm font-semibold mt-2 text-orange-900 dark:text-orange-200">
+                        🔔 Angajatul va vedea {allocatedHours.toFixed(2)}h (nu {totalHours.toFixed(2)}h) în aplicație!
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Motivul override-ului trebuie explicat în "Note Admin" mai jos.
+                      </p>
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
 
-              {remainingHours === 0 && allocatedHours > 0 && (
+              {/* Alert Status Normal */}
+              {Math.abs(totalHours - allocatedHours) <= 0.1 && allocatedHours > 0 && (
                 <Alert className="bg-green-50 dark:bg-green-950/20 border-green-300">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertDescription>
