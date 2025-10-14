@@ -5,13 +5,14 @@ import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
 import { ApprovalStatsDashboard } from '@/components/ApprovalStatsDashboard';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { startOfWeek, endOfWeek, format, addWeeks, subWeeks } from 'date-fns';
+import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle } from 'lucide-react';
+import { startOfWeek, endOfWeek, format, addWeeks, subWeeks, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function TimesheetVerificare() {
   const [selectedWeek, setSelectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
@@ -31,6 +32,43 @@ export default function TimesheetVerificare() {
     },
     enabled: !!selectedWeek && !!selectedDayOfWeek,
   });
+
+  // Fetch numărul de pontaje pending pentru ziua curentă
+  const { data: pendingCountForDay = 0 } = useQuery({
+    queryKey: ['pending-count-for-day', selectedWeek, selectedDayOfWeek],
+    queryFn: async () => {
+      // Calculează data exactă pentru ziua selectată
+      const weekStart = new Date(selectedWeek);
+      const targetDate = addDays(weekStart, selectedDayOfWeek - 1);
+      const targetDateStr = format(targetDate, 'yyyy-MM-dd');
+
+      // Obține toți userii din echipele programate în această zi
+      const { data: schedules } = await supabase
+        .from('weekly_schedules')
+        .select('user_id')
+        .eq('week_start_date', selectedWeek)
+        .eq('day_of_week', selectedDayOfWeek);
+
+      if (!schedules || schedules.length === 0) return 0;
+
+      const userIds = schedules.map(s => s.user_id);
+
+      // Numără pontajele pending pentru acești useri în ziua selectată
+      const { count } = await supabase
+        .from('time_entries')
+        .select('*', { count: 'exact', head: true })
+        .in('user_id', userIds)
+        .gte('clock_in_time', `${targetDateStr}T00:00:00Z`)
+        .lt('clock_in_time', `${format(addDays(targetDate, 1), 'yyyy-MM-dd')}T00:00:00Z`)
+        .eq('approval_status', 'pending_review');
+
+      return count || 0;
+    },
+    enabled: !!selectedWeek && !!selectedDayOfWeek,
+    refetchInterval: 5000, // Refresh la fiecare 5s pentru actualizare live
+  });
+
+  const hasPendingEntries = pendingCountForDay > 0;
   
   const navigateWeek = (direction: 'prev' | 'next') => {
     setSelectedWeek(current => {
@@ -68,6 +106,7 @@ export default function TimesheetVerificare() {
                   size="sm"
                   onClick={() => navigateWeek('prev')}
                   className="gap-1"
+                  disabled={hasPendingEntries}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   <span className="hidden sm:inline">Anterioara</span>
@@ -88,6 +127,7 @@ export default function TimesheetVerificare() {
                   size="sm"
                   onClick={() => navigateWeek('next')}
                   className="gap-1"
+                  disabled={hasPendingEntries}
                 >
                   <span className="hidden sm:inline">Următoarea</span>
                   <ChevronRight className="h-4 w-4" />
@@ -97,6 +137,7 @@ export default function TimesheetVerificare() {
                   variant="secondary"
                   size="sm"
                   onClick={goToToday}
+                  disabled={hasPendingEntries}
                 >
                   Astăzi
                 </Button>
@@ -111,6 +152,7 @@ export default function TimesheetVerificare() {
               <Select 
                 value={selectedDayOfWeek.toString()} 
                 onValueChange={(v) => setSelectedDayOfWeek(Number(v))}
+                disabled={hasPendingEntries}
               >
                 <SelectTrigger id="day-selector" className="w-[180px]">
                   <SelectValue />
@@ -126,6 +168,18 @@ export default function TimesheetVerificare() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Alert pentru pontaje pending */}
+            {hasPendingEntries && (
+              <Alert className="mt-4 bg-yellow-50 border-yellow-300 dark:bg-yellow-950/20 dark:border-yellow-800">
+                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                <AlertDescription className="text-sm text-yellow-900 dark:text-yellow-100">
+                  ⏳ Există <strong>{pendingCountForDay} pontaj{pendingCountForDay !== 1 ? 'e' : ''}</strong> în așteptare pentru această zi.
+                  <br />
+                  Termină aprobarea pentru a putea schimba ziua sau săptămâna.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         </CardHeader>
 

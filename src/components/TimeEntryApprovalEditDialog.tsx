@@ -54,16 +54,29 @@ export function TimeEntryApprovalEditDialog({
   
   // State pentru segmentare manuală
   const [manualSegmentation, setManualSegmentation] = useState(false);
-  const [manualHours, setManualHours] = useState({
-    hours_regular: 0,
-    hours_night: 0,
-    hours_saturday: 0,
-    hours_sunday: 0,
-    hours_holiday: 0,
-    hours_passenger: 0,
-    hours_driving: 0,
-    hours_equipment: 0,
+  
+  // Refactor: Draft pentru UI (string) + Parsed pentru calcule/salvare
+  const [manualHoursDraft, setManualHoursDraft] = useState({
+    hours_regular: '',
+    hours_night: '',
+    hours_saturday: '',
+    hours_sunday: '',
+    hours_holiday: '',
+    hours_passenger: '',
+    hours_driving: '',
+    hours_equipment: '',
   });
+
+  // Parsează draft-ul pentru calcule
+  const manualHoursParsed = useMemo(() => {
+    const parsed: Record<string, number> = {};
+    Object.entries(manualHoursDraft).forEach(([key, value]) => {
+      const cleaned = value.replace(',', '.');
+      const num = parseFloat(cleaned);
+      parsed[key] = isNaN(num) || num < 0 ? 0 : parseFloat(num.toFixed(2));
+    });
+    return parsed;
+  }, [manualHoursDraft]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -77,10 +90,10 @@ export function TimeEntryApprovalEditDialog({
     return parseFloat(hours.toFixed(2));
   }, [clockIn, clockOut]);
 
-  // Calculează ore alocate manual
+  // Calculează ore alocate manual (folosim parsed)
   const allocatedHours = useMemo(() => {
-    return Object.values(manualHours).reduce((sum, val) => sum + parseFloat(val.toString()), 0);
-  }, [manualHours]);
+    return Object.values(manualHoursParsed).reduce((sum, val) => sum + val, 0);
+  }, [manualHoursParsed]);
 
   // Calculează ore rămase
   const remainingHours = useMemo(() => {
@@ -96,29 +109,32 @@ export function TimeEntryApprovalEditDialog({
   }, [entry.profiles.full_name]);
 
   // Funcții helper pentru segmentare manuală
-  const allocateMax = (field: keyof typeof manualHours) => {
+  const allocateMax = (field: keyof typeof manualHoursDraft) => {
     if (remainingHours <= 0) return;
     
-    setManualHours(prev => ({
+    const currentParsed = manualHoursParsed[field] || 0;
+    const newValue = parseFloat((currentParsed + remainingHours).toFixed(2));
+    
+    setManualHoursDraft(prev => ({
       ...prev,
-      [field]: parseFloat((prev[field] + remainingHours).toFixed(2))
+      [field]: newValue.toString()
     }));
   };
 
-  const resetField = (field: keyof typeof manualHours) => {
-    setManualHours(prev => ({ ...prev, [field]: 0 }));
+  const resetField = (field: keyof typeof manualHoursDraft) => {
+    setManualHoursDraft(prev => ({ ...prev, [field]: '0' }));
   };
 
   const resetAllFields = () => {
-    setManualHours({
-      hours_regular: 0,
-      hours_night: 0,
-      hours_saturday: 0,
-      hours_sunday: 0,
-      hours_holiday: 0,
-      hours_passenger: 0,
-      hours_driving: 0,
-      hours_equipment: 0,
+    setManualHoursDraft({
+      hours_regular: '0',
+      hours_night: '0',
+      hours_saturday: '0',
+      hours_sunday: '0',
+      hours_holiday: '0',
+      hours_passenger: '0',
+      hours_driving: '0',
+      hours_equipment: '0',
     });
   };
 
@@ -167,7 +183,7 @@ export function TimeEntryApprovalEditDialog({
         .eq('id', entry.id)
         .single();
 
-      // Dacă segmentare manuală, salvează direct în daily_timesheets
+      // Dacă segmentare manuală, salvează direct în daily_timesheets (folosim parsed)
       if (manualSegmentation) {
         const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
         
@@ -176,14 +192,14 @@ export function TimeEntryApprovalEditDialog({
           .upsert({
             employee_id: entry.user_id,
             work_date: workDate,
-            hours_regular: manualHours.hours_regular,
-            hours_night: manualHours.hours_night,
-            hours_saturday: manualHours.hours_saturday,
-            hours_sunday: manualHours.hours_sunday,
-            hours_holiday: manualHours.hours_holiday,
-            hours_passenger: manualHours.hours_passenger,
-            hours_driving: manualHours.hours_driving,
-            hours_equipment: manualHours.hours_equipment,
+            hours_regular: manualHoursParsed.hours_regular,
+            hours_night: manualHoursParsed.hours_night,
+            hours_saturday: manualHoursParsed.hours_saturday,
+            hours_sunday: manualHoursParsed.hours_sunday,
+            hours_holiday: manualHoursParsed.hours_holiday,
+            hours_passenger: manualHoursParsed.hours_passenger,
+            hours_driving: manualHoursParsed.hours_driving,
+            hours_equipment: manualHoursParsed.hours_equipment,
             hours_leave: 0,
             hours_medical_leave: 0,
             notes: `[SEGMENTARE MANUALĂ ADMIN] ${adminNotes || 'Repartizare corectată manual'}`,
@@ -429,23 +445,33 @@ export function TimeEntryApprovalEditDialog({
                   { key: 'hours_passenger' as const, label: '👥 Ore Pasager' },
                   { key: 'hours_driving' as const, label: '🚗 Ore Conducere' },
                   ...(hasEquipmentAccess ? [{ key: 'hours_equipment' as const, label: '⚙️ Ore Echipament' }] : [])
-                ] as Array<{ key: keyof typeof manualHours; label: string }>).map(({ key, label }) => (
+                 ] as Array<{ key: keyof typeof manualHoursDraft; label: string }>).map(({ key, label }) => (
                   <div key={key} className="flex items-center gap-2">
                     <Label className="text-sm font-medium w-40">
                       {label}
                     </Label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={totalHours}
-                      value={manualHours[key]}
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]*[.,]?[0-9]*"
+                      placeholder="0.00"
+                      value={manualHoursDraft[key]}
                       onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        const cappedValue = Math.min(value, totalHours);
-                        setManualHours(prev => ({
+                        // Permite tastare directă, inclusiv ștergere a lui "0"
+                        const value = e.target.value;
+                        setManualHoursDraft(prev => ({
                           ...prev,
-                          [key]: parseFloat(cappedValue.toFixed(2))
+                          [key]: value
+                        }));
+                      }}
+                      onBlur={(e) => {
+                        // La blur: parsează, validează, rotunjește
+                        const value = e.target.value.replace(',', '.');
+                        const num = parseFloat(value);
+                        const final = isNaN(num) || num < 0 ? 0 : Math.min(num, totalHours);
+                        setManualHoursDraft(prev => ({
+                          ...prev,
+                          [key]: final.toFixed(2)
                         }));
                       }}
                       className="w-24"
@@ -467,7 +493,7 @@ export function TimeEntryApprovalEditDialog({
                         variant="ghost"
                         size="sm"
                         onClick={() => resetField(key)}
-                        disabled={manualHours[key] === 0}
+                        disabled={manualHoursParsed[key] === 0}
                         title="Reset la 0"
                       >
                         <X className="h-4 w-4" />
