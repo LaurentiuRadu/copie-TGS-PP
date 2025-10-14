@@ -62,7 +62,7 @@ export const useTeamApprovalWorkflow = (
 ) => {
   const queryClient = useQueryClient();
 
-  // 1. Fetch pending time entries pentru echipă și săptămână
+  // 1. Fetch pending time entries pentru echipă și săptămână (exclude contractori + personal birou)
   const { data, isLoading } = useQuery<TeamApprovalData>({
     queryKey: ['team-pending-approvals', teamId, weekStartDate, selectedDayOfWeek],
     queryFn: async (): Promise<TeamApprovalData> => {
@@ -71,8 +71,7 @@ export const useTeamApprovalWorkflow = (
       const weekStart = new Date(weekStartDate);
       const weekEnd = addDays(weekStart, 7);
 
-      // Get user IDs and schedules data - filtrare pe zi selectată
-      // Exclude external contractors and office staff
+      // Get user IDs and schedules data - exclude contractori și personal birou
       const { data: schedules, error: schedError } = await supabase
         .from('weekly_schedules')
         .select(`
@@ -85,7 +84,7 @@ export const useTeamApprovalWorkflow = (
           activity, 
           vehicle, 
           observations,
-          profiles!inner(is_external_contractor, is_office_staff)
+          profiles!inner(id, full_name, username, is_external_contractor, is_office_staff)
         `)
         .eq('team_id', teamId)
         .eq('week_start_date', weekStartDate)
@@ -134,11 +133,13 @@ export const useTeamApprovalWorkflow = (
 
       if (error) throw error;
 
-      // Fetch profiles separately
+      // Fetch profiles separately (exclude contractors + office staff)
       const { data: profilesData } = await supabase
         .from('profiles')
-        .select('id, full_name, username')
-        .in('id', allUserIds);
+        .select('id, full_name, username, is_external_contractor, is_office_staff')
+        .in('id', allUserIds)
+        .eq('is_external_contractor', false)
+        .eq('is_office_staff', false);
 
 
       // Track pontaj numbers per user for multiple entries per day
@@ -387,7 +388,7 @@ export const useTeamApprovalWorkflow = (
       });
 
       if (validationErrors.length > 0) {
-        throw new Error(`❌ Validare eșuată:\n${validationErrors.join('\n')}`);
+        throw new Error(`❌ Validare eșuată:\\n${validationErrors.join('\\n')}`);
       }
 
       // STEP 3: Update all entries
