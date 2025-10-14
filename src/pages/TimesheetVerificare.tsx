@@ -370,13 +370,36 @@ export default function TimesheetVerificare() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1" disabled={hasPendingEntries && 1 >= selectedDayOfWeek}>📅 Luni</SelectItem>
-                        <SelectItem value="2" disabled={hasPendingEntries && 2 >= selectedDayOfWeek}>📅 Marți</SelectItem>
-                        <SelectItem value="3" disabled={hasPendingEntries && 3 >= selectedDayOfWeek}>📅 Miercuri</SelectItem>
-                        <SelectItem value="4" disabled={hasPendingEntries && 4 >= selectedDayOfWeek}>📅 Joi</SelectItem>
-                        <SelectItem value="5" disabled={hasPendingEntries && 5 >= selectedDayOfWeek}>📅 Vineri</SelectItem>
-                        <SelectItem value="6" disabled={hasPendingEntries && 6 >= selectedDayOfWeek}>📅 Sâmbătă</SelectItem>
-                        <SelectItem value="7" disabled={hasPendingEntries && 7 >= selectedDayOfWeek}>📅 Duminică</SelectItem>
+                        {(() => {
+                          const today = new Date();
+                          const currentDayOfWeek = today.getDay() || 7; // 1=Luni, 7=Duminică
+                          
+                          return (
+                            <>
+                              <SelectItem value="1" disabled={hasPendingEntries && 1 > selectedDayOfWeek && 1 > currentDayOfWeek}>
+                                📅 Luni
+                              </SelectItem>
+                              <SelectItem value="2" disabled={hasPendingEntries && 2 > selectedDayOfWeek && 2 > currentDayOfWeek}>
+                                📅 Marți
+                              </SelectItem>
+                              <SelectItem value="3" disabled={hasPendingEntries && 3 > selectedDayOfWeek && 3 > currentDayOfWeek}>
+                                📅 Miercuri
+                              </SelectItem>
+                              <SelectItem value="4" disabled={hasPendingEntries && 4 > selectedDayOfWeek && 4 > currentDayOfWeek}>
+                                📅 Joi
+                              </SelectItem>
+                              <SelectItem value="5" disabled={hasPendingEntries && 5 > selectedDayOfWeek && 5 > currentDayOfWeek}>
+                                📅 Vineri
+                              </SelectItem>
+                              <SelectItem value="6" disabled={hasPendingEntries && 6 > selectedDayOfWeek && 6 > currentDayOfWeek}>
+                                📅 Sâmbătă
+                              </SelectItem>
+                              <SelectItem value="7" disabled={hasPendingEntries && 7 > selectedDayOfWeek && 7 > currentDayOfWeek}>
+                                📅 Duminică
+                              </SelectItem>
+                            </>
+                          );
+                        })()}
                       </SelectContent>
                     </Select>
 
