@@ -50,7 +50,6 @@ const adminMenuItems = [
     ]
   },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
-  { title: "Alerte Securitate", url: "/alerts", icon: AlertTriangle, badge: true, badgeType: 'security' },
   { title: "Locații Lucru", url: "/work-locations", icon: MapPin },
   { title: "Concedii", url: "/vacations", icon: Calendar },
   { title: "Setări", url: "/backup-restore", icon: Settings },
@@ -131,20 +130,6 @@ export function AppSidebar() {
     refetchInterval: 30000, // 30s
   });
 
-  // Query pentru alerte securitate nerezolvate (badge pentru Alerte Securitate)
-  const { data: pendingSecurityAlertsCount = 0 } = useQuery({
-    queryKey: ['pending-security-alerts-count-sidebar'],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('security_alerts')
-        .select('*', { count: 'exact', head: true })
-        .eq('resolved', false);
-      
-      return count || 0;
-    },
-    enabled: isAdmin,
-    refetchInterval: 30000, // 30s
-  });
 
   useEffect(() => {
     // Admin-ii văd TOATE meniurile cu separare clară
@@ -272,13 +257,7 @@ export function AppSidebar() {
                   }
                   
                   // ITEM NORMAL (fără submeniu)
-                  const showBadge = item.badgeType === 'security'
-                    ? !!(item.badge && (pendingSecurityAlertsCount ?? 0) > 0)
-                    : !!(item.badge && (pendingApprovalsCount ?? 0) > 0);
-
-                  const badgeCount = item.badgeType === 'security'
-                    ? pendingSecurityAlertsCount
-                    : pendingApprovalsCount;
+                  const showBadge = !!(item.badge && (pendingApprovalsCount ?? 0) > 0);
                   
                   return (
                     <SidebarMenuItem key={item.title}>
@@ -297,7 +276,7 @@ export function AppSidebar() {
                           <span>{item.title}</span>
                           {showBadge && open && (
                             <Badge variant="destructive" className="ml-auto">
-                              {badgeCount}
+                              {pendingApprovalsCount}
                             </Badge>
                           )}
                         </NavLink>

@@ -18,7 +18,6 @@ import Vacations from "./pages/Vacations";
 import WorkLocations from "./pages/WorkLocations";
 import RootRedirect from "./pages/RootRedirect";
 import TimeEntries from "./pages/TimeEntries";
-import Alerts from "./pages/Alerts";
 import FaceVerifications from "./pages/FaceVerifications";
 
 import WeeklySchedules from "./pages/WeeklySchedules";
@@ -137,7 +136,6 @@ const App = () => {
               >
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/time-entries" element={<TimeEntries />} />
-                <Route path="/alerts" element={<Alerts />} />
                 <Route path="/work-locations" element={<WorkLocations />} />
                 <Route path="/face-verifications" element={<FaceVerifications />} />
                 <Route path="/weekly-schedules" element={<WeeklySchedules />} />
