@@ -740,15 +740,34 @@ export default function WeeklySchedules() {
     <div className="w-full p-4 md:p-6">
         <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-6 w-6" />
-            Programare Săptămânală
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-6 w-6" />
+              Programare Săptămânală
+            </CardTitle>
+            <Button
+              onClick={() => {
+                if (schedules && schedules.length > 0 && allProfiles) {
+                  exportWeeklyScheduleToPDF(
+                    schedules,
+                    selectedWeek,
+                    allProfiles,
+                    activeTab === 'details' ? selectedTeam : undefined
+                  );
+                }
+              }}
+              variant="outline"
+              disabled={!schedules || schedules.length === 0}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Filters */}
+          {/* Controale principale */}
           <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
+            <div className="flex-1 min-w-[250px]">
               <Label>Săptămâna (Nr. {weekNumber})</Label>
               <div className="flex items-center gap-2">
                 <Button 
@@ -789,72 +808,55 @@ export default function WeeklySchedules() {
                   onClick={goToNextWeek}
                   title="Săptămâna următoare"
                 >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <Button
-            onClick={() => {
-              if (schedules && schedules.length > 0 && allProfiles) {
-                exportWeeklyScheduleToPDF(
-                  schedules,
-                  selectedWeek,
-                  allProfiles,
-                  activeTab === 'details' ? selectedTeam : undefined
-                );
-              }
-            }}
-            variant="outline"
-            disabled={!schedules || schedules.length === 0}
-          >
-            <FileText className="h-4 w-4 mr-2" />
-            Export PDF
-          </Button>
-        </div>
-            {activeTab === 'details' && (
-              <div className="flex-1 min-w-[200px]">
-                <Label>Echipa</Label>
-                <Select value={selectedTeam} onValueChange={(value) => {
-                  setSelectedTeam(value);
-                  setFormData(prev => ({ ...prev, team_id: value }));
-                }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                  {Array.from({ length: 30 }, (_, i) => `E${i + 1}`).map(team => {
-                      const isUsed = usedTeams.has(team) && team !== selectedTeam;
-                      return (
-                        <SelectItem 
-                          key={team} 
-                          value={team}
-                          disabled={isUsed}
-                        >
-                          {team} {isUsed && '(ocupată)'}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-            )}
-              <Button onClick={() => {
-                resetForm();
-                // Alege automat următorul număr de echipă disponibil în săptămâna curentă
-                const allTeams = Array.from({ length: 30 }, (_, i) => `E${i + 1}`);
-                const nextTeam = allTeams.find(t => !usedTeams.has(t));
-                if (!nextTeam) {
-                  toast.error('Toate numerele de echipă sunt ocupate pentru săptămâna selectată');
-                  return;
-                }
-                setSelectedTeam(nextTeam);
-                setFormData(prev => ({ ...prev, team_id: nextTeam, week_start_date: selectedWeek }));
-                setShowForm(true);
-                setActiveTab('details');
+            </div>
+
+            <div className="flex-1 min-w-[150px]">
+              <Label>Echipa</Label>
+              <Select value={selectedTeam} onValueChange={(value) => {
+                setSelectedTeam(value);
+                setFormData(prev => ({ ...prev, team_id: value }));
               }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adaugă Programare
-              </Button>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 30 }, (_, i) => `E${i + 1}`).map(team => {
+                    const isUsed = usedTeams.has(team) && team !== selectedTeam;
+                    return (
+                      <SelectItem 
+                        key={team} 
+                        value={team}
+                        disabled={isUsed}
+                      >
+                        {team} {isUsed && '(ocupată)'}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button onClick={() => {
+              resetForm();
+              // Alege automat următorul număr de echipă disponibil în săptămâna curentă
+              const allTeams = Array.from({ length: 30 }, (_, i) => `E${i + 1}`);
+              const nextTeam = allTeams.find(t => !usedTeams.has(t));
+              if (!nextTeam) {
+                toast.error('Toate numerele de echipă sunt ocupate pentru săptămâna selectată');
+                return;
+              }
+              setSelectedTeam(nextTeam);
+              setFormData(prev => ({ ...prev, team_id: nextTeam, week_start_date: selectedWeek }));
+              setShowForm(true);
+              setActiveTab('details');
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adaugă Programare
+            </Button>
+
             {selectedScheduleIds.length > 0 && (
               <Button variant="destructive" onClick={handleDeleteSelected}>
                 <Trash2 className="h-4 w-4 mr-2" />
