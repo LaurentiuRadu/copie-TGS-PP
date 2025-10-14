@@ -219,7 +219,7 @@ export function AppSidebar() {
                                 const badgeCount = child.badgeType === 'tardiness' 
                                   ? pendingTardinessCount 
                                   : pendingApprovalsCount;
-                                const childBadge = child.badge && badgeCount && badgeCount > 0;
+                                const childBadge = !!(child.badge && (badgeCount ?? 0) > 0);
                                 
                                 return (
                                   <SidebarMenuSubItem key={child.title}>
@@ -257,7 +257,7 @@ export function AppSidebar() {
                   }
                   
                   // ITEM NORMAL (fără submeniu)
-                  const showBadge = item.badge && pendingApprovalsCount && pendingApprovalsCount > 0;
+                  const showBadge = !!(item.badge && (pendingApprovalsCount ?? 0) > 0);
                   
                   return (
                     <SidebarMenuItem key={item.title}>
