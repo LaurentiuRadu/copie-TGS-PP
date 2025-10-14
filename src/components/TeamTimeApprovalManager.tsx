@@ -35,31 +35,21 @@ interface TeamTimeApprovalManagerProps {
   selectedWeek: string;
   selectedDayOfWeek: number;
   availableTeams: Set<string>;
+  selectedTeam: string | null;
+  editedTeams: Set<string>;
+  onTeamEdited: (teamId: string) => void;
+  onTeamChange: (teamId: string) => void;
 }
 
-export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
-
-  // Reset edited teams când schimbăm săptămâna sau ziua
-  useEffect(() => {
-    setEditedTeams(new Set());
-  }, [selectedWeek, selectedDayOfWeek]);
-
-  useEffect(() => {
-    if (availableTeams.size > 0) {
-      const firstTeam = Array.from(availableTeams)[0];
-      setSelectedTeam(firstTeam);
-    } else {
-      setSelectedTeam(null);
-    }
-  }, [selectedWeek, selectedDayOfWeek, availableTeams]);
-
-  // Marchează o echipă ca editată
-  const markTeamAsEdited = (teamId: string) => {
-    setEditedTeams(prev => new Set([...prev, teamId]));
-  };
-
+export const TeamTimeApprovalManager = ({ 
+  selectedWeek, 
+  selectedDayOfWeek, 
+  availableTeams,
+  selectedTeam,
+  editedTeams,
+  onTeamEdited,
+  onTeamChange
+}: TeamTimeApprovalManagerProps) => {
   // Găsește următoarea echipă needitată
   const getNextUneditedTeam = (): string | null => {
     const sortedTeams = Array.from(availableTeams).sort((a, b) => {
@@ -131,11 +121,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
       
       // Auto-scroll la următoarea echipă needitată
       if (selectedTeam) {
-        markTeamAsEdited(selectedTeam);
+        onTeamEdited(selectedTeam);
         
         const nextTeam = getNextUneditedTeam();
         if (nextTeam) {
-          setSelectedTeam(nextTeam);
+          onTeamChange(nextTeam);
           toast({
             title: '✅ Pontaj aprobat',
             description: `Trecem automat la echipa ${nextTeam}`,
@@ -259,50 +249,6 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
               💡 Fiecare pontaj poate fi editat, aprobat sau șters individual.
             </AlertDescription>
           </Alert>
-
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Label htmlFor="team-select">Selectează Echipa</Label>
-              {editedTeams.size > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditedTeams(new Set());
-                    toast({
-                      title: '🔄 Reset complet',
-                      description: 'Toate echipele pot fi reverificate.',
-                    });
-                  }}
-                  className="gap-2 ml-auto"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset Verificări
-                </Button>
-              )}
-            </div>
-            <Select value={selectedTeam || ''} onValueChange={setSelectedTeam}>
-              <SelectTrigger id="team-select" className="w-[200px]">
-                <SelectValue placeholder="Selectează echipa" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from(availableTeams).sort((a, b) => {
-                  const numA = parseInt(a.replace(/\D/g, ''), 10);
-                  const numB = parseInt(b.replace(/\D/g, ''), 10);
-                  return numA - numB;
-                }).map(team => (
-                  <SelectItem key={team} value={team}>
-                    <div className="flex items-center gap-2">
-                      {editedTeams.has(team) && (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      )}
-                      Echipa {team}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {coordinator && (
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -553,11 +499,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
           onSuccess={() => {
             // Auto-scroll la următoarea echipă needitată după editare
             if (selectedTeam) {
-              markTeamAsEdited(selectedTeam);
+              onTeamEdited(selectedTeam);
               
               const nextTeam = getNextUneditedTeam();
               if (nextTeam) {
-                setSelectedTeam(nextTeam);
+                onTeamChange(nextTeam);
                 toast({
                   title: '✅ Pontaj editat și aprobat',
                   description: `Trecem automat la echipa ${nextTeam}`,
@@ -585,11 +531,11 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
           onSuccess={() => {
             // Reîmprospătare automată + navigare la următoarea echipă
             if (selectedTeam) {
-              markTeamAsEdited(selectedTeam);
+              onTeamEdited(selectedTeam);
               
               const nextTeam = getNextUneditedTeam();
               if (nextTeam) {
-                setSelectedTeam(nextTeam);
+                onTeamChange(nextTeam);
                 toast({
                   title: '🗑️ Pontaj șters',
                   description: `Trecem automat la echipa ${nextTeam}`,

@@ -5,7 +5,8 @@ import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
 import { ApprovalStatsDashboard } from '@/components/ApprovalStatsDashboard';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle } from 'lucide-react';
+import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { startOfWeek, endOfWeek, format, addWeeks, subWeeks, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 export default function TimesheetVerificare() {
   const [selectedWeek, setSelectedWeek] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(new Date().getDay() || 7); // 1=luni, 7=duminică
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
   
   // Fetch echipele disponibile pentru ziua selectată
   const { data: availableTeams } = useQuery({
@@ -33,6 +36,17 @@ export default function TimesheetVerificare() {
     },
     enabled: !!selectedWeek && !!selectedDayOfWeek,
   });
+
+  // Reset edited teams și selectează prima echipă când schimbăm săptămâna sau ziua
+  useEffect(() => {
+    setEditedTeams(new Set());
+    if (availableTeams && availableTeams.size > 0) {
+      const firstTeam = Array.from(availableTeams)[0];
+      setSelectedTeam(firstTeam);
+    } else {
+      setSelectedTeam(null);
+    }
+  }, [selectedWeek, selectedDayOfWeek, availableTeams]);
 
   // Fetch numărul de pontaje pending pentru ziua curentă
   const { data: pendingCountForDay = 0 } = useQuery({
@@ -201,6 +215,53 @@ export default function TimesheetVerificare() {
               </Select>
             </div>
 
+            {/* Selector de echipă - MUTAT SUS pentru acces rapid */}
+            {availableTeams && availableTeams.size > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <Label htmlFor="team-select" className="text-sm font-medium">
+                  Selectează echipa:
+                </Label>
+                <Select value={selectedTeam || ''} onValueChange={setSelectedTeam}>
+                  <SelectTrigger id="team-select" className="w-[180px]">
+                    <SelectValue placeholder="Selectează echipa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from(availableTeams).sort((a, b) => {
+                      const numA = parseInt(a.replace(/\D/g, ''), 10);
+                      const numB = parseInt(b.replace(/\D/g, ''), 10);
+                      return numA - numB;
+                    }).map(team => (
+                      <SelectItem key={team} value={team}>
+                        <div className="flex items-center gap-2">
+                          {editedTeams.has(team) && (
+                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                          )}
+                          Echipa {team}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {editedTeams.size > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditedTeams(new Set());
+                      toast({
+                        title: '🔄 Reset complet',
+                        description: 'Toate echipele pot fi reverificate.',
+                      });
+                    }}
+                    className="gap-1"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span className="hidden sm:inline">Reset</span>
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Alert pentru pontaje pending */}
             {hasPendingEntries && (
               <Alert className="mt-4 bg-yellow-50 border-yellow-300 dark:bg-yellow-950/20 dark:border-yellow-800">
@@ -242,6 +303,10 @@ export default function TimesheetVerificare() {
               selectedWeek={selectedWeek}
               selectedDayOfWeek={selectedDayOfWeek}
               availableTeams={availableTeams || new Set()}
+              selectedTeam={selectedTeam}
+              editedTeams={editedTeams}
+              onTeamEdited={(teamId) => setEditedTeams(prev => new Set([...prev, teamId]))}
+              onTeamChange={setSelectedTeam}
             />
           </div>
         </CardContent>
