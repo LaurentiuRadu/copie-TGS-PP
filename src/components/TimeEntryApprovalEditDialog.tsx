@@ -163,8 +163,8 @@ export function TimeEntryApprovalEditDialog({
       return `❌ Trebuie să aloci cel puțin 1 oră!`;
     }
     
-    // Warning în consolă pentru override detection
-    if (Math.abs(totalHours - allocatedHours) > 0.1) {
+    // Warning în consolă pentru override detection (prag redus la 0.01h = 36 secunde)
+    if (Math.abs(totalHours - allocatedHours) > 0.01) {
       console.warn('[OVERRIDE MANUAL] Total calculat:', totalHours, 'h | Total manual:', allocatedHours, 'h');
     }
     
@@ -202,8 +202,8 @@ export function TimeEntryApprovalEditDialog({
       if (manualSegmentation) {
         const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
         
-        // Detectează override
-        const isOverride = Math.abs(totalHours - allocatedHours) > 0.1;
+        // Detectează override (prag redus la 0.01h = 36 secunde)
+        const isOverride = Math.abs(totalHours - allocatedHours) > 0.01;
         const overrideNote = isOverride 
           ? `[OVERRIDE MANUAL: ${allocatedHours.toFixed(2)}h din ${totalHours.toFixed(2)}h calculate] ` 
           : '[SEGMENTARE MANUALĂ] ';
@@ -317,8 +317,8 @@ export function TimeEntryApprovalEditDialog({
       return;
     }
     
-    // Validare: adminNotes obligatorii când există override
-    if (manualSegmentation && Math.abs(totalHours - allocatedHours) > 0.1) {
+    // Validare: adminNotes obligatorii când există override (prag redus la 0.01h = 36 secunde)
+    if (manualSegmentation && Math.abs(totalHours - allocatedHours) > 0.01) {
       if (!adminNotes.trim()) {
         setError('❌ Când modifici totalul de ore, trebuie să explici motivul în "Note Admin"!');
         toast({
@@ -433,8 +433,8 @@ export function TimeEntryApprovalEditDialog({
                 </div>
               </div>
 
-              {/* Warning Override Manual */}
-              {Math.abs(totalHours - allocatedHours) > 0.1 && allocatedHours > 0 && (
+              {/* Warning Override Manual (prag redus la 0.01h = 36 secunde) */}
+              {Math.abs(totalHours - allocatedHours) > 0.01 && allocatedHours > 0 && (
                 <Alert className="bg-orange-50 dark:bg-orange-950/20 border-orange-400">
                   <AlertCircle className="h-4 w-4 text-orange-600" />
                   <AlertDescription>
@@ -460,8 +460,8 @@ export function TimeEntryApprovalEditDialog({
                 </Alert>
               )}
 
-              {/* Alert Status Normal */}
-              {Math.abs(totalHours - allocatedHours) <= 0.1 && allocatedHours > 0 && (
+              {/* Alert Status Normal (prag redus la 0.01h = 36 secunde) */}
+              {Math.abs(totalHours - allocatedHours) <= 0.01 && allocatedHours > 0 && (
                 <Alert className="bg-green-50 dark:bg-green-950/20 border-green-300">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertDescription>
