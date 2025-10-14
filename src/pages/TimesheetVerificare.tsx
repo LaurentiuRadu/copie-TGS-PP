@@ -274,7 +274,7 @@ export default function TimesheetVerificare() {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       <Card className="w-full max-w-7xl mx-auto">
         <CardHeader>
           <div className="flex flex-col gap-4">
@@ -344,46 +344,7 @@ export default function TimesheetVerificare() {
               <div className="space-y-3 mt-4 p-4 bg-muted/30 rounded-lg border">
                 {/* Rând consolidat cu 3 coloane responsive */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  {/* Coloana 1: Progres Verificare */}
-                  <div className="flex items-center gap-3 min-w-[200px]">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">📊 Progres Verificare: </span>
-                      <span className="font-bold text-lg">
-                        {verificationProgress.verified}/{verificationProgress.total}
-                      </span>
-                      <span className="text-muted-foreground ml-1">echipe</span>
-                    </div>
-                    {verificationProgress.verified === verificationProgress.total && verificationProgress.total > 0 && (
-                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-400 dark:bg-green-950/30 dark:text-green-300">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Toate verificate!
-                      </Badge>
-                    )}
-                    
-                    {/* 🆕 Badge pentru pontaje pending cu Tooltip */}
-                    {hasPendingEntries && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-300 cursor-help">
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              ⏳ {pendingCountForDay} pending
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="max-w-xs">
-                            <p className="text-sm">
-                              <strong>{pendingCountForDay} pontaj{pendingCountForDay !== 1 ? 'e' : ''}</strong> în așteptare pentru această zi.
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              💡 Poți naviga înapoi la zilele anterioare, dar nu poți avansa până termini aprobarea.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-
-                  {/* Coloana 2: Selector de zi */}
+                  {/* Coloana 1: Selector de zi (MUTAT PE PRIMA POZIȚIE) */}
                   <div className="flex items-center gap-2">
                     <Label htmlFor="day-selector" className="text-sm font-medium whitespace-nowrap">
                       Selectează ziua:
@@ -449,6 +410,45 @@ export default function TimesheetVerificare() {
                         </TooltipProvider>
                       );
                     })()}
+                  </div>
+
+                  {/* Coloana 2: Progres Verificare (ACUM PE POZIȚIA 2) */}
+                  <div className="flex items-center gap-3 min-w-[200px]">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">📊 Progres Verificare: </span>
+                      <span className="font-bold text-lg">
+                        {verificationProgress.verified}/{verificationProgress.total}
+                      </span>
+                      <span className="text-muted-foreground ml-1">echipe</span>
+                    </div>
+                    {verificationProgress.verified === verificationProgress.total && verificationProgress.total > 0 && (
+                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-400 dark:bg-green-950/30 dark:text-green-300">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Toate verificate!
+                      </Badge>
+                    )}
+                    
+                    {/* 🆕 Badge pentru pontaje pending cu Tooltip */}
+                    {hasPendingEntries && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-300 cursor-help">
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              ⏳ {pendingCountForDay} pending
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs">
+                            <p className="text-sm">
+                              <strong>{pendingCountForDay} pontaj{pendingCountForDay !== 1 ? 'e' : ''}</strong> în așteptare pentru această zi.
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              💡 Poți naviga înapoi la zilele anterioare, dar nu poți avansa până termini aprobarea.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
 
                   {/* Coloana 3: Reset Status */}
