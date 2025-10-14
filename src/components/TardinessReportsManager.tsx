@@ -152,24 +152,15 @@ export const TardinessReportsManager = () => {
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                Rapoarte Întârzieri
-              </CardTitle>
-              <CardDescription>
-                Gestionează justificările pentru întârzieri
-              </CardDescription>
-            </div>
-            {pendingCount > 0 && (
-              <Badge variant="destructive" className="text-lg px-3 py-1">
-                {pendingCount} în așteptare
-              </Badge>
-            )}
+      <CardHeader>
+        {pendingCount > 0 && (
+          <div className="flex justify-end">
+            <Badge variant="destructive" className="text-lg px-3 py-1">
+              {pendingCount} în așteptare
+            </Badge>
           </div>
-        </CardHeader>
+        )}
+      </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-2">
