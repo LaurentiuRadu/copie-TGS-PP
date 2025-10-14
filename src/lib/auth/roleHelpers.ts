@@ -44,10 +44,30 @@ export async function ensureEmployeeRole(
   userId: string,
   existingRoles: string[]
 ): Promise<boolean> {
-  // TODO: Implement employee role auto-assignment
-  // For now, return false (no changes)
-  console.debug('[roleHelpers] ensureEmployeeRole called for:', userId, existingRoles);
-  return false;
+  // Skip if user already has roles assigned
+  if (existingRoles && existingRoles.length > 0) {
+    return false;
+  }
+
+  try {
+    // Dynamically import supabase to avoid circular dependencies
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    const { error } = await supabase
+      .from('user_roles')
+      .insert({ user_id: userId, role: 'employee' });
+
+    if (error) {
+      console.error('[roleHelpers] Failed to auto-assign employee role:', error);
+      return false;
+    }
+
+    console.log('[roleHelpers] ✅ Auto-assigned "employee" role to user:', userId);
+    return true;
+  } catch (err) {
+    console.error('[roleHelpers] Exception during role assignment:', err);
+    return false;
+  }
 }
 
 /**
