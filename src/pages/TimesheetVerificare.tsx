@@ -328,51 +328,13 @@ export default function TimesheetVerificare() {
               </div>
             </div>
             
-            {/* Selector de zi */}
-            <div className="flex items-center gap-2 mt-4">
-              <Label htmlFor="day-selector" className="text-sm font-medium">
-                Selectează ziua:
-              </Label>
-              <Select 
-                value={selectedDayOfWeek.toString()} 
-                onValueChange={(v) => {
-                  const targetDay = Number(v);
-                  if (!hasPendingEntries) {
-                    // Liber să navighezi oriunde dacă nu ai pending
-                    setSelectedDayOfWeek(targetDay);
-                  } else if (targetDay < selectedDayOfWeek) {
-                    // Poți merge DOAR la zile ANTERIOARE când ai pending
-                    setSelectedDayOfWeek(targetDay);
-                  } else {
-                    // Blocare pentru zile curente sau viitoare
-                    toast({
-                      title: '⚠️ Nu poți avansa',
-                      description: `Termină aprobarea celor ${pendingCountForDay} pontaje din ${getDayName(selectedDayOfWeek)}.`,
-                      variant: 'destructive'
-                    });
-                  }
-                }}
-              >
-                <SelectTrigger id="day-selector" className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1" disabled={hasPendingEntries && 1 >= selectedDayOfWeek}>📅 Luni</SelectItem>
-                  <SelectItem value="2" disabled={hasPendingEntries && 2 >= selectedDayOfWeek}>📅 Marți</SelectItem>
-                  <SelectItem value="3" disabled={hasPendingEntries && 3 >= selectedDayOfWeek}>📅 Miercuri</SelectItem>
-                  <SelectItem value="4" disabled={hasPendingEntries && 4 >= selectedDayOfWeek}>📅 Joi</SelectItem>
-                  <SelectItem value="5" disabled={hasPendingEntries && 5 >= selectedDayOfWeek}>📅 Vineri</SelectItem>
-                  <SelectItem value="6" disabled={hasPendingEntries && 6 >= selectedDayOfWeek}>📅 Sâmbătă</SelectItem>
-                  <SelectItem value="7" disabled={hasPendingEntries && 7 >= selectedDayOfWeek}>📅 Duminică</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 🆕 Indicator Progres Global + Selector Echipă */}
+            {/* 🆕 Layout consolidat: Progres + Selector Zi + Reset */}
             {availableTeams && availableTeams.size > 0 && (
               <div className="space-y-3 mt-4 p-4 bg-muted/30 rounded-lg border">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-3">
+                {/* Rând consolidat cu 3 coloane responsive */}
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  {/* Coloana 1: Progres Verificare */}
+                  <div className="flex items-center gap-3 min-w-[200px]">
                     <div className="text-sm">
                       <span className="text-muted-foreground">📊 Progres Verificare: </span>
                       <span className="font-bold text-lg">
@@ -387,12 +349,50 @@ export default function TimesheetVerificare() {
                       </Badge>
                     )}
                   </div>
-                  
+
+                  {/* Coloana 2: Selector de zi */}
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="day-selector" className="text-sm font-medium whitespace-nowrap">
+                      Selectează ziua:
+                    </Label>
+                    <Select 
+                      value={selectedDayOfWeek.toString()} 
+                      onValueChange={(v) => {
+                        const targetDay = Number(v);
+                        if (!hasPendingEntries) {
+                          setSelectedDayOfWeek(targetDay);
+                        } else if (targetDay < selectedDayOfWeek) {
+                          setSelectedDayOfWeek(targetDay);
+                        } else {
+                          toast({
+                            title: '⚠️ Nu poți avansa',
+                            description: `Termină aprobarea celor ${pendingCountForDay} pontaje din ${getDayName(selectedDayOfWeek)}.`,
+                            variant: 'destructive'
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="day-selector" className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1" disabled={hasPendingEntries && 1 >= selectedDayOfWeek}>📅 Luni</SelectItem>
+                        <SelectItem value="2" disabled={hasPendingEntries && 2 >= selectedDayOfWeek}>📅 Marți</SelectItem>
+                        <SelectItem value="3" disabled={hasPendingEntries && 3 >= selectedDayOfWeek}>📅 Miercuri</SelectItem>
+                        <SelectItem value="4" disabled={hasPendingEntries && 4 >= selectedDayOfWeek}>📅 Joi</SelectItem>
+                        <SelectItem value="5" disabled={hasPendingEntries && 5 >= selectedDayOfWeek}>📅 Vineri</SelectItem>
+                        <SelectItem value="6" disabled={hasPendingEntries && 6 >= selectedDayOfWeek}>📅 Sâmbătă</SelectItem>
+                        <SelectItem value="7" disabled={hasPendingEntries && 7 >= selectedDayOfWeek}>📅 Duminică</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Coloana 3: Reset Status */}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleResetVerificationStatus}
-                    className="gap-1"
+                    className="gap-1 lg:ml-auto"
                   >
                     <RotateCcw className="h-4 w-4" />
                     <span className="hidden sm:inline">Reset Status</span>
