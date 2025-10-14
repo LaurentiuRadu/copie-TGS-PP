@@ -336,9 +336,10 @@ export const useTeamApprovalWorkflow = (
       });
     },
     onError: (error) => {
+      const errorMessage = error instanceof Error ? error.message : 'Nu s-a putut aproba pontajul';
       toast({
-        title: 'Eroare',
-        description: 'Nu s-a putut aproba pontajul',
+        title: 'Eroare la aprobare',
+        description: errorMessage,
         variant: 'destructive',
       });
       console.error('[Approval Error]', error);

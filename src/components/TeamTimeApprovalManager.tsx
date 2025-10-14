@@ -429,6 +429,25 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                               ⏳ ÎN CURS
                             </Badge>
                           )}
+                          {(() => {
+                            if (!entry.clock_in_time || !entry.clock_out_time) return null;
+                            const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
+                            if (duration < 1) {
+                              return (
+                                <Badge variant="outline" className="bg-red-100 text-red-800 border-red-400 dark:bg-red-950/30 dark:text-red-300 dark:border-red-700">
+                                  ⚠️ INVALID ({duration.toFixed(1)}h)
+                                </Badge>
+                              );
+                            }
+                            if (duration > 24) {
+                              return (
+                                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-700">
+                                  ⚠️ SUSPECT ({duration.toFixed(1)}h)
+                                </Badge>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
 
                         
