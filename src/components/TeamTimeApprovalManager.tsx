@@ -575,6 +575,31 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             setDeleteDialogOpen(open);
             if (!open) setDeleteEntry(null);
           }}
+          onSuccess={() => {
+            // Reîmprospătare automată + navigare la următoarea echipă
+            if (selectedTeam) {
+              markTeamAsEdited(selectedTeam);
+              
+              const nextTeam = getNextUneditedTeam();
+              if (nextTeam) {
+                setSelectedTeam(nextTeam);
+                toast({
+                  title: '🗑️ Pontaj șters',
+                  description: `Trecem automat la echipa ${nextTeam}`,
+                });
+              } else {
+                toast({
+                  title: '🗑️ Pontaj șters',
+                  description: 'Toate echipele au fost verificate.',
+                });
+              }
+            }
+            
+            // Reîmprospătare forțată a query-urilor locale
+            queryClient.invalidateQueries({ 
+              queryKey: ['team-pending-approvals', selectedTeam, selectedWeek, selectedDayOfWeek] 
+            });
+          }}
         />
       )}
     </>

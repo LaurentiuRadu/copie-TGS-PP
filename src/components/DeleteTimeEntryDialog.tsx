@@ -27,12 +27,14 @@ interface DeleteTimeEntryDialogProps {
   } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function DeleteTimeEntryDialog({
   entry,
   open,
   onOpenChange,
+  onSuccess,
 }: DeleteTimeEntryDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -70,6 +72,9 @@ export function DeleteTimeEntryDialog({
         description: "Pontajul a fost șters permanent din sistem.",
       });
       onOpenChange(false);
+      
+      // Apelează callback-ul din parent pentru actualizare locală
+      onSuccess?.();
     },
     onError: (error: Error) => {
       toast({
