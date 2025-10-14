@@ -9,12 +9,19 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileSpreadsheet, Download, Users, Calendar as CalendarIcon } from 'lucide-react';
+import { FileSpreadsheet, Download, AlertTriangle, Calendar as CalendarIcon, ExternalLink } from 'lucide-react';
 import { exportMonthlyPayrollReport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { ro } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DailyTimesheetForExport {
   employee_id: string;
@@ -36,55 +43,96 @@ interface DailyTimesheetForExport {
   };
 }
 
-interface EmployeeOption {
-  id: string;
-  name: string;
-  totalHours: number;
-}
-
 interface PayrollExportDialogProps {
   allTimesheets: DailyTimesheetForExport[];
-  employees: EmployeeOption[];
-  currentMonth: Date;
 }
 
-export function PayrollExportDialog({ allTimesheets, employees, currentMonth }: PayrollExportDialogProps) {
+export function PayrollExportDialog({ allTimesheets }: PayrollExportDialogProps) {
   const [open, setOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isExporting, setIsExporting] = useState(false);
 
-  const monthName = currentMonth.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' });
+  const formattedDate = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+
+  // Query pentru ore neverificate în ziua selectată
+  const { data: unapprovedEntries, isLoading: checkingApproval } = useQuery({
+    queryKey: ['unapproved-entries', formattedDate],
+    queryFn: async () => {
+      if (!formattedDate) return [];
+      
+      const { data, error } = await supabase
+        .from('time_entries')
+        .select('id, user_id, approval_status, profiles:user_id(full_name, username)')
+        .gte('clock_in_time', `${formattedDate}T00:00:00`)
+        .lt('clock_in_time', `${formattedDate}T23:59:59`)
+        .neq('approval_status', 'approved');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!formattedDate && open,
+  });
+
+  // Filtrare timesheets pentru ziua selectată
+  const timesheetsForSelectedDate = selectedDate
+    ? allTimesheets.filter(ts => ts.work_date === format(selectedDate, 'yyyy-MM-dd'))
+    : [];
 
   // Calculate statistics
-  const selectedStats = selectedEmployee === 'all' 
-    ? {
-        employees: employees.length,
-        totalHours: employees.reduce((sum, e) => sum + e.totalHours, 0),
-        days: new Set(allTimesheets.map(t => t.work_date)).size
-      }
-    : {
-        employees: 1,
-        totalHours: employees.find(e => e.id === selectedEmployee)?.totalHours || 0,
-        days: new Set(allTimesheets.filter(t => t.employee_id === selectedEmployee).map(t => t.work_date)).size
-      };
+  const selectedStats = {
+    employees: new Set(timesheetsForSelectedDate.map(t => t.employee_id)).size,
+    totalHours: timesheetsForSelectedDate.reduce(
+      (sum, t) =>
+        sum +
+        t.hours_regular +
+        t.hours_night +
+        t.hours_saturday +
+        t.hours_sunday +
+        t.hours_holiday +
+        t.hours_passenger +
+        t.hours_driving +
+        t.hours_equipment +
+        t.hours_leave +
+        t.hours_medical_leave,
+      0
+    ),
+    entries: timesheetsForSelectedDate.length,
+  };
+
+  const hasUnapprovedEntries = (unapprovedEntries?.length || 0) > 0;
 
   const handleExport = async () => {
+    if (!selectedDate) {
+      toast.error('Selectează o dată pentru export');
+      return;
+    }
+
+    if (hasUnapprovedEntries) {
+      toast.error('Nu poți exporta! Există ore neverificate pentru această zi.', {
+        description: `${unapprovedEntries?.length} pontaje trebuie aprobate mai întâi.`,
+      });
+      return;
+    }
+
     try {
       setIsExporting(true);
-      
-      const employeeId = selectedEmployee === 'all' ? undefined : selectedEmployee;
-      
-      exportMonthlyPayrollReport(allTimesheets, currentMonth, employeeId);
-      
+
+      if (timesheetsForSelectedDate.length === 0) {
+        toast.error('Nu există date pentru ziua selectată');
+        return;
+      }
+
+      exportMonthlyPayrollReport(timesheetsForSelectedDate, selectedDate);
+
       toast.success('Raport generat cu succes!', {
-        description: `Fișierul Excel a fost descărcat.`
+        description: `Fișierul Excel a fost descărcat pentru ${format(selectedDate, 'dd.MM.yyyy', { locale: ro })}.`,
       });
-      
+
       setOpen(false);
     } catch (error: any) {
       console.error('Export error:', error);
       toast.error('Eroare la generare raport', {
-        description: error.message || 'A apărut o eroare necunoscută'
+        description: error.message || 'A apărut o eroare necunoscută',
       });
     } finally {
       setIsExporting(false);
@@ -106,33 +154,81 @@ export function PayrollExportDialog({ allTimesheets, employees, currentMonth }: 
             Export Raport Salarizare
           </DialogTitle>
           <DialogDescription>
-            Generează raport Excel cu rezumat salarizare pentru luna {monthName}
+            Generează raport Excel cu rezumat salarizare pentru ziua selectată
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Employee Selection */}
+          {/* Date Selection */}
           <div className="space-y-2">
-            <Label>Selectează Angajat</Label>
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Tot Personalul ({employees.length} angajați)
-                  </div>
-                </SelectItem>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
-                    {emp.name} - {emp.totalHours.toFixed(1)}h
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Selectează Ziua pentru Export</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !selectedDate && 'text-muted-foreground'
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, 'dd MMMM yyyy', { locale: ro }) : 'Alege data'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                  locale={ro}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
+
+          {/* Validare Ore Neverificate */}
+          {checkingApproval ? (
+            <Alert className="bg-muted/50">
+              <AlertDescription className="text-sm">
+                Se verifică statusul pontajelor...
+              </AlertDescription>
+            </Alert>
+          ) : hasUnapprovedEntries ? (
+            <Alert className="bg-destructive/10 border-destructive">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-sm">
+                <div className="font-semibold mb-2">
+                  ⚠️ Există {unapprovedEntries?.length} pontaje neverificate pentru această zi!
+                </div>
+                <div className="text-muted-foreground mb-2">
+                  Exportul este blocat până la aprobarea tuturor pontajelor.
+                </div>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-primary underline"
+                  onClick={() => window.open('/timesheet-verificare', '_blank')}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Deschide Verificare Pontaje
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : selectedDate && timesheetsForSelectedDate.length === 0 ? (
+            <Alert className="bg-muted/50">
+              <AlertDescription className="text-sm text-muted-foreground">
+                Nu există pontaje aprobate pentru această zi.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="bg-green-50 dark:bg-green-950/20 border-green-200">
+              <AlertDescription className="text-sm text-green-800 dark:text-green-200">
+                ✅ Toate pontajele pentru această zi sunt aprobate și pot fi exportate.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Preview Statistics */}
           <Card className="bg-muted/50">
@@ -141,25 +237,25 @@ export function PayrollExportDialog({ allTimesheets, employees, currentMonth }: 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CalendarIcon className="h-4 w-4" />
-                    Perioadă:
+                    Dată selectată:
                   </div>
-                  <Badge variant="outline">{monthName}</Badge>
+                  <Badge variant="outline">
+                    {selectedDate ? format(selectedDate, 'dd.MM.yyyy', { locale: ro }) : '-'}
+                  </Badge>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    Angajați:
+                    Angajați cu pontaje:
                   </div>
                   <span className="font-semibold">{selectedStats.employees}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CalendarIcon className="h-4 w-4" />
-                    Zile lucrate:
+                    Înregistrări pontaje:
                   </div>
-                  <span className="font-semibold">{selectedStats.days}</span>
+                  <span className="font-semibold">{selectedStats.entries}</span>
                 </div>
 
                 <div className="pt-3 border-t flex items-center justify-between">
@@ -179,6 +275,7 @@ export function PayrollExportDialog({ allTimesheets, employees, currentMonth }: 
               <li>• Rezumat per angajat cu ore pe categorii</li>
               <li>• Detalii zilnice pentru fiecare pontaj</li>
               <li>• Format Excel optimizat pentru departamentul salarizare</li>
+              <li>• Toate coloanele: Ore Normale, Noapte, Sâmbătă, Duminică, Sărbători, Pasager, Conducere, Echipament, CO, CM</li>
             </ul>
           </div>
         </div>
@@ -188,7 +285,11 @@ export function PayrollExportDialog({ allTimesheets, employees, currentMonth }: 
           <Button variant="outline" onClick={() => setOpen(false)} disabled={isExporting}>
             Anulează
           </Button>
-          <Button onClick={handleExport} disabled={isExporting} className="gap-2">
+          <Button
+            onClick={handleExport}
+            disabled={isExporting || hasUnapprovedEntries || !selectedDate || timesheetsForSelectedDate.length === 0}
+            className="gap-2"
+          >
             <Download className={`h-4 w-4 ${isExporting ? 'animate-bounce' : ''}`} />
             {isExporting ? 'Generare...' : 'Descarcă Excel'}
           </Button>

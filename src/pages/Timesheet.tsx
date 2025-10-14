@@ -18,7 +18,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { cn } from "@/lib/utils";
 import { PayrollExportDialog } from "@/components/PayrollExportDialog";
-import { PayrollImportDialog } from "@/components/PayrollImportDialog";
 import { SimpleDateRangePicker } from "@/components/ui/simple-date-range-picker";
 import { toast } from "sonner";
 import { TimeEntryReprocessButton } from "@/components/TimeEntryReprocessButton";
@@ -428,20 +427,9 @@ const Timesheet = () => {
                 <div className="text-sm font-medium whitespace-nowrap">
                   {filteredEmployees.length} din {employeeData.length} angajați
                 </div>
-                <PayrollImportDialog 
-                  onImportComplete={() => {
-                    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) });
-                  }}
-                />
                 <TimeEntryReprocessButton />
                 <PayrollExportDialog
                   allTimesheets={allTimesheets || []}
-                  employees={employeeData.map(e => ({
-                    id: e.userId,
-                    name: e.userName,
-                    totalHours: e.totalHours
-                  }))}
-                  currentMonth={currentMonth}
                 />
               </div>
             </div>

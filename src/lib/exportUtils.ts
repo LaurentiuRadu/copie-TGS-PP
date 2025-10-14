@@ -244,10 +244,10 @@ interface PayrollSummary {
 
 export const exportMonthlyPayrollReport = (
   data: DailyTimesheetForExport[],
-  month: Date,
+  date: Date,
   selectedEmployeeId?: string
 ) => {
-  const monthName = month.toLocaleDateString('ro-RO', { month: 'long', year: 'numeric' });
+  const dateName = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' });
   
   // Filtrare opțională per angajat
   const filteredData = selectedEmployeeId 
@@ -361,8 +361,8 @@ export const exportMonthlyPayrollReport = (
 
   // Download
   const filename = selectedEmployeeId
-    ? `Raport_${employeeSummaries.get(selectedEmployeeId)?.employeeName}_${monthName.replace(' ', '_')}.xlsx`
-    : `Raport_Salarizare_${monthName.replace(' ', '_')}.xlsx`;
+    ? `Raport_${employeeSummaries.get(selectedEmployeeId)?.employeeName}_${dateName.replace(/ /g, '_')}.xlsx`
+    : `Raport_Salarizare_${dateName.replace(/ /g, '_')}.xlsx`;
   
   XLSX.writeFile(wb, filename);
 };
