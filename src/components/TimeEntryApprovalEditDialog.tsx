@@ -32,12 +32,14 @@ interface TimeEntryApprovalEditDialogProps {
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function TimeEntryApprovalEditDialog({
   entry,
   open,
   onOpenChange,
+  onSuccess,
 }: TimeEntryApprovalEditDialogProps) {
   const [clockIn, setClockIn] = useState(
     format(new Date(entry.clock_in_time), "yyyy-MM-dd'T'HH:mm")
@@ -249,6 +251,9 @@ export function TimeEntryApprovalEditDialog({
           : "Modificările au fost salvate și pontajul a fost aprobat automat.",
       });
       onOpenChange(false);
+      
+      // Trigger auto-scroll callback
+      onSuccess?.();
     },
     onError: (error: Error) => {
       setError(error.message);

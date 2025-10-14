@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -39,6 +39,12 @@ interface TeamTimeApprovalManagerProps {
 
 export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, availableTeams }: TeamTimeApprovalManagerProps) => {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
+
+  // Reset edited teams când schimbăm săptămâna sau ziua
+  useEffect(() => {
+    setEditedTeams(new Set());
+  }, [selectedWeek, selectedDayOfWeek]);
 
   useEffect(() => {
     if (availableTeams.size > 0) {
@@ -48,6 +54,22 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
       setSelectedTeam(null);
     }
   }, [selectedWeek, selectedDayOfWeek, availableTeams]);
+
+  // Marchează o echipă ca editată
+  const markTeamAsEdited = (teamId: string) => {
+    setEditedTeams(prev => new Set([...prev, teamId]));
+  };
+
+  // Găsește următoarea echipă needitată
+  const getNextUneditedTeam = (): string | null => {
+    const sortedTeams = Array.from(availableTeams).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10);
+      const numB = parseInt(b.replace(/\D/g, ''), 10);
+      return numA - numB;
+    });
+    
+    return sortedTeams.find(team => !editedTeams.has(team)) || null;
+  };
 
   const {
     pendingEntries,
@@ -106,6 +128,25 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
       await approveMutation.mutateAsync({ entryId: actionEntryId });
       setActionDialogOpen(false);
       setActionEntryId(null);
+      
+      // Auto-scroll la următoarea echipă needitată
+      if (selectedTeam) {
+        markTeamAsEdited(selectedTeam);
+        
+        const nextTeam = getNextUneditedTeam();
+        if (nextTeam) {
+          setSelectedTeam(nextTeam);
+          toast({
+            title: '✅ Pontaj aprobat',
+            description: `Trecem automat la echipa ${nextTeam}`,
+          });
+        } else {
+          toast({
+            title: '🎉 Toate echipele au fost verificate!',
+            description: 'Nu mai există echipe neverificate pentru această zi.',
+          });
+        }
+      }
     } catch (error) {
       console.error('[Approval Error]', error);
     }
@@ -212,7 +253,26 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
           </Alert>
 
           <div className="mb-6">
-            <Label htmlFor="team-select">Selectează Echipa</Label>
+            <div className="flex items-center gap-2 mb-2">
+              <Label htmlFor="team-select">Selectează Echipa</Label>
+              {editedTeams.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditedTeams(new Set());
+                    toast({
+                      title: '🔄 Reset complet',
+                      description: 'Toate echipele pot fi reverificate.',
+                    });
+                  }}
+                  className="gap-2 ml-auto"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset Verificări
+                </Button>
+              )}
+            </div>
             <Select value={selectedTeam || ''} onValueChange={setSelectedTeam}>
               <SelectTrigger id="team-select" className="w-[200px]">
                 <SelectValue placeholder="Selectează echipa" />
@@ -224,7 +284,12 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
                   return numA - numB;
                 }).map(team => (
                   <SelectItem key={team} value={team}>
-                    Echipa {team}
+                    <div className="flex items-center gap-2">
+                      {editedTeams.has(team) && (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      )}
+                      Echipa {team}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -457,6 +522,26 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
           onOpenChange={(open) => {
             setEditDialogOpen(open);
             if (!open) setEditEntry(null);
+          }}
+          onSuccess={() => {
+            // Auto-scroll la următoarea echipă needitată după editare
+            if (selectedTeam) {
+              markTeamAsEdited(selectedTeam);
+              
+              const nextTeam = getNextUneditedTeam();
+              if (nextTeam) {
+                setSelectedTeam(nextTeam);
+                toast({
+                  title: '✅ Pontaj editat și aprobat',
+                  description: `Trecem automat la echipa ${nextTeam}`,
+                });
+              } else {
+                toast({
+                  title: '🎉 Toate echipele au fost verificate!',
+                  description: 'Nu mai există echipe neverificate pentru această zi.',
+                });
+              }
+            }
           }}
         />
       )}
