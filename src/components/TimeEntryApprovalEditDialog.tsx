@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle, RotateCcw, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -344,13 +345,14 @@ export function TimeEntryApprovalEditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>✏️ Editare și Aprobare Pontaj</DialogTitle>
-          <DialogDescription>
-            {entry.profiles.full_name} ({entry.profiles.username})
-          </DialogDescription>
-        </DialogHeader>
+      <DialogHeader>
+        <DialogTitle>✏️ Editare și Aprobare Pontaj</DialogTitle>
+        <DialogDescription>
+          {entry.profiles.full_name} ({entry.profiles.username})
+        </DialogDescription>
+      </DialogHeader>
 
+      <ScrollArea className="max-h-[calc(100vh-240px)] pr-4">
         <div className="space-y-4 py-4">
           {error && (
             <Alert variant="destructive">
@@ -446,7 +448,7 @@ export function TimeEntryApprovalEditDialog({
                         • Total calculat din pontaj: <strong>{totalHours.toFixed(2)}h</strong><br/>
                         • Total segmentat manual: <strong>{allocatedHours.toFixed(2)}h</strong><br/>
                         • Diferență: <strong className={allocatedHours > totalHours ? 'text-green-600' : 'text-red-600'}>
-                          {allocatedHours > totalHours ? '+' : ''}{(allocatedHours - totalHours).toFixed(2)}h
+                          {allocatedHours > totalHours ? '+' : ''}{(allocatedHours - allocatedHours).toFixed(2)}h
                         </strong>
                       </p>
                       <p className="text-sm font-semibold mt-2 text-orange-900 dark:text-orange-200">
@@ -565,8 +567,9 @@ export function TimeEntryApprovalEditDialog({
             />
           </div>
         </div>
+      </ScrollArea>
 
-        <DialogFooter>
+      <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Anulează
           </Button>
