@@ -1,4 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Users, TrendingUp, Clock, Calendar, AlertCircle } from "lucide-react";
 import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
@@ -39,17 +41,31 @@ const Admin = () => {
 
   return (
     <div className="w-full p-4 md:p-6 space-y-6">
-        {/* 🔴 ALERTE & ACȚIUNI URGENTE */}
-        {(pendingCount > 0) && (
-          <Card className="border-l-4 border-l-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-900 dark:text-yellow-100">
-                <AlertCircle className="h-5 w-5" />
-                Atenție: {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} de corecție în așteptare
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        )}
+        {/* 📋 HEADER CU BADGE COMPACT */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Panou Administrare</h1>
+          
+          {pendingCount > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-300 cursor-help">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    ⚠️ {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} pending
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="text-sm">
+                    <strong>{pendingCount} cerere{pendingCount !== 1 ? 'ri' : ''} de corecție</strong> așteaptă aprobare.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Scroll jos pentru a le procesa.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
 
         <ErrorBoundary>
           <TimeEntryCorrectionRequestsManager />
