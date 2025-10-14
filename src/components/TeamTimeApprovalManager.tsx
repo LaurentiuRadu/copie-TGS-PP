@@ -166,8 +166,15 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
     }
   };
 
-  const approvedEntries = pendingEntries.filter(e => e.approval_status === 'approved');
-  const pendingOnlyEntries = pendingEntries.filter(e => e.approval_status === 'pending_review');
+  // Filtrare pontaje invalide (< 1h durata)
+  const validPendingEntries = pendingEntries.filter(entry => {
+    if (!entry.clock_in_time || !entry.clock_out_time) return false;
+    const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
+    return duration >= 1; // Exclude pontaje < 1h
+  });
+
+  const approvedEntries = validPendingEntries.filter(e => e.approval_status === 'approved');
+  const pendingOnlyEntries = validPendingEntries.filter(e => e.approval_status === 'pending_review');
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
 
   const reprocessMutation = useMutation({
@@ -358,16 +365,16 @@ export const TeamTimeApprovalManager = ({ selectedWeek, selectedDayOfWeek, avail
             </Button>
           </div>
 
-          {teamStats.totalEntries > 0 && (
+          {validPendingEntries.length > 0 && (
             <div className="mb-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-6 flex-wrap">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total pontaje</p>
-                  <p className="text-2xl font-bold">{teamStats.totalEntries}</p>
+                  <p className="text-sm text-muted-foreground">Total pontaje valide</p>
+                  <p className="text-2xl font-bold">{validPendingEntries.length}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">În așteptare</p>
-                  <p className="text-2xl font-bold text-yellow-600">{teamStats.pendingCount}</p>
+                  <p className="text-2xl font-bold text-yellow-600">{pendingOnlyEntries.length}</p>
                 </div>
                 {approvedEntries.length > 0 && (
                   <div>
