@@ -620,12 +620,38 @@ const Mobile = () => {
         .is('clock_out_time', null);
 
       if (existingEntries && existingEntries.length > 0) {
-        // Close all existing active shifts
+        // Close all existing active shifts and trigger segmentation
+        const clockOutTime = new Date().toISOString();
+        
         for (const entry of existingEntries) {
-          await supabase
+          // Update clock_out_time
+          const { error: updateError } = await supabase
             .from('time_entries')
-            .update({ clock_out_time: new Date().toISOString() })
+            .update({ clock_out_time: clockOutTime })
             .eq('id', entry.id);
+          
+          if (updateError) {
+            console.error(`[AutoClose] Failed to close entry ${entry.id}:`, updateError);
+            continue;
+          }
+          
+          // ✅ QUICK FIX: Invoke automatic segmentation for closed entries
+          console.log(`[AutoClose] Triggering segmentation for entry ${entry.id}...`);
+          const segmentSuccess = await processTimeSegmentsWithRetry(
+            user?.id || '',
+            entry.id,
+            entry.clock_in_time,
+            clockOutTime,
+            null, // notes - not available in this context
+            false // Final clock-out, not intermediate
+          );
+          
+          if (!segmentSuccess) {
+            console.error(`[AutoClose] ❌ Segmentation failed for entry ${entry.id} - marked for reprocessing`);
+            // processTimeSegmentsWithRetry already set needs_reprocessing = true
+          } else {
+            console.log(`[AutoClose] ✅ Segmentation successful for entry ${entry.id}`);
+          }
         }
       }
       let loadingToast: string | number | undefined;
