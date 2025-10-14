@@ -292,13 +292,13 @@ export const useTeamApprovalWorkflow = (
         throw new Error('❌ Clock-out lipsește! Nu se poate aproba pontaj incomplet.');
       }
 
-      // STEP 3: Validare durată (1-24 ore)
+      // STEP 3: Validare durată (10 min - 24 ore) ✅ CORECTAT!
       const clockIn = new Date(entry.clock_in_time);
       const clockOut = new Date(entry.clock_out_time);
       const durationHours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
 
-      if (durationHours < 1) {
-        throw new Error(`❌ Durată prea scurtă: ${durationHours.toFixed(1)}h. Minimum: 1 oră.`);
+      if (durationHours < 0.17) { // ✅ 10 min = 0.167h
+        throw new Error(`❌ Durată prea scurtă: ${Math.round(durationHours * 60)} min. Minimum: 10 minute.`);
       }
 
       if (durationHours > 24) {
@@ -357,7 +357,7 @@ export const useTeamApprovalWorkflow = (
 
       if (fetchError) throw fetchError;
 
-      // STEP 2: Validare fiecare pontaj
+      // STEP 2: Validare fiecare pontaj (10 min - 24 ore) ✅ CORECTAT!
       const validationErrors: string[] = [];
       entries?.forEach(entry => {
         if (!entry.clock_out_time) {
@@ -367,8 +367,8 @@ export const useTeamApprovalWorkflow = (
 
         const durationHours = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
         
-        if (durationHours < 1 || durationHours > 24) {
-          validationErrors.push(`${entry.id.slice(0, 8)}: durată ${durationHours.toFixed(1)}h (invalid)`);
+        if (durationHours < 0.17 || durationHours > 24) { // ✅ 10 min = 0.167h
+          validationErrors.push(`${entry.id.slice(0, 8)}: durată ${Math.round(durationHours * 60)} min (invalid)`);
         }
       });
 
