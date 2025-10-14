@@ -173,11 +173,16 @@ export function TimeEntryApprovalEditDialog({
 
   const updateAndApprove = useMutation({
     mutationFn: async () => {
-      // Verifică dacă pontajul este invalid (< 1h)
+      // Verifică dacă pontajul este invalid (< 10 min)
       if (clockOut) {
         const duration = (new Date(clockOut).getTime() - new Date(clockIn).getTime()) / (1000 * 60 * 60);
-        if (duration < 1) {
-          throw new Error("⚠️ Pontaj Invalid: Pontajele cu durata < 1h trebuie șterse, nu aprobate.");
+        if (duration < 0.17) { // ✅ 10 min = 0.167h
+          toast({
+            title: "⚠️ Pontaj Invalid",
+            description: `Pontajele cu durata < 10 min trebuie șterse, nu aprobate. (Durata: ${Math.round(duration * 60)} min)`,
+            variant: "destructive",
+          });
+          throw new Error(`Pontaj invalid: ${Math.round(duration * 60)} min (minim 10 min)`);
         }
       }
 

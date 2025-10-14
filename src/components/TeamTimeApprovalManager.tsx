@@ -156,11 +156,11 @@ export const TeamTimeApprovalManager = ({
     }
   };
 
-  // Filtrare pontaje invalide (< 1h durata)
+  // Filtrare pontaje invalide (< 10 min durata)
   const validPendingEntries = pendingEntries.filter(entry => {
     if (!entry.clock_in_time || !entry.clock_out_time) return false;
     const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
-    return duration >= 1; // Exclude pontaje < 1h
+    return duration >= 0.17; // ✅ 10 min = 0.167h (rotunjit la 0.17 pentru siguranță)
   });
 
   const approvedEntries = validPendingEntries.filter(e => e.approval_status === 'approved');
@@ -385,10 +385,10 @@ export const TeamTimeApprovalManager = ({
                           {(() => {
                             if (!entry.clock_in_time || !entry.clock_out_time) return null;
                             const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
-                            if (duration < 1) {
+                            if (duration < 0.17) { // ✅ 10 min
                               return (
                                 <Badge variant="outline" className="bg-red-100 text-red-800 border-red-400 dark:bg-red-950/30 dark:text-red-300 dark:border-red-700">
-                                  ⚠️ INVALID ({duration.toFixed(1)}h)
+                                  ⚠️ INVALID ({Math.round(duration * 60)}min)
                                 </Badge>
                               );
                             }

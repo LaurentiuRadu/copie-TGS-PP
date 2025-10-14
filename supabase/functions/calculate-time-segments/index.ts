@@ -139,6 +139,16 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 }
 
 /**
+ * Convertește un Date object la ora României (UTC+2/UTC+3)
+ * ✅ FIX: Folosește timezone-ul României pentru classificare corectă Zi/Noapte
+ */
+function toRomaniaHour(date: Date): number {
+  const offsetMs = getRomaniaOffsetMs(date);
+  const romaniaTime = new Date(date.getTime() + offsetMs);
+  return romaniaTime.getUTCHours();
+}
+
+/**
  * Determină tipul de ore bazat pe interval orar și sărbători
  * PRIORITATE REGULI (de sus în jos):
  * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate absolută)
@@ -153,7 +163,7 @@ function determineHoursType(
   segmentEnd: Date,
   holidayDates: Set<string>
 ): string {
-  const hour = segmentStart.getHours();
+  const hour = toRomaniaHour(segmentStart); // ✅ FOLOSEȘTE ORA ROMÂNIEI!
   
   // PRIORITATE 1: Sărbători legale (06:00 → 23:59:59)
   // Sărbătoarea are prioritate peste orice altceva!
