@@ -15,6 +15,17 @@ import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 // Funcție pentru a calcula ziua de verificare default (X-1 cu regula de luni)
 const getDefaultVerificationDay = (): number => {
@@ -48,6 +59,7 @@ const getDefaultVerificationWeek = (): string => {
 export default function TimesheetVerificare() {
   const [selectedWeek, setSelectedWeek] = useState(getDefaultVerificationWeek());
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<number>(getDefaultVerificationDay());
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -441,15 +453,53 @@ export default function TimesheetVerificare() {
                   </div>
 
                   {/* Coloana 3: Reset Status */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleResetVerificationStatus}
-                    className="gap-1 lg:ml-auto"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    <span className="hidden sm:inline">Reset Status</span>
-                  </Button>
+                  <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 lg:ml-auto"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        <span className="hidden sm:inline">Reset Status</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          <AlertDialogTitle className="text-destructive">
+                            Confirmare Reset Status Verificare
+                          </AlertDialogTitle>
+                        </div>
+                        <AlertDialogDescription className="space-y-3 pt-2">
+                          <p className="text-sm">
+                            Această acțiune va șterge <strong>statusul de verificare</strong> pentru toate echipele din săptămâna selectată:
+                          </p>
+                          <ul className="text-sm space-y-1 list-disc list-inside ml-2">
+                            <li>Toate echipele vor reveni la status <strong>"neverificat"</strong></li>
+                            <li>Modificările locale salvate vor fi șterse</li>
+                            <li>Va fi necesară reverificarea completă</li>
+                          </ul>
+                          <p className="text-sm font-semibold text-destructive">
+                            ⚠️ Această acțiune nu poate fi anulată!
+                          </p>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Anulează</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            handleResetVerificationStatus();
+                            setIsResetDialogOpen(false);
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Confirmă Reset
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
 
                 <div className="flex items-center gap-2">
