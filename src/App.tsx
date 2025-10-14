@@ -27,6 +27,7 @@ import GDPRAdmin from "./pages/GDPRAdmin";
 import Timesheet from "./pages/Timesheet";
 import TimesheetVerificare from "./pages/TimesheetVerificare";
 import TimesheetIstoric from "./pages/TimesheetIstoric";
+import TimesheetTardiness from "./pages/TimesheetTardiness";
 import GDPRSettings from "./pages/GDPRSettings";
 import Settings from "./pages/Settings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -144,6 +145,7 @@ const App = () => {
                 <Route path="/timesheet" element={<Timesheet />} />
                 <Route path="/timesheet/verificare" element={<TimesheetVerificare />} />
                 <Route path="/timesheet/istoric" element={<TimesheetIstoric />} />
+                <Route path="/timesheet/rapoarte-intarzieri" element={<TimesheetTardiness />} />
                 <Route path="/gdpr-admin" element={<GDPRAdmin />} />
                 <Route path="/backup-restore" element={<Settings />} />
               </Route>

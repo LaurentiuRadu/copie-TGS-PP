@@ -46,6 +46,7 @@ const adminMenuItems = [
       { title: "Fișe Pontaj", url: "/timesheet", icon: FileText },
       { title: "Verificare Pontaje", url: "/timesheet/verificare", icon: ClipboardCheck, badge: true },
       { title: "Istoric Aprobări", url: "/timesheet/istoric", icon: History },
+      { title: "Rapoarte întârzieri", url: "/timesheet/rapoarte-intarzieri", icon: AlertTriangle },
     ]
   },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
