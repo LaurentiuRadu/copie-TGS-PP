@@ -229,6 +229,21 @@ export const TeamTimeApprovalManager = ({
                 Săptămâna {format(new Date(selectedWeek), 'dd MMM yyyy', { locale: ro })}
               </CardDescription>
             </div>
+            
+            <Button
+              onClick={() => reprocessMutation.mutate()}
+              disabled={reprocessMutation.isPending}
+              variant="secondary"
+              size="sm"
+              className="gap-2"
+            >
+              {reprocessMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Recalculează Segmente
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -282,23 +297,6 @@ export const TeamTimeApprovalManager = ({
               </div>
             </div>
           )}
-
-          <div className="flex justify-end mb-4">
-            <Button
-              onClick={() => reprocessMutation.mutate()}
-              disabled={reprocessMutation.isPending}
-              variant="secondary"
-              size="sm"
-              className="gap-2"
-            >
-              {reprocessMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Recalculează Segmente
-            </Button>
-          </div>
 
           {validPendingEntries.length > 0 && (
             <div className="mb-6 p-4 bg-muted/50 rounded-lg">

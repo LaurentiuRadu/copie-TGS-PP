@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Users, TrendingUp, Clock, Calendar, AlertCircle } from "lucide-react";
-import { TardinessReportsManager } from "@/components/TardinessReportsManager";
 import { TimeEntryCorrectionRequestsManager } from "@/components/TimeEntryCorrectionRequestsManager";
 import { SuspiciousEntriesManager } from "@/components/SuspiciousEntriesManager";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -70,10 +69,6 @@ const Admin = () => {
 
         <ErrorBoundary>
           <TimeEntryCorrectionRequestsManager />
-        </ErrorBoundary>
-        
-        <ErrorBoundary>
-          <TardinessReportsManager />
         </ErrorBoundary>
         
         <ErrorBoundary>
