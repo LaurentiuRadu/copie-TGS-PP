@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -11,10 +11,13 @@ import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
 import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
+import { TeamTimeComparisonTable } from '@/components/TeamTimeComparisonTable';
+import { UniformizeDialog } from '@/components/UniformizeDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Collapsible,
   CollapsibleContent,
@@ -93,6 +96,8 @@ export const TeamTimeApprovalManager = ({
     field: 'startTime' | 'endTime';
     value: string;
   } | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'details'>('table');
+  const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -447,6 +452,90 @@ export const TeamTimeApprovalManager = ({
     setEditingSegment(null);
   };
 
+  // Handler pentru uniformizare
+  const handleUniformize = async (avgClockIn: string, avgClockOut: string | null) => {
+    const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_passenger');
+    const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
+
+    if (nonDrivers.length === 0) {
+      toast({
+        title: '⚠️ Niciun angajat eligibil',
+        description: 'Nu există angajați în echipă (șoferii sunt excluși).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Parse timpul mediu
+      const [avgInHour, avgInMin] = avgClockIn.split(':').map(Number);
+      const avgOutHour = avgClockOut ? parseInt(avgClockOut.split(':')[0]) : null;
+      const avgOutMin = avgClockOut ? parseInt(avgClockOut.split(':')[1]) : null;
+
+      // Update pentru fiecare non-driver
+      for (const employee of nonDrivers) {
+        const firstSegment = employee.segments[0];
+        const lastSegment = employee.segments[employee.segments.length - 1];
+
+        if (!firstSegment || !lastSegment) continue;
+
+        // Update Clock In (primul segment)
+        const clockInDate = new Date(firstSegment.startTime);
+        clockInDate.setHours(avgInHour, avgInMin, 0, 0);
+
+        // Update Clock Out (ultimul segment)
+        let clockOutDate: Date | null = null;
+        if (avgOutHour !== null && avgOutMin !== null && employee.lastClockOut) {
+          clockOutDate = new Date(lastSegment.endTime);
+          clockOutDate.setHours(avgOutHour, avgOutMin, 0, 0);
+        }
+
+        // Calculează noua durată pentru primul segment
+        const firstSegmentEnd = new Date(firstSegment.endTime);
+        const firstSegmentDuration = (firstSegmentEnd.getTime() - clockInDate.getTime()) / (1000 * 60 * 60);
+
+        // Update primul segment (Clock In)
+        await supabase
+          .from('time_entry_segments')
+          .update({
+            start_time: clockInDate.toISOString(),
+            hours_decimal: firstSegmentDuration,
+          })
+          .eq('id', firstSegment.id);
+
+        // Update ultimul segment (Clock Out) dacă există
+        if (clockOutDate) {
+          const lastSegmentStart = new Date(lastSegment.startTime);
+          const lastSegmentDuration = (clockOutDate.getTime() - lastSegmentStart.getTime()) / (1000 * 60 * 60);
+
+          await supabase
+            .from('time_entry_segments')
+            .update({
+              end_time: clockOutDate.toISOString(),
+              hours_decimal: lastSegmentDuration,
+            })
+            .eq('id', lastSegment.id);
+        }
+      }
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+
+      toast({
+        title: '✅ Uniformizare completă',
+        description: `${nonDrivers.length} angajați au fost actualizați la orele medii.`,
+      });
+    } catch (error) {
+      console.error('[Uniformize Error]', error);
+      toast({
+        title: '❌ Eroare la uniformizare',
+        description: error instanceof Error ? error.message : 'Nu s-au putut actualiza orele',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (availableTeams.size === 0) {
     return (
       <Card>
@@ -486,11 +575,27 @@ export const TeamTimeApprovalManager = ({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Aprobare Pontaje</CardTitle>
-              <CardDescription>
-                Săptămâna {format(new Date(selectedWeek), 'dd MMM yyyy', { locale: ro })}
-              </CardDescription>
+            <div className="flex items-center gap-4">
+              <div>
+                <CardTitle>Aprobare Pontaje</CardTitle>
+                <CardDescription>
+                  Săptămâna {format(new Date(selectedWeek), 'dd MMM yyyy', { locale: ro })}
+                </CardDescription>
+              </div>
+              
+              {/* Toggle pentru vizualizare */}
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'table' | 'details')}>
+                <TabsList>
+                  <TabsTrigger value="table" className="flex items-center gap-2">
+                    <TableIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Tabel</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="details" className="flex items-center gap-2">
+                    <List className="h-4 w-4" />
+                    <span className="hidden sm:inline">Detalii</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             
             <Button
@@ -587,7 +692,21 @@ export const TeamTimeApprovalManager = ({
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-lg font-medium">Nu există pontaje</p>
             </div>
+          ) : viewMode === 'table' ? (
+            // ✅ VIZUALIZARE TABEL ORIZONTAL
+            <TeamTimeComparisonTable
+              groupedByEmployee={groupedByEmployee}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onUniformize={() => setUniformizeDialogOpen(true)}
+              onTimeClick={handleTimeClick}
+              editingSegment={editingSegment}
+              onTimeChange={handleTimeChange}
+              onTimeSave={handleTimeSave}
+              onTimeCancel={handleTimeCancel}
+            />
           ) : (
+            // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)
             <div className="space-y-4">
               {groupedByEmployee.map((employee) => (
                 <Card key={employee.userId} className={employee.allApproved ? 'bg-green-50/30 dark:bg-green-950/10 border-green-200' : ''}>
@@ -633,7 +752,6 @@ export const TeamTimeApprovalManager = ({
                                   </Badge>
                                 </div>
                                 
-                                {/* ✅ INLINE EDITING PENTRU START/END TIMES */}
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                   {isEditingStart ? (
                                     <Input
@@ -696,7 +814,6 @@ export const TeamTimeApprovalManager = ({
                       </div>
                     )}
                     
-                    {/* Clock in/out total */}
                     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md mb-4">
                       <div className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-green-600" />
@@ -708,7 +825,6 @@ export const TeamTimeApprovalManager = ({
                       </div>
                     </div>
                     
-                    {/* Butoane acțiuni */}
                     {!employee.allApproved && (
                       <div className="flex gap-2 flex-wrap">
                         <Button
@@ -739,7 +855,24 @@ export const TeamTimeApprovalManager = ({
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Editează pontajul complet al zilei</p>
+                            <p>Modifică orele și recalculează automat</p>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDelete(employee.entries[0])}
+                              className="gap-1 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Șterge
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Șterge pontajul complet</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
@@ -818,24 +951,26 @@ export const TeamTimeApprovalManager = ({
               if (nextTeam) {
                 onTeamChange(nextTeam);
                 toast({
-                  title: '🗑️ Pontaj șters',
+                  title: '✅ Pontaj șters',
                   description: `Trecem automat la echipa ${nextTeam}`,
                 });
               } else {
                 toast({
-                  title: '🗑️ Pontaj șters',
-                  description: 'Toate echipele au fost verificate.',
+                  title: '🎉 Toate echipele verificate!',
+                  description: 'Poți schimba ziua acum sau continua verificarea.',
                 });
               }
             }
-            
-            // Reîmprospătare forțată a query-urilor locale
-            queryClient.invalidateQueries({ 
-              queryKey: ['team-pending-approvals', selectedTeam, selectedWeek, selectedDayOfWeek] 
-            });
           }}
         />
       )}
+
+      <UniformizeDialog
+        open={uniformizeDialogOpen}
+        onOpenChange={setUniformizeDialogOpen}
+        groupedByEmployee={groupedByEmployee}
+        onConfirm={handleUniformize}
+      />
     </>
   );
 };
