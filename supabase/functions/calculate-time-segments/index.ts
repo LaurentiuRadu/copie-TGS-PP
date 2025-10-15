@@ -192,14 +192,14 @@ function segmentShiftIntoTimesheets(
   shift: Shift,
   holidayDates: Set<string>
 ): TimesheetEntry[] {
-  // ✅ FIX TIMEZONE: Convertim UTC → România (UTC+2/UTC+3)
+  // ✅ DUAL AXIS: UTC for persistence, Local RO for logic
   const startUTC = new Date(shift.startTime);
   const endUTC = new Date(shift.endTime);
   const ROMANIA_OFFSET_MS = getRomaniaOffsetMs(startUTC);
-  const start = new Date(startUTC.getTime() + ROMANIA_OFFSET_MS);
-  const end = new Date(endUTC.getTime() + ROMANIA_OFFSET_MS);
+  const startLocal = new Date(startUTC.getTime() + ROMANIA_OFFSET_MS);
+  const endLocal = new Date(endUTC.getTime() + ROMANIA_OFFSET_MS);
   
-  console.log(`[Timezone] UTC → România: ${startUTC.toISOString()} → ${start.toISOString()} (offset: ${ROMANIA_OFFSET_MS / 3600000}h)`);
+  console.log(`[Timezone] UTC → România: ${startUTC.toISOString()} → ${startLocal.toISOString()} (offset: ${ROMANIA_OFFSET_MS / 3600000}h)`);
   
   const timesheets: TimesheetEntry[] = [];
   
@@ -209,22 +209,26 @@ function segmentShiftIntoTimesheets(
   // ✅ LOGICĂ DIFERITĂ pentru tipuri speciale vs normal
   const isSpecialShift = ['condus', 'pasager', 'utilaj'].includes(shiftType);
   
-  let currentSegmentStart = new Date(start);
+  // Track both UTC and Local in parallel
+  let currentSegmentStartLocal = new Date(startLocal);
+  let currentSegmentStartUTC = new Date(startUTC);
   
-  while (currentSegmentStart < end) {
-    let currentSegmentEnd: Date;
+  while (currentSegmentStartLocal < endLocal) {
+    let currentSegmentEndLocal: Date;
     
     if (isSpecialShift) {
       // ✅ Pentru condus/pasager/utilaj: segmentare DOAR la midnight
-      const nextMidnight = getNextMidnight(currentSegmentStart);
-      currentSegmentEnd = nextMidnight < end ? nextMidnight : end;
+      const nextMidnight = getNextMidnight(currentSegmentStartLocal);
+      currentSegmentEndLocal = nextMidnight < endLocal ? nextMidnight : endLocal;
     } else {
       // ✅ Pentru normal: segmentare complexă (00:00, 06:00, 22:00)
-      const nextCriticalTime = getNextCriticalTime(currentSegmentStart);
-      currentSegmentEnd = nextCriticalTime < end ? nextCriticalTime : end;
+      const nextCriticalTime = getNextCriticalTime(currentSegmentStartLocal);
+      currentSegmentEndLocal = nextCriticalTime < endLocal ? nextCriticalTime : endLocal;
     }
     
-    const hoursInSegment = (currentSegmentEnd.getTime() - currentSegmentStart.getTime()) / 3600000;
+    const durationMs = currentSegmentEndLocal.getTime() - currentSegmentStartLocal.getTime();
+    const hoursInSegment = durationMs / 3600000;
+    const currentSegmentEndUTC = new Date(currentSegmentStartUTC.getTime() + durationMs);
     
     // ✅ SINGLE-TRACK CORECT: Shift-uri speciale (Condus/Pasager/Utilaj) → PRIORITATE ABSOLUTĂ
     // Regula: Condus pe Duminică = hours_driving (tarif unic per șofer)
@@ -242,12 +246,12 @@ function segmentShiftIntoTimesheets(
       console.log(`[Segment] → hours_equipment (${hoursInSegment}h) [tarif unic utilaj]`);
     } else {
       // DOAR pentru shift-uri normale ("zi" / "noapte") → aplică reguli sărbători/ore
-      hoursType = determineHoursType(currentSegmentStart, currentSegmentEnd, holidayDates);
+      hoursType = determineHoursType(currentSegmentStartLocal, currentSegmentEndLocal, holidayDates);
       console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [shift normal - include weekend]`);
     }
     
     // ✅ FIXED: Găsește sau creează pontaj pentru această zi (ora României)
-    const workDate = toRomaniaDateString(currentSegmentStart);
+    const workDate = toRomaniaDateString(currentSegmentStartLocal);
     let existingTimesheet = timesheets.find(t => t.work_date === workDate);
     
     if (!existingTimesheet) {
@@ -265,8 +269,8 @@ function segmentShiftIntoTimesheets(
         hours_leave: 0,
         hours_medical_leave: 0,
         notes: shift.notes || null,
-        start_time: currentSegmentStart,
-        end_time: currentSegmentEnd
+        start_time: currentSegmentStartUTC,  // ✅ Save UTC for persistence
+        end_time: currentSegmentEndUTC        // ✅ Save UTC for persistence
       };
       timesheets.push(existingTimesheet);
     }
@@ -275,10 +279,11 @@ function segmentShiftIntoTimesheets(
     (existingTimesheet as any)[hoursType] += hoursInSegment;
     
     // ✅ Debug log pentru segment
-    console.log(`[Segment→${workDate}] ${currentSegmentStart.toISOString()}..${currentSegmentEnd.toISOString()} → ${hoursType} (${hoursInSegment.toFixed(3)}h)`);
+    console.log(`[Segment→${workDate}] ${currentSegmentStartLocal.toISOString()}..${currentSegmentEndLocal.toISOString()} → ${hoursType} (${hoursInSegment.toFixed(3)}h)`);
     
-    // Avansează la următorul segment
-    currentSegmentStart = new Date(currentSegmentEnd);
+    // Avansează la următorul segment (both axes)
+    currentSegmentStartLocal = new Date(currentSegmentEndLocal);
+    currentSegmentStartUTC = new Date(currentSegmentEndUTC);
   }
   
   // ✅ REGULI NOI PAUZĂ
@@ -740,8 +745,10 @@ Deno.serve(async (req) => {
       
       // Procesează fiecare segment salvat
       for (const segment of savedSegments) {
-        const segmentStart = new Date(segment.start_time);
-        const workDate = segmentStart.toISOString().split('T')[0];
+        const segmentStartUTC = new Date(segment.start_time);
+        const offset = getRomaniaOffsetMs(segmentStartUTC);
+        const local = new Date(segmentStartUTC.getTime() + offset);
+        const workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
         
         let existing = aggregatedTimesheets.get(workDate);
         if (!existing) {
