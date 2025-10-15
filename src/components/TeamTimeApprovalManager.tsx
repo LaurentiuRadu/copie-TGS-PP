@@ -314,6 +314,13 @@ export const TeamTimeApprovalManager = ({
       newTime: string;
       currentSegment: any;
     }) => {
+      console.log('[Update Segment] Start:', { segmentId, field, newTime });
+      
+      // Validare segment ID
+      if (!segmentId) {
+        throw new Error('ID segment lipsește');
+      }
+      
       // Parse new time (format: HH:mm)
       const [hours, minutes] = newTime.split(':').map(Number);
       
@@ -322,14 +329,18 @@ export const TeamTimeApprovalManager = ({
       const newDate = new Date(existingDate);
       newDate.setHours(hours, minutes, 0, 0);
       
+      console.log('[Update Segment] New Date:', newDate.toISOString());
+      
       // Calculate new duration
       const startTime = field === 'startTime' ? newDate : new Date(currentSegment.startTime);
       const endTime = field === 'endTime' ? newDate : new Date(currentSegment.endTime);
       const durationMs = endTime.getTime() - startTime.getTime();
       const durationHours = durationMs / (1000 * 60 * 60);
       
+      console.log('[Update Segment] New Duration:', durationHours.toFixed(2), 'hours');
+      
       if (durationHours <= 0 || durationHours > 24) {
-        throw new Error('Durata trebuie să fie între 0 și 24 ore');
+        throw new Error(`Durata trebuie să fie între 0 și 24 ore (calculat: ${durationHours.toFixed(2)}h)`);
       }
       
       // Update segment in time_entry_segments
@@ -337,12 +348,20 @@ export const TeamTimeApprovalManager = ({
         ? { start_time: newDate.toISOString(), hours_decimal: durationHours }
         : { end_time: newDate.toISOString(), hours_decimal: durationHours };
       
-      const { error: updateError } = await supabase
+      console.log('[Update Segment] Update Data:', updateData);
+      
+      const { data: updatedSegment, error: updateError } = await supabase
         .from('time_entry_segments')
         .update(updateData)
-        .eq('id', segmentId);
+        .eq('id', segmentId)
+        .select();
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('[Update Segment] Error:', updateError);
+        throw updateError;
+      }
+      
+      console.log('[Update Segment] Success:', updatedSegment);
       
       return { segmentId, field, newTime, durationHours };
     },
@@ -360,6 +379,7 @@ export const TeamTimeApprovalManager = ({
       setEditingSegment(null);
     },
     onError: (error: any) => {
+      console.error('[Update Segment] Mutation Error:', error);
       toast({
         title: '❌ Eroare la actualizare',
         description: error.message || 'Nu s-a putut actualiza timpul',
@@ -369,7 +389,18 @@ export const TeamTimeApprovalManager = ({
     },
   });
 
-  const handleTimeClick = (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => {
+  const handleTimeClick = (userId: string, segmentIndex: number, segmentId: string | undefined, field: 'startTime' | 'endTime', currentTime: string) => {
+    // ✅ VALIDARE: Nu permite editare dacă segment.id lipsește
+    if (!segmentId) {
+      console.error('[handleTimeClick] Segment ID is undefined');
+      toast({
+        title: '⚠️ Segment invalid',
+        description: 'Acest segment nu poate fi editat. Încearcă să recalculezi segmentele.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Extract HH:mm from ISO timestamp
     const timeOnly = formatRomania(currentTime, 'HH:mm');
     setEditingSegment({
