@@ -228,7 +228,10 @@ function segmentShiftIntoTimesheets(
     
     const durationMs = currentSegmentEndLocal.getTime() - currentSegmentStartLocal.getTime();
     const hoursInSegment = durationMs / 3600000;
-    const currentSegmentEndUTC = new Date(currentSegmentStartUTC.getTime() + durationMs);
+    
+    // ✅ CORECT: Convert nextBoundaryLocal back to UTC
+    const nextBoundaryUTC = new Date(currentSegmentEndLocal.getTime() - getRomaniaOffsetMs(currentSegmentEndLocal));
+    const currentSegmentEndUTC = (nextBoundaryUTC <= endUTC) ? nextBoundaryUTC : endUTC;
     
     // ✅ SINGLE-TRACK CORECT: Shift-uri speciale (Condus/Pasager/Utilaj) → PRIORITATE ABSOLUTĂ
     // Regula: Condus pe Duminică = hours_driving (tarif unic per șofer)
@@ -283,6 +286,7 @@ function segmentShiftIntoTimesheets(
     
     // Avansează la următorul segment (both axes)
     currentSegmentStartLocal = new Date(currentSegmentEndLocal);
+    currentSegmentStartUTC = currentSegmentEndUTC; // ✅ CORECT: already in UTC
     currentSegmentStartUTC = new Date(currentSegmentEndUTC);
   }
   
