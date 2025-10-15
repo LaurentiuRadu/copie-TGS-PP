@@ -272,8 +272,8 @@ function segmentShiftIntoTimesheets(
         hours_leave: 0,
         hours_medical_leave: 0,
         notes: shift.notes || null,
-        start_time: currentSegmentStartUTC,  // ✅ Save UTC for persistence
-        end_time: currentSegmentEndUTC        // ✅ Save UTC for persistence
+        start_time: startUTC,  // ✅ FIX: Use exact clock_in_time (UTC) - no conversions
+        end_time: endUTC        // ✅ FIX: Use exact clock_out_time (UTC) - no conversions
       };
       timesheets.push(existingTimesheet);
     }
@@ -705,8 +705,8 @@ Deno.serve(async (req) => {
               segmentsToSave.push({
                 time_entry_id: entry.id,
                 segment_type: segmentType,
-                start_time: timesheet.start_time || entry.clock_in_time,
-                end_time: timesheet.end_time || entry.clock_out_time,
+                start_time: entry.clock_in_time,  // ✅ FIX: ALWAYS use exact clock_in_time (UTC)
+                end_time: entry.clock_out_time,    // ✅ FIX: ALWAYS use exact clock_out_time (UTC)
                 hours_decimal: hoursValue,
                 multiplier: 1.0
               });
