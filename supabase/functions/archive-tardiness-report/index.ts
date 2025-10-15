@@ -22,9 +22,22 @@ serve(async (req) => {
 
     // Verify user is authenticated and is admin
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    
+    if (authError) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ 
+          error: 'Authentication failed', 
+          details: authError.message 
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'No authenticated user found. Please log in again.' 
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -38,8 +51,12 @@ serve(async (req) => {
       .single();
 
     if (roleError || !roleData) {
+      console.error('[Archive] Admin check failed:', { user_id: user.id, roleError });
       return new Response(
-        JSON.stringify({ error: 'Forbidden: Admin access required' }),
+        JSON.stringify({ 
+          error: 'Admin access required',
+          details: `User ${user.id} does not have admin role`
+        }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

@@ -21,6 +21,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Check, X, Clock, AlertCircle, Calendar, User, Archive } from 'lucide-react';
 import { format } from 'date-fns';
@@ -59,6 +69,10 @@ export const TardinessReportsManager = () => {
     action: 'approve' | 'reject' | null;
   }>({ open: false, report: null, action: null });
   const [adminNotes, setAdminNotes] = useState('');
+  const [archiveDialog, setArchiveDialog] = useState<{
+    open: boolean;
+    reportId: string | null;
+  }>({ open: false, reportId: null });
 
   // Query for active (non-archived) reports
   const { data: activeReports, isLoading: isLoadingActive } = useQuery({
@@ -152,9 +166,22 @@ export const TardinessReportsManager = () => {
       queryClient.invalidateQueries({ queryKey: ['tardiness-reports-archived'] });
       toast.success('Raport arhivat cu succes');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Archive error:', error);
-      toast.error('Nu s-a putut arhiva raportul');
+      
+      const errorMessage = error?.message || '';
+      
+      if (errorMessage.includes('Unauthorized') || errorMessage.includes('Authentication')) {
+        toast.error('Sesiunea ta a expirat. Te rugăm să te autentifici din nou.');
+      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('Admin access')) {
+        toast.error('Nu ai permisiuni de administrator pentru această acțiune.');
+      } else if (errorMessage.includes('Only processed reports')) {
+        toast.error('Doar rapoartele procesate (aprobate/respinse) pot fi arhivate.');
+      } else if (errorMessage.includes('already archived')) {
+        toast.error('Acest raport este deja arhivat.');
+      } else {
+        toast.error('Nu s-a putut arhiva raportul. Te rugăm să încerci din nou.');
+      }
     },
   });
 
@@ -169,9 +196,13 @@ export const TardinessReportsManager = () => {
   };
 
   const handleArchive = (reportId: string) => {
-    if (confirm('Sigur vrei să arhivezi acest raport?')) {
-      archiveMutation.mutate(reportId);
-    }
+    setArchiveDialog({ open: true, reportId });
+  };
+
+  const confirmArchive = () => {
+    if (!archiveDialog.reportId) return;
+    archiveMutation.mutate(archiveDialog.reportId);
+    setArchiveDialog({ open: false, reportId: null });
   };
 
   const getStatusBadge = (status: string) => {
@@ -504,6 +535,31 @@ export const TardinessReportsManager = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog 
+        open={archiveDialog.open} 
+        onOpenChange={(open) => setArchiveDialog({ open, reportId: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arhivare raport</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sigur vrei să arhivezi acest raport? Raportul va fi mutat în secțiunea "Arhivă" 
+              și nu va mai apărea în lista rapoartelor active.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anulează</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmArchive}
+              disabled={archiveMutation.isPending}
+            >
+              {archiveMutation.isPending ? 'Se arhivează...' : 'Arhivează'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
