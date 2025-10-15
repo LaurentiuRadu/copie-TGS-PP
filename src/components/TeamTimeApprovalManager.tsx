@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -155,6 +155,108 @@ export const TeamTimeApprovalManager = ({
   const approvedEntries = validPendingEntries.filter(e => e.approval_status === 'approved');
   const pendingOnlyEntries = validPendingEntries.filter(e => e.approval_status === 'pending_review');
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
+
+  // ✅ GRUPARE PE ANGAJAT: combinăm toate pontajele unui user într-o singură structură
+  interface EmployeeDayData {
+    userId: string;
+    fullName: string;
+    username: string;
+    totalHours: number;
+    firstClockIn: string;
+    lastClockOut: string | null;
+    segments: Array<{
+      type: string;
+      startTime: string;
+      endTime: string;
+      duration: number;
+    }>;
+    entries: TimeEntryForApproval[];
+    allApproved: boolean;
+  }
+
+  const groupedByEmployee = useMemo(() => {
+    const grouped = new Map<string, EmployeeDayData>();
+    
+    displayedEntries.forEach(entry => {
+      const userId = entry.user_id;
+      
+      if (!grouped.has(userId)) {
+        grouped.set(userId, {
+          userId,
+          fullName: entry.profiles.full_name,
+          username: entry.profiles.username,
+          totalHours: 0,
+          firstClockIn: entry.clock_in_time,
+          lastClockOut: entry.clock_out_time,
+          segments: [],
+          entries: [],
+          allApproved: true,
+        });
+      }
+      
+      const employeeData = grouped.get(userId)!;
+      employeeData.entries.push(entry);
+      
+      // Update first/last timestamps
+      if (entry.clock_in_time < employeeData.firstClockIn) {
+        employeeData.firstClockIn = entry.clock_in_time;
+      }
+      if (entry.clock_out_time && (!employeeData.lastClockOut || entry.clock_out_time > employeeData.lastClockOut)) {
+        employeeData.lastClockOut = entry.clock_out_time;
+      }
+      
+      // Check approval status
+      if (entry.approval_status !== 'approved') {
+        employeeData.allApproved = false;
+      }
+      
+      // Adăugăm segmentele
+      if (entry.segments && entry.segments.length > 0) {
+        entry.segments.forEach(seg => {
+          employeeData.segments.push({
+            type: seg.segment_type,
+            startTime: seg.start_time,
+            endTime: seg.end_time,
+            duration: seg.hours_decimal,
+          });
+          employeeData.totalHours += seg.hours_decimal;
+        });
+      }
+    });
+    
+    // Sortăm segmentele cronologic
+    grouped.forEach(emp => {
+      emp.segments.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      emp.totalHours = Math.round(emp.totalHours * 100) / 100;
+    });
+    
+    return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }, [displayedEntries]);
+
+  // Helper pentru icon-uri segment
+  const getSegmentIcon = (type: string) => {
+    switch(type) {
+      case 'hours_driving': return '🚗';
+      case 'hours_passenger': return '🚙';
+      case 'hours_equipment': return '🚜';
+      case 'hours_night': return '🌙';
+      case 'hours_holiday': return '🎉';
+      case 'hours_regular': return '⚙️';
+      default: return '📋';
+    }
+  };
+
+  const getSegmentLabel = (type: string) => {
+    switch(type) {
+      case 'hours_driving': return 'Condus';
+      case 'hours_passenger': return 'Pasager';
+      case 'hours_equipment': return 'Utilaj';
+      case 'hours_night': return 'Noapte';
+      case 'hours_holiday': return 'Sărbătoare';
+      case 'hours_regular': return 'Normal';
+      default: return type;
+    }
+  };
 
   const reprocessMutation = useMutation({
     mutationFn: async () => {
@@ -319,152 +421,109 @@ export const TeamTimeApprovalManager = ({
             </div>
           )}
 
-          {displayedEntries.length === 0 ? (
+          {groupedByEmployee.length === 0 ? (
             <div className="text-center py-8">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-lg font-medium">Nu există pontaje</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {displayedEntries.map((entry) => {
-                const discrepancy = detectDiscrepancies(entry);
-                const isApproved = entry.approval_status === 'approved';
-                const hasMultiplePontaje = entry.pontajNumber && entry.pontajNumber > 1;
-                const isComplete = !!entry.clock_out_time;
-
-                return (
-                  <div
-                    key={entry.id}
-                    className={`p-4 border rounded-lg transition-colors relative ${
-                      isApproved
-                        ? 'bg-green-50/30 dark:bg-green-950/10 border-green-200 dark:border-green-800 opacity-70'
-                        : 'hover:bg-muted/50'
-                    } ${discrepancy && !isApproved ? getSeverityColor(discrepancy.severity) : ''}`}
-                  >
-                    {isApproved && (
-                      <div className="absolute top-2 right-2 z-10">
-                        <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Deja Aprobat
-                        </Badge>
+            <div className="space-y-4">
+              {groupedByEmployee.map((employee) => (
+                <Card key={employee.userId} className={employee.allApproved ? 'bg-green-50/30 dark:bg-green-950/10 border-green-200' : ''}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          👤 {employee.fullName}
+                          <Badge variant="outline">{employee.username}</Badge>
+                          {employee.allApproved && (
+                            <Badge variant="outline" className="bg-green-100 text-green-800">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Aprobat
+                            </Badge>
+                          )}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          Total: <span className="font-bold text-lg">{employee.totalHours.toFixed(2)}h</span>
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Segmente de timp */}
+                    {employee.segments.length > 0 ? (
+                      <div className="space-y-2 mb-4">
+                        {employee.segments.map((segment, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-2 bg-muted/30 rounded-md">
+                            <span className="text-2xl">{getSegmentIcon(segment.type)}</span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{getSegmentLabel(segment.type)}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {segment.duration.toFixed(2)}h
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {formatRomania(segment.startTime, 'HH:mm')} → {formatRomania(segment.endTime, 'HH:mm')}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                          ⚠️ Segmente lipsă - folosește butonul "Recalculează Segmente"
+                        </p>
                       </div>
                     )}
-
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <p className="font-medium">{entry.profiles.full_name}</p>
-                          <Badge variant="outline">{entry.profiles.username}</Badge>
-                          {hasMultiplePontaje && (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                              Pontaj #{entry.pontajNumber}
-                            </Badge>
-                          )}
-                          {isComplete ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950/30 dark:text-green-300">
-                              ✅ COMPLET
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950/30 dark:text-yellow-300">
-                              ⏳ ÎN CURS
-                            </Badge>
-                          )}
-                          {(() => {
-                            if (!entry.clock_in_time || !entry.clock_out_time) return null;
-                            const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
-                            if (duration < 0.17) { // ✅ 10 min
-                              return (
-                                <Badge variant="outline" className="bg-red-100 text-red-800 border-red-400 dark:bg-red-950/30 dark:text-red-300 dark:border-red-700">
-                                  ⚠️ INVALID ({Math.round(duration * 60)}min)
-                                </Badge>
-                              );
-                            }
-                            if (duration > 24) {
-                              return (
-                                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-700">
-                                  ⚠️ SUSPECT ({duration.toFixed(1)}h)
-                                </Badge>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-
-                        
-                        <div className="mb-3 p-3 bg-muted/30 rounded-md">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-muted-foreground text-xs">Intrare</p>
-                              <p className="font-medium">
-                                {entry.clock_in_time ? formatRomania(entry.clock_in_time, 'HH:mm') : '-'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">Ieșire</p>
-                              <p className="font-medium">
-                                {entry.clock_out_time ? formatRomania(entry.clock_out_time, 'HH:mm') : '-'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {entry.calculated_hours && entry.calculated_hours.total > 0 && (
-                          <div className="mb-3 flex items-center gap-2 text-sm">
-                            <span className="text-muted-foreground">📊 Total Ore:</span>
-                            <Badge variant="secondary">{entry.calculated_hours.total.toFixed(2)}h</Badge>
-                          </div>
-                        )}
+                    
+                    {/* Clock in/out total */}
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md mb-4">
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Clock In: <span className="font-medium">{formatRomania(employee.firstClockIn, 'HH:mm')}</span></span>
                       </div>
-
-                      <div className="flex items-center gap-1">
-                        {isApproved ? (
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <span className="text-sm">Clock Out: <span className="font-medium">{employee.lastClockOut ? formatRomania(employee.lastClockOut, 'HH:mm') : '-'}</span></span>
+                      </div>
+                    </div>
+                    
+                    {/* Butoane acțiuni */}
+                    {!employee.allApproved && (
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            employee.entries.forEach(entry => {
+                              if (entry.approval_status !== 'approved') {
+                                handleApprove(entry.id);
+                              }
+                            });
+                          }}
+                          className="gap-1"
+                        >
+                          <Check className="h-4 w-4" />
+                          Aprobă Toate
+                        </Button>
+                        {employee.entries.map((entry, idx) => (
                           <Button
+                            key={entry.id}
                             size="sm"
                             variant="outline"
                             onClick={() => handleEdit(entry)}
-                            className="gap-1 border-green-300 dark:border-green-700"
+                            className="gap-1"
                           >
-                            <RotateCcw className="h-4 w-4" />
-                            <span className="hidden sm:inline">Re-editează</span>
+                            <Pencil className="h-4 w-4" />
+                            Edit #{idx + 1}
                           </Button>
-                        ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(entry)}
-                              className="gap-1"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              <span className="hidden sm:inline">Editează</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handleApprove(entry.id)}
-                              disabled={approveMutation.isPending || !entry.clock_out_time}
-                              className="gap-1"
-                              title={!entry.clock_out_time ? "❌ Nu poți aproba - lipsește clock-out. Editează pontajul pentru a seta manual." : "Aprobă pontaj"}
-                            >
-                              <Check className="h-4 w-4" />
-                              <span className="hidden sm:inline">Aprobă</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(entry)}
-                              className="gap-1"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="hidden sm:inline">Șterge</span>
-                            </Button>
-                          </>
-                        )}
+                        ))}
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </CardContent>

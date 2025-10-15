@@ -30,6 +30,13 @@ export interface TimeEntryForApproval {
   calculated_hours?: {
     total: number;
   };
+  segments?: Array<{
+    id: string;
+    segment_type: string;
+    start_time: string;
+    end_time: string;
+    hours_decimal: number;
+  }>;
 }
 
 interface TeamStats {
@@ -133,6 +140,23 @@ export const useTeamApprovalWorkflow = (
 
       if (error) throw error;
 
+      // Fetch time entry segments pentru vizualizare detaliată
+      const entryIds = entriesData?.map(e => e.id) || [];
+      const { data: segmentsData } = await supabase
+        .from('time_entry_segments')
+        .select('id, time_entry_id, segment_type, start_time, end_time, hours_decimal')
+        .in('time_entry_id', entryIds)
+        .order('start_time', { ascending: true });
+
+      // Grupăm segmentele pe time_entry_id
+      const segmentsByEntry = new Map<string, Array<typeof segmentsData[0]>>();
+      segmentsData?.forEach(segment => {
+        if (!segmentsByEntry.has(segment.time_entry_id)) {
+          segmentsByEntry.set(segment.time_entry_id, []);
+        }
+        segmentsByEntry.get(segment.time_entry_id)!.push(segment);
+      });
+
       // Fetch profiles separately (exclude contractors + office staff)
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -185,6 +209,7 @@ export const useTeamApprovalWorkflow = (
         return {
           ...entry,
           pontajNumber: currentCount,
+          segments: segmentsByEntry.get(entry.id) || [],
           profiles: profilesData?.find(p => p.id === entry.user_id) || {
             id: entry.user_id,
             full_name: 'Unknown',

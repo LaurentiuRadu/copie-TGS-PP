@@ -381,25 +381,25 @@ export default function TimesheetVerificare() {
                           
                           return (
                             <>
-                              <SelectItem value="1" disabled={hasPendingEntries && 1 > selectedDayOfWeek && 1 > currentDayOfWeek}>
+                              <SelectItem value="1" disabled={false}>
                                 📅 Luni
                               </SelectItem>
-                              <SelectItem value="2" disabled={hasPendingEntries && 2 > selectedDayOfWeek && 2 > currentDayOfWeek}>
+                              <SelectItem value="2" disabled={false}>
                                 📅 Marți
                               </SelectItem>
-                              <SelectItem value="3" disabled={hasPendingEntries && 3 > selectedDayOfWeek && 3 > currentDayOfWeek}>
+                              <SelectItem value="3" disabled={false}>
                                 📅 Miercuri
                               </SelectItem>
-                              <SelectItem value="4" disabled={hasPendingEntries && 4 > selectedDayOfWeek && 4 > currentDayOfWeek}>
+                              <SelectItem value="4" disabled={false}>
                                 📅 Joi
                               </SelectItem>
-                              <SelectItem value="5" disabled={hasPendingEntries && 5 > selectedDayOfWeek && 5 > currentDayOfWeek}>
+                              <SelectItem value="5" disabled={false}>
                                 📅 Vineri
                               </SelectItem>
-                              <SelectItem value="6" disabled={hasPendingEntries && 6 > selectedDayOfWeek && 6 > currentDayOfWeek}>
+                              <SelectItem value="6" disabled={false}>
                                 📅 Sâmbătă
                               </SelectItem>
-                              <SelectItem value="7" disabled={hasPendingEntries && 7 > selectedDayOfWeek && 7 > currentDayOfWeek}>
+                              <SelectItem value="7" disabled={false}>
                                 📅 Duminică
                               </SelectItem>
                             </>
