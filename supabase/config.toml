@@ -1,5 +1,8 @@
 project_id = "hbwkufaksipsqipqdqcv"
 
+[functions.get-romania-time]
+verify_jwt = false
+
 [functions.analyze-work-patterns]
 verify_jwt = true
 
