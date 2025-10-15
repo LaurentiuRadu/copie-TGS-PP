@@ -169,18 +169,28 @@ export const TardinessReportsManager = () => {
     onError: (error: any) => {
       console.error('Archive error:', error);
       
-      const errorMessage = error?.message || '';
+      // Mapare error_code la mesaje prietenoase
+      const errorCode = error?.context?.error_code || error?.error_code;
       
-      if (errorMessage.includes('Unauthorized') || errorMessage.includes('Authentication')) {
-        toast.error('Sesiunea ta a expirat. Te rugăm să te autentifici din nou.');
-      } else if (errorMessage.includes('Forbidden') || errorMessage.includes('Admin access')) {
-        toast.error('Nu ai permisiuni de administrator pentru această acțiune.');
-      } else if (errorMessage.includes('Only processed reports')) {
-        toast.error('Doar rapoartele procesate (aprobate/respinse) pot fi arhivate.');
-      } else if (errorMessage.includes('already archived')) {
-        toast.error('Acest raport este deja arhivat.');
-      } else {
-        toast.error('Nu s-a putut arhiva raportul. Te rugăm să încerci din nou.');
+      switch (errorCode) {
+        case 'not_admin':
+          toast.error('Nu ai permisiuni de administrator pentru această acțiune.');
+          break;
+        case 'not_processed':
+          toast.error('Doar rapoartele procesate (aprobate sau respinse) pot fi arhivate.');
+          break;
+        case 'already_archived':
+          toast.error('Acest raport este deja arhivat.');
+          break;
+        case 'report_not_found':
+          toast.error('Raportul nu a fost găsit.');
+          break;
+        case 'missing_auth':
+        case 'auth_failed':
+          toast.error('Sesiunea ta a expirat. Te rugăm să te autentifici din nou.');
+          break;
+        default:
+          toast.error('Eroare la arhivarea raportului. Te rugăm să încerci din nou.');
       }
     },
   });
