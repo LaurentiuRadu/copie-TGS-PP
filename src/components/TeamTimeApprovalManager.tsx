@@ -89,7 +89,8 @@ export const TeamTimeApprovalManager = ({
   const [editingSegment, setEditingSegment] = useState<{
     userId: string;
     segmentIndex: number;
-    field: 'duration';
+    segmentId: string;
+    field: 'startTime' | 'endTime';
     value: string;
   } | null>(null);
   const { toast } = useToast();
@@ -178,6 +179,7 @@ export const TeamTimeApprovalManager = ({
     firstClockIn: string;
     lastClockOut: string | null;
     segments: Array<{
+      id: string;
       type: string;
       startTime: string;
       endTime: string;
@@ -227,6 +229,7 @@ export const TeamTimeApprovalManager = ({
       if (entry.segments && entry.segments.length > 0) {
         entry.segments.forEach(seg => {
           employeeData.segments.push({
+            id: seg.id,
             type: seg.segment_type,
             startTime: seg.start_time,
             endTime: seg.end_time,
@@ -299,61 +302,54 @@ export const TeamTimeApprovalManager = ({
     },
   });
 
-  const updateSegmentMutation = useMutation({
+  const updateSegmentTimeMutation = useMutation({
     mutationFn: async ({ 
-      userId, 
-      workDate, 
-      segmentType, 
-      newValue 
+      segmentId,
+      field,
+      newTime,
+      currentSegment
     }: { 
-      userId: string; 
-      workDate: string; 
-      segmentType: string; 
-      newValue: number;
+      segmentId: string;
+      field: 'startTime' | 'endTime';
+      newTime: string;
+      currentSegment: any;
     }) => {
-      // 1. Obține datele curente din daily_timesheets
-      const { data: currentTimesheet, error: fetchError } = await supabase
-        .from('daily_timesheets')
-        .select('*')
-        .eq('employee_id', userId)
-        .eq('work_date', workDate)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
-      // 2. Creează obiect actualizat
-      const updatedData = {
-        employee_id: userId,
-        work_date: workDate,
-        hours_regular: currentTimesheet?.hours_regular || 0,
-        hours_night: currentTimesheet?.hours_night || 0,
-        hours_saturday: currentTimesheet?.hours_saturday || 0,
-        hours_sunday: currentTimesheet?.hours_sunday || 0,
-        hours_holiday: currentTimesheet?.hours_holiday || 0,
-        hours_passenger: currentTimesheet?.hours_passenger || 0,
-        hours_driving: currentTimesheet?.hours_driving || 0,
-        hours_equipment: currentTimesheet?.hours_equipment || 0,
-        hours_leave: currentTimesheet?.hours_leave || 0,
-        hours_medical_leave: currentTimesheet?.hours_medical_leave || 0,
-        notes: `[EDITARE INLINE SEGMENT] Actualizat ${segmentType} la ${newValue.toFixed(2)}h`,
-      };
-
-      // 3. Actualizează doar câmpul editat
-      (updatedData as any)[segmentType] = newValue;
-
-      // 4. Upsert în daily_timesheets
-      const { error: upsertError } = await supabase
-        .from('daily_timesheets')
-        .upsert(updatedData, { onConflict: 'employee_id,work_date' });
-
-      if (upsertError) throw upsertError;
-
-      return { userId, workDate, segmentType, newValue };
+      // Parse new time (format: HH:mm)
+      const [hours, minutes] = newTime.split(':').map(Number);
+      
+      // Get date from existing timestamp
+      const existingDate = new Date(field === 'startTime' ? currentSegment.startTime : currentSegment.endTime);
+      const newDate = new Date(existingDate);
+      newDate.setHours(hours, minutes, 0, 0);
+      
+      // Calculate new duration
+      const startTime = field === 'startTime' ? newDate : new Date(currentSegment.startTime);
+      const endTime = field === 'endTime' ? newDate : new Date(currentSegment.endTime);
+      const durationMs = endTime.getTime() - startTime.getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      
+      if (durationHours <= 0 || durationHours > 24) {
+        throw new Error('Durata trebuie să fie între 0 și 24 ore');
+      }
+      
+      // Update segment in time_entry_segments
+      const updateData = field === 'startTime' 
+        ? { start_time: newDate.toISOString(), hours_decimal: durationHours }
+        : { end_time: newDate.toISOString(), hours_decimal: durationHours };
+      
+      const { error: updateError } = await supabase
+        .from('time_entry_segments')
+        .update(updateData)
+        .eq('id', segmentId);
+      
+      if (updateError) throw updateError;
+      
+      return { segmentId, field, newTime, durationHours };
     },
     onSuccess: (data) => {
       toast({
-        title: '✅ Segment actualizat',
-        description: `Durata ${getSegmentLabel(data.segmentType)} actualizată la ${data.newValue.toFixed(2)}h`,
+        title: '✅ Timp actualizat',
+        description: `Nou interval: ${data.durationHours.toFixed(2)}h`,
       });
       
       // Invalidează cache-ul pentru a reîncărca datele
@@ -366,57 +362,57 @@ export const TeamTimeApprovalManager = ({
     onError: (error: any) => {
       toast({
         title: '❌ Eroare la actualizare',
-        description: error.message || 'Nu s-a putut actualiza segmentul',
+        description: error.message || 'Nu s-a putut actualiza timpul',
         variant: 'destructive',
       });
       setEditingSegment(null);
     },
   });
 
-  const handleSegmentClick = (userId: string, segmentIndex: number, currentValue: number) => {
+  const handleTimeClick = (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => {
+    // Extract HH:mm from ISO timestamp
+    const timeOnly = formatRomania(currentTime, 'HH:mm');
     setEditingSegment({
       userId,
       segmentIndex,
-      field: 'duration',
-      value: currentValue.toFixed(2),
+      segmentId,
+      field,
+      value: timeOnly,
     });
   };
 
-  const handleSegmentChange = (newValue: string) => {
+  const handleTimeChange = (newValue: string) => {
     if (!editingSegment) return;
     setEditingSegment({ ...editingSegment, value: newValue });
   };
 
-  const handleSegmentSave = (employee: EmployeeDayData) => {
+  const handleTimeSave = (employee: EmployeeDayData) => {
     if (!editingSegment) return;
 
     const segment = employee.segments[editingSegment.segmentIndex];
-    const newValue = parseFloat(editingSegment.value);
-
-    // Validare
-    if (isNaN(newValue) || newValue < 0 || newValue > 24) {
+    
+    // Validare format HH:mm
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(editingSegment.value)) {
       toast({
-        title: '⚠️ Valoare invalidă',
-        description: 'Durata trebuie să fie între 0 și 24 ore',
+        title: '⚠️ Format invalid',
+        description: 'Folosește formatul HH:mm (ex: 10:30)',
         variant: 'destructive',
       });
       setEditingSegment(null);
       return;
     }
 
-    // Extrage work_date din startTime al segmentului
-    const workDate = format(new Date(segment.startTime), 'yyyy-MM-dd');
-
     // Apelează mutation-ul
-    updateSegmentMutation.mutate({
-      userId: employee.userId,
-      workDate,
-      segmentType: segment.type,
-      newValue,
+    updateSegmentTimeMutation.mutate({
+      segmentId: editingSegment.segmentId,
+      field: editingSegment.field,
+      newTime: editingSegment.value,
+      currentSegment: segment,
     });
   };
 
-  const handleSegmentCancel = () => {
+  const handleTimeCancel = () => {
     setEditingSegment(null);
   };
 
@@ -588,50 +584,74 @@ export const TeamTimeApprovalManager = ({
                     {employee.segments.length > 0 ? (
                       <div className="space-y-2 mb-4">
                         {employee.segments.map((segment, idx) => {
-                          const isEditing = editingSegment?.userId === employee.userId && 
-                                            editingSegment?.segmentIndex === idx;
+                          const isEditingStart = editingSegment?.userId === employee.userId && 
+                                                 editingSegment?.segmentIndex === idx &&
+                                                 editingSegment?.field === 'startTime';
+                          const isEditingEnd = editingSegment?.userId === employee.userId && 
+                                               editingSegment?.segmentIndex === idx &&
+                                               editingSegment?.field === 'endTime';
                           
                           return (
                             <div key={idx} className="flex items-center gap-3 p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
                               <span className="text-2xl">{getSegmentIcon(segment.type)}</span>
                               <div className="flex-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 mb-1">
                                   <span className="font-medium">{getSegmentLabel(segment.type)}</span>
-                                  
-                                  {/* ✅ INLINE EDITING PENTRU DURATĂ */}
-                                  {isEditing ? (
-                                    <div className="flex items-center gap-1">
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        max="24"
-                                        value={editingSegment.value}
-                                        onChange={(e) => handleSegmentChange(e.target.value)}
-                                        onBlur={() => handleSegmentSave(employee)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') handleSegmentSave(employee);
-                                          if (e.key === 'Escape') handleSegmentCancel();
-                                        }}
-                                        autoFocus
-                                        className="w-20 h-7 text-xs"
-                                      />
-                                      <span className="text-xs text-muted-foreground">h</span>
-                                    </div>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {segment.duration.toFixed(2)}h
+                                  </Badge>
+                                </div>
+                                
+                                {/* ✅ INLINE EDITING PENTRU START/END TIMES */}
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  {isEditingStart ? (
+                                    <Input
+                                      type="time"
+                                      value={editingSegment.value}
+                                      onChange={(e) => handleTimeChange(e.target.value)}
+                                      onBlur={() => handleTimeSave(employee)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleTimeSave(employee);
+                                        if (e.key === 'Escape') handleTimeCancel();
+                                      }}
+                                      autoFocus
+                                      className="w-24 h-7 text-xs"
+                                    />
                                   ) : (
-                                    <Badge 
-                                      variant="secondary" 
-                                      className="text-xs cursor-pointer hover:bg-primary/10 transition-colors"
-                                      onClick={() => handleSegmentClick(employee.userId, idx, segment.duration)}
-                                      title="Click pentru a edita durata"
+                                    <span 
+                                      className="cursor-pointer hover:bg-primary/10 px-2 py-1 rounded transition-colors"
+                                      onClick={() => handleTimeClick(employee.userId, idx, segment.id, 'startTime', segment.startTime)}
+                                      title="Click pentru a edita ora de start"
                                     >
-                                      {segment.duration.toFixed(2)}h
-                                    </Badge>
+                                      {formatRomania(segment.startTime, 'HH:mm')}
+                                    </span>
+                                  )}
+                                  
+                                  <span>→</span>
+                                  
+                                  {isEditingEnd ? (
+                                    <Input
+                                      type="time"
+                                      value={editingSegment.value}
+                                      onChange={(e) => handleTimeChange(e.target.value)}
+                                      onBlur={() => handleTimeSave(employee)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleTimeSave(employee);
+                                        if (e.key === 'Escape') handleTimeCancel();
+                                      }}
+                                      autoFocus
+                                      className="w-24 h-7 text-xs"
+                                    />
+                                  ) : (
+                                    <span 
+                                      className="cursor-pointer hover:bg-primary/10 px-2 py-1 rounded transition-colors"
+                                      onClick={() => handleTimeClick(employee.userId, idx, segment.id, 'endTime', segment.endTime)}
+                                      title="Click pentru a edita ora de final"
+                                    >
+                                      {formatRomania(segment.endTime, 'HH:mm')}
+                                    </span>
                                   )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {formatRomania(segment.startTime, 'HH:mm')} → {formatRomania(segment.endTime, 'HH:mm')}
-                                </p>
                               </div>
                             </div>
                           );
