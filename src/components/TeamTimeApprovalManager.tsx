@@ -389,8 +389,8 @@ export const TeamTimeApprovalManager = ({
     },
   });
 
-  const handleTimeClick = (userId: string, segmentIndex: number, segmentId: string | undefined, field: 'startTime' | 'endTime', currentTime: string) => {
-    // ✅ VALIDARE: Nu permite editare dacă segment.id lipsește
+  const handleTimeClick = (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => {
+    // ✅ VALIDARE: Siguranță runtime (deși tipul garantează că e definit)
     if (!segmentId) {
       console.error('[handleTimeClick] Segment ID is undefined');
       toast({
