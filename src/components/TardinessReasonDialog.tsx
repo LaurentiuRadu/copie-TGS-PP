@@ -53,7 +53,7 @@ export const TardinessReasonDialog = ({
             Întârziere Detectată
           </DialogTitle>
           <DialogDescription>
-            Ești cu {delayMinutes} minute întârziere față de programul tău.
+            Ești cu {delayMinutes} minute întârziere (limită pontaj depășită).
             Te rugăm să precizezi motivul.
           </DialogDescription>
         </DialogHeader>

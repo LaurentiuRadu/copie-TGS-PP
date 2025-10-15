@@ -53,21 +53,34 @@ export const useTardinessCheck = (userId: string | undefined, enabled: boolean =
           return;
         }
 
-        // Presupunem că ora programată este 06:00 (sau se poate extrage din shift_type)
-        // Pentru simplitate, setăm ora programată la 06:00
+        // Determină ora programată în funcție de shift_type
+        const shiftType = schedules[0].shift_type || 'zi';
         const scheduledDate = new Date(now);
-        scheduledDate.setHours(6, 0, 0, 0);
+        
+        // Configurare ore programate
+        if (shiftType === 'zi') {
+          scheduledDate.setHours(8, 0, 0, 0); // Tura zi: 08:00
+        } else if (shiftType === 'noapte') {
+          scheduledDate.setHours(22, 0, 0, 0); // Tura noapte: 22:00
+        } else {
+          scheduledDate.setHours(8, 0, 0, 0); // Default: 08:00
+        }
 
-        // Calculează întârzierea
-        const delayMs = now.getTime() - scheduledDate.getTime();
-        const delayMinutes = Math.floor(delayMs / (1000 * 60));
+        // Calculează ora limită (ora programată + toleranță)
+        const toleranceMinutes = 20;
+        const limitTime = new Date(scheduledDate);
+        limitTime.setMinutes(limitTime.getMinutes() + toleranceMinutes);
 
-        // Considerăm întârziere dacă sunt mai mult de 15 minute după ora programată
-        const isLate = delayMinutes > 15;
+        // Calculează întârzierea față de ora limită (nu față de ora programată)
+        const actualDelayMs = now.getTime() - limitTime.getTime();
+        const actualDelayMinutes = Math.floor(actualDelayMs / (1000 * 60));
+
+        // Marcăm ca întârziere doar dacă depășește ora limită
+        const isLate = actualDelayMinutes > 0;
 
         setTardinessInfo({
           isLate,
-          delayMinutes: isLate ? delayMinutes : 0,
+          delayMinutes: isLate ? actualDelayMinutes : 0,
           scheduledTime: isLate ? scheduledDate.toISOString() : null,
         });
       } catch (error) {
