@@ -155,8 +155,19 @@ export const TardinessReportsManager = () => {
   // Mutation for deleting
   const deleteMutation = useMutation({
     mutationFn: async (reportId: string) => {
+      // Get current session to pass auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Sesiunea ta a expirat. Te rugăm să te autentifici din nou.');
+      }
+
+      // Include Authorization header explicitly
       const { data, error } = await supabase.functions.invoke('delete-tardiness-report', {
-        body: { report_id: reportId }
+        body: { report_id: reportId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
       if (error) throw error;
       return data;
