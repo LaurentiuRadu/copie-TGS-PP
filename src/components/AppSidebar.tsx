@@ -46,7 +46,7 @@ const adminMenuItems = [
       { title: "Fișe Pontaj", url: "/timesheet", icon: FileText },
       { title: "Verificare Pontaje", url: "/timesheet/verificare", icon: ClipboardCheck, badge: true, badgeType: 'approvals' },
       { title: "Istoric Aprobări", url: "/timesheet/istoric", icon: History },
-      { title: "Rapoarte întârzieri", url: "/timesheet/rapoarte-intarzieri", icon: AlertTriangle, badge: true, badgeType: 'tardiness' },
+      
     ]
   },
   { title: "Programare Săptămânală", url: "/weekly-schedules", icon: CalendarDays },
@@ -115,20 +115,6 @@ export function AppSidebar() {
     refetchInterval: 30000, // 30s
   });
 
-  // Query pentru rapoarte întârzieri pending (badge pentru Rapoarte întârzieri)
-  const { data: pendingTardinessCount = 0 } = useQuery({
-    queryKey: ['pending-tardiness-count-sidebar'],
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('tardiness_reports')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      
-      return count || 0;
-    },
-    enabled: isAdmin,
-    refetchInterval: 30000, // 30s
-  });
 
 
   useEffect(() => {
@@ -192,9 +178,9 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminMenuItems.map((item) => {
                   if (item.isParent && item.children) {
-                    // SUBMENIU COLLAPSIBLE - suma ambelor badge-uri pentru parent
+                    // SUBMENIU COLLAPSIBLE - badge pentru parent
                     const totalBadge = item.badge 
-                      ? (pendingApprovalsCount || 0) + (pendingTardinessCount || 0)
+                      ? (pendingApprovalsCount || 0)
                       : 0;
                     
                     return (
@@ -215,10 +201,8 @@ export function AppSidebar() {
                           <CollapsibleContent>
                             <SidebarMenuSub className="space-y-1 py-2">
                               {item.children.map((child) => {
-                                // Determină badge-ul în funcție de tipul copilului
-                                const badgeCount = child.badgeType === 'tardiness' 
-                                  ? pendingTardinessCount 
-                                  : pendingApprovalsCount;
+                                // Badge doar pentru approvals
+                                const badgeCount = pendingApprovalsCount;
                                 const childBadge = !!(child.badge && (badgeCount ?? 0) > 0);
                                 
                                 return (
