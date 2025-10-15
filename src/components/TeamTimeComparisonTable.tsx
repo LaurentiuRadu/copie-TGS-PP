@@ -69,9 +69,9 @@ export const TeamTimeComparisonTable = ({
   onTimeCancel,
 }: TeamTimeComparisonTableProps) => {
   
-  // Detectează șoferii (au segment hours_passenger)
+  // Detectează șoferii (cei care conduc efectiv)
   const isDriver = (segments: Segment[]) => {
-    return segments.some(s => s.type === 'hours_passenger');
+    return segments.some(s => s.type === 'hours_driving' || s.type === 'hours_equipment');
   };
 
   // Calculează media echipei (exclude șoferii)
@@ -153,7 +153,7 @@ export const TeamTimeComparisonTable = ({
   const getSegmentIcon = (type: string) => {
     switch(type) {
       case 'hours_driving': return '🚗';
-      case 'hours_passenger': return '🚙';
+      case 'hours_passenger': return '👥';
       case 'hours_equipment': return '🚜';
       case 'hours_night': return '🌙';
       case 'hours_holiday': return '🎉';

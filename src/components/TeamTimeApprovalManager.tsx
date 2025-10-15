@@ -258,7 +258,7 @@ export const TeamTimeApprovalManager = ({
   const getSegmentIcon = (type: string) => {
     switch(type) {
       case 'hours_driving': return '🚗';
-      case 'hours_passenger': return '🚙';
+      case 'hours_passenger': return '👥';
       case 'hours_equipment': return '🚜';
       case 'hours_night': return '🌙';
       case 'hours_holiday': return '🎉';
@@ -454,7 +454,7 @@ export const TeamTimeApprovalManager = ({
 
   // Handler pentru uniformizare
   const handleUniformize = async (avgClockIn: string, avgClockOut: string | null) => {
-    const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_passenger');
+    const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_driving' || s.type === 'hours_equipment');
     const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
 
     if (nonDrivers.length === 0) {
