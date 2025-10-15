@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, Clock, AlertCircle, Calendar, User, Archive } from 'lucide-react';
+import { Check, X, Clock, AlertCircle, Calendar, User, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -69,7 +69,7 @@ export const TardinessReportsManager = () => {
     action: 'approve' | 'reject' | null;
   }>({ open: false, report: null, action: null });
   const [adminNotes, setAdminNotes] = useState('');
-  const [archiveDialog, setArchiveDialog] = useState<{
+  const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     reportId: string | null;
   }>({ open: false, reportId: null });
@@ -152,10 +152,10 @@ export const TardinessReportsManager = () => {
     },
   });
 
-  // Mutation for archiving
-  const archiveMutation = useMutation({
+  // Mutation for deleting
+  const deleteMutation = useMutation({
     mutationFn: async (reportId: string) => {
-      const { data, error } = await supabase.functions.invoke('archive-tardiness-report', {
+      const { data, error } = await supabase.functions.invoke('delete-tardiness-report', {
         body: { report_id: reportId }
       });
       if (error) throw error;
@@ -164,10 +164,10 @@ export const TardinessReportsManager = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tardiness-reports-active'] });
       queryClient.invalidateQueries({ queryKey: ['tardiness-reports-archived'] });
-      toast.success('Raport arhivat cu succes');
+      toast.success('Raport șters cu succes');
     },
     onError: (error: any) => {
-      console.error('Archive error:', error);
+      console.error('Delete error:', error);
       
       // Mapare error_code la mesaje prietenoase
       const errorCode = error?.context?.error_code || error?.error_code;
@@ -177,10 +177,7 @@ export const TardinessReportsManager = () => {
           toast.error('Nu ai permisiuni de administrator pentru această acțiune.');
           break;
         case 'not_processed':
-          toast.error('Doar rapoartele procesate (aprobate sau respinse) pot fi arhivate.');
-          break;
-        case 'already_archived':
-          toast.error('Acest raport este deja arhivat.');
+          toast.error('Doar rapoartele procesate (aprobate sau respinse) pot fi șterse.');
           break;
         case 'report_not_found':
           toast.error('Raportul nu a fost găsit.');
@@ -190,7 +187,7 @@ export const TardinessReportsManager = () => {
           toast.error('Sesiunea ta a expirat. Te rugăm să te autentifici din nou.');
           break;
         default:
-          toast.error('Eroare la arhivarea raportului. Te rugăm să încerci din nou.');
+          toast.error('Eroare la ștergerea raportului. Te rugăm să încerci din nou.');
       }
     },
   });
@@ -205,18 +202,18 @@ export const TardinessReportsManager = () => {
     });
   };
 
-  const handleArchive = (reportId: string) => {
-    setArchiveDialog({ open: true, reportId });
+  const handleDelete = (reportId: string) => {
+    setDeleteDialog({ open: true, reportId });
   };
 
-  const confirmArchive = () => {
-    if (!archiveDialog.reportId) {
-      toast.error('Nu am putut identifica raportul de arhivat. Reîncearcă.');
+  const confirmDelete = () => {
+    if (!deleteDialog.reportId) {
+      toast.error('Nu am putut identifica raportul de șters. Reîncearcă.');
       return;
     }
-    const reportId = archiveDialog.reportId;
-    setArchiveDialog({ open: false, reportId: null });
-    archiveMutation.mutate(reportId);
+    const reportId = deleteDialog.reportId;
+    setDeleteDialog({ open: false, reportId: null });
+    deleteMutation.mutate(reportId);
   };
 
   const getStatusBadge = (status: string) => {
@@ -241,7 +238,7 @@ export const TardinessReportsManager = () => {
   const pendingCount = activeReports?.filter((r) => r.status === 'pending').length || 0;
   const isLoading = isLoadingActive || isLoadingArchived;
 
-  const renderReports = (reports: TardinessReport[] | undefined, showArchiveButton: boolean) => {
+  const renderReports = (reports: TardinessReport[] | undefined, showDeleteButton: boolean) => {
     if (!reports || reports.length === 0) {
       return (
         <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
@@ -322,17 +319,17 @@ export const TardinessReportsManager = () => {
                   </Button>
                 </div>
               )}
-              {showArchiveButton && report.status !== 'pending' && (
+              {showDeleteButton && report.status !== 'pending' && (
                 <div className="pt-2">
                   <Button
                     className="w-full"
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
-                    onClick={() => handleArchive(report.id)}
-                    disabled={archiveMutation.isPending}
+                    onClick={() => handleDelete(report.id)}
+                    disabled={deleteMutation.isPending}
                   >
-                    <Archive className="h-4 w-4 mr-1" />
-                    Arhivează
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Șterge
                   </Button>
                 </div>
               )}
@@ -405,15 +402,16 @@ export const TardinessReportsManager = () => {
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
-                  ) : showArchiveButton ? (
+                  ) : showDeleteButton ? (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleArchive(report.id)}
-                      disabled={archiveMutation.isPending}
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                      onClick={() => handleDelete(report.id)}
+                      disabled={deleteMutation.isPending}
                     >
-                      <Archive className="h-4 w-4 mr-1" />
-                      Arhivează
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Șterge
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
@@ -550,26 +548,26 @@ export const TardinessReportsManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Archive Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog 
-        open={archiveDialog.open} 
-        onOpenChange={(open) => setArchiveDialog(prev => ({ ...prev, open }))}
+        open={deleteDialog.open} 
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Arhivare raport</AlertDialogTitle>
+            <AlertDialogTitle>Ștergere raport</AlertDialogTitle>
             <AlertDialogDescription>
-              Sigur vrei să arhivezi acest raport? Raportul va fi mutat în secțiunea "Arhivă" 
-              și nu va mai apărea în lista rapoartelor active.
+              Această acțiune este definitivă. Raportul va fi șters permanent și nu va mai putea fi recuperat.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Anulează</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={confirmArchive}
-              disabled={archiveMutation.isPending}
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
             >
-              {archiveMutation.isPending ? 'Se arhivează...' : 'Arhivează'}
+              {deleteMutation.isPending ? 'Se șterge...' : 'Șterge'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
