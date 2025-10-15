@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-supabase-auth, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
@@ -15,24 +15,31 @@ serve(async (req) => {
   console.log('[Delete] Request received');
 
   try {
-    // 1. AUTH VALIDATION
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('[Delete] Auth header missing');
+    // 1. AUTH VALIDATION (support both Authorization and X-Supabase-Auth)
+    const rawAuth =
+      req.headers.get('x-supabase-auth') ||
+      req.headers.get('X-Supabase-Auth') ||
+      req.headers.get('authorization') ||
+      req.headers.get('Authorization');
+
+    if (!rawAuth) {
+      console.error('[Delete] Auth header missing (Authorization/X-Supabase-Auth)');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Missing authorization', 
-          error_code: 'missing_auth' 
+        JSON.stringify({
+          success: false,
+          error: 'Missing authorization',
+          error_code: 'missing_auth',
         }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const token = rawAuth.startsWith('Bearer ') ? rawAuth : `Bearer ${rawAuth}`;
+
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: token } } }
     );
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();

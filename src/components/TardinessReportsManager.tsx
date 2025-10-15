@@ -166,6 +166,8 @@ export const TardinessReportsManager = () => {
       const { data, error } = await supabase.functions.invoke('delete-tardiness-report', {
         body: { report_id: reportId },
         headers: {
+          // Prefer X-Supabase-Auth; keep Authorization for compatibility
+          'X-Supabase-Auth': `Bearer ${session.access_token}`,
           Authorization: `Bearer ${session.access_token}`
         }
       });
