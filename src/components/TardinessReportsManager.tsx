@@ -200,9 +200,13 @@ export const TardinessReportsManager = () => {
   };
 
   const confirmArchive = () => {
-    if (!archiveDialog.reportId) return;
-    archiveMutation.mutate(archiveDialog.reportId);
+    if (!archiveDialog.reportId) {
+      toast.error('Nu am putut identifica raportul de arhivat. Reîncearcă.');
+      return;
+    }
+    const reportId = archiveDialog.reportId;
     setArchiveDialog({ open: false, reportId: null });
+    archiveMutation.mutate(reportId);
   };
 
   const getStatusBadge = (status: string) => {
@@ -539,7 +543,7 @@ export const TardinessReportsManager = () => {
       {/* Archive Confirmation Dialog */}
       <AlertDialog 
         open={archiveDialog.open} 
-        onOpenChange={(open) => setArchiveDialog({ open, reportId: null })}
+        onOpenChange={(open) => setArchiveDialog(prev => ({ ...prev, open }))}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
