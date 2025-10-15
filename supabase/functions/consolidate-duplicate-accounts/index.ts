@@ -62,7 +62,6 @@ Deno.serve(async (req) => {
       vacationBalances: 0,
       faceVerificationLogs: 0,
       correctionRequests: 0,
-      tardinessReports: 0,
       notificationSettings: 0,
       userConsents: 0,
       activeSessions: 0,
@@ -161,17 +160,7 @@ Deno.serve(async (req) => {
     if (corrReqError) throw new Error(`correction_requests: ${corrReqError.message}`);
     migratedCounts.correctionRequests = corrReqData?.length || 0;
 
-    // 8. Migrare tardiness_reports
-    const { data: tardReportsData, error: tardReportsError } = await supabase
-      .from('tardiness_reports')
-      .update({ user_id: targetUserId })
-      .eq('user_id', sourceUserId)
-      .select('id');
-    
-    if (tardReportsError) throw new Error(`tardiness_reports: ${tardReportsError.message}`);
-    migratedCounts.tardinessReports = tardReportsData?.length || 0;
-
-    // 9. Migrare notification_settings
+    // 8. Migrare notification_settings
     const { data: notifData, error: notifError } = await supabase
       .from('notification_settings')
       .update({ user_id: targetUserId })

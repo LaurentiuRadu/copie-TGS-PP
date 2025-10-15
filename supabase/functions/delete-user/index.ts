@@ -139,17 +139,7 @@ Deno.serve(async (req) => {
       console.log('Warning deleting vacation balances:', balanceError.message)
     }
 
-    // 7. Șterge tardiness reports
-    const { error: tardinessError } = await supabaseAdmin
-      .from('tardiness_reports')
-      .delete()
-      .eq('user_id', userId)
-    
-    if (tardinessError) {
-      console.log('Warning deleting tardiness reports:', tardinessError.message)
-    }
-
-    // 8. Șterge correction requests
+    // 7. Șterge correction requests
     const { error: correctionsError } = await supabaseAdmin
       .from('time_entry_correction_requests')
       .delete()
