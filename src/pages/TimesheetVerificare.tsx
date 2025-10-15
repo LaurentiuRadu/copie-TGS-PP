@@ -2,9 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TeamTimeApprovalManager } from '@/components/TeamTimeApprovalManager';
+import { TeamTimeTableView } from '@/components/TeamTimeTableView';
+import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
+import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, RotateCcw, AlertTriangle, Info } from 'lucide-react';
+import { ClipboardCheck, ChevronLeft, ChevronRight, ChevronDown, AlertCircle, CheckCircle2, RotateCcw, AlertTriangle, Info, Table as TableIcon, LayoutGrid } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { startOfWeek, endOfWeek, format, addWeeks, subWeeks, addDays } from 'date-fns';
@@ -14,6 +18,8 @@ import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTeamApprovalWorkflow } from '@/hooks/useTeamApprovalWorkflow';
+import type { TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,7 +67,21 @@ export default function TimesheetVerificare() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"card" | "table">("table");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<TimeEntryForApproval | null>(null);
   const { toast } = useToast();
+
+  // Fetch team approval data for table view
+  const {
+    pendingEntries,
+    teamStats,
+    isLoading: isLoadingApprovals,
+    detectDiscrepancies,
+    approveMutation,
+    approveBatchMutation,
+  } = useTeamApprovalWorkflow(selectedTeam, selectedWeek, selectedDayOfWeek);
 
   // 🆕 localStorage key pentru tracking echipe verificate
   const getVerificationStorageKey = () => `team-verification-${selectedWeek}-${selectedDayOfWeek}`;
@@ -595,24 +615,91 @@ export default function TimesheetVerificare() {
 
         <CardContent>
           <div className="space-y-6">
-            
-            <TeamTimeApprovalManager
-              selectedWeek={selectedWeek}
-              selectedDayOfWeek={selectedDayOfWeek}
-              availableTeams={availableTeams || new Set()}
-              selectedTeam={selectedTeam}
-              editedTeams={editedTeams}
-              onTeamEdited={(teamId) => {
-                setEditedTeams(prev => new Set([...prev, teamId]));
-                // Auto-marchează ca verificată dacă nu mai are pontaje pending sau incomplete
-                const teamData = teamPendingCounts[teamId] || { pending: 0, incomplete: 0, total: 0 };
-                if (teamData.total === 0) {
-                  setVerifiedTeams(prev => new Set([...prev, teamId]));
-                }
-              }}
-              onTeamChange={setSelectedTeam}
-            />
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "card" | "table")}>
+              <div className="flex items-center justify-between mb-4">
+                <TabsList>
+                  <TabsTrigger value="table" className="gap-2">
+                    <TableIcon className="h-4 w-4" />
+                    Tabel Condensat
+                  </TabsTrigger>
+                  <TabsTrigger value="card" className="gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    Vedere Card
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="table" className="space-y-4">
+                {selectedTeam ? (
+                  <TeamTimeTableView
+                    entries={pendingEntries}
+                    teamStats={teamStats}
+                    onApprove={(entryId) => approveMutation.mutate({ entryId })}
+                    onEdit={(entry) => {
+                      setSelectedEntry(entry);
+                      setEditDialogOpen(true);
+                    }}
+                    onDelete={(entry) => {
+                      setSelectedEntry(entry);
+                      setDeleteDialogOpen(true);
+                    }}
+                    onBulkApprove={(entryIds) => approveBatchMutation.mutate(entryIds)}
+                    isApprovingBatch={approveBatchMutation.isPending}
+                    detectDiscrepancies={detectDiscrepancies}
+                  />
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    Selectează o echipă pentru a vedea pontajele
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="card">
+                <TeamTimeApprovalManager
+                  selectedWeek={selectedWeek}
+                  selectedDayOfWeek={selectedDayOfWeek}
+                  availableTeams={availableTeams || new Set()}
+                  selectedTeam={selectedTeam}
+                  editedTeams={editedTeams}
+                  onTeamEdited={(teamId) => {
+                    setEditedTeams(prev => new Set([...prev, teamId]));
+                    // Auto-marchează ca verificată dacă nu mai are pontaje pending sau incomplete
+                    const teamData = teamPendingCounts[teamId] || { pending: 0, incomplete: 0, total: 0 };
+                    if (teamData.total === 0) {
+                      setVerifiedTeams(prev => new Set([...prev, teamId]));
+                    }
+                  }}
+                  onTeamChange={setSelectedTeam}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
+
+          {/* Edit Dialog */}
+          {selectedEntry && (
+            <TimeEntryApprovalEditDialog
+              entry={selectedEntry}
+              open={editDialogOpen}
+              onOpenChange={setEditDialogOpen}
+              onSuccess={() => {
+                setEditDialogOpen(false);
+                setSelectedEntry(null);
+              }}
+            />
+          )}
+
+          {/* Delete Dialog */}
+          {selectedEntry && (
+            <DeleteTimeEntryDialog
+              entry={selectedEntry}
+              open={deleteDialogOpen}
+              onOpenChange={setDeleteDialogOpen}
+              onSuccess={() => {
+                setDeleteDialogOpen(false);
+                setSelectedEntry(null);
+              }}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
