@@ -211,13 +211,18 @@ export default function TimesheetVerificare() {
       const userIds = schedules.map(s => s.user_id);
 
       // Numără pontajele pending pentru acești useri în ziua selectată
+      // EXCLUDE office staff explicit prin JOIN cu profiles
       const { count } = await supabase
         .from('time_entries')
-        .select('*', { count: 'exact', head: true })
+        .select(`
+          *,
+          profiles!inner(is_office_staff)
+        `, { count: 'exact', head: true })
         .in('user_id', userIds)
         .gte('clock_in_time', `${targetDateStr}T00:00:00Z`)
         .lt('clock_in_time', `${format(addDays(targetDate, 1), 'yyyy-MM-dd')}T00:00:00Z`)
-        .eq('approval_status', 'pending_review');
+        .eq('approval_status', 'pending_review')
+        .eq('profiles.is_office_staff', false);
 
       return count || 0;
     },
