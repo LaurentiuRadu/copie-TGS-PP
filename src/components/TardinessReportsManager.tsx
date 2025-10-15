@@ -21,7 +21,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Check, X, Clock, AlertCircle, Calendar, User } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Check, X, Clock, AlertCircle, Calendar, User, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -40,6 +41,9 @@ interface TardinessReport {
   reviewed_at: string | null;
   admin_notes: string | null;
   created_at: string;
+  is_archived?: boolean;
+  archived_at?: string | null;
+  archived_by?: string | null;
   profiles: {
     full_name: string;
     username: string;
@@ -56,22 +60,45 @@ export const TardinessReportsManager = () => {
   }>({ open: false, report: null, action: null });
   const [adminNotes, setAdminNotes] = useState('');
 
-  const { data: reports, isLoading } = useQuery({
-    queryKey: ['tardiness-reports'],
+  // Query for active (non-archived) reports
+  const { data: activeReports, isLoading: isLoadingActive } = useQuery({
+    queryKey: ['tardiness-reports-active'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tardiness_reports')
         .select(`
           *,
-          profiles:user_id (
+          profiles!user_id (
             full_name,
             username
           )
         `)
+        .eq('is_archived', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as any[];
+      return data as TardinessReport[];
+    },
+  });
+
+  // Query for archived reports
+  const { data: archivedReports, isLoading: isLoadingArchived } = useQuery({
+    queryKey: ['tardiness-reports-archived'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tardiness_reports')
+        .select(`
+          *,
+          profiles!user_id (
+            full_name,
+            username
+          )
+        `)
+        .eq('is_archived', true)
+        .order('archived_at', { ascending: false });
+
+      if (error) throw error;
+      return data as TardinessReport[];
     },
   });
 
@@ -100,7 +127,7 @@ export const TardinessReportsManager = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tardiness-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['tardiness-reports-active'] });
       toast.success('Raport întârziere procesat cu succes');
       setReviewDialog({ open: false, report: null, action: null });
       setAdminNotes('');
@@ -108,6 +135,26 @@ export const TardinessReportsManager = () => {
     onError: (error) => {
       console.error('Error reviewing tardiness report:', error);
       toast.error('Eroare la procesarea raportului');
+    },
+  });
+
+  // Mutation for archiving
+  const archiveMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const { data, error } = await supabase.functions.invoke('archive-tardiness-report', {
+        body: { report_id: reportId }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tardiness-reports-active'] });
+      queryClient.invalidateQueries({ queryKey: ['tardiness-reports-archived'] });
+      toast.success('Raport arhivat cu succes');
+    },
+    onError: (error) => {
+      console.error('Archive error:', error);
+      toast.error('Nu s-a putut arhiva raportul');
     },
   });
 
@@ -119,6 +166,12 @@ export const TardinessReportsManager = () => {
       status: reviewDialog.action === 'approve' ? 'approved' : 'rejected',
       notes: adminNotes,
     });
+  };
+
+  const handleArchive = (reportId: string) => {
+    if (confirm('Sigur vrei să arhivezi acest raport?')) {
+      archiveMutation.mutate(reportId);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -140,180 +193,236 @@ export const TardinessReportsManager = () => {
     }
   };
 
-  const pendingCount = reports?.filter((r) => r.status === 'pending').length || 0;
+  const pendingCount = activeReports?.filter((r) => r.status === 'pending').length || 0;
+  const isLoading = isLoadingActive || isLoadingArchived;
+
+  const renderReports = (reports: TardinessReport[] | undefined, showArchiveButton: boolean) => {
+    if (!reports || reports.length === 0) {
+      return (
+        <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
+          Nu există rapoarte
+        </div>
+      );
+    }
+
+    if (isMobile) {
+      return (
+        <div className="space-y-3">
+          {reports.map((report) => (
+            <MobileTableCard key={report.id}>
+              <MobileTableRow
+                label="Angajat"
+                value={
+                  <div className="flex items-center gap-2">
+                    <User className="h-3 w-3" />
+                    <span className="font-medium">{report.profiles.full_name}</span>
+                  </div>
+                }
+              />
+              <MobileTableRow
+                label="Data"
+                value={
+                  <div className="flex items-center gap-1 text-sm">
+                    <Calendar className="h-3 w-3" />
+                    {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                  </div>
+                }
+              />
+              <MobileTableRow
+                label="Întârziere"
+                value={
+                  <span className="text-red-600 font-semibold text-base">
+                    +{report.delay_minutes} min
+                  </span>
+                }
+              />
+              <MobileTableRow
+                label="Motiv"
+                value={<span className="text-sm">{report.reason}</span>}
+                fullWidth
+              />
+              <MobileTableRow
+                label="Status"
+                value={getStatusBadge(report.status)}
+              />
+              {report.status === 'pending' && (
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    className="flex-1"
+                    variant="outline"
+                    onClick={() => {
+                      setReviewDialog({
+                        open: true,
+                        report,
+                        action: 'approve',
+                      });
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Aprobă
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    variant="destructive"
+                    onClick={() => {
+                      setReviewDialog({
+                        open: true,
+                        report,
+                        action: 'reject',
+                      });
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Respinge
+                  </Button>
+                </div>
+              )}
+              {showArchiveButton && report.status !== 'pending' && (
+                <div className="pt-2">
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleArchive(report.id)}
+                    disabled={archiveMutation.isPending}
+                  >
+                    <Archive className="h-4 w-4 mr-1" />
+                    Arhivează
+                  </Button>
+                </div>
+              )}
+            </MobileTableCard>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-lg border bg-card shadow-sm">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Angajat</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Întârziere</TableHead>
+              <TableHead>Motiv</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Acțiuni</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {reports.map((report) => (
+              <TableRow key={report.id}>
+                <TableCell className="font-medium">
+                  {report.profiles.full_name}
+                </TableCell>
+                <TableCell>
+                  {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                </TableCell>
+                <TableCell>
+                  <span className="text-red-600 font-semibold">
+                    +{report.delay_minutes} min
+                  </span>
+                </TableCell>
+                <TableCell className="max-w-xs truncate">
+                  {report.reason}
+                </TableCell>
+                <TableCell>{getStatusBadge(report.status)}</TableCell>
+                <TableCell className="text-right">
+                  {report.status === 'pending' ? (
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600 border-green-300 hover:bg-green-50"
+                        onClick={() => {
+                          setReviewDialog({
+                            open: true,
+                            report,
+                            action: 'approve',
+                          });
+                        }}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 border-red-300 hover:bg-red-50"
+                        onClick={() => {
+                          setReviewDialog({
+                            open: true,
+                            report,
+                            action: 'reject',
+                          });
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : showArchiveButton ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleArchive(report.id)}
+                      disabled={archiveMutation.isPending}
+                    >
+                      <Archive className="h-4 w-4 mr-1" />
+                      Arhivează
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      Arhivat
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
 
   return (
     <>
-      <div className="space-y-4">
-        {pendingCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 border border-destructive/20 rounded-lg">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            <span className="font-medium text-destructive">
-              {pendingCount} {pendingCount === 1 ? 'raport în așteptare' : 'rapoarte în așteptare'}
-            </span>
-          </div>
-        )}
+      <Tabs defaultValue="active" className="w-full space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="active" className="relative">
+            Rapoarte Active
+            {pendingCount > 0 && (
+              <div className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                {pendingCount}
+              </div>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="archived">Arhivă</TabsTrigger>
+        </TabsList>
 
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        ) : !reports || reports.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
-            Nu există rapoarte de întârzieri
-          </div>
-        ) : isMobile ? (
-          <div className="space-y-3">
-            {reports.map((report) => (
-              <MobileTableCard key={report.id}>
-                <MobileTableRow
-                  label="Angajat"
-                  value={
-                    <div className="flex items-center gap-2">
-                      <User className="h-3 w-3" />
-                      <span className="font-medium">{report.profiles.full_name}</span>
-                    </div>
-                  }
-                />
-                <MobileTableRow
-                  label="Data"
-                  value={
-                    <div className="flex items-center gap-1 text-sm">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
-                    </div>
-                  }
-                />
-                <MobileTableRow
-                  label="Întârziere"
-                  value={
-                    <span className="text-red-600 font-semibold text-base">
-                      +{report.delay_minutes} min
-                    </span>
-                  }
-                />
-                <MobileTableRow
-                  label="Motiv"
-                  value={<span className="text-sm">{report.reason}</span>}
-                  fullWidth
-                />
-                <MobileTableRow
-                  label="Status"
-                  value={getStatusBadge(report.status)}
-                />
-                {report.status === 'pending' && (
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      className="flex-1"
-                      variant="outline"
-                      onClick={() => {
-                        setReviewDialog({
-                          open: true,
-                          report,
-                          action: 'approve',
-                        });
-                      }}
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Aprobă
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      variant="destructive"
-                      onClick={() => {
-                        setReviewDialog({
-                          open: true,
-                          report,
-                          action: 'reject',
-                        });
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Respinge
-                    </Button>
-                  </div>
-                )}
-              </MobileTableCard>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border bg-card shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Angajat</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Întârziere</TableHead>
-                  <TableHead>Motiv</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Acțiuni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell className="font-medium">
-                      {report.profiles.full_name}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-red-600 font-semibold">
-                        +{report.delay_minutes} min
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {report.reason}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(report.status)}</TableCell>
-                    <TableCell className="text-right">
-                      {report.status === 'pending' ? (
-                        <div className="flex gap-1 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600 border-green-300 hover:bg-green-50"
-                            onClick={() => {
-                              setReviewDialog({
-                                open: true,
-                                report,
-                                action: 'approve',
-                              });
-                            }}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => {
-                              setReviewDialog({
-                                open: true,
-                                report,
-                                action: 'reject',
-                              });
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Procesat
-                        </span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
+        <TabsContent value="active" className="space-y-4">
+          {isLoadingActive ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : (
+            renderReports(activeReports, true)
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived" className="space-y-4">
+          {isLoadingArchived ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : (
+            renderReports(archivedReports, false)
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Review Dialog */}
       <Dialog

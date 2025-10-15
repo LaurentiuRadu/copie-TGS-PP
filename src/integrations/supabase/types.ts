@@ -751,9 +751,12 @@ export type Database = {
         Row: {
           actual_clock_in_time: string
           admin_notes: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string | null
           delay_minutes: number
           id: string
+          is_archived: boolean | null
           reason: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -766,9 +769,12 @@ export type Database = {
         Insert: {
           actual_clock_in_time: string
           admin_notes?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string | null
           delay_minutes: number
           id?: string
+          is_archived?: boolean | null
           reason: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -781,9 +787,12 @@ export type Database = {
         Update: {
           actual_clock_in_time?: string
           admin_notes?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string | null
           delay_minutes?: number
           id?: string
+          is_archived?: boolean | null
           reason?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
