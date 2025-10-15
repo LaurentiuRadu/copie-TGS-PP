@@ -23,7 +23,14 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { mode = 'missing_segments', batch_size = 100, start_date, end_date, cursor_date } = await req.json();
+    const { 
+      mode = 'missing_segments', 
+      batch_size = 100, 
+      start_date, 
+      end_date, 
+      cursor_date,
+      only_mismatched = false 
+    } = await req.json();
     
     console.log(`[Reprocess] Mode: ${mode}, Batch Size: ${batch_size}`, start_date && end_date ? `| Range: ${start_date} → ${end_date}` : '', cursor_date ? `| Cursor: ${cursor_date}` : '');
 
@@ -34,6 +41,7 @@ Deno.serve(async (req) => {
     let allErrors: string[] = [];
     let hasMore = true;
     let batchNumber = 0;
+    let currentCursor = cursor_date; // ✅ Local cursor for pagination
 
     while (hasMore) {
       batchNumber++;
@@ -93,9 +101,9 @@ Deno.serve(async (req) => {
           .order('clock_out_time', { ascending: false })
           .limit(batch_size);
         
-        // Apply cursor for pagination
-        if (cursor_date) {
-          query = query.lt('clock_out_time', cursor_date);
+        // ✅ Apply cursor for pagination (local cursor updated each batch)
+        if (currentCursor) {
+          query = query.lt('clock_out_time', currentCursor);
         }
         
         const { data: entries, error } = await query;
@@ -103,10 +111,15 @@ Deno.serve(async (req) => {
         if (error) throw error;
         batch = entries || [];
         
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range ${start_date} → ${end_date}${cursor_date ? ` (after ${cursor_date})` : ''}`);
+        // ✅ Update local cursor for next iteration
+        if (batch.length > 0) {
+          currentCursor = batch[batch.length - 1].clock_out_time;
+        }
+        
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range ${start_date} → ${end_date}${currentCursor ? ` (cursor: ${currentCursor})` : ''}`);
         
       } else if (mode === 'all') {
-        // ✅ NEW: Process ALL entries with pagination
+        // ✅ Process ALL entries with pagination
         let query = supabase
           .from('time_entries')
           .select('id, user_id, clock_in_time, clock_out_time, notes')
@@ -114,9 +127,9 @@ Deno.serve(async (req) => {
           .order('clock_out_time', { ascending: false })
           .limit(batch_size);
         
-        // Apply cursor for pagination
-        if (cursor_date) {
-          query = query.lt('clock_out_time', cursor_date);
+        // ✅ Apply cursor for pagination (local cursor updated each batch)
+        if (currentCursor) {
+          query = query.lt('clock_out_time', currentCursor);
         }
         
         const { data: entries, error } = await query;
@@ -124,7 +137,12 @@ Deno.serve(async (req) => {
         if (error) throw error;
         batch = entries || [];
         
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries (all mode)${cursor_date ? ` (after ${cursor_date})` : ''}`);
+        // ✅ Update local cursor for next iteration
+        if (batch.length > 0) {
+          currentCursor = batch[batch.length - 1].clock_out_time;
+        }
+        
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries (all mode)${currentCursor ? ` (cursor: ${currentCursor})` : ''}`);
         
       } else {
         return new Response(
@@ -154,18 +172,13 @@ Deno.serve(async (req) => {
       console.log(`[Reprocess] Batch ${batchNumber} COMPLETE: ${batchResults.success}/${batchResults.total} success, ${batchResults.failed} failed`);
       console.log(`[Reprocess] ═══ Overall Progress: ${totalProcessed} total | ${totalSuccess} ✅ | ${totalFailed} ❌ ═══`);
       
-      // Continuă dacă am primit un batch complet (ar putea fi mai multe)
+      // ✅ Continuă dacă am primit un batch complet (ar putea fi mai multe)
       if (mode === 'missing_segments' || mode === 'needs_reprocessing') {
         hasMore = batch.length === batch_size;
       } else if (mode === 'date_range' || mode === 'all') {
         // For paginated modes, continue if we got a full batch
         hasMore = batch.length === batch_size;
-        // Update cursor for next batch (last entry's clock_out_time)
-        if (hasMore && batch.length > 0) {
-          const lastEntry = batch[batch.length - 1];
-          // Pass cursor in the request body for next iteration
-          // Note: This is handled in the loop by checking batch completion
-        }
+        // Cursor is already updated above (currentCursor)
       }
     }
 

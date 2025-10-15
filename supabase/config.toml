@@ -59,3 +59,6 @@ verify_jwt = true
 
 [functions.archive-tardiness-report]
 verify_jwt = true
+
+[functions.audit-timezone-consistency]
+verify_jwt = true

@@ -287,7 +287,6 @@ function segmentShiftIntoTimesheets(
     // Avansează la următorul segment (both axes)
     currentSegmentStartLocal = new Date(currentSegmentEndLocal);
     currentSegmentStartUTC = currentSegmentEndUTC; // ✅ CORECT: already in UTC
-    currentSegmentStartUTC = new Date(currentSegmentEndUTC);
   }
   
   // ✅ REGULI NOI PAUZĂ
@@ -715,7 +714,30 @@ Deno.serve(async (req) => {
           }
         }
         
+        // ✅ GUARD INVARIANTS: Force snap-to-boundary (anti-regression)
         if (segmentsToSave.length > 0) {
+          // Force first segment start = exact clock_in_time (UTC)
+          const firstSegment = segmentsToSave[0];
+          const expectedStart = new Date(entry.clock_in_time);
+          const actualStart = new Date(firstSegment.start_time);
+          const startDiffSec = Math.abs((actualStart.getTime() - expectedStart.getTime()) / 1000);
+          
+          if (startDiffSec > 1) {
+            console.warn(`[Guard] ⚠️ First segment start mismatch for ${entry.id}: ${startDiffSec}s diff - CORRECTING`);
+            firstSegment.start_time = entry.clock_in_time;
+          }
+          
+          // Force last segment end = exact clock_out_time (UTC)
+          const lastSegment = segmentsToSave[segmentsToSave.length - 1];
+          const expectedEnd = new Date(entry.clock_out_time!);
+          const actualEnd = new Date(lastSegment.end_time);
+          const endDiffSec = Math.abs((actualEnd.getTime() - expectedEnd.getTime()) / 1000);
+          
+          if (endDiffSec > 1) {
+            console.warn(`[Guard] ⚠️ Last segment end mismatch for ${entry.id}: ${endDiffSec}s diff - CORRECTING`);
+            lastSegment.end_time = entry.clock_out_time;
+          }
+          
           const { error: saveError } = await supabase
             .from('time_entry_segments')
             .insert(segmentsToSave);
@@ -723,7 +745,7 @@ Deno.serve(async (req) => {
           if (saveError) {
             console.error(`[CalculateSegments] ❌ Error saving segments for entry ${entry.id}:`, saveError);
           } else {
-            console.log(`[CalculateSegments] ✅ Saved ${segmentsToSave.length} segments for entry ${entry.id}`);
+            console.log(`[CalculateSegments] ✅ Saved ${segmentsToSave.length} segments for entry ${entry.id} (with boundary guards)`);
           }
         }
       }
