@@ -30,6 +30,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface TeamTimeApprovalManagerProps {
   selectedWeek: string;
@@ -507,18 +513,23 @@ export const TeamTimeApprovalManager = ({
                           <Check className="h-4 w-4" />
                           Aprobă Toate
                         </Button>
-                        {employee.entries.map((entry, idx) => (
-                          <Button
-                            key={entry.id}
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(entry)}
-                            className="gap-1"
-                          >
-                            <Pencil className="h-4 w-4" />
-                            Edit #{idx + 1}
-                          </Button>
-                        ))}
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(employee.entries[0])}
+                              className="gap-1"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Editează
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Editează pontajul complet al zilei</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     )}
                   </CardContent>
