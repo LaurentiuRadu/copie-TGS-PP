@@ -34,15 +34,16 @@ serve(async (req) => {
       );
     }
 
-    const token = rawAuth.startsWith('Bearer ') ? rawAuth : `Bearer ${rawAuth}`;
+    // Remove "Bearer " prefix if present
+    const token = rawAuth.replace(/^Bearer\s+/i, '');
 
-    const supabaseAuth = createClient(
+    const supabaseAnon = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: token } } }
+      { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseAnon.auth.getUser(token);
     
     if (userError || !user) {
       console.error('[Delete] Auth validation failed:', userError?.message);
