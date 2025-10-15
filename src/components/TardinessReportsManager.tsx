@@ -2,13 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
   Table,
   TableBody,
   TableCell,
@@ -151,178 +144,176 @@ export const TardinessReportsManager = () => {
 
   return (
     <>
-      <Card>
-      <CardHeader>
+      <div className="space-y-4">
         {pendingCount > 0 && (
-          <div className="flex justify-end">
-            <Badge variant="destructive" className="text-lg px-3 py-1">
-              {pendingCount} în așteptare
-            </Badge>
+          <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <span className="font-medium text-destructive">
+              {pendingCount} {pendingCount === 1 ? 'raport în așteptare' : 'rapoarte în așteptare'}
+            </span>
           </div>
         )}
-      </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
-          ) : !reports || reports.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nu există rapoarte de întârzieri
-            </div>
-          ) : isMobile ? (
-            <div className="space-y-3">
-              {reports.map((report) => (
-                <MobileTableCard key={report.id}>
-                  <MobileTableRow
-                    label="Angajat"
-                    value={
-                      <div className="flex items-center gap-2">
-                        <User className="h-3 w-3" />
-                        <span className="font-medium">{report.profiles.full_name}</span>
-                      </div>
-                    }
-                  />
-                  <MobileTableRow
-                    label="Data"
-                    value={
-                      <div className="flex items-center gap-1 text-sm">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
-                      </div>
-                    }
-                  />
-                  <MobileTableRow
-                    label="Întârziere"
-                    value={
-                      <span className="text-red-600 font-semibold text-base">
+
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : !reports || reports.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg">
+            Nu există rapoarte de întârzieri
+          </div>
+        ) : isMobile ? (
+          <div className="space-y-3">
+            {reports.map((report) => (
+              <MobileTableCard key={report.id}>
+                <MobileTableRow
+                  label="Angajat"
+                  value={
+                    <div className="flex items-center gap-2">
+                      <User className="h-3 w-3" />
+                      <span className="font-medium">{report.profiles.full_name}</span>
+                    </div>
+                  }
+                />
+                <MobileTableRow
+                  label="Data"
+                  value={
+                    <div className="flex items-center gap-1 text-sm">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                    </div>
+                  }
+                />
+                <MobileTableRow
+                  label="Întârziere"
+                  value={
+                    <span className="text-red-600 font-semibold text-base">
+                      +{report.delay_minutes} min
+                    </span>
+                  }
+                />
+                <MobileTableRow
+                  label="Motiv"
+                  value={<span className="text-sm">{report.reason}</span>}
+                  fullWidth
+                />
+                <MobileTableRow
+                  label="Status"
+                  value={getStatusBadge(report.status)}
+                />
+                {report.status === 'pending' && (
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      className="flex-1"
+                      variant="outline"
+                      onClick={() => {
+                        setReviewDialog({
+                          open: true,
+                          report,
+                          action: 'approve',
+                        });
+                      }}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Aprobă
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      variant="destructive"
+                      onClick={() => {
+                        setReviewDialog({
+                          open: true,
+                          report,
+                          action: 'reject',
+                        });
+                      }}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Respinge
+                    </Button>
+                  </div>
+                )}
+              </MobileTableCard>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-card shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Angajat</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Întârziere</TableHead>
+                  <TableHead>Motiv</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Acțiuni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reports.map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell className="font-medium">
+                      {report.profiles.full_name}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-red-600 font-semibold">
                         +{report.delay_minutes} min
                       </span>
-                    }
-                  />
-                  <MobileTableRow
-                    label="Motiv"
-                    value={<span className="text-sm">{report.reason}</span>}
-                    fullWidth
-                  />
-                  <MobileTableRow
-                    label="Status"
-                    value={getStatusBadge(report.status)}
-                  />
-                  {report.status === 'pending' && (
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        className="flex-1"
-                        variant="outline"
-                        onClick={() => {
-                          setReviewDialog({
-                            open: true,
-                            report,
-                            action: 'approve',
-                          });
-                        }}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Aprobă
-                      </Button>
-                      <Button
-                        className="flex-1"
-                        variant="destructive"
-                        onClick={() => {
-                          setReviewDialog({
-                            open: true,
-                            report,
-                            action: 'reject',
-                          });
-                        }}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Respinge
-                      </Button>
-                    </div>
-                  )}
-                </MobileTableCard>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Angajat</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Întârziere</TableHead>
-                    <TableHead>Motiv</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Acțiuni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reports.map((report) => (
-                    <TableRow key={report.id}>
-                      <TableCell className="font-medium">
-                        {report.profiles.full_name}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(report.actual_clock_in_time), 'dd MMM yyyy, HH:mm', { locale: ro })}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-red-600 font-semibold">
-                          +{report.delay_minutes} min
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {report.reason}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(report.status)}</TableCell>
+                    <TableCell className="text-right">
+                      {report.status === 'pending' ? (
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 border-green-300 hover:bg-green-50"
+                            onClick={() => {
+                              setReviewDialog({
+                                open: true,
+                                report,
+                                action: 'approve',
+                              });
+                            }}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            onClick={() => {
+                              setReviewDialog({
+                                open: true,
+                                report,
+                                action: 'reject',
+                              });
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Procesat
                         </span>
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {report.reason}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(report.status)}</TableCell>
-                      <TableCell>
-                        {report.status === 'pending' ? (
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-green-600 border-green-300 hover:bg-green-50"
-                              onClick={() => {
-                                setReviewDialog({
-                                  open: true,
-                                  report,
-                                  action: 'approve',
-                                });
-                              }}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                              onClick={() => {
-                                setReviewDialog({
-                                  open: true,
-                                  report,
-                                  action: 'reject',
-                                });
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Procesat
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
 
       {/* Review Dialog */}
       <Dialog
