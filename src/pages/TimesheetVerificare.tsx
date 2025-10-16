@@ -152,18 +152,20 @@ export default function TimesheetVerificare() {
       return counts;
     },
     enabled: !!availableTeams && availableTeams.size > 0,
-    refetchInterval: 5000,
+    refetchInterval: false, // Disabled auto-refresh to prevent losing edit context
+    staleTime: 30000, // Cache valid for 30s
   });
 
-  // NU resetăm edited teams când schimbăm ziua - doar când schimbăm săptămâna
+  // Setează echipa selectată DOAR dacă nu există nicio selecție
   useEffect(() => {
-    if (availableTeams && availableTeams.size > 0) {
+    if (availableTeams && availableTeams.size > 0 && !selectedTeam) {
       const firstTeam = Array.from(availableTeams)[0];
       setSelectedTeam(firstTeam);
-    } else {
+    } else if (availableTeams && !availableTeams.has(selectedTeam || '')) {
+      // Dacă echipa selectată nu mai e disponibilă, resetează
       setSelectedTeam(null);
     }
-  }, [selectedWeek, selectedDayOfWeek, availableTeams]);
+  }, [selectedWeek, selectedDayOfWeek, availableTeams, selectedTeam]);
 
   // Reset edited teams DOAR când schimbăm săptămâna
   useEffect(() => {
@@ -212,7 +214,8 @@ export default function TimesheetVerificare() {
       return count || 0;
     },
     enabled: !!selectedWeek && !!selectedDayOfWeek,
-    refetchInterval: 5000, // Refresh la fiecare 5s pentru actualizare live
+    refetchInterval: false, // Disabled to prevent losing edit context
+    staleTime: 30000, // Cache valid for 30s
   });
 
   const hasPendingEntries = pendingCountForDay > 0;
