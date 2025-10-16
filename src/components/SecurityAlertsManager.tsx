@@ -246,9 +246,12 @@ export function SecurityAlertsManager({ className }: SecurityAlertsManagerProps)
                           )}
                         </div>
                       </div>
-                      <AlertDescription className="text-xs">
-                        {alert.message}
-                      </AlertDescription>
+              <AlertDescription className="text-xs break-words line-clamp-2">
+                {alert.message.length > 120 
+                  ? `${alert.message.substring(0, 120)}...` 
+                  : alert.message
+                }
+              </AlertDescription>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
                         <span>👤 {alert.profiles?.full_name || 'Utilizator necunoscut'}</span>
                         <span>📅 {format(new Date(alert.created_at), 'dd MMM yyyy, HH:mm', { locale: ro })}</span>
@@ -299,17 +302,43 @@ export function SecurityAlertsManager({ className }: SecurityAlertsManagerProps)
               </div>
 
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Mesaj</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-medium text-muted-foreground">Mesaj</p>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedAlert.message);
+                      toast.success("Mesaj copiat în clipboard");
+                    }}
+                  >
+                    📋 Copiază
+                  </Button>
+                </div>
                 <Alert>
-                  <AlertDescription>{selectedAlert.message}</AlertDescription>
+                  <AlertDescription className="break-all max-h-[200px] overflow-y-auto text-xs font-mono">
+                    {selectedAlert.message}
+                  </AlertDescription>
                 </Alert>
               </div>
 
               {selectedAlert.details && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Detalii Tehnice</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">Detalii Tehnice</p>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify(selectedAlert.details, null, 2));
+                        toast.success("JSON copiat în clipboard");
+                      }}
+                    >
+                      📋 Copiază JSON
+                    </Button>
+                  </div>
                   <ScrollArea className="h-[200px] rounded-md border p-3 bg-muted/50">
-                    <pre className="text-xs">
+                    <pre className="text-xs break-all">
                       {JSON.stringify(selectedAlert.details, null, 2)}
                     </pre>
                   </ScrollArea>
