@@ -577,18 +577,31 @@ export const TeamTimeApprovalManager = ({
       return;
     }
     
-    // ✅ BLOCARE: Nu permite editarea segmentelor sintetice
+    // ✅ SEGMENT SINTETIC: Deschide dialogul de editare cu entry-ul REAL
     if (segmentId.startsWith('synthetic-')) {
-      console.warn('[handleTimeClick] Segment sintetic detectat, editare blocată:', segmentId);
-      toast({
-        title: '⚠️ Editare blocată',
-        description: 'Acest interval este generat din fișa zilnică și nu poate fi editat direct. Folosește butonul "Editează Clock In/Out".',
-        variant: 'default',
-      });
+      console.log('[handleTimeClick] Segment sintetic detectat, deschid dialogul cu entry-ul real:', segmentId);
+      
+      // Găsește datele angajatului
+      const employeeData = groupedByEmployee.find(emp => emp.userId === userId);
+      
+      // Încearcă să găsești entry-ul real
+      const realEntry = employeeData?.realEntries?.[0] || employeeData?.entries?.[0];
+      
+      if (realEntry) {
+        // Deschide dialogul de editare cu entry-ul real
+        setEditEntry(realEntry);
+        setEditDialogOpen(true);
+      } else {
+        toast({
+          title: '⚠️ Nu există pontaj real',
+          description: 'Folosește butonul "Editează Clock In/Out".',
+          variant: 'default',
+        });
+      }
       return;
     }
     
-    // Extract HH:mm from ISO timestamp
+    // Extract HH:mm from ISO timestamp pentru editare inline
     const timeOnly = formatRomania(currentTime, 'HH:mm');
     setEditingSegment({
       userId,

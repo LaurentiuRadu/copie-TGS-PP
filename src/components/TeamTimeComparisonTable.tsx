@@ -305,11 +305,11 @@ export const TeamTimeComparisonTable = ({
                               return (
                                 <button
                                   onClick={() => {
-                                    if (firstSegment && !isSynthetic) {
+                                    if (firstSegment) {
                                       onTimeClick(employee.userId, 0, firstSegment.id, 'startTime', firstSegment.startTime);
                                     }
                                   }}
-                                  className={`px-2 py-1 rounded text-sm font-mono ${isSynthetic ? 'cursor-not-allowed opacity-60' : 'hover:opacity-80 transition-opacity'} ${clockInColor}`}
+                                  className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockInColor}`}
                                 >
                                   {clockInTime}
                                   {!isDrv && clockInDiff && (
@@ -321,8 +321,8 @@ export const TeamTimeComparisonTable = ({
                           </TooltipTrigger>
                           <TooltipContent>
                             {employee.segments[0]?.id.startsWith('synthetic-') 
-                              ? 'Editarea inline este dezactivată pentru ore din fișa zilnică'
-                              : 'Click pentru editare'
+                              ? 'Click pentru a edita pontajul real'
+                              : 'Click pentru editare inline'
                             }
                           </TooltipContent>
                         </Tooltip>
@@ -376,11 +376,11 @@ export const TeamTimeComparisonTable = ({
                                 return (
                                   <button
                                     onClick={() => {
-                                      if (lastSegment && !isSynthetic) {
+                                      if (lastSegment) {
                                         onTimeClick(employee.userId, employee.segments.length - 1, lastSegment.id, 'endTime', lastSegment.endTime);
                                       }
                                     }}
-                                    className={`px-2 py-1 rounded text-sm font-mono ${isSynthetic ? 'cursor-not-allowed opacity-60' : 'hover:opacity-80 transition-opacity'} ${clockOutColor}`}
+                                    className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockOutColor}`}
                                   >
                                     {clockOutTime}
                                     {!isDrv && clockOutDiff && (
@@ -392,8 +392,8 @@ export const TeamTimeComparisonTable = ({
                             </TooltipTrigger>
                             <TooltipContent>
                               {employee.segments[employee.segments.length - 1]?.id.startsWith('synthetic-')
-                                ? 'Editarea inline este dezactivată pentru ore din fișa zilnică'
-                                : 'Click pentru editare'
+                                ? 'Click pentru a edita pontajul real'
+                                : 'Click pentru editare inline'
                               }
                             </TooltipContent>
                           </Tooltip>
