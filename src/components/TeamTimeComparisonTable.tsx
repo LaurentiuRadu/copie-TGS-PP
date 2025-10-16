@@ -312,8 +312,8 @@ export const TeamTimeComparisonTable = ({
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{employee.fullName}</span>
                         
-                        {/* Badge discrepanță Clock In */}
-                        {(() => {
+                        {/* Badge discrepanță Clock In - DOAR dacă NU e manual override */}
+                        {!employee.manualOverride && (() => {
                           const discrepancyMin = getClockInDiscrepancy(employee);
                           if (!isDrv && Math.abs(discrepancyMin) > 30) {
                             return (
@@ -341,6 +341,17 @@ export const TeamTimeComparisonTable = ({
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">@{employee.username}</div>
+                      
+                      {/* Timpul afișat sub username când e manual override */}
+                      {employee.manualOverride && (() => {
+                        const discrepancyMin = getClockInDiscrepancy(employee);
+                        return (
+                          <div className="text-xs font-mono text-muted-foreground">
+                            {Math.abs(discrepancyMin).toFixed(2).replace('.', ',')}
+                          </div>
+                        );
+                      })()}
+                      
                       {isDrv && (
                         <Badge variant="secondary" className="w-fit text-xs">
                           🚗 Șofer
