@@ -236,30 +236,50 @@ export const TeamTimeComparisonTable = ({
     return currentHours > 0 || employee.manualOverride || false;
   };
 
-  // Handler pentru salvare ore segment cu validare
+  // Handler pentru salvare ore segment cu validare + auto-rebalansare
   const handleSaveSegmentHours = async (userId: string, segmentType: string, newHours: number) => {
     const employee = groupedByEmployee.find(e => e.userId === userId);
     if (!employee) return;
     
-    // Calculează noul total al segmentelor
-    const segmentTypes = ['hours_regular', 'hours_night', 'hours_saturday', 
-                          'hours_sunday', 'hours_holiday', 'hours_passenger', 
-                          'hours_driving', 'hours_equipment'];
-    
-    const otherSegments = segmentTypes
-      .filter(t => t !== segmentType)
-      .reduce((sum, t) => sum + getDisplayHours(employee, t), 0);
-    
-    const newTotal = otherSegments + newHours;
     const tolerance = 0.5; // 30 min toleranță
-    
-    if (newTotal > employee.totalHours + tolerance) {
-      alert(`❌ Eroare: Total segmente (${newTotal.toFixed(1)}h) depășește Clock In/Out (${employee.totalHours.toFixed(1)}h)`);
+    const segmentTypes = ['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'];
+
+    const getSum = (types: string[]) => types.reduce((sum, t) => sum + getDisplayHours(employee, t), 0);
+
+    if (segmentType !== 'hours_regular') {
+      const regular = getDisplayHours(employee, 'hours_regular');
+      const others = getSum(segmentTypes.filter(t => t !== 'hours_regular' && t !== segmentType));
+      const desiredTotal = others + newHours + regular;
+
+      if (desiredTotal > employee.totalHours + tolerance) {
+        const diff = desiredTotal - employee.totalHours; // cât trebuie să scădem din normal
+        if (regular > 0) {
+          const adjustedRegular = Math.max(0, regular - diff);
+          const adjustedTotal = others + newHours + adjustedRegular;
+          if (adjustedTotal <= employee.totalHours + tolerance + 0.001) {
+            // ✅ Rebalansăm automat: scădem din "Zi" (hours_regular) diferența necesară
+            onSegmentHoursEdit(userId, 'hours_regular', Number(adjustedRegular.toFixed(2)));
+            onSegmentHoursEdit(userId, segmentType, Number(newHours.toFixed(2)));
+            setEditingHours(null);
+            return;
+          }
+        }
+        alert(`❌ Eroare: Total segmente ar depăși Clock In/Out (${employee.totalHours.toFixed(1)}h)`);
+        return;
+      }
+
+      // Nu depășește: salvăm direct
+      onSegmentHoursEdit(userId, segmentType, Number(newHours.toFixed(2)));
+      setEditingHours(null);
       return;
     }
-    
-    // Continuă cu salvarea
-    onSegmentHoursEdit(userId, segmentType, newHours);
+
+    // Cazul "hours_regular": respectăm totalul maxim (clamp dacă e nevoie)
+    const othersWithoutRegular = getSum(segmentTypes.filter(t => t !== 'hours_regular'));
+    const maxRegular = Math.max(0, employee.totalHours - othersWithoutRegular);
+    const appliedRegular = newHours > maxRegular + tolerance ? maxRegular : newHours;
+
+    onSegmentHoursEdit(userId, 'hours_regular', Number(appliedRegular.toFixed(2)));
     setEditingHours(null);
   };
 

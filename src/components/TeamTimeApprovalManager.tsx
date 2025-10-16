@@ -738,14 +738,13 @@ export const TeamTimeApprovalManager = ({
       const segmentDelta = newValue - oldValue;
       const newTotalSegments = currentTotalSegments + segmentDelta;
 
-      // ✅ VALIDARE 3: Verifică dacă noul total depășește timpul disponibil
+      // ✅ VALIDARE 3: Dacă depășește timpul disponibil, PERMITEM totuși salvarea pentru management
       if (newTotalSegments > totalAvailableHours + 0.05) { // +3 minute toleranță
         toast({
-          title: "❌ Eroare: Total segmente depășește Clock In/Out",
-          description: `Noul total (${newTotalSegments.toFixed(1)}h) depășește timpul disponibil (${totalAvailableHours.toFixed(1)}h)`,
-          variant: "destructive",
+          title: "⚠️ Atenție: Totalul segmentelor depășește Clock In/Out",
+          description: `Se salvează oricum (management) — total ${newTotalSegments.toFixed(1)}h vs. disponibil ${totalAvailableHours.toFixed(1)}h`,
         });
-        return;
+        // continuăm fără return — flexibilitate pentru coordonator / șef echipă
       }
       
       const workDate = format(new Date(userEntry.clock_in_time), 'yyyy-MM-dd');
