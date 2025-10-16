@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List, X } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -98,6 +98,16 @@ export const TeamTimeApprovalManager = ({
     field: 'startTime' | 'endTime';
     value: string;
   } | null>(null);
+  
+  const [editingManagementHours, setEditingManagementHours] = useState<{
+    userId: string | null;
+    segmentType: string | null;
+    value: string;
+  }>({
+    userId: null,
+    segmentType: null,
+    value: '',
+  });
   // ✅ View mode eliminat - folosim doar tabel
   const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState<{
@@ -675,6 +685,71 @@ export const TeamTimeApprovalManager = ({
     setEditingSegment(null);
   };
 
+  const handleSaveManagementSegmentHours = async (
+    userId: string,
+    segmentType: string,
+    newValue: number
+  ) => {
+    try {
+      // Găsește work_date din managementEntries
+      const userEntry = managementEntries.find(e => e.user_id === userId);
+      if (!userEntry) {
+        toast({
+          title: "Nu s-a găsit pontajul pentru utilizator",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const workDate = format(new Date(userEntry.clock_in_time), 'yyyy-MM-dd');
+      
+      // Verifică dacă există deja daily_timesheet
+      const { data: existingTimesheet } = await supabase
+        .from('daily_timesheets')
+        .select('*')
+        .eq('employee_id', userId)
+        .eq('work_date', workDate)
+        .maybeSingle();
+      
+      const updateData = {
+        employee_id: userId,
+        work_date: workDate,
+        [segmentType]: newValue,
+        notes: existingTimesheet?.notes?.includes('[OVERRIDE MANUAL')
+          ? existingTimesheet.notes
+          : `[OVERRIDE MANUAL] Editat manual la ${new Date().toISOString()}`
+      };
+      
+      if (existingTimesheet) {
+        // Update
+        await supabase
+          .from('daily_timesheets')
+          .update(updateData)
+          .eq('id', existingTimesheet.id);
+      } else {
+        // Insert nou
+        await supabase
+          .from('daily_timesheets')
+          .insert(updateData);
+      }
+      
+      // Invalidate queries pentru refresh
+      queryClient.invalidateQueries({ queryKey: ['team-time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      
+      toast({
+        title: `✅ ${getSegmentLabel(segmentType)} actualizat: ${newValue.toFixed(1)}h`,
+      });
+      
+    } catch (error) {
+      console.error('Error saving management hours:', error);
+      toast({
+        title: "Eroare la salvarea orelor",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Mutation pentru editare ore segment
   const editSegmentHoursMutation = useMutation({
     mutationFn: async ({ userId, segmentType, newHours }: { userId: string; segmentType: string; newHours: number }) => {
@@ -1225,22 +1300,92 @@ export const TeamTimeApprovalManager = ({
                                   </div>
                                 </div>
 
-                                {/* Badge-uri standardizate de tipuri de ore */}
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                  {standardTypes.map((t) => {
-                                    const val = getDisplayHoursMgmt(user, t);
-                                    if (val <= 0) return null; // afișăm doar > 0
-                                    const label = getSegmentLabel(t);
-                                    const icon = getSegmentIcon(t);
-                                    return (
-                                      <Badge key={t} variant="secondary" className="text-xs gap-1">
-                                        <span>{icon}</span>
-                                        <span>{label}</span>
-                                        <span className="font-mono">{val.toFixed(1)}h</span>
-                                      </Badge>
-                                    );
-                                  })}
-                                </div>
+          {/* Badge-uri standardizate de tipuri de ore - EDITABILE */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {standardTypes.map((t) => {
+              const val = getDisplayHoursMgmt(user, t);
+              if (val <= 0) return null; // afișăm doar > 0
+              const label = getSegmentLabel(t);
+              const icon = getSegmentIcon(t);
+              const isEditing = editingManagementHours.userId === user.userId 
+                && editingManagementHours.segmentType === t;
+              
+              return (
+                <div key={t} className="inline-flex items-center gap-1">
+                  {!isEditing ? (
+                    // Badge clickable pentru a intra în editare
+                    <Badge 
+                      variant="secondary" 
+                      className="text-xs gap-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+                      onClick={() => setEditingManagementHours({
+                        userId: user.userId,
+                        segmentType: t,
+                        value: val.toFixed(1)
+                      })}
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                      <span className="font-mono">{val.toFixed(1)}h</span>
+                    </Badge>
+                  ) : (
+                    // Input + butoane Save/Cancel
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={editingManagementHours.value}
+                        onChange={(e) => setEditingManagementHours(prev => ({
+                          ...prev,
+                          value: e.target.value
+                        }))}
+                        className="w-16 h-7 text-xs"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveManagementSegmentHours(
+                              user.userId,
+                              t,
+                              parseFloat(editingManagementHours.value) || 0
+                            );
+                            setEditingManagementHours({ userId: null, segmentType: null, value: '' });
+                          } else if (e.key === 'Escape') {
+                            setEditingManagementHours({ userId: null, segmentType: null, value: '' });
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                          handleSaveManagementSegmentHours(
+                            user.userId,
+                            t,
+                            parseFloat(editingManagementHours.value) || 0
+                          );
+                          setEditingManagementHours({ userId: null, segmentType: null, value: '' });
+                        }}
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setEditingManagementHours({ 
+                          userId: null, 
+                          segmentType: null, 
+                          value: '' 
+                        })}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
                               </div>
 
                               <div className="flex gap-2">
