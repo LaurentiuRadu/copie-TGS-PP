@@ -173,15 +173,23 @@ export const TeamTimeApprovalManager = ({
     }
   };
 
-  // Filtrare pontaje invalide (< 10 min durata) ȘI exclude coordonatori
+  // Filtrare pontaje invalide (< 10 min durata) ȘI exclude coordonatori și team leaders din tabelul principal
   const validPendingEntries = pendingEntries.filter(entry => {
     if (!entry.clock_in_time || !entry.clock_out_time) return false;
     const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
     
-    // ✅ FIX 1: Exclude coordonatori și team leaders
-    const isCoordinator = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
+    // ✅ Exclude coordonatori și team leaders din tabelul principal
+    const isManagement = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
     
-    return duration >= 0.17 && !isCoordinator;
+    return duration >= 0.17 && !isManagement;
+  });
+
+  // ✅ Pontaje pentru management (șef echipă + coordonator) - secțiune separată
+  const managementEntries = pendingEntries.filter(entry => {
+    if (!entry.clock_in_time || !entry.clock_out_time) return false;
+    const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
+    const isManagement = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
+    return duration >= 0.17 && isManagement;
   });
 
   const approvedEntries = validPendingEntries.filter(e => e.approval_status === 'approved');
@@ -1032,6 +1040,121 @@ export const TeamTimeApprovalManager = ({
                 )}
               </div>
             </div>
+          )}
+
+          {/* ✅ SECȚIUNE MANAGEMENT - Șef Echipă + Coordonator */}
+          {managementEntries.length > 0 && (
+            <Collapsible className="mb-6">
+              <Card className="border-2 border-primary/20">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Badge variant="default" className="bg-primary text-primary-foreground">
+                            🎖️ Management
+                          </Badge>
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Pontaje Management</CardTitle>
+                          <CardDescription>
+                            {managementEntries.length} {managementEntries.length === 1 ? 'pontaj' : 'pontaje'}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <ChevronDown className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      {managementEntries.map((entry) => {
+                        const isApproved = entry.approval_status === 'approved';
+                        const duration = entry.clock_out_time 
+                          ? ((new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60)).toFixed(2)
+                          : 'N/A';
+                        const isTeamLeader = entry.user_id === teamLeader?.id;
+                        
+                        return (
+                          <div 
+                            key={entry.id} 
+                            className={`p-4 rounded-lg border ${isApproved ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-muted/30'}`}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-2 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant={isTeamLeader ? 'default' : 'secondary'} className={isTeamLeader ? 'bg-blue-600' : 'bg-purple-600'}>
+                                    {isTeamLeader ? '👔 Șef Echipă' : '👑 Coordonator'}
+                                  </Badge>
+                                  <span className="font-semibold">{entry.profiles.full_name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {entry.profiles.username}
+                                  </Badge>
+                                  {isApproved && (
+                                    <Badge variant="default" className="bg-green-600 text-white gap-1">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Aprobat
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Clock In</p>
+                                    <p className="font-mono font-semibold">
+                                      {formatRomania(entry.clock_in_time, 'HH:mm')}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Clock Out</p>
+                                    <p className="font-mono font-semibold">
+                                      {entry.clock_out_time ? formatRomania(entry.clock_out_time, 'HH:mm') : '—'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Total Ore</p>
+                                    <p className="font-mono font-semibold text-primary">
+                                      {duration}h
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {entry.segments && entry.segments.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {entry.segments.map(seg => (
+                                      <Badge key={seg.id} variant="secondary" className="text-xs gap-1">
+                                        <span>{getSegmentIcon(seg.segment_type)}</span>
+                                        <span>{getSegmentLabel(seg.segment_type)}</span>
+                                        <span className="font-mono">{seg.hours_decimal.toFixed(1)}h</span>
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex gap-2">
+                                {!isApproved && (
+                                  <Button
+                                    onClick={() => handleApprove(entry.id)}
+                                    size="sm"
+                                    variant="default"
+                                    className="gap-2"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                    Aprobă
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
 
           {groupedByEmployee.length === 0 ? (
