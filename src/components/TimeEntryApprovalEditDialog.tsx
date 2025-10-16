@@ -101,6 +101,11 @@ export function TimeEntryApprovalEditDialog({
     return parseFloat((totalHours - allocatedHours).toFixed(2));
   }, [totalHours, allocatedHours]);
 
+  // Detectează override pentru UI (prag redus la 0.01h = 36 secunde)
+  const isOverride = useMemo(() => {
+    return manualSegmentation && Math.abs(totalHours - allocatedHours) > 0.01 && allocatedHours > 0;
+  }, [manualSegmentation, totalHours, allocatedHours]);
+
   // Whitelist utilizatori cu acces la ore echipament
   const hasEquipmentAccess = useMemo(() => {
     const equipmentUsers = ['Ababei', 'Costache Marius', 'Rusu Gheorghita'];
@@ -557,13 +562,23 @@ export function TimeEntryApprovalEditDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="admin-notes">Admin Notes (opțional)</Label>
+            <Label htmlFor="admin-notes">
+              Admin Notes {isOverride ? (
+                <span className="text-red-600 font-semibold">(OBLIGATORII)</span>
+              ) : (
+                "(opțional)"
+              )}
+            </Label>
             <Textarea
               id="admin-notes"
-              placeholder="Motivul corectării..."
+              placeholder={isOverride 
+                ? "OBLIGATORIU: Explică de ce modifici totalul de ore..." 
+                : "Motivul corectării..."
+              }
               value={adminNotes}
               onChange={(e) => setAdminNotes(e.target.value)}
               rows={3}
+              className={isOverride && !adminNotes.trim() ? "border-red-500" : ""}
             />
           </div>
         </div>
