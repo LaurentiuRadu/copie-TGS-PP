@@ -329,23 +329,52 @@ export const TeamTimeApprovalManager = ({
       // Parse new time (format: HH:mm)
       const [hours, minutes] = newTime.split(':').map(Number);
       
-      // Get date from existing timestamp
-      const existingDate = new Date(field === 'startTime' ? currentSegment.startTime : currentSegment.endTime);
-      const newDate = new Date(existingDate);
-      newDate.setHours(hours, minutes, 0, 0);
-      
+      // Get start and end times from segment
+      const startTime = new Date(currentSegment.startTime);
+      const endTime = new Date(currentSegment.endTime);
+
+      let newDate: Date;
+
+      if (field === 'startTime') {
+        // Pentru start time: păstrează ziua start-ului
+        newDate = new Date(startTime);
+        newDate.setHours(hours, minutes, 0, 0);
+      } else {
+        // Pentru end time: detectează automat ziua corectă
+        newDate = new Date(startTime); // Începe cu ziua start-ului
+        newDate.setHours(hours, minutes, 0, 0);
+        
+        // Dacă ora end < ora start → presupune ziua următoare
+        if (hours < startTime.getHours() || 
+            (hours === startTime.getHours() && minutes < startTime.getMinutes())) {
+          newDate.setDate(newDate.getDate() + 1);
+          console.log('[Update Segment] Detected next day for end time');
+        }
+      }
+
       console.log('[Update Segment] New Date:', newDate.toISOString());
-      
+
       // Calculate new duration
-      const startTime = field === 'startTime' ? newDate : new Date(currentSegment.startTime);
-      const endTime = field === 'endTime' ? newDate : new Date(currentSegment.endTime);
-      const durationMs = endTime.getTime() - startTime.getTime();
+      const finalStartTime = field === 'startTime' ? newDate : startTime;
+      const finalEndTime = field === 'endTime' ? newDate : endTime;
+      const durationMs = finalEndTime.getTime() - finalStartTime.getTime();
       const durationHours = durationMs / (1000 * 60 * 60);
-      
+
       console.log('[Update Segment] New Duration:', durationHours.toFixed(2), 'hours');
-      
-      if (durationHours <= 0 || durationHours > 24) {
-        throw new Error(`Durata trebuie să fie între 0 și 24 ore (calculat: ${durationHours.toFixed(2)}h)`);
+
+      // Validare relaxată
+      if (durationHours <= 0) {
+        throw new Error(`Durata trebuie să fie pozitivă (calculat: ${durationHours.toFixed(2)}h)`);
+      }
+
+      // WARNING pentru durate mari (dar permite salvarea)
+      if (durationHours > 24) {
+        console.warn(`[Update Segment] WARNING: Durată mare detectată: ${durationHours.toFixed(2)}h`);
+        toast({
+          title: '⚠️ Atenție: Durată mare',
+          description: `Segment de ${durationHours.toFixed(2)}h detectat. Verifică dacă ora de sfârșit este în ziua următoare!`,
+          variant: 'default',
+        });
       }
       
       // Update segment in time_entry_segments
