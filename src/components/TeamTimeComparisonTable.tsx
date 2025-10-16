@@ -67,6 +67,8 @@ interface TeamTimeComparisonTableProps {
   onTimeSave: (employee: EmployeeDayData) => void;
   onTimeCancel: () => void;
   onSegmentHoursEdit: (userId: string, segmentType: string, hours: number) => void;
+  onClockInEdit?: (employee: EmployeeDayData) => void;
+  onClockOutEdit?: (employee: EmployeeDayData) => void;
 }
 
 export const TeamTimeComparisonTable = ({
@@ -80,6 +82,8 @@ export const TeamTimeComparisonTable = ({
   onTimeSave,
   onTimeCancel,
   onSegmentHoursEdit,
+  onClockInEdit,
+  onClockOutEdit,
 }: TeamTimeComparisonTableProps) => {
   const [editingHours, setEditingHours] = useState<{
     userId: string;
@@ -90,6 +94,22 @@ export const TeamTimeComparisonTable = ({
   // Detectează șoferii (cei care conduc efectiv)
   const isDriver = (segments: Segment[]) => {
     return segments.some(s => s.type === 'hours_driving' || s.type === 'hours_equipment');
+  };
+
+  // Helper pentru calcul discrepanță Clock In
+  const getClockInDiscrepancy = (employee: EmployeeDayData): number => {
+    const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
+    if (nonDrivers.length === 0) return 0;
+    
+    const avgMinutes = nonDrivers.reduce((sum, emp) => {
+      const clockIn = new Date(emp.firstClockIn);
+      return sum + clockIn.getHours() * 60 + clockIn.getMinutes();
+    }, 0) / nonDrivers.length;
+    
+    const empClockIn = new Date(employee.firstClockIn);
+    const empMinutes = empClockIn.getHours() * 60 + empClockIn.getMinutes();
+    
+    return empMinutes - avgMinutes;
   };
 
   // Calculează media echipei (exclude șoferii)
@@ -291,6 +311,20 @@ export const TeamTimeComparisonTable = ({
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{employee.fullName}</span>
+                        
+                        {/* Badge discrepanță Clock In */}
+                        {(() => {
+                          const discrepancyMin = getClockInDiscrepancy(employee);
+                          if (!isDrv && Math.abs(discrepancyMin) > 30) {
+                            return (
+                              <Badge variant={discrepancyMin > 0 ? "destructive" : "default"} className="text-xs">
+                                {discrepancyMin > 0 ? '🔴' : '🟢'} {Math.abs(discrepancyMin)}min
+                              </Badge>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
                         {employee.manualOverride && (
                           <TooltipProvider>
                             <Tooltip>
@@ -356,12 +390,18 @@ export const TeamTimeComparisonTable = ({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => {
+                                if (employee.manualOverride) {
+                                  return;
+                                }
                                 const firstSegment = employee.segments[0];
-                                if (firstSegment) {
-                                  onTimeClick(employee.userId, 0, firstSegment.id, 'startTime', firstSegment.startTime);
+                                if (firstSegment && onClockInEdit) {
+                                  onClockInEdit(employee);
                                 }
                               }}
-                              className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockInColor}`}
+                              disabled={employee.manualOverride}
+                              className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${
+                                employee.manualOverride ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                              } ${clockInColor}`}
                             >
                               {clockInTime}
                               {!isDrv && clockInDiff && (
@@ -369,7 +409,11 @@ export const TeamTimeComparisonTable = ({
                               )}
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent>Click pentru editare</TooltipContent>
+                          <TooltipContent>
+                            {employee.manualOverride 
+                              ? "⚠️ Ore setate manual — editează din dialog" 
+                              : "Click pentru a modifica Clock In"}
+                          </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     )}
@@ -417,12 +461,18 @@ export const TeamTimeComparisonTable = ({
                             <TooltipTrigger asChild>
                               <button
                                 onClick={() => {
+                                  if (employee.manualOverride) {
+                                    return;
+                                  }
                                   const lastSegment = employee.segments[employee.segments.length - 1];
-                                  if (lastSegment) {
-                                    onTimeClick(employee.userId, employee.segments.length - 1, lastSegment.id, 'endTime', lastSegment.endTime);
+                                  if (lastSegment && onClockOutEdit) {
+                                    onClockOutEdit(employee);
                                   }
                                 }}
-                                className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockOutColor}`}
+                                disabled={employee.manualOverride}
+                                className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${
+                                  employee.manualOverride ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                                } ${clockOutColor}`}
                               >
                                 {clockOutTime}
                                 {!isDrv && clockOutDiff && (
@@ -430,7 +480,11 @@ export const TeamTimeComparisonTable = ({
                                 )}
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent>Click pentru editare</TooltipContent>
+                            <TooltipContent>
+                              {employee.manualOverride 
+                                ? "⚠️ Ore setate manual — editează din dialog" 
+                                : "Click pentru a modifica Clock Out"}
+                            </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )

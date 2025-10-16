@@ -13,6 +13,7 @@ import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditD
 import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
 import { TeamTimeComparisonTable } from '@/components/TeamTimeComparisonTable';
 import { UniformizeDialog } from '@/components/UniformizeDialog';
+import { TeamEditScopeDialog } from '@/components/TeamEditScopeDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
@@ -99,6 +100,13 @@ export const TeamTimeApprovalManager = ({
   } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'details'>('table');
   const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    fieldName: 'Clock In' | 'Clock Out';
+    employee: EmployeeDayData;
+    currentValue: string;
+    newValue: string;
+  } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -314,7 +322,44 @@ export const TeamTimeApprovalManager = ({
       }
     });
     
-    return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    // Sortare după discrepanța Clock In față de media echipei
+    const nonDriversNonCoords = Array.from(grouped.values()).filter(emp => {
+      const hasDriverSegments = emp.segments.some(
+        s => s.type === 'hours_driving' || s.type === 'hours_equipment'
+      );
+      const isCoordinator = emp.entries.some(e => 
+        e.user_id === teamLeader?.id || e.user_id === coordinator?.id
+      );
+      return !hasDriverSegments && !isCoordinator;
+    });
+    
+    if (nonDriversNonCoords.length === 0) {
+      return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }
+    
+    // Calculează media Clock In echipei (în minute de la miezul nopții)
+    const avgClockInMinutes = nonDriversNonCoords.reduce((sum, emp) => {
+      const clockIn = new Date(emp.firstClockIn);
+      return sum + clockIn.getHours() * 60 + clockIn.getMinutes();
+    }, 0) / nonDriversNonCoords.length;
+    
+    // Sortare: cel mai mare decalaj PRIMII, apoi alfabetic
+    return Array.from(grouped.values()).sort((a, b) => {
+      const getDiscrepancy = (emp: EmployeeDayData) => {
+        const clockIn = new Date(emp.firstClockIn);
+        const empMinutes = clockIn.getHours() * 60 + clockIn.getMinutes();
+        return Math.abs(empMinutes - avgClockInMinutes);
+      };
+      
+      const discrepancyA = getDiscrepancy(a);
+      const discrepancyB = getDiscrepancy(b);
+      
+      if (discrepancyA !== discrepancyB) {
+        return discrepancyB - discrepancyA;
+      }
+      
+      return a.fullName.localeCompare(b.fullName);
+    });
   }, [displayedEntries, overrideByUser]);
 
   // Helper pentru icon-uri segment
@@ -573,6 +618,168 @@ export const TeamTimeApprovalManager = ({
       });
     },
   });
+
+  // Mutation pentru editare Clock In/Out cu logging
+  const editClockTimeMutation = useMutation({
+    mutationFn: async ({ 
+      scope, 
+      fieldName, 
+      newValue, 
+      employee 
+    }: { 
+      scope: 'single' | 'team'; 
+      fieldName: 'Clock In' | 'Clock Out'; 
+      newValue: string; 
+      employee: EmployeeDayData;
+    }) => {
+      // Determină angajații afectați
+      const affectedEmployees = scope === 'team' 
+        ? groupedByEmployee.filter(e => {
+            const hasDriverSegments = e.segments.some(
+              s => s.type === 'hours_driving' || s.type === 'hours_equipment'
+            );
+            const isCoord = e.entries.some(entry => 
+              entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id
+            );
+            return !hasDriverSegments && !isCoord;
+          })
+        : [employee];
+
+      for (const emp of affectedEmployees) {
+        const timeEntry = emp.entries[0];
+        const oldClockIn = formatRomania(emp.firstClockIn, 'HH:mm');
+        const oldClockOut = emp.lastClockOut ? formatRomania(emp.lastClockOut, 'HH:mm') : null;
+
+        // Calculează noua valoare timestamp
+        let updateData: any = {};
+        
+        if (fieldName === 'Clock In') {
+          const [h, m] = newValue.split(':').map(Number);
+          const newClockIn = new Date(emp.firstClockIn);
+          newClockIn.setHours(h, m, 0, 0);
+          updateData.clock_in_time = newClockIn.toISOString();
+        } else {
+          const [h, m] = newValue.split(':').map(Number);
+          const newClockOut = new Date(emp.lastClockOut || emp.firstClockIn);
+          newClockOut.setHours(h, m, 0, 0);
+          updateData.clock_out_time = newClockOut.toISOString();
+        }
+        
+        updateData.needs_reprocessing = true;
+
+        // 1️⃣ Update time_entries
+        const { error: updateError } = await supabase
+          .from('time_entries')
+          .update(updateData)
+          .eq('id', timeEntry.id);
+
+        if (updateError) throw updateError;
+
+        // 2️⃣ Apelează edge function pentru recalculare segmente
+        const { error: calcError } = await supabase.functions.invoke('calculate-time-segments', {
+          body: { 
+            time_entry_id: timeEntry.id,
+            force_recalculate: true 
+          }
+        });
+
+        if (calcError) throw calcError;
+
+        // 3️⃣ Șterge manualOverride dacă există
+        if (emp.manualOverride) {
+          // Calculează data pentru care se face ștergerea
+          const workDate = new Date(selectedWeek);
+          workDate.setDate(workDate.getDate() + selectedDayOfWeek);
+          
+          const { error: deleteError } = await supabase
+            .from('daily_timesheets')
+            .delete()
+            .eq('employee_id', emp.userId)
+            .eq('work_date', workDate.toISOString().split('T')[0]);
+
+          if (deleteError) throw deleteError;
+        }
+
+        // 4️⃣ Log acțiunea în audit_logs
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: auditError } = await supabase
+          .from('audit_logs')
+          .insert({
+            user_id: user?.id,
+            action: scope === 'team' ? 'team_clock_time_edit' : 'individual_clock_time_edit',
+            resource_type: 'time_entry',
+            resource_id: timeEntry.id,
+            details: {
+              field: fieldName,
+              old_value: fieldName === 'Clock In' ? oldClockIn : oldClockOut,
+              new_value: newValue,
+              scope: scope,
+              affected_employees: scope === 'team' ? affectedEmployees.map(e => ({
+                user_id: e.userId,
+                full_name: e.fullName
+              })) : undefined,
+              had_manual_override: emp.manualOverride || false,
+            }
+          });
+
+        if (auditError) console.error('Audit log failed:', auditError);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['time-entry-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      
+      toast({
+        title: '✅ Modificare aplicată',
+        description: editDialog?.fieldName === 'Clock In' 
+          ? 'Clock In actualizat și segmente recalculate'
+          : 'Clock Out actualizat și segmente recalculate',
+      });
+      
+      setEditDialog(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: '❌ Eroare',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handler pentru click pe Clock In/Out
+  const handleClockTimeClick = (employee: EmployeeDayData, fieldName: 'Clock In' | 'Clock Out') => {
+    const currentValue = fieldName === 'Clock In' 
+      ? formatRomania(employee.firstClockIn, 'HH:mm')
+      : employee.lastClockOut ? formatRomania(employee.lastClockOut, 'HH:mm') : '';
+    
+    // Prompt pentru noua valoare
+    const newValue = prompt(
+      `Introdu noul ${fieldName} pentru ${employee.fullName} (format HH:MM):`,
+      currentValue
+    );
+    
+    if (!newValue || newValue === currentValue) return;
+    
+    // Validare format HH:MM
+    if (!/^\d{2}:\d{2}$/.test(newValue)) {
+      toast({
+        title: '❌ Format invalid',
+        description: 'Folosește formatul HH:MM (ex: 08:30)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setEditDialog({
+      open: true,
+      fieldName,
+      employee,
+      currentValue,
+      newValue,
+    });
+  };
 
   const handleSegmentHoursEdit = (userId: string, segmentType: string, newHours: number) => {
     if (newHours < 0 || newHours > 24) {
@@ -840,6 +1047,8 @@ export const TeamTimeApprovalManager = ({
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
               onSegmentHoursEdit={handleSegmentHoursEdit}
+              onClockInEdit={(emp) => handleClockTimeClick(emp, 'Clock In')}
+              onClockOutEdit={(emp) => handleClockTimeClick(emp, 'Clock Out')}
             />
           ) : (
             // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)
@@ -1037,6 +1246,39 @@ export const TeamTimeApprovalManager = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Team Edit Scope Dialog */}
+      {editDialog && (
+        <TeamEditScopeDialog
+          open={editDialog.open}
+          onOpenChange={(open) => !open && setEditDialog(null)}
+          fieldName={editDialog.fieldName}
+          employeeName={editDialog.employee.fullName}
+          currentValue={editDialog.currentValue}
+          newValue={editDialog.newValue}
+          affectedCount={groupedByEmployee.filter(e => {
+            const hasDriverSegments = e.segments.some(
+              s => s.type === 'hours_driving' || s.type === 'hours_equipment'
+            );
+            const isCoord = e.entries.some(entry => 
+              entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id
+            );
+            return !hasDriverSegments && !isCoord;
+          }).length}
+          employeesWithManualOverride={groupedByEmployee
+            .filter(e => e.manualOverride)
+            .map(e => e.fullName)
+          }
+          onConfirm={(scope) => {
+            editClockTimeMutation.mutate({
+              scope,
+              fieldName: editDialog.fieldName,
+              newValue: editDialog.newValue,
+              employee: editDialog.employee,
+            });
+          }}
+        />
+      )}
 
       {editEntry && (
         <TimeEntryApprovalEditDialog

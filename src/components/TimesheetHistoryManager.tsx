@@ -147,6 +147,12 @@ export function TimesheetHistoryManager() {
   };
 
   const handleOpenPasswordDialog = (entry: ApprovedEntry) => {
+    // Verifică dacă pontajul este aprobat (read-only)
+    if (entry.approved_at) {
+      toast.error('❌ Pontajul este aprobat și nu poate fi editat');
+      return;
+    }
+    
     setSelectedEntry(entry);
     setAdminPassword('');
     setPasswordVerified(false);
@@ -374,9 +380,11 @@ export function TimesheetHistoryManager() {
                     variant="destructive"
                     onClick={() => handleOpenPasswordDialog(entry)}
                     className="shrink-0"
+                    disabled={entry.approved_at !== null}
+                    title={entry.approved_at ? "❌ Protejat - nu se poate edita" : "Editează pontaj"}
                   >
                     <Lock className="h-4 w-4 mr-2" />
-                    Editează
+                    {entry.approved_at ? "Protejat" : "Editează"}
                   </Button>
                 </div>
               </CardContent>
