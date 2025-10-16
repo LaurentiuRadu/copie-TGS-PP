@@ -738,7 +738,7 @@ export const TeamTimeApprovalManager = ({
       const segmentDelta = newValue - oldValue;
       const newTotalSegments = currentTotalSegments + segmentDelta;
 
-      // ✅ VALIDARE 3: Dacă depășește timpul disponibil, PERMITEM totuși salvarea pentru management
+      // ✅ VALIDARE 3: Pentru management, afișăm doar avertizare (permitem oricum salvarea)
       if (newTotalSegments > totalAvailableHours + 0.05) { // +3 minute toleranță
         toast({
           title: "⚠️ Atenție: Totalul segmentelor depășește Clock In/Out",
@@ -779,12 +779,14 @@ export const TeamTimeApprovalManager = ({
           .insert(updateData);
       }
       
-      // Invalidate queries pentru refresh
-      queryClient.invalidateQueries({ queryKey: ['team-time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      // Invalidate queries pentru refresh - FIX pentru actualiz date în UI
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals', selectedTeam, selectedWeek, selectedDayOfWeek] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets', dayDate] });
+      queryClient.invalidateQueries({ queryKey: ['myDailyTimesheets'] });
       
       toast({
-        title: `✅ ${getSegmentLabel(segmentType)} actualizat: ${newValue.toFixed(1)}h`,
+        title: `✅ Ore actualizate`,
+        description: `${getSegmentLabel(segmentType)}: ${newValue.toFixed(1)}h`,
       });
       
     } catch (error) {
@@ -1326,17 +1328,79 @@ export const TeamTimeApprovalManager = ({
                                 </div>
                                 
                                 <div className="grid grid-cols-3 gap-4 text-sm">
+                                  {/* Clock In - editabil cu buton */}
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Clock In</p>
-                                    <p className="font-mono font-semibold">
+                                    <button
+                                      onClick={() => {
+                                        // Găsește entry-ul management pentru acest user
+                                        const managementEntry = managementEntries.find(e => e.user_id === user.userId);
+                                        if (managementEntry) {
+                                          // Convertim la format EmployeeDayData
+                                          const employeeData: EmployeeDayData = {
+                                            userId: user.userId,
+                                            fullName: user.fullName,
+                                            username: user.username,
+                                            totalHours: user.totalHours,
+                                            firstClockIn: user.firstClockIn,
+                                            lastClockOut: user.lastClockOut,
+                                            segments: managementEntry.segments?.map(s => ({
+                                              id: s.id,
+                                              type: s.segment_type,
+                                              startTime: s.start_time,
+                                              endTime: s.end_time,
+                                              duration: s.hours_decimal,
+                                            })) || [],
+                                            entries: managementEntries.filter(e => e.user_id === user.userId),
+                                            allApproved: user.approvalStatus === 'approved',
+                                            manualOverride: user.manualOverride,
+                                            overrideHours: user.overrideHours,
+                                          };
+                                          handleClockTimeClick(employeeData, 'Clock In');
+                                        }
+                                      }}
+                                      className="font-mono font-semibold hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
+                                    >
                                       {formatRomania(user.firstClockIn, 'HH:mm')}
-                                    </p>
+                                      <Pencil className="h-3 w-3 opacity-60" />
+                                    </button>
                                   </div>
+                                  {/* Clock Out - editabil cu buton */}
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Clock Out</p>
-                                    <p className="font-mono font-semibold">
+                                    <button
+                                      onClick={() => {
+                                        // Găsește entry-ul management pentru acest user
+                                        const managementEntry = managementEntries.find(e => e.user_id === user.userId);
+                                        if (managementEntry && user.lastClockOut) {
+                                          // Convertim la format EmployeeDayData
+                                          const employeeData: EmployeeDayData = {
+                                            userId: user.userId,
+                                            fullName: user.fullName,
+                                            username: user.username,
+                                            totalHours: user.totalHours,
+                                            firstClockIn: user.firstClockIn,
+                                            lastClockOut: user.lastClockOut,
+                                            segments: managementEntry.segments?.map(s => ({
+                                              id: s.id,
+                                              type: s.segment_type,
+                                              startTime: s.start_time,
+                                              endTime: s.end_time,
+                                              duration: s.hours_decimal,
+                                            })) || [],
+                                            entries: managementEntries.filter(e => e.user_id === user.userId),
+                                            allApproved: user.approvalStatus === 'approved',
+                                            manualOverride: user.manualOverride,
+                                            overrideHours: user.overrideHours,
+                                          };
+                                          handleClockTimeClick(employeeData, 'Clock Out');
+                                        }
+                                      }}
+                                      className="font-mono font-semibold hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
+                                    >
                                       {user.lastClockOut ? formatRomania(user.lastClockOut, 'HH:mm') : '—'}
-                                    </p>
+                                      {user.lastClockOut && <Pencil className="h-3 w-3 opacity-60" />}
+                                    </button>
                                   </div>
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Total Ore</p>
