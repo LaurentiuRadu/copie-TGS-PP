@@ -226,7 +226,6 @@ export const TeamTimeComparisonTable = ({
               <TableHead className="min-w-[90px]">Pasager</TableHead>
               <TableHead className="min-w-[90px]">Utilaj</TableHead>
               <TableHead className="min-w-[100px]">Total Ore</TableHead>
-              <TableHead className="min-w-[200px]">Segmente</TableHead>
               <TableHead className="min-w-[120px] text-right">Acțiuni</TableHead>
             </TableRow>
           </TableHeader>
@@ -247,7 +246,6 @@ export const TeamTimeComparisonTable = ({
                 <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell>{teamAverage.avgHours.toFixed(2)}h</TableCell>
-                <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
               </TableRow>
             )}
@@ -589,28 +587,6 @@ export const TeamTimeComparisonTable = ({
                   {/* Total Ore */}
                   <TableCell className="font-mono font-semibold">
                     {employee.totalHours.toFixed(2)}h
-                  </TableCell>
-
-                  {/* Segmente - vizualizare cu badge-uri */}
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {employee.segments.map((segment) => (
-                        <TooltipProvider key={segment.id}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-xs">
-                                {getSegmentIcon(segment.type)} {segment.duration.toFixed(1)}h
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {getSegmentLabel(segment.type)}
-                              <br />
-                              {formatRomania(segment.startTime, 'HH:mm')} - {formatRomania(segment.endTime, 'HH:mm')}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ))}
-                    </div>
                   </TableCell>
 
                   {/* Acțiuni */}
