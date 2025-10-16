@@ -204,38 +204,8 @@ export function TimeEntryApprovalEditDialog({
         .eq('id', entry.id)
         .single();
 
-      // Dacă segmentare manuală, salvează direct în daily_timesheets (folosim parsed)
-      if (manualSegmentation) {
-        const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
-        
-        // Detectează override (prag redus la 0.01h = 36 secunde)
-        const isOverride = Math.abs(totalHours - allocatedHours) > 0.01;
-        const overrideNote = isOverride 
-          ? `[OVERRIDE MANUAL: ${allocatedHours.toFixed(2)}h din ${totalHours.toFixed(2)}h calculate] ` 
-          : '[SEGMENTARE MANUALĂ] ';
-        
-        const { error: timesheetError } = await supabase
-          .from('daily_timesheets')
-          .upsert({
-            employee_id: entry.user_id,
-            work_date: workDate,
-            hours_regular: manualHoursParsed.hours_regular,
-            hours_night: manualHoursParsed.hours_night,
-            hours_saturday: manualHoursParsed.hours_saturday,
-            hours_sunday: manualHoursParsed.hours_sunday,
-            hours_holiday: manualHoursParsed.hours_holiday,
-            hours_passenger: manualHoursParsed.hours_passenger,
-            hours_driving: manualHoursParsed.hours_driving,
-            hours_equipment: manualHoursParsed.hours_equipment,
-            hours_leave: 0,
-            hours_medical_leave: 0,
-            notes: `${overrideNote}${adminNotes || 'Repartizare corectată manual'}`,
-          }, {
-            onConflict: 'employee_id,work_date'
-          });
-
-        if (timesheetError) throw timesheetError;
-      }
+      // ✅ ELIMINAT: Logică segmentare manuală
+      // Segmentarea se face direct în TeamTimeComparisonTable
 
       // Prepare update data
       const updateData: any = {
@@ -243,10 +213,8 @@ export function TimeEntryApprovalEditDialog({
         clock_out_time: new Date(clockOut).toISOString(),
         approval_status: 'approved',
         approved_at: new Date().toISOString(),
-        approval_notes: manualSegmentation 
-          ? `[SEGMENTARE MANUALĂ] ${adminNotes}` 
-          : (adminNotes || null),
-        needs_reprocessing: !manualSegmentation, // Skip reprocess dacă manual
+        approval_notes: adminNotes || null,
+        needs_reprocessing: true, // ✅ Întotdeauna recalculează segmentele
         was_edited_by_admin: true,
       };
 
@@ -266,20 +234,18 @@ export function TimeEntryApprovalEditDialog({
 
       if (updateError) throw updateError;
 
-      // Trigger recalculation DOAR dacă nu e segmentare manuală
-      if (!manualSegmentation) {
-        const { error: functionError } = await supabase.functions.invoke('calculate-time-segments', {
-          body: {
-            user_id: entry.user_id,
-            time_entry_id: entry.id,
-            clock_in_time: new Date(clockIn).toISOString(),
-            clock_out_time: new Date(clockOut).toISOString(),
-          },
-        });
+      // ✅ Trigger recalculation ÎNTOTDEAUNA
+      const { error: functionError } = await supabase.functions.invoke('calculate-time-segments', {
+        body: {
+          user_id: entry.user_id,
+          time_entry_id: entry.id,
+          clock_in_time: new Date(clockIn).toISOString(),
+          clock_out_time: new Date(clockOut).toISOString(),
+        },
+      });
 
-        if (functionError) {
-          console.warn('[Approval Edit] Recalculation warning:', functionError);
-        }
+      if (functionError) {
+        console.warn('[Approval Edit] Recalculation warning:', functionError);
       }
     },
     onSuccess: () => {
@@ -305,9 +271,7 @@ export function TimeEntryApprovalEditDialog({
       
       toast({
         title: "✅ Pontaj corectat și aprobat",
-        description: manualSegmentation 
-          ? "Orele au fost repartizate manual cu succes." 
-          : "Modificările au fost salvate și pontajul a fost aprobat automat.",
+        description: "Modificările au fost salvate și pontajul a fost aprobat automat.",
       });
       onOpenChange(false);
       
@@ -333,24 +297,7 @@ export function TimeEntryApprovalEditDialog({
       return;
     }
     
-    const segmentationError = validateManualSegmentation();
-    if (segmentationError) {
-      setError(segmentationError);
-      return;
-    }
-    
-    // Validare: adminNotes obligatorii când există override (prag redus la 0.01h = 36 secunde)
-    if (manualSegmentation && Math.abs(totalHours - allocatedHours) > 0.01) {
-      if (!adminNotes.trim()) {
-        setError('❌ Când modifici totalul de ore, trebuie să explici motivul în "Note Admin"!');
-        toast({
-          variant: "destructive",
-          title: "Note obligatorii",
-          description: "Explică de ce modifici totalul de ore (ex: pontaj greșit, corecție solicitată, etc.)",
-        });
-        return;
-      }
-    }
+    // ✅ ELIMINAT: Validare segmentare manuală
     
     updateAndApprove.mutate();
   };
@@ -412,25 +359,10 @@ export function TimeEntryApprovalEditDialog({
             </AlertDescription>
           </Alert>
 
-          {/* Toggle Segmentare Manuală */}
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-            <div>
-              <Label className="text-sm font-medium">🛠️ Segmentare Manuală Ore</Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Repartizează orele manual (pentru pontaje greșite)
-              </p>
-            </div>
-            <Switch
-              checked={manualSegmentation}
-              onCheckedChange={(checked) => {
-                setManualSegmentation(checked);
-                if (!checked) resetAllFields();
-              }}
-            />
-          </div>
-
-          {/* Form Segmentare Manuală */}
-          {manualSegmentation && (
+          {/* ✅ ELIMINAT: Toggle Segmentare Manuală + Form 
+              Editarea segmentelor se face direct în TeamTimeComparisonTable
+          */}
+          {false && (
             <div className="space-y-4 p-4 bg-muted/20 rounded-lg border">
               {/* Header: Total, Repartizate, Rămase */}
               <div className="grid grid-cols-3 gap-2 p-3 bg-card rounded-lg border">
