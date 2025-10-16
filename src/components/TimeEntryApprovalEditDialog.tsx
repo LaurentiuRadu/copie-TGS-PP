@@ -53,96 +53,8 @@ export function TimeEntryApprovalEditDialog({
   const [adminNotes, setAdminNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   
-  // State pentru segmentare manuală
-  const [manualSegmentation, setManualSegmentation] = useState(false);
-  
-  // Refactor: Draft pentru UI (string) + Parsed pentru calcule/salvare
-  const [manualHoursDraft, setManualHoursDraft] = useState({
-    hours_regular: '',
-    hours_night: '',
-    hours_saturday: '',
-    hours_sunday: '',
-    hours_holiday: '',
-    hours_passenger: '',
-    hours_driving: '',
-    hours_equipment: '',
-  });
-
-  // Parsează draft-ul pentru calcule
-  const manualHoursParsed = useMemo(() => {
-    const parsed: Record<string, number> = {};
-    Object.entries(manualHoursDraft).forEach(([key, value]) => {
-      const cleaned = value.replace(',', '.');
-      const num = parseFloat(cleaned);
-      parsed[key] = isNaN(num) || num < 0 ? 0 : parseFloat(num.toFixed(2));
-    });
-    return parsed;
-  }, [manualHoursDraft]);
-  
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  // Calculează total ore din pontaj
-  const totalHours = useMemo(() => {
-    if (!clockIn || !clockOut) return 0;
-    const start = new Date(clockIn);
-    const end = new Date(clockOut);
-    const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    return parseFloat(hours.toFixed(2));
-  }, [clockIn, clockOut]);
-
-  // Calculează ore alocate manual (folosim parsed)
-  const allocatedHours = useMemo(() => {
-    return Object.values(manualHoursParsed).reduce((sum, val) => sum + val, 0);
-  }, [manualHoursParsed]);
-
-  // Calculează ore rămase
-  const remainingHours = useMemo(() => {
-    return parseFloat((totalHours - allocatedHours).toFixed(2));
-  }, [totalHours, allocatedHours]);
-
-  // Detectează override pentru UI (prag redus la 0.01h = 36 secunde)
-  const isOverride = useMemo(() => {
-    return manualSegmentation && Math.abs(totalHours - allocatedHours) > 0.01 && allocatedHours > 0;
-  }, [manualSegmentation, totalHours, allocatedHours]);
-
-  // Whitelist utilizatori cu acces la ore echipament
-  const hasEquipmentAccess = useMemo(() => {
-    const equipmentUsers = ['Ababei', 'Costache Marius', 'Rusu Gheorghita'];
-    return equipmentUsers.some(name => 
-      entry.profiles.full_name?.includes(name)
-    );
-  }, [entry.profiles.full_name]);
-
-  // Funcții helper pentru segmentare manuală
-  const allocateMax = (field: keyof typeof manualHoursDraft) => {
-    if (remainingHours <= 0) return;
-    
-    const currentParsed = manualHoursParsed[field] || 0;
-    const newValue = parseFloat((currentParsed + remainingHours).toFixed(2));
-    
-    setManualHoursDraft(prev => ({
-      ...prev,
-      [field]: newValue.toString()
-    }));
-  };
-
-  const resetField = (field: keyof typeof manualHoursDraft) => {
-    setManualHoursDraft(prev => ({ ...prev, [field]: '0' }));
-  };
-
-  const resetAllFields = () => {
-    setManualHoursDraft({
-      hours_regular: '0',
-      hours_night: '0',
-      hours_saturday: '0',
-      hours_sunday: '0',
-      hours_holiday: '0',
-      hours_passenger: '0',
-      hours_driving: '0',
-      hours_equipment: '0',
-    });
-  };
 
   const validateDuration = () => {
     if (!clockOut) {
@@ -161,21 +73,6 @@ export function TimeEntryApprovalEditDialog({
     return null;
   };
 
-  const validateManualSegmentation = (): string | null => {
-    if (!manualSegmentation) return null;
-    
-    // Permite override: doar verifică că există ore alocate
-    if (allocatedHours <= 0) {
-      return `❌ Trebuie să aloci cel puțin 1 oră!`;
-    }
-    
-    // Warning în consolă pentru override detection (prag redus la 0.01h = 36 secunde)
-    if (Math.abs(totalHours - allocatedHours) > 0.01) {
-      console.warn('[OVERRIDE MANUAL] Total calculat:', totalHours, 'h | Total manual:', allocatedHours, 'h');
-    }
-    
-    return null;
-  };
 
   const updateAndApprove = useMutation({
     mutationFn: async () => {
@@ -297,8 +194,6 @@ export function TimeEntryApprovalEditDialog({
       return;
     }
     
-    // ✅ ELIMINAT: Validare segmentare manuală
-    
     updateAndApprove.mutate();
   };
 
@@ -359,174 +254,14 @@ export function TimeEntryApprovalEditDialog({
             </AlertDescription>
           </Alert>
 
-          {/* ✅ ELIMINAT: Toggle Segmentare Manuală + Form 
-              Editarea segmentelor se face direct în TeamTimeComparisonTable
-          */}
-          {false && (
-            <div className="space-y-4 p-4 bg-muted/20 rounded-lg border">
-              {/* Header: Total, Repartizate, Rămase */}
-              <div className="grid grid-cols-3 gap-2 p-3 bg-card rounded-lg border">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Pontaj</p>
-                  <p className="text-lg font-bold">{totalHours.toFixed(2)}h</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Repartizate</p>
-                  <p className="text-lg font-bold text-blue-600">
-                    {allocatedHours.toFixed(2)}h
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Rămase</p>
-                  <p className={`text-lg font-bold ${
-                    remainingHours > 0 ? 'text-orange-600' : 
-                    remainingHours < 0 ? 'text-red-600' : 
-                    'text-green-600'
-                  }`}>
-                    {remainingHours.toFixed(2)}h
-                  </p>
-                </div>
-              </div>
-
-              {/* Warning Override Manual (prag redus la 0.01h = 36 secunde) */}
-              {Math.abs(totalHours - allocatedHours) > 0.01 && allocatedHours > 0 && (
-                <Alert className="bg-orange-50 dark:bg-orange-950/20 border-orange-400">
-                  <AlertCircle className="h-4 w-4 text-orange-600" />
-                  <AlertDescription>
-                    <div className="space-y-1">
-                      <p className="font-semibold text-orange-800 dark:text-orange-300">
-                        ⚠️ OVERRIDE MANUAL ACTIV
-                      </p>
-                      <p className="text-sm">
-                        • Total calculat din pontaj: <strong>{totalHours.toFixed(2)}h</strong><br/>
-                        • Total segmentat manual: <strong>{allocatedHours.toFixed(2)}h</strong><br/>
-                        • Diferență: <strong className={allocatedHours > totalHours ? 'text-green-600' : 'text-red-600'}>
-                          {allocatedHours > totalHours ? '+' : ''}{(allocatedHours - totalHours).toFixed(2)}h
-                        </strong>
-                      </p>
-                      <p className="text-sm font-semibold mt-2 text-orange-900 dark:text-orange-200">
-                        🔔 Angajatul va vedea {allocatedHours.toFixed(2)}h (nu {totalHours.toFixed(2)}h) în aplicație!
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Motivul override-ului trebuie explicat în "Note Admin" mai jos.
-                      </p>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Alert Status Normal (prag redus la 0.01h = 36 secunde) */}
-              {Math.abs(totalHours - allocatedHours) <= 0.01 && allocatedHours > 0 && (
-                <Alert className="bg-green-50 dark:bg-green-950/20 border-green-300">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription>
-                    ✅ Total repartizat corect! ({totalHours.toFixed(2)}h)
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Buton Reset Global */}
-              <div className="flex justify-end">
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  size="sm"
-                  onClick={resetAllFields}
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset Toate
-                </Button>
-              </div>
-
-              {/* Câmpuri Individuale */}
-              <div className="space-y-2">
-                {([
-                  { key: 'hours_regular' as const, label: '📅 Ore Normale' },
-                  { key: 'hours_night' as const, label: '🌙 Ore Noapte' },
-                  { key: 'hours_saturday' as const, label: '🛡️ Ore Sâmbătă' },
-                  { key: 'hours_sunday' as const, label: '🛡️ Ore Duminică' },
-                  { key: 'hours_holiday' as const, label: '🎉 Ore Sărbătoare' },
-                  { key: 'hours_passenger' as const, label: '👥 Ore Pasager' },
-                  { key: 'hours_driving' as const, label: '🚗 Ore Conducere' },
-                  ...(hasEquipmentAccess ? [{ key: 'hours_equipment' as const, label: '⚙️ Ore Echipament' }] : [])
-                 ] as Array<{ key: keyof typeof manualHoursDraft; label: string }>).map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <Label className="text-sm font-medium w-40">
-                      {label}
-                    </Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9]*[.,]?[0-9]*"
-                      placeholder="0.00"
-                      value={manualHoursDraft[key]}
-                      onChange={(e) => {
-                        // Permite tastare directă, inclusiv ștergere a lui "0"
-                        const value = e.target.value;
-                        setManualHoursDraft(prev => ({
-                          ...prev,
-                          [key]: value
-                        }));
-                      }}
-                      onBlur={(e) => {
-                        // La blur: parsează, validează, rotunjește
-                        const value = e.target.value.replace(',', '.');
-                        const num = parseFloat(value);
-                        const final = isNaN(num) || num < 0 ? 0 : parseFloat(num.toFixed(2));
-                        setManualHoursDraft(prev => ({
-                          ...prev,
-                          [key]: final.toFixed(2)
-                        }));
-                      }}
-                      className="w-24"
-                    />
-                    <span className="text-sm text-muted-foreground">ore</span>
-                    <div className="flex gap-1 ml-auto">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => allocateMax(key)}
-                        disabled={remainingHours <= 0}
-                        title="Alocă tot restul aici"
-                      >
-                        Max
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => resetField(key)}
-                        disabled={manualHoursParsed[key] === 0}
-                        title="Reset la 0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="space-y-2">
-            <Label htmlFor="admin-notes">
-              Admin Notes {isOverride ? (
-                <span className="text-red-600 font-semibold">(OBLIGATORII)</span>
-              ) : (
-                "(opțional)"
-              )}
-            </Label>
+            <Label htmlFor="admin-notes">Note Admin (opțional)</Label>
             <Textarea
               id="admin-notes"
-              placeholder={isOverride 
-                ? "OBLIGATORIU: Explică de ce modifici totalul de ore..." 
-                : "Motivul corectării..."
-              }
+              placeholder="Ex: Pontaj corectat din cauza..."
               value={adminNotes}
               onChange={(e) => setAdminNotes(e.target.value)}
               rows={3}
-              className={isOverride && !adminNotes.trim() ? "border-red-500" : ""}
             />
           </div>
         </div>

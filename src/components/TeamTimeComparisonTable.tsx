@@ -236,8 +236,29 @@ export const TeamTimeComparisonTable = ({
     return currentHours > 0 || employee.manualOverride || false;
   };
 
-  // Handler pentru salvare ore segment
-  const handleSaveSegmentHours = (userId: string, segmentType: string, newHours: number) => {
+  // Handler pentru salvare ore segment cu validare
+  const handleSaveSegmentHours = async (userId: string, segmentType: string, newHours: number) => {
+    const employee = groupedByEmployee.find(e => e.userId === userId);
+    if (!employee) return;
+    
+    // Calculează noul total al segmentelor
+    const segmentTypes = ['hours_regular', 'hours_night', 'hours_saturday', 
+                          'hours_sunday', 'hours_holiday', 'hours_passenger', 
+                          'hours_driving', 'hours_equipment'];
+    
+    const otherSegments = segmentTypes
+      .filter(t => t !== segmentType)
+      .reduce((sum, t) => sum + getDisplayHours(employee, t), 0);
+    
+    const newTotal = otherSegments + newHours;
+    const tolerance = 0.5; // 30 min toleranță
+    
+    if (newTotal > employee.totalHours + tolerance) {
+      alert(`❌ Eroare: Total segmente (${newTotal.toFixed(1)}h) depășește Clock In/Out (${employee.totalHours.toFixed(1)}h)`);
+      return;
+    }
+    
+    // Continuă cu salvarea
     onSegmentHoursEdit(userId, segmentType, newHours);
     setEditingHours(null);
   };
@@ -1057,8 +1078,31 @@ export const TeamTimeComparisonTable = ({
                   </TableCell>
 
                   {/* Total Ore */}
-                  <TableCell className="font-mono font-semibold">
-                    {employee.totalHours.toFixed(2)}h
+                  <TableCell className="text-center font-medium">
+                    <div className="flex items-center gap-1 justify-center">
+                      <span>{employee.totalHours.toFixed(1)}h</span>
+                      
+                      {employee.manualOverride && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs px-1 bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700">
+                                ⚠️
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <div className="text-xs space-y-1">
+                                <div className="font-semibold">Segmentare Manuală</div>
+                                <div className="text-muted-foreground">
+                                  Orele au fost ajustate manual.<br/>
+                                  Pentru re-calcul automat, editează Clock In/Out din butonul "Edit".
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
 
                   {/* Status cu buton Aprobă */}
