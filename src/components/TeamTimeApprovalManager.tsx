@@ -911,24 +911,13 @@ export const TeamTimeApprovalManager = ({
             if (!open) setEditEntry(null);
           }}
           onSuccess={() => {
-            // Auto-scroll la următoarea echipă needitată după editare
+            // Marchează echipa ca editată, DAR NU schimba automat echipa
             if (selectedTeam) {
               onTeamEdited(selectedTeam);
-              
-              const nextTeam = getNextUneditedTeam();
-              if (nextTeam) {
-                onTeamChange(nextTeam);
-                toast({
-                  title: '✅ Pontaj editat și aprobat',
-                  description: `Trecem automat la echipa ${nextTeam}`,
-                });
-              } else {
-                toast({
-                  title: '🎉 Toate echipele verificate!',
-                  description: 'Poți schimba ziua acum sau continua editarea.',
-                });
-                // NU schimbăm ziua automat - user decide manual
-              }
+              toast({
+                title: '✅ Pontaj editat și aprobat',
+                description: 'Selectează manual următoarea echipă din dropdown.',
+              });
             }
           }}
         />
@@ -943,23 +932,13 @@ export const TeamTimeApprovalManager = ({
             if (!open) setDeleteEntry(null);
           }}
           onSuccess={() => {
-            // Reîmprospătare automată + navigare la următoarea echipă
+            // Marchează echipa ca editată, DAR NU schimba automat echipa
             if (selectedTeam) {
               onTeamEdited(selectedTeam);
-              
-              const nextTeam = getNextUneditedTeam();
-              if (nextTeam) {
-                onTeamChange(nextTeam);
-                toast({
-                  title: '✅ Pontaj șters',
-                  description: `Trecem automat la echipa ${nextTeam}`,
-                });
-              } else {
-                toast({
-                  title: '🎉 Toate echipele verificate!',
-                  description: 'Poți schimba ziua acum sau continua verificarea.',
-                });
-              }
+              toast({
+                title: '✅ Pontaj șters',
+                description: 'Selectează manual următoarea echipă din dropdown.',
+              });
             }
           }}
         />
