@@ -524,48 +524,6 @@ export const TeamTimeApprovalManager = ({
     editSegmentHoursMutation.mutate({ userId, segmentType, newHours });
   };
 
-  // Mutation pentru ștergere toate segmentele
-  const deleteSegmentsMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      // Găsește primul pontaj al user-ului
-      const employee = groupedByEmployee.find(e => e.userId === userId);
-      if (!employee || employee.entries.length === 0) {
-        throw new Error('Pontaj negăsit');
-      }
-
-      const timeEntryId = employee.entries[0].id;
-
-      // Șterge toate segmentele acestui pontaj
-      const { error } = await supabase
-        .from('time_entry_segments')
-        .delete()
-        .eq('time_entry_id', timeEntryId);
-
-      if (error) throw error;
-
-      return timeEntryId;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
-      toast({
-        title: '🗑️ Segmente șterse',
-        description: 'Toate segmentele au fost șterse. Poți recalcula automat.',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: '❌ Eroare',
-        description: error.message || 'Nu s-au putut șterge segmentele',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleDeleteSegments = (userId: string) => {
-    deleteSegmentsMutation.mutate(userId);
-  };
-
   // Handler pentru uniformizare
   const handleUniformize = async (avgClockIn: string, avgClockOut: string | null) => {
     const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_driving' || s.type === 'hours_equipment');
@@ -819,7 +777,6 @@ export const TeamTimeApprovalManager = ({
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
               onSegmentHoursEdit={handleSegmentHoursEdit}
-              onDeleteSegments={handleDeleteSegments}
             />
           ) : (
             // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)

@@ -56,7 +56,6 @@ interface TeamTimeComparisonTableProps {
   onTimeSave: (employee: EmployeeDayData) => void;
   onTimeCancel: () => void;
   onSegmentHoursEdit: (userId: string, segmentType: string, hours: number) => void;
-  onDeleteSegments: (userId: string) => void;
 }
 
 export const TeamTimeComparisonTable = ({
@@ -70,7 +69,6 @@ export const TeamTimeComparisonTable = ({
   onTimeSave,
   onTimeCancel,
   onSegmentHoursEdit,
-  onDeleteSegments,
 }: TeamTimeComparisonTableProps) => {
   const [editingHours, setEditingHours] = useState<{
     userId: string;
@@ -225,6 +223,7 @@ export const TeamTimeComparisonTable = ({
               <TableHead className="min-w-[90px]">Șofer</TableHead>
               <TableHead className="min-w-[90px]">Pasager</TableHead>
               <TableHead className="min-w-[90px]">Utilaj</TableHead>
+              <TableHead className="min-w-[80px]">Pauză</TableHead>
               <TableHead className="min-w-[100px]">Total Ore</TableHead>
               <TableHead className="min-w-[120px] text-right">Acțiuni</TableHead>
             </TableRow>
@@ -241,6 +240,7 @@ export const TeamTimeComparisonTable = ({
                 </TableCell>
                 <TableCell>{teamAverage.avgClockIn}</TableCell>
                 <TableCell>{teamAverage.avgClockOut || '—'}</TableCell>
+                <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
@@ -584,6 +584,37 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
+                  {/* Pauză - calculată automat */}
+                  <TableCell>
+                    {(() => {
+                      const normalHours = getSegmentHours(employee.segments, 'hours_regular');
+                      const drivingHours = getSegmentHours(employee.segments, 'hours_driving');
+                      const passengerHours = getSegmentHours(employee.segments, 'hours_passenger');
+                      const equipmentHours = getSegmentHours(employee.segments, 'hours_equipment');
+                      
+                      // Calculăm pauza ca diferență între sumă segmente și total real
+                      const sumSegments = normalHours + drivingHours + passengerHours + equipmentHours;
+                      const breakHours = Math.max(0, sumSegments - employee.totalHours);
+                      
+                      return breakHours > 0 ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm text-muted-foreground font-mono">
+                                {breakHours.toFixed(2)}h
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Pauză scăzută automat (30 min pentru ture &gt;6h)
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      );
+                    })()}
+                  </TableCell>
+
                   {/* Total Ore */}
                   <TableCell className="font-mono font-semibold">
                     {employee.totalHours.toFixed(2)}h
@@ -623,24 +654,6 @@ export const TeamTimeComparisonTable = ({
                           <TooltipContent>Șterge pontaj</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-
-                      {employee.segments.length > 0 && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-orange-600"
-                                onClick={() => onDeleteSegments(employee.userId)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Șterge toate segmentele</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>
