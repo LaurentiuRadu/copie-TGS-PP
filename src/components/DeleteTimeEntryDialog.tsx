@@ -13,6 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 import { formatRomania } from "@/lib/timezone";
+import { deleteTimeEntryFromCache } from "@/hooks/realtime/cacheUpdaters";
 
 interface DeleteTimeEntryDialogProps {
   entry: {
@@ -60,12 +61,35 @@ export function DeleteTimeEntryDialog({
       if (entryError) throw entryError;
     },
     onSuccess: () => {
-      // Invalidare cache pentru refresh instant
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
-      queryClient.invalidateQueries({ queryKey: ['team-time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['optimized-time-entries'] });
+      // 1. Cache update țintit (sterge din cache fără refetch)
+      if (entry) {
+        deleteTimeEntryFromCache(queryClient, {
+          id: entry.id,
+          user_id: entry.user_id
+        });
+      }
+      
+      // 2. Invalidare COMPLETĂ pentru toate variantele de query-uri
+      queryClient.invalidateQueries({ 
+        queryKey: ['team-pending-approvals'], 
+        exact: false  // KEY FIX: invalidează TOATE variantele cu parametri
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['time-entries'], 
+        exact: false 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['daily-timesheets'], 
+        exact: false 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['team-time-entries'], 
+        exact: false 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['optimized-time-entries'], 
+        exact: false 
+      });
       
       toast({
         title: "✅ Pontaj șters",
