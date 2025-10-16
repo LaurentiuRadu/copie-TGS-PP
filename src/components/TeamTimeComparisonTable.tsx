@@ -285,6 +285,31 @@ export const TeamTimeComparisonTable = ({
           .insert(overridePayload);
       }
 
+      // ✅ OPTIMISTIC UPDATE: actualizăm cache-ul ÎNAINTE de refetch
+      queryClient.setQueryData(
+        ['dailyTimesheets', workDate],
+        (oldData: any[] | undefined) => {
+          if (!oldData) return oldData;
+          
+          const existingIndex = oldData.findIndex(
+            dt => dt.employee_id === userId && dt.work_date === workDate
+          );
+          
+          if (existingIndex >= 0) {
+            const newData = [...oldData];
+            newData[existingIndex] = {
+              ...newData[existingIndex],
+              ...overridePayload,
+              updated_at: new Date().toISOString(),
+            };
+            return newData;
+          } else {
+            return [...oldData, { id: crypto.randomUUID(), ...overridePayload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }];
+          }
+        }
+      );
+
+      // APOI force refetch pentru validare
       await queryClient.refetchQueries({ queryKey: ['dailyTimesheets'], type: 'active' });
       await queryClient.refetchQueries({ queryKey: ['team-pending-approvals'], type: 'active' });
 

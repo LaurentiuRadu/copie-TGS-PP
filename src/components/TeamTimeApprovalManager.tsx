@@ -695,15 +695,7 @@ export const TeamTimeApprovalManager = ({
     newValue: number
   ) => {
     // ✅ Verificare de securitate: doar adminii pot edita management
-    console.log('[DEBUG] handleSaveManagementSegmentHours:', {
-      isAdmin,
-      userId,
-      segmentType,
-      newValue
-    });
-    
     if (!isAdmin) {
-      console.log('[DEBUG] Access denied - not admin');
       toast({
         title: '🚫 Acces Interzis',
         description: 'Doar adminii pot edita pontajele pentru management',

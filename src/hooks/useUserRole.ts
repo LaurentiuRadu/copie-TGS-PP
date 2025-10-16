@@ -39,7 +39,6 @@ export const useUserRole = (): UserRoleHook => {
           setRoles([]);
         } else {
           const userRoles = data?.map(r => r.role) || [];
-          console.log('[DEBUG] useUserRole - fetched roles:', userRoles);
           setRoles(userRoles);
         }
       } catch (error) {
@@ -54,11 +53,6 @@ export const useUserRole = (): UserRoleHook => {
   }, [user?.id]);
 
   const isAdmin = roles.includes('admin');
-  console.log('[DEBUG] useUserRole return:', {
-    isAdmin,
-    roles,
-    loading
-  });
 
   return {
     isAdmin,
