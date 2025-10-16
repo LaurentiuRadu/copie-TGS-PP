@@ -793,6 +793,32 @@ export const TeamTimeApprovalManager = ({
           .insert(updateData);
       }
       
+      // ✅ FIX 1: Optimistic update în cache ÎNAINTE de invalidate
+      queryClient.setQueryData(
+        ['dailyTimesheets', dayDate],
+        (oldData: DailyTimesheet[] | undefined) => {
+          if (!oldData) return oldData;
+          
+          const existingIndex = oldData.findIndex(
+            dt => dt.employee_id === userId && dt.work_date === workDate
+          );
+          
+          if (existingIndex >= 0) {
+            // Update existing
+            const newData = [...oldData];
+            newData[existingIndex] = {
+              ...newData[existingIndex],
+              [segmentType]: newValue,
+              updated_at: new Date().toISOString(),
+            };
+            return newData;
+          } else {
+            // Add new - folosim as unknown pentru a evita type mismatch
+            return [...oldData, updateData as unknown as DailyTimesheet];
+          }
+        }
+      );
+      
       // Invalidate queries pentru refresh - FIX pentru actualiz date în UI
       queryClient.invalidateQueries({ queryKey: ['team-pending-approvals', selectedTeam, selectedWeek, selectedDayOfWeek] });
       queryClient.invalidateQueries({ queryKey: ['dailyTimesheets', dayDate] });
@@ -854,9 +880,17 @@ export const TeamTimeApprovalManager = ({
 
       return { userId, segmentType, newHours };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+    onSuccess: async () => {
+      // ✅ FIX 2: Force refetch IMEDIAT (nu doar invalidate)
+      await queryClient.refetchQueries({ 
+        queryKey: ['team-pending-approvals'],
+        type: 'active' 
+      });
+      await queryClient.refetchQueries({ 
+        queryKey: ['dailyTimesheets'],
+        type: 'active' 
+      });
+      
       toast({
         title: '✅ Ore actualizate',
         description: 'Segmentele au fost recalculate',
