@@ -260,11 +260,15 @@ export const TeamTimeComparisonTable = ({
               <TableHead className="min-w-[180px]">Angajat</TableHead>
               <TableHead className="min-w-[120px]">Clock In</TableHead>
               <TableHead className="min-w-[120px]">Clock Out</TableHead>
-              <TableHead className="min-w-[90px]">Normal</TableHead>
-              <TableHead className="min-w-[90px]">Șofer</TableHead>
-              <TableHead className="min-w-[90px]">Pasager</TableHead>
-              <TableHead className="min-w-[90px]">Utilaj</TableHead>
-              <TableHead className="min-w-[80px]">Pauză</TableHead>
+              <TableHead className="min-w-[80px] text-xs">Zi</TableHead>
+              <TableHead className="min-w-[80px] text-xs">Noapte</TableHead>
+              <TableHead className="min-w-[70px] text-xs">Sâm</TableHead>
+              <TableHead className="min-w-[70px] text-xs">Dum</TableHead>
+              <TableHead className="min-w-[70px] text-xs">Sârb</TableHead>
+              <TableHead className="min-w-[80px] text-xs">Pasager</TableHead>
+              <TableHead className="min-w-[80px] text-xs">Condus</TableHead>
+              <TableHead className="min-w-[80px] text-xs">Utilaj</TableHead>
+              <TableHead className="min-w-[80px] text-xs">Pauză</TableHead>
               <TableHead className="min-w-[100px]">Total Ore</TableHead>
               <TableHead className="min-w-[150px] text-right">Status</TableHead>
             </TableRow>
@@ -281,11 +285,15 @@ export const TeamTimeComparisonTable = ({
                 </TableCell>
                 <TableCell>{teamAverage.avgClockIn}</TableCell>
                 <TableCell>{teamAverage.avgClockOut || '—'}</TableCell>
-                <TableCell className="text-muted-foreground">—</TableCell>
-                <TableCell className="text-muted-foreground">—</TableCell>
-                <TableCell className="text-muted-foreground">—</TableCell>
-                <TableCell className="text-muted-foreground">—</TableCell>
-                <TableCell className="text-muted-foreground">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell className="text-muted-foreground text-xs">—</TableCell>
                 <TableCell>{teamAverage.avgHours.toFixed(2)}h</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
               </TableRow>
@@ -504,13 +512,13 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Ore Normal - editabil */}
+                  {/* Ore Zi - editabil */}
                   <TableCell>
                     {employee.manualOverride ? (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-sm font-mono cursor-default">
+                            <span className="text-xs font-mono cursor-default">
                               {getDisplayHours(employee, 'hours_regular').toFixed(1)}h
                             </span>
                           </TooltipTrigger>
@@ -534,13 +542,13 @@ export const TeamTimeComparisonTable = ({
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_regular', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
                           }}
-                          className="h-8 w-16"
+                          className="h-7 w-14 text-xs"
                           autoFocus
                         />
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => handleSaveSegmentHours(employee.userId, 'hours_regular', parseFloat(editingHours.value))}
                         >
                           <Check className="h-3 w-3" />
@@ -548,7 +556,7 @@ export const TeamTimeComparisonTable = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => setEditingHours(null)}
                         >
                           <X className="h-3 w-3" />
@@ -557,14 +565,42 @@ export const TeamTimeComparisonTable = ({
                     ) : (
                       <button
                         onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_regular', value: getDisplayHours(employee, 'hours_regular').toFixed(1) })}
-                        className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
+                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
                       >
                         {getDisplayHours(employee, 'hours_regular').toFixed(1)}h
                       </button>
                     )}
                   </TableCell>
 
-                  {/* Ore Șofer - editabil */}
+                  {/* Ore Noapte */}
+                  <TableCell>
+                    <span className="text-xs font-mono">
+                      {getDisplayHours(employee, 'hours_night').toFixed(1)}h
+                    </span>
+                  </TableCell>
+
+                  {/* Ore Sâmbătă */}
+                  <TableCell>
+                    <span className="text-xs font-mono">
+                      {getDisplayHours(employee, 'hours_saturday').toFixed(1)}h
+                    </span>
+                  </TableCell>
+
+                  {/* Ore Duminică */}
+                  <TableCell>
+                    <span className="text-xs font-mono">
+                      {getDisplayHours(employee, 'hours_sunday').toFixed(1)}h
+                    </span>
+                  </TableCell>
+
+                  {/* Ore Sărbătoare */}
+                  <TableCell>
+                    <span className="text-xs font-mono">
+                      {getDisplayHours(employee, 'hours_holiday').toFixed(1)}h
+                    </span>
+                  </TableCell>
+
+                  {/* Ore Pasager - editabil */}
                   <TableCell>
                     {employee.manualOverride ? (
                       <TooltipProvider>
@@ -630,7 +666,7 @@ export const TeamTimeComparisonTable = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-sm font-mono cursor-default">
+                            <span className="text-xs font-mono cursor-default">
                               {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
                             </span>
                           </TooltipTrigger>
@@ -654,13 +690,13 @@ export const TeamTimeComparisonTable = ({
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_passenger', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
                           }}
-                          className="h-8 w-16"
+                          className="h-7 w-14 text-xs"
                           autoFocus
                         />
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => handleSaveSegmentHours(employee.userId, 'hours_passenger', parseFloat(editingHours.value))}
                         >
                           <Check className="h-3 w-3" />
@@ -668,7 +704,7 @@ export const TeamTimeComparisonTable = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => setEditingHours(null)}
                         >
                           <X className="h-3 w-3" />
@@ -677,9 +713,69 @@ export const TeamTimeComparisonTable = ({
                     ) : (
                       <button
                         onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) })}
-                        className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
+                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
                       >
                         {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
+                      </button>
+                    )}
+                  </TableCell>
+
+                  {/* Ore Condus - editabil */}
+                  <TableCell>
+                    {employee.manualOverride ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs font-mono cursor-default">
+                              {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs text-orange-600 dark:text-orange-400">
+                              ⚠️ Ore setate manual — editează din dialog
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_driving' ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="24"
+                          value={editingHours.value}
+                          onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value));
+                            if (e.key === 'Escape') setEditingHours(null);
+                          }}
+                          className="h-7 w-14 text-xs"
+                          autoFocus
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          onClick={() => handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value))}
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5"
+                          onClick={() => setEditingHours(null)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) })}
+                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
+                      >
+                        {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
                       </button>
                     )}
                   </TableCell>
@@ -690,7 +786,7 @@ export const TeamTimeComparisonTable = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-sm font-mono cursor-default">
+                            <span className="text-xs font-mono cursor-default">
                               {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
                             </span>
                           </TooltipTrigger>
@@ -714,13 +810,13 @@ export const TeamTimeComparisonTable = ({
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_equipment', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
                           }}
-                          className="h-8 w-16"
+                          className="h-7 w-14 text-xs"
                           autoFocus
                         />
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => handleSaveSegmentHours(employee.userId, 'hours_equipment', parseFloat(editingHours.value))}
                         >
                           <Check className="h-3 w-3" />
@@ -728,7 +824,7 @@ export const TeamTimeComparisonTable = ({
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => setEditingHours(null)}
                         >
                           <X className="h-3 w-3" />
@@ -737,7 +833,7 @@ export const TeamTimeComparisonTable = ({
                     ) : (
                       <button
                         onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) })}
-                        className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
+                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
                       >
                         {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
                       </button>
