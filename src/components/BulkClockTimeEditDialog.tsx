@@ -63,25 +63,26 @@ export function BulkClockTimeEditDialog({
   const queryClient = useQueryClient();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<'normal' | 'drivers'>('normal');
+  const [activeTab, setActiveTab] = useState<'normal' | 'drivers' | 'passengers'>('normal');
   
   // Normal employees state
   const [normalClockIn, setNormalClockIn] = useState('07:00');
   const [normalClockOut, setNormalClockOut] = useState('18:00');
   const [applyToNormal, setApplyToNormal] = useState(true);
   
-  // Drivers state
+  // Drivers state (driving + equipment)
   const [drivingClockIn, setDrivingClockIn] = useState('07:00');
   const [drivingClockOut, setDrivingClockOut] = useState('18:00');
   const [applyToDriving, setApplyToDriving] = useState(true);
   
-  const [passengerClockIn, setPassengerClockIn] = useState('07:00');
-  const [passengerClockOut, setPassengerClockOut] = useState('18:00');
-  const [applyToPassenger, setApplyToPassenger] = useState(true);
-  
   const [equipmentClockIn, setEquipmentClockIn] = useState('07:00');
   const [equipmentClockOut, setEquipmentClockOut] = useState('18:00');
   const [applyToEquipment, setApplyToEquipment] = useState(true);
+  
+  // Passengers state
+  const [passengerClockIn, setPassengerClockIn] = useState('07:00');
+  const [passengerClockOut, setPassengerClockOut] = useState('18:00');
+  const [applyToPassenger, setApplyToPassenger] = useState(true);
 
   // Create dailyByUser map
   const dailyByUser = useMemo(() => {
@@ -107,24 +108,39 @@ export function BulkClockTimeEditDialog({
     });
   }, [groupedByEmployee, dailyByUser]);
 
-  // Detect drivers with special hours
+  // Detect drivers (driving + equipment)
   const driversWithHours = useMemo(() => {
     return Array.from(groupedByEmployee.values())
       .filter(emp => {
         const daily = dailyByUser.get(emp.userId);
         if (!daily) return false;
         
-        return (daily.hours_driving || 0) > 0 || 
-               (daily.hours_passenger || 0) > 0 || 
-               (daily.hours_equipment || 0) > 0;
+        return (daily.hours_driving || 0) > 0 || (daily.hours_equipment || 0) > 0;
       })
       .map(emp => {
         const daily = dailyByUser.get(emp.userId)!;
         return {
           ...emp,
           hasDriving: (daily.hours_driving || 0) > 0,
-          hasPassenger: (daily.hours_passenger || 0) > 0,
           hasEquipment: (daily.hours_equipment || 0) > 0,
+        };
+      });
+  }, [groupedByEmployee, dailyByUser]);
+
+  // Detect passengers
+  const passengersWithHours = useMemo(() => {
+    return Array.from(groupedByEmployee.values())
+      .filter(emp => {
+        const daily = dailyByUser.get(emp.userId);
+        if (!daily) return false;
+        
+        return (daily.hours_passenger || 0) > 0;
+      })
+      .map(emp => {
+        const daily = dailyByUser.get(emp.userId)!;
+        return {
+          ...emp,
+          hasPassenger: (daily.hours_passenger || 0) > 0,
         };
       });
   }, [groupedByEmployee, dailyByUser]);
@@ -178,26 +194,20 @@ export function BulkClockTimeEditDialog({
     return updates;
   }, [applyToNormal, normalClockIn, normalClockOut, normalEmployees, selectedDate]);
 
-  // Build updates for drivers
+  // Build updates for drivers (driving + equipment)
   const driverUpdates = useMemo((): BulkUpdatePayload[] => {
     const updates: BulkUpdatePayload[] = [];
     
     driversWithHours.forEach(emp => {
-      // Determine which times to apply based on what they have
       let clockIn = '';
       let clockOut = '';
       
+      // Priority: driving > equipment
       if (applyToDriving && emp.hasDriving) {
         const validation = validateTimes(drivingClockIn, drivingClockOut);
         if (validation.valid) {
           clockIn = drivingClockIn;
           clockOut = drivingClockOut;
-        }
-      } else if (applyToPassenger && emp.hasPassenger) {
-        const validation = validateTimes(passengerClockIn, passengerClockOut);
-        if (validation.valid) {
-          clockIn = passengerClockIn;
-          clockOut = passengerClockOut;
         }
       } else if (applyToEquipment && emp.hasEquipment) {
         const validation = validateTimes(equipmentClockIn, equipmentClockOut);
@@ -228,12 +238,45 @@ export function BulkClockTimeEditDialog({
     return updates;
   }, [
     applyToDriving, drivingClockIn, drivingClockOut,
-    applyToPassenger, passengerClockIn, passengerClockOut,
     applyToEquipment, equipmentClockIn, equipmentClockOut,
     driversWithHours, selectedDate
   ]);
 
-  const totalUpdates = activeTab === 'normal' ? normalUpdates : driverUpdates;
+  // Build updates for passengers
+  const passengerUpdates = useMemo((): BulkUpdatePayload[] => {
+    const updates: BulkUpdatePayload[] = [];
+    
+    if (!applyToPassenger) return [];
+    
+    const validation = validateTimes(passengerClockIn, passengerClockOut);
+    if (!validation.valid) return [];
+    
+    passengersWithHours.forEach(emp => {
+      emp.entries.forEach(entry => {
+        if (entry.clock_out_time) {
+          const formattedClockIn = format(parse(passengerClockIn, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
+          const formattedClockOut = format(parse(passengerClockOut, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
+          
+          updates.push({
+            timeEntryId: entry.id,
+            clockIn: formattedClockIn,
+            clockOut: formattedClockOut,
+            userId: emp.userId,
+            userName: emp.userName,
+          });
+        }
+      });
+    });
+    
+    return updates;
+  }, [
+    applyToPassenger, passengerClockIn, passengerClockOut,
+    passengersWithHours, selectedDate
+  ]);
+
+  const totalUpdates = activeTab === 'normal' ? normalUpdates : 
+                       activeTab === 'drivers' ? driverUpdates : 
+                       passengerUpdates;
 
   // Mutation for bulk update
   const bulkUpdateMutation = useMutation({
@@ -312,13 +355,16 @@ export function BulkClockTimeEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'normal' | 'drivers')}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'normal' | 'drivers' | 'passengers')}>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="normal">
               Ore Normale ({normalEmployees.length})
             </TabsTrigger>
             <TabsTrigger value="drivers">
-              Șoferi ({driversWithHours.length})
+              Șoferi
+            </TabsTrigger>
+            <TabsTrigger value="passengers">
+              Pasageri
             </TabsTrigger>
           </TabsList>
 
@@ -396,7 +442,7 @@ export function BulkClockTimeEditDialog({
             {driversWithHours.length === 0 ? (
               <Alert>
                 <AlertDescription>
-                  Nu există șoferi cu ore speciale în această zi.
+                  Nu există șoferi în această zi.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -413,7 +459,7 @@ export function BulkClockTimeEditDialog({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Clock In Condus</Label>
+                      <Label>Clock In</Label>
                       <Input
                         type="time"
                         value={drivingClockIn}
@@ -422,44 +468,12 @@ export function BulkClockTimeEditDialog({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Clock Out Condus</Label>
+                      <Label>Clock Out</Label>
                       <Input
                         type="time"
                         value={drivingClockOut}
                         onChange={(e) => setDrivingClockOut(e.target.value)}
                         disabled={!applyToDriving}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Passenger section */}
-                <div className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">👤 Pasager</h4>
-                    <Checkbox
-                      id="apply-passenger"
-                      checked={applyToPassenger}
-                      onCheckedChange={(checked) => setApplyToPassenger(checked as boolean)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Clock In Pasager</Label>
-                      <Input
-                        type="time"
-                        value={passengerClockIn}
-                        onChange={(e) => setPassengerClockIn(e.target.value)}
-                        disabled={!applyToPassenger}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Clock Out Pasager</Label>
-                      <Input
-                        type="time"
-                        value={passengerClockOut}
-                        onChange={(e) => setPassengerClockOut(e.target.value)}
-                        disabled={!applyToPassenger}
                       />
                     </div>
                   </div>
@@ -477,7 +491,7 @@ export function BulkClockTimeEditDialog({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Clock In Utilaj</Label>
+                      <Label>Clock In</Label>
                       <Input
                         type="time"
                         value={equipmentClockIn}
@@ -486,7 +500,7 @@ export function BulkClockTimeEditDialog({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Clock Out Utilaj</Label>
+                      <Label>Clock Out</Label>
                       <Input
                         type="time"
                         value={equipmentClockOut}
@@ -505,6 +519,63 @@ export function BulkClockTimeEditDialog({
                         <span>{update.userName}</span>
                         <span className="text-muted-foreground">
                           {format(new Date(update.clockIn), 'HH:mm')} → {format(new Date(update.clockOut), 'HH:mm')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="passengers" className="space-y-4 mt-4">
+            {passengersWithHours.length === 0 ? (
+              <Alert>
+                <AlertDescription>
+                  Nu există pasageri în această zi.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">👤 Pasager</h4>
+                    <Checkbox
+                      id="apply-passenger"
+                      checked={applyToPassenger}
+                      onCheckedChange={(checked) => setApplyToPassenger(checked as boolean)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Clock In</Label>
+                      <Input
+                        type="time"
+                        value={passengerClockIn}
+                        onChange={(e) => setPassengerClockIn(e.target.value)}
+                        disabled={!applyToPassenger}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Clock Out</Label>
+                      <Input
+                        type="time"
+                        value={passengerClockOut}
+                        onChange={(e) => setPassengerClockOut(e.target.value)}
+                        disabled={!applyToPassenger}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 max-h-[200px] overflow-y-auto">
+                  <h4 className="font-semibold mb-2">Preview ({passengerUpdates.length} pontaje):</h4>
+                  <div className="space-y-1 text-sm">
+                    {passengerUpdates.map((update, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span>{update.userName}</span>
+                        <span className="text-muted-foreground">
+                          {passengerClockIn} → {passengerClockOut}
                         </span>
                       </div>
                     ))}
