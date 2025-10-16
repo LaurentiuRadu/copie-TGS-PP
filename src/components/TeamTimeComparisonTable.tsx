@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, ChevronDown } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -18,6 +18,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { EmployeePunchList } from './EmployeePunchList';
+import { cn } from '@/lib/utils';
 
 interface Segment {
   id: string;
@@ -71,6 +78,20 @@ export const TeamTimeComparisonTable = ({
   onTimeSave,
   onTimeCancel,
 }: TeamTimeComparisonTableProps) => {
+  // State pentru rânduri expandabile
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleRow = (userId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
   
   // Detectează șoferii (cei care conduc efectiv)
   const isDriver = (segments: Segment[]) => {
@@ -245,20 +266,40 @@ export const TeamTimeComparisonTable = ({
               const clockOutDiff = employee.lastClockOut && teamAverage.avgClockOut
                 ? formatDifference(clockOutTime, teamAverage.avgClockOut)
                 : '';
+              
+              const isExpanded = expandedRows.has(employee.userId);
 
               return (
-                <TableRow key={employee.userId}>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div className="font-medium">{employee.fullName}</div>
-                      <div className="text-xs text-muted-foreground">@{employee.username}</div>
-                      {isDrv && (
-                        <Badge variant="secondary" className="w-fit text-xs">
-                          🚗 Șofer
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
+                <Collapsible
+                  key={employee.userId}
+                  open={isExpanded}
+                  onOpenChange={() => toggleRow(employee.userId)}
+                >
+                  <TableRow>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                            <ChevronDown 
+                              className={cn(
+                                "h-4 w-4 transition-transform",
+                                isExpanded && "rotate-180"
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        
+                        <div className="flex flex-col gap-1">
+                          <div className="font-medium">{employee.fullName}</div>
+                          <div className="text-xs text-muted-foreground">@{employee.username}</div>
+                          {isDrv && (
+                            <Badge variant="secondary" className="w-fit text-xs">
+                              🚗 Șofer
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
                   
                   {/* Clock In - cu editare inline */}
                   <TableCell>
@@ -476,8 +517,23 @@ export const TeamTimeComparisonTable = ({
                     </div>
                   </TableCell>
                 </TableRow>
-              );
-            })}
+                
+                {/* ✅ Rând expandabil cu lista de pontaje cronologice */}
+                <CollapsibleContent asChild>
+                  <TableRow>
+                    <TableCell colSpan={6} className="bg-muted/30 p-0">
+                      <div className="px-6 py-3 border-l-2 border-primary/20">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          📋 Pontaje cronologice
+                        </h4>
+                        <EmployeePunchList entries={employee.entries} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
           </TableBody>
         </Table>
       </div>
