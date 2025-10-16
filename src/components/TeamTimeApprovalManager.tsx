@@ -285,7 +285,8 @@ export const TeamTimeApprovalManager = ({
     grouped.forEach((emp, userId) => {
       // Check dacă există marker de segmentare manuală
       const hasManualSegmentation = emp.entries.some(e => 
-        e.approval_notes?.startsWith('[SEGMENTARE MANUALĂ]')
+        (e.approval_notes || '').startsWith('[SEGMENTARE MANUALĂ]') ||
+        (e.approval_notes || '').startsWith('[OVERRIDE MANUAL')
       );
       
       // Fallback: dacă suma segmentelor auto depășește 24h, e clar că e greșit

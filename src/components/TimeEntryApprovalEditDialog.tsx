@@ -281,6 +281,9 @@ export function TimeEntryApprovalEditDialog({
       queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'daily-timesheets-for-approval'
+      });
       
       toast({
         title: "✅ Pontaj corectat și aprobat",
