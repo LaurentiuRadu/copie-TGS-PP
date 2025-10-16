@@ -26,33 +26,17 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-// Funcție pentru a calcula ziua de verificare default (X-1 cu regula de luni)
+// Funcție pentru a calcula ziua de verificare default (astăzi)
 const getDefaultVerificationDay = (): number => {
   const today = new Date();
   const todayDayOfWeek = today.getDay() || 7; // 1=luni, 7=duminică
-  
-  if (todayDayOfWeek === 1) {
-    // 📅 LUNI: verificăm VINERI din săptămâna trecută (ziua 5)
-    return 5;
-  } else {
-    // 📅 ALTE ZILE: verificăm ziua de IERI (X-1)
-    return todayDayOfWeek - 1 === 0 ? 7 : todayDayOfWeek - 1;
-  }
+  return todayDayOfWeek;
 };
 
-// Funcție pentru a calcula săptămâna de verificare (săptămâna trecută pentru luni)
+// Funcție pentru a calcula săptămâna de verificare (săptămâna curentă)
 const getDefaultVerificationWeek = (): string => {
   const today = new Date();
-  const todayDayOfWeek = today.getDay() || 7;
-  
-  if (todayDayOfWeek === 1) {
-    // 📅 LUNI: folosim săptămâna TRECUTĂ pentru vineri/sâmbătă/duminică
-    const lastWeek = subWeeks(today, 1);
-    return format(startOfWeek(lastWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  } else {
-    // 📅 ALTE ZILE: săptămâna curentă
-    return format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  }
+  return format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
 };
 
 export default function TimesheetVerificare() {
@@ -303,8 +287,6 @@ export default function TimesheetVerificare() {
                   size="sm"
                   onClick={() => navigateWeek('prev')}
                   className="gap-1"
-                  disabled={hasPendingEntries}
-                  title={hasPendingEntries ? "Termină aprobările din ziua curentă" : "Săptămâna anterioară"}
                 >
                   <ChevronLeft className="h-4 w-4" />
                   <span className="hidden sm:inline">Anterioara</span>
@@ -325,8 +307,6 @@ export default function TimesheetVerificare() {
                   size="sm"
                   onClick={() => navigateWeek('next')}
                   className="gap-1"
-                  disabled={hasPendingEntries}
-                  title={hasPendingEntries ? "Termină aprobările din ziua curentă" : "Săptămâna următoare"}
                 >
                   <span className="hidden sm:inline">Următoarea</span>
                   <ChevronRight className="h-4 w-4" />
@@ -336,8 +316,6 @@ export default function TimesheetVerificare() {
                   variant="secondary"
                   size="sm"
                   onClick={goToToday}
-                  disabled={hasPendingEntries}
-                  title={hasPendingEntries ? "Termină aprobările din ziua curentă" : "Mergi la ziua curentă"}
                 >
                   Astăzi
                 </Button>
@@ -358,17 +336,7 @@ export default function TimesheetVerificare() {
                       value={selectedDayOfWeek.toString()} 
                       onValueChange={(v) => {
                         const targetDay = Number(v);
-                        if (!hasPendingEntries) {
-                          setSelectedDayOfWeek(targetDay);
-                        } else if (targetDay < selectedDayOfWeek) {
-                          setSelectedDayOfWeek(targetDay);
-                        } else {
-                          toast({
-                            title: '⚠️ Nu poți avansa',
-                            description: `Termină aprobarea celor ${pendingCountForDay} pontaje din ${getDayName(selectedDayOfWeek)}.`,
-                            variant: 'destructive'
-                          });
-                        }
+                        setSelectedDayOfWeek(targetDay);
                       }}
                     >
                       <SelectTrigger id="day-selector" className="w-[180px]">
