@@ -18,6 +18,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 interface Segment {
   id: string;
@@ -92,6 +97,9 @@ export const TeamTimeComparisonTable = ({
     segmentType: string;
     value: string;
   } | null>(null);
+  const { isAdmin } = useUserRole();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   // Detectează șoferii (cei care conduc efectiv)
   const isDriver = (segments: Segment[]) => {
@@ -246,12 +254,58 @@ export const TeamTimeComparisonTable = ({
 
     const getSum = (types: string[]) => types.reduce((sum, t) => sum + getDisplayHours(employee, t), 0);
 
+    const workDate = format(new Date(employee.firstClockIn), 'yyyy-MM-dd');
+
+    // Funcție helper pentru override manual (DOAR admin)
+    const saveAdminOverride = async () => {
+      const overridePayload: any = {
+        employee_id: userId,
+        work_date: workDate,
+        notes: '[SEGMENTARE MANUALĂ] Setat manual din tabel',
+      };
+      segmentTypes.forEach((t) => {
+        overridePayload[t] = t === segmentType ? Number(newHours.toFixed(2)) : Number(getDisplayHours(employee, t).toFixed(2));
+      });
+
+      const { data: existing } = await supabase
+        .from('daily_timesheets')
+        .select('id, notes')
+        .eq('employee_id', userId)
+        .eq('work_date', workDate)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('daily_timesheets')
+          .update(overridePayload)
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('daily_timesheets')
+          .insert(overridePayload);
+      }
+
+      await queryClient.refetchQueries({ queryKey: ['dailyTimesheets'], type: 'active' });
+      await queryClient.refetchQueries({ queryKey: ['team-pending-approvals'], type: 'active' });
+
+      toast({
+        title: '✅ Override salvat',
+        description: `${getSegmentLabel(segmentType)}: ${newHours.toFixed(2)}h (manual)`,
+      });
+
+      setEditingHours(null);
+    };
+
     if (segmentType !== 'hours_regular') {
       const regular = getDisplayHours(employee, 'hours_regular');
       const others = getSum(segmentTypes.filter(t => t !== 'hours_regular' && t !== segmentType));
       const desiredTotal = others + newHours + regular;
 
       if (desiredTotal > employee.totalHours + tolerance) {
+        if (isAdmin) {
+          await saveAdminOverride();
+          return;
+        }
         const diff = desiredTotal - employee.totalHours; // cât trebuie să scădem din normal
         if (regular > 0) {
           const adjustedRegular = Math.max(0, regular - diff);
@@ -268,7 +322,7 @@ export const TeamTimeComparisonTable = ({
         return;
       }
 
-      // Nu depășește: salvăm direct
+      // Nu depășește: salvăm direct prin recalcul segmente
       onSegmentHoursEdit(userId, segmentType, Number(newHours.toFixed(2)));
       setEditingHours(null);
       return;
@@ -277,8 +331,13 @@ export const TeamTimeComparisonTable = ({
     // Cazul "hours_regular": respectăm totalul maxim (clamp dacă e nevoie)
     const othersWithoutRegular = getSum(segmentTypes.filter(t => t !== 'hours_regular'));
     const maxRegular = Math.max(0, employee.totalHours - othersWithoutRegular);
-    const appliedRegular = newHours > maxRegular + tolerance ? maxRegular : newHours;
 
+    if (isAdmin && newHours > maxRegular + tolerance) {
+      await saveAdminOverride();
+      return;
+    }
+
+    const appliedRegular = newHours > maxRegular + tolerance ? maxRegular : newHours;
     onSegmentHoursEdit(userId, 'hours_regular', Number(appliedRegular.toFixed(2)));
     setEditingHours(null);
   };
