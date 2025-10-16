@@ -261,7 +261,7 @@ export const TeamTimeComparisonTable = ({
 
       {/* Tabel orizontal */}
       <div className="border rounded-lg overflow-x-auto">
-        <Table>
+        <Table className="w-full min-w-[1200px]">
           <TableHeader>
             <TableRow>
               <TableHead className="min-w-[180px]">Angajat</TableHead>

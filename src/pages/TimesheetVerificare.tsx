@@ -349,7 +349,7 @@ export default function TimesheetVerificare() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-      <Card className="w-full max-w-7xl mx-auto">
+      <Card className="w-full mx-4 lg:mx-6">
         <CardHeader>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
