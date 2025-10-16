@@ -24,6 +24,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { EmployeePunchList } from './EmployeePunchList';
+import { SegmentTimeEditDialog } from './SegmentTimeEditDialog';
 import { cn } from '@/lib/utils';
 
 interface Segment {
@@ -64,6 +65,8 @@ interface TeamTimeComparisonTableProps {
   onTimeChange: (value: string) => void;
   onTimeSave: (employee: EmployeeDayData) => void;
   onTimeCancel: () => void;
+  selectedDay: string;
+  selectedTeam: string;
 }
 
 export const TeamTimeComparisonTable = ({
@@ -77,9 +80,21 @@ export const TeamTimeComparisonTable = ({
   onTimeChange,
   onTimeSave,
   onTimeCancel,
+  selectedDay,
+  selectedTeam,
 }: TeamTimeComparisonTableProps) => {
   // State pentru rânduri expandabile
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // State pentru dialog editare segment
+  const [segmentEditDialog, setSegmentEditDialog] = useState<{
+    open: boolean;
+    entry: any;
+    segment: any;
+    workDate: string;
+    teamId: string;
+    vehicle: string;
+  } | null>(null);
 
   const toggleRow = (userId: string) => {
     setExpandedRows(prev => {
@@ -90,6 +105,30 @@ export const TeamTimeComparisonTable = ({
         newSet.add(userId);
       }
       return newSet;
+    });
+  };
+
+  // Handler pentru editare segment
+  const handleSegmentEdit = (eventData: any) => {
+    const entry = eventData.entry;
+    const segment = eventData.segment;
+    
+    // Găsește vehiculul din weekly_schedules (assume first entry has it)
+    const vehicle = entry.vehicle || 'Necunoscut';
+    
+    setSegmentEditDialog({
+      open: true,
+      entry,
+      segment: {
+        id: segment.id,
+        start_time: segment.start_time,
+        end_time: segment.end_time,
+        hours_decimal: segment.hours_decimal,
+        segment_type: segment.segment_type || segment.type,
+      },
+      workDate: selectedDay,
+      teamId: selectedTeam,
+      vehicle,
     });
   };
   
@@ -525,8 +564,14 @@ export const TeamTimeComparisonTable = ({
                       <div className="px-6 py-3 border-l-2 border-primary/20">
                         <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                           📋 Pontaje cronologice
+                          <span className="text-xs text-muted-foreground font-normal">
+                            (Click pentru editare)
+                          </span>
                         </h4>
-                        <EmployeePunchList entries={employee.entries} />
+                        <EmployeePunchList 
+                          entries={employee.realEntries || employee.entries} 
+                          onSegmentEdit={handleSegmentEdit}
+                        />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -537,6 +582,19 @@ export const TeamTimeComparisonTable = ({
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog editare segment */}
+      {segmentEditDialog?.open && (
+        <SegmentTimeEditDialog
+          entry={segmentEditDialog.entry}
+          segment={segmentEditDialog.segment}
+          workDate={segmentEditDialog.workDate}
+          teamId={segmentEditDialog.teamId}
+          vehicle={segmentEditDialog.vehicle}
+          open={segmentEditDialog.open}
+          onOpenChange={(open) => setSegmentEditDialog(open ? segmentEditDialog : null)}
+        />
+      )}
     </div>
   );
 };

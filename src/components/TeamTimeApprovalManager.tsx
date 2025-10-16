@@ -900,6 +900,8 @@ export const TeamTimeApprovalManager = ({
               onTimeChange={handleTimeChange}
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
+              selectedDay={format(addDays(new Date(selectedWeek), selectedDayOfWeek), 'yyyy-MM-dd')}
+              selectedTeam={selectedTeam || ''}
             />
           ) : (
             // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)
