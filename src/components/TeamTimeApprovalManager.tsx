@@ -193,7 +193,7 @@ export const TeamTimeApprovalManager = ({
       const { data, error } = await supabase
         .from('daily_timesheets')
         .select('*')
-        .eq('work_date', selectedDate.toISOString().split('T')[0])
+        .eq('work_date', format(selectedDate, 'yyyy-MM-dd'))
         .in('employee_id', userIds);
       
       if (error) throw error;
