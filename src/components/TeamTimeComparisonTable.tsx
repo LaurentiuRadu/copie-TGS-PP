@@ -584,30 +584,22 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Pauză - calculată automat */}
+                  {/* Pauză - scăzută automat de edge function din ore normale */}
                   <TableCell>
                     {(() => {
                       if (!employee.lastClockOut) {
                         return <span className="text-sm text-muted-foreground">—</span>;
                       }
                       
-                      // Calculăm timpul brut lucrat (în ore)
-                      const clockInDate = new Date(employee.firstClockIn);
-                      const clockOutDate = new Date(employee.lastClockOut);
-                      const totalMinutes = (clockOutDate.getTime() - clockInDate.getTime()) / (1000 * 60);
-                      const grossHours = totalMinutes / 60;
-                      
-                      // Suma segmentelor
+                      // Verificăm dacă există ore normale
                       const normalHours = getSegmentHours(employee.segments, 'hours_regular');
-                      const drivingHours = getSegmentHours(employee.segments, 'hours_driving');
-                      const passengerHours = getSegmentHours(employee.segments, 'hours_passenger');
-                      const equipmentHours = getSegmentHours(employee.segments, 'hours_equipment');
-                      const sumSegments = normalHours + drivingHours + passengerHours + equipmentHours;
                       
-                      // Pauza = Timp brut - Suma segmentelor
-                      const breakHours = Math.max(0, grossHours - sumSegments);
+                      // Regula: Pauza de 30 min (0.5h) se scade AUTOMAT din ore normale de către edge function
+                      // NU se scade din ore Pasager/Condus/Utilaj
+                      // Deci afișăm fix 0.5h dacă există ore normale >= 0.5h, 0h altfel
+                      const breakHours = normalHours >= 0.5 ? 0.5 : 0;
                       
-                      return breakHours >= 0.01 ? (
+                      return breakHours > 0 ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -617,10 +609,12 @@ export const TeamTimeComparisonTable = ({
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="text-xs space-y-1">
-                                <div>Timp brut: {grossHours.toFixed(2)}h</div>
-                                <div>Segmente: {sumSegments.toFixed(2)}h</div>
+                                <div>Pauză standard: 30 min</div>
+                                <div className="text-muted-foreground">
+                                  Scăzută automat din ore normale
+                                </div>
                                 <div className="font-semibold mt-1 pt-1 border-t">
-                                  Pauză: {breakHours.toFixed(2)}h ({Math.round(breakHours * 60)} min)
+                                  {normalHours >= 0.5 ? '✅ Pauză aplicată' : '❌ Fără ore normale'}
                                 </div>
                               </div>
                             </TooltipContent>
