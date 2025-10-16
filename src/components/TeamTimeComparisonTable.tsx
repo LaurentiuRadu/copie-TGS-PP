@@ -545,20 +545,21 @@ export const TeamTimeComparisonTable = ({
                     {isSegmentEditable(employee, 'hours_regular') ? (
                       editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_regular' ? (
                         <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="24"
-                            value={editingHours.value}
-                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_regular', parseFloat(editingHours.value));
-                              if (e.key === 'Escape') setEditingHours(null);
-                            }}
-                            className="h-7 w-14 text-xs"
-                            autoFocus
-                          />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="24"
+                        value={editingHours.value}
+                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_regular', parseFloat(editingHours.value));
+                          if (e.key === 'Escape') setEditingHours(null);
+                        }}
+                        className="h-7 w-16 text-xs"
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                      />
                           <Button
                             size="icon"
                             variant="ghost"
@@ -596,20 +597,21 @@ export const TeamTimeComparisonTable = ({
                     {isSegmentEditable(employee, 'hours_night') ? (
                       editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_night' ? (
                         <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="24"
-                            value={editingHours.value}
-                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_night', parseFloat(editingHours.value));
-                              if (e.key === 'Escape') setEditingHours(null);
-                            }}
-                            className="h-7 w-14 text-xs"
-                            autoFocus
-                          />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="24"
+                        value={editingHours.value}
+                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_night', parseFloat(editingHours.value));
+                          if (e.key === 'Escape') setEditingHours(null);
+                        }}
+                        className="h-7 w-16 text-xs"
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                      />
                           <Button
                             size="icon"
                             variant="ghost"
@@ -647,20 +649,21 @@ export const TeamTimeComparisonTable = ({
                     {isSegmentEditable(employee, 'hours_saturday') ? (
                       editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_saturday' ? (
                         <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="24"
-                            value={editingHours.value}
-                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_saturday', parseFloat(editingHours.value));
-                              if (e.key === 'Escape') setEditingHours(null);
-                            }}
-                            className="h-7 w-14 text-xs"
-                            autoFocus
-                          />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="24"
+                        value={editingHours.value}
+                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_saturday', parseFloat(editingHours.value));
+                          if (e.key === 'Escape') setEditingHours(null);
+                        }}
+                        className="h-7 w-16 text-xs"
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                      />
                           <Button
                             size="icon"
                             variant="ghost"
@@ -698,20 +701,21 @@ export const TeamTimeComparisonTable = ({
                     {isSegmentEditable(employee, 'hours_sunday') ? (
                       editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_sunday' ? (
                         <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="24"
-                            value={editingHours.value}
-                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_sunday', parseFloat(editingHours.value));
-                              if (e.key === 'Escape') setEditingHours(null);
-                            }}
-                            className="h-7 w-14 text-xs"
-                            autoFocus
-                          />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="24"
+                        value={editingHours.value}
+                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_sunday', parseFloat(editingHours.value));
+                          if (e.key === 'Escape') setEditingHours(null);
+                        }}
+                        className="h-7 w-16 text-xs"
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                      />
                           <Button
                             size="icon"
                             variant="ghost"
@@ -749,20 +753,21 @@ export const TeamTimeComparisonTable = ({
                     {isSegmentEditable(employee, 'hours_holiday') ? (
                       editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_holiday' ? (
                         <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="24"
-                            value={editingHours.value}
-                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_holiday', parseFloat(editingHours.value));
-                              if (e.key === 'Escape') setEditingHours(null);
-                            }}
-                            className="h-7 w-14 text-xs"
-                            autoFocus
-                          />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="24"
+                        value={editingHours.value}
+                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_holiday', parseFloat(editingHours.value));
+                          if (e.key === 'Escape') setEditingHours(null);
+                        }}
+                        className="h-7 w-16 text-xs"
+                        autoFocus
+                        onFocus={(e) => e.target.select()}
+                      />
                           <Button
                             size="icon"
                             variant="ghost"
@@ -830,8 +835,9 @@ export const TeamTimeComparisonTable = ({
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_passenger', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
                           }}
-                          className="h-7 w-14 text-xs"
+                          className="h-7 w-16 text-xs"
                           autoFocus
+                          onFocus={(e) => e.target.select()}
                         />
                         <Button
                           size="icon"
@@ -898,8 +904,9 @@ export const TeamTimeComparisonTable = ({
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
                           }}
-                          className="h-7 w-14 text-xs"
+                          className="h-7 w-16 text-xs"
                           autoFocus
+                          onFocus={(e) => e.target.select()}
                         />
                         <Button
                           size="icon"
@@ -966,8 +973,9 @@ export const TeamTimeComparisonTable = ({
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_equipment', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
                           }}
-                          className="h-7 w-14 text-xs"
+                          className="h-7 w-16 text-xs"
                           autoFocus
+                          onFocus={(e) => e.target.select()}
                         />
                         <Button
                           size="icon"

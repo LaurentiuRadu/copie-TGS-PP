@@ -716,30 +716,33 @@ export const TeamTimeApprovalManager = ({
 
       const totalAvailableHours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
       
-      // ✅ VALIDARE 2: Calculează totalul segmentelor DUPĂ editare
-      const currentUser = managementGroupedByUser.find(u => u.userId === userId);
-      if (!currentUser) {
+      // ✅ VALIDARE 2: Calculează DELTA (diferența) în loc de total complet
+      // Găsim daily_timesheet pentru utilizator
+      const dailyTimesheet = overrideByUser.get(userId);
+      if (!dailyTimesheet) {
         toast({
-          title: "Nu s-a găsit utilizatorul",
+          title: "Nu s-a găsit pontajul",
           variant: "destructive",
         });
         return;
       }
 
-      let totalSegmentHours = 0;
+      // Calculează totalul ACTUAL din daily_timesheet
+      let currentTotalSegments = 0;
       standardTypes.forEach(type => {
-        if (type === segmentType) {
-          totalSegmentHours += newValue; // Noua valoare
-        } else {
-          totalSegmentHours += getDisplayHoursMgmt(currentUser, type); // Valorile existente
-        }
+        currentTotalSegments += dailyTimesheet[type] || 0;
       });
 
-      // ✅ VALIDARE 3: Verifică dacă totalul depășește timpul disponibil
-      if (totalSegmentHours > totalAvailableHours + 0.05) { // +3 minute toleranță
+      // Calculează valoarea veche și diferența (delta)
+      const oldValue = dailyTimesheet[segmentType] || 0;
+      const segmentDelta = newValue - oldValue;
+      const newTotalSegments = currentTotalSegments + segmentDelta;
+
+      // ✅ VALIDARE 3: Verifică dacă noul total depășește timpul disponibil
+      if (newTotalSegments > totalAvailableHours + 0.05) { // +3 minute toleranță
         toast({
           title: "❌ Eroare: Total segmente depășește Clock In/Out",
-          description: `Total segmente (${totalSegmentHours.toFixed(1)}h) depășește diferența Clock In/Out (${totalAvailableHours.toFixed(1)}h)`,
+          description: `Noul total (${newTotalSegments.toFixed(1)}h) depășește timpul disponibil (${totalAvailableHours.toFixed(1)}h)`,
           variant: "destructive",
         });
         return;
@@ -1406,7 +1409,7 @@ export const TeamTimeApprovalManager = ({
                           ...prev,
                           value: e.target.value
                         }))}
-                        className="w-24 h-8 text-sm font-mono"
+                        className="w-16 h-8 text-sm font-mono"
                         autoFocus
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => {
