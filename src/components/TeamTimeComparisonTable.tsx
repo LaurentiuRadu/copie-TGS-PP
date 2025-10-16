@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, ChevronDown } from 'lucide-react';
+import { Pencil, Trash2, Check, X } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -18,13 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { EmployeePunchList } from './EmployeePunchList';
-import { cn } from '@/lib/utils';
 
 interface Segment {
   id: string;
@@ -43,7 +36,6 @@ interface EmployeeDayData {
   lastClockOut: string | null;
   segments: Segment[];
   entries: any[];
-  realEntries?: any[]; // ✅ Entry-uri REALE pentru editare
   allApproved: boolean;
 }
 
@@ -52,7 +44,6 @@ interface TeamTimeComparisonTableProps {
   onEdit: (entry: any) => void;
   onDelete: (entry: any) => void;
   onUniformize: () => void;
-  onBulkClockEdit: () => void;
   onTimeClick: (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => void;
   editingSegment: {
     userId: string;
@@ -64,8 +55,6 @@ interface TeamTimeComparisonTableProps {
   onTimeChange: (value: string) => void;
   onTimeSave: (employee: EmployeeDayData) => void;
   onTimeCancel: () => void;
-  selectedDay: string;
-  selectedTeam: string;
 }
 
 export const TeamTimeComparisonTable = ({
@@ -73,29 +62,12 @@ export const TeamTimeComparisonTable = ({
   onEdit,
   onDelete,
   onUniformize,
-  onBulkClockEdit,
   onTimeClick,
   editingSegment,
   onTimeChange,
   onTimeSave,
   onTimeCancel,
-  selectedDay,
-  selectedTeam,
 }: TeamTimeComparisonTableProps) => {
-  // State pentru rânduri expandabile
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
-  const toggleRow = (userId: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(userId)) {
-        newSet.delete(userId);
-      } else {
-        newSet.add(userId);
-      }
-      return newSet;
-    });
-  };
   
   // Detectează șoferii (cei care conduc efectiv)
   const isDriver = (segments: Segment[]) => {
@@ -212,16 +184,11 @@ export const TeamTimeComparisonTable = ({
             Legenda: 🟢 ≤15min | 🟡 15-30min | 🔴 &gt;30min diferență
           </p>
         </div>
-        <div className="flex gap-2">
-          {groupedByEmployee.some(emp => !isDriver(emp.segments)) && (
-            <Button onClick={onUniformize} variant="secondary" size="sm">
-              🔄 Uniformizează Orele
-            </Button>
-          )}
-          <Button onClick={onBulkClockEdit} variant="outline" size="sm">
-            🕐 Editează Clock In/Out
+        {groupedByEmployee.some(emp => !isDriver(emp.segments)) && (
+          <Button onClick={onUniformize} variant="secondary" size="sm">
+            🔄 Uniformizează Orele
           </Button>
-        </div>
+        )}
       </div>
 
       {/* Tabel orizontal */}
@@ -270,40 +237,20 @@ export const TeamTimeComparisonTable = ({
               const clockOutDiff = employee.lastClockOut && teamAverage.avgClockOut
                 ? formatDifference(clockOutTime, teamAverage.avgClockOut)
                 : '';
-              
-              const isExpanded = expandedRows.has(employee.userId);
 
               return (
-                <Collapsible
-                  key={employee.userId}
-                  open={isExpanded}
-                  onOpenChange={() => toggleRow(employee.userId)}
-                >
-                  <TableRow>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <ChevronDown 
-                              className={cn(
-                                "h-4 w-4 transition-transform",
-                                isExpanded && "rotate-180"
-                              )}
-                            />
-                          </Button>
-                        </CollapsibleTrigger>
-                        
-                        <div className="flex flex-col gap-1">
-                          <div className="font-medium">{employee.fullName}</div>
-                          <div className="text-xs text-muted-foreground">@{employee.username}</div>
-                          {isDrv && (
-                            <Badge variant="secondary" className="w-fit text-xs">
-                              🚗 Șofer
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
+                <TableRow key={employee.userId}>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <div className="font-medium">{employee.fullName}</div>
+                      <div className="text-xs text-muted-foreground">@{employee.username}</div>
+                      {isDrv && (
+                        <Badge variant="secondary" className="w-fit text-xs">
+                          🚗 Șofer
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   
                   {/* Clock In - cu editare inline */}
                   <TableCell>
@@ -344,32 +291,22 @@ export const TeamTimeComparisonTable = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            {(() => {
-                              const firstSegment = employee.segments[0];
-                              const isSynthetic = firstSegment?.id.startsWith('synthetic-');
-                              return (
-                                <button
-                                  onClick={() => {
-                                    if (firstSegment) {
-                                      onTimeClick(employee.userId, 0, firstSegment.id, 'startTime', firstSegment.startTime);
-                                    }
-                                  }}
-                                  className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockInColor}`}
-                                >
-                                  {clockInTime}
-                                  {!isDrv && clockInDiff && (
-                                    <span className="block text-xs">{clockInDiff}</span>
-                                  )}
-                                </button>
-                              );
-                            })()}
+                            <button
+                              onClick={() => {
+                                const firstSegment = employee.segments[0];
+                                if (firstSegment) {
+                                  onTimeClick(employee.userId, 0, firstSegment.id, 'startTime', firstSegment.startTime);
+                                }
+                              }}
+                              className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockInColor}`}
+                            >
+                              {clockInTime}
+                              {!isDrv && clockInDiff && (
+                                <span className="block text-xs">{clockInDiff}</span>
+                              )}
+                            </button>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            {employee.segments[0]?.id.startsWith('synthetic-') 
-                              ? 'Click pentru a edita pontajul real'
-                              : 'Click pentru editare inline'
-                            }
-                          </TooltipContent>
+                          <TooltipContent>Click pentru editare</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     )}
@@ -415,32 +352,22 @@ export const TeamTimeComparisonTable = ({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              {(() => {
-                                const lastSegment = employee.segments[employee.segments.length - 1];
-                                const isSynthetic = lastSegment?.id.startsWith('synthetic-');
-                                return (
-                                  <button
-                                    onClick={() => {
-                                      if (lastSegment) {
-                                        onTimeClick(employee.userId, employee.segments.length - 1, lastSegment.id, 'endTime', lastSegment.endTime);
-                                      }
-                                    }}
-                                    className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockOutColor}`}
-                                  >
-                                    {clockOutTime}
-                                    {!isDrv && clockOutDiff && (
-                                      <span className="block text-xs">{clockOutDiff}</span>
-                                    )}
-                                  </button>
-                                );
-                              })()}
+                              <button
+                                onClick={() => {
+                                  const lastSegment = employee.segments[employee.segments.length - 1];
+                                  if (lastSegment) {
+                                    onTimeClick(employee.userId, employee.segments.length - 1, lastSegment.id, 'endTime', lastSegment.endTime);
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockOutColor}`}
+                              >
+                                {clockOutTime}
+                                {!isDrv && clockOutDiff && (
+                                  <span className="block text-xs">{clockOutDiff}</span>
+                                )}
+                              </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              {employee.segments[employee.segments.length - 1]?.id.startsWith('synthetic-')
-                                ? 'Click pentru a edita pontajul real'
-                                : 'Click pentru editare inline'
-                              }
-                            </TooltipContent>
+                            <TooltipContent>Click pentru editare</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )
@@ -486,11 +413,7 @@ export const TeamTimeComparisonTable = ({
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              onClick={() => {
-                                // ✅ Folosim REAL entry, nu synthetic segment
-                                const entryToEdit = employee.realEntries?.[0] || employee.entries[0];
-                                onEdit(entryToEdit);
-                              }}
+                              onClick={() => onEdit(employee.entries[0])}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -506,11 +429,7 @@ export const TeamTimeComparisonTable = ({
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-destructive"
-                              onClick={() => {
-                                // ✅ Folosim REAL entry, nu synthetic segment
-                                const entryToDelete = employee.realEntries?.[0] || employee.entries[0];
-                                onDelete(entryToDelete);
-                              }}
+                              onClick={() => onDelete(employee.entries[0])}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -521,25 +440,8 @@ export const TeamTimeComparisonTable = ({
                     </div>
                   </TableCell>
                 </TableRow>
-                
-                {/* ✅ Rând expandabil cu lista de pontaje cronologice */}
-                <CollapsibleContent asChild>
-                  <TableRow>
-                    <TableCell colSpan={6} className="bg-muted/30 p-0">
-                      <div className="px-6 py-3 border-l-2 border-primary/20">
-                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                          📋 Pontaje cronologice
-                        </h4>
-                        <EmployeePunchList 
-                          entries={employee.realEntries || employee.entries}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
+              );
+            })}
           </TableBody>
         </Table>
       </div>

@@ -171,21 +171,13 @@ export default function TimesheetVerificare() {
   });
 
   // NU resetăm edited teams când schimbăm ziua - doar când schimbăm săptămâna
-  // ✅ FIX: Nu schimba automat echipa după refresh, doar când e necesar
   useEffect(() => {
-    if (!availableTeams || availableTeams.size === 0) {
-      setSelectedTeam(null);
-      return;
-    }
-
-    // Setează prima echipă DOAR dacă:
-    // 1. Nu există nicio echipă selectată SAU
-    // 2. Echipa selectată nu mai există în lista curentă
-    if (!selectedTeam || !availableTeams.has(selectedTeam)) {
+    if (availableTeams && availableTeams.size > 0) {
       const firstTeam = Array.from(availableTeams)[0];
       setSelectedTeam(firstTeam);
+    } else {
+      setSelectedTeam(null);
     }
-    // Altfel, păstrează echipa curent selectată (nu forța re-selecție la fiecare refresh)
   }, [selectedWeek, selectedDayOfWeek, availableTeams]);
 
   // Reset edited teams DOAR când schimbăm săptămâna

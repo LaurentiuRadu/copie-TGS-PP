@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,10 +13,9 @@ import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditD
 import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
 import { TeamTimeComparisonTable } from '@/components/TeamTimeComparisonTable';
 import { UniformizeDialog } from '@/components/UniformizeDialog';
-import { BulkClockTimeEditDialog } from '@/components/BulkClockTimeEditDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -99,7 +98,6 @@ export const TeamTimeApprovalManager = ({
   } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'details'>('table');
   const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
-  const [bulkClockEditDialogOpen, setBulkClockEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -177,47 +175,6 @@ export const TeamTimeApprovalManager = ({
   const pendingOnlyEntries = validPendingEntries.filter(e => e.approval_status === 'pending_review');
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
 
-  // ✅ FETCH DAILY TIMESHEETS pentru detectare segmentare manuală
-  const selectedDate = useMemo(() => {
-    if (!selectedWeek) return null;
-    return addDays(new Date(selectedWeek), selectedDayOfWeek - 1);
-  }, [selectedWeek, selectedDayOfWeek]);
-
-  const userIds = useMemo(() => {
-    return Array.from(new Set(displayedEntries.map(e => e.user_id)));
-  }, [displayedEntries]);
-
-  const { data: dailyTimesheets = [] } = useQuery({
-    queryKey: ['daily-timesheets-for-approval', selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null, userIds],
-    queryFn: async () => {
-      if (!selectedDate || userIds.length === 0) return [];
-      
-      const workDate = format(selectedDate, 'yyyy-MM-dd');
-      
-      const { data, error } = await supabase
-        .from('daily_timesheets')
-        .select('*')
-        .eq('work_date', workDate)
-        .in('employee_id', userIds);
-      
-      if (error) throw error;
-      
-      console.log('[DailyTimesheets]', workDate, 'records:', data?.length || 0);
-      
-      return data || [];
-    },
-    enabled: !!selectedDate && userIds.length > 0,
-  });
-
-  // Map daily timesheets by user for quick lookup
-  const dailyByUser = useMemo(() => {
-    const map = new Map();
-    dailyTimesheets.forEach(dt => {
-      map.set(dt.employee_id, dt);
-    });
-    return map;
-  }, [dailyTimesheets]);
-
   // ✅ GRUPARE PE ANGAJAT: combinăm toate pontajele unui user într-o singură structură
   interface EmployeeDayData {
     userId: string;
@@ -234,7 +191,6 @@ export const TeamTimeApprovalManager = ({
       duration: number;
     }>;
     entries: TimeEntryForApproval[];
-    realEntries: TimeEntryForApproval[]; // ✅ Entry-uri REALE pentru editare
     allApproved: boolean;
   }
 
@@ -254,14 +210,12 @@ export const TeamTimeApprovalManager = ({
           lastClockOut: entry.clock_out_time,
           segments: [],
           entries: [],
-          realEntries: [], // ✅ Păstrăm entry-urile reale separate
           allApproved: true,
         });
       }
       
       const employeeData = grouped.get(userId)!;
       employeeData.entries.push(entry);
-      employeeData.realEntries.push(entry); // ✅ Păstrăm și în realEntries pentru butonul Edit
       
       // Update first/last timestamps
       if (entry.clock_in_time < employeeData.firstClockIn) {
@@ -291,105 +245,14 @@ export const TeamTimeApprovalManager = ({
       }
     });
     
-    // ✅ DETECTARE SEGMENTARE MANUALĂ și override cu daily_timesheets
-    grouped.forEach((emp, userId) => {
-      // Check dacă există marker de segmentare manuală (folosim includes pentru robustețe)
-      const hasManualSegmentation = emp.entries.some(e => 
-        (e.approval_notes || '').includes('[SEGMENTARE MANUALĂ]') ||
-        (e.approval_notes || '').includes('[OVERRIDE MANUAL')
-      );
-      
-      // Fallback: dacă suma segmentelor auto depășește 24h, e clar că e greșit
-      const autoSumExceeds24h = emp.totalHours > 24;
-      
-      const dailyRecord = dailyByUser.get(userId);
-      
-      if ((hasManualSegmentation || autoSumExceeds24h) && dailyRecord) {
-        console.log(`[Segments Override] Using manual daily_timesheets for ${emp.fullName} (${userId})`);
-        
-        // Construim segmente sintetice din daily_timesheets
-        const syntheticSegments = [];
-        let syntheticTotal = 0;
-        
-        // Map pentru fielduri și tipuri
-        const fieldMapping = [
-          { field: 'hours_regular', type: 'hours_regular' },
-          { field: 'hours_night', type: 'hours_night' },
-          { field: 'hours_saturday', type: 'hours_saturday' },
-          { field: 'hours_sunday', type: 'hours_sunday' },
-          { field: 'hours_holiday', type: 'hours_holiday' },
-          { field: 'hours_passenger', type: 'hours_passenger' },
-          { field: 'hours_driving', type: 'hours_driving' },
-          { field: 'hours_equipment', type: 'hours_equipment' },
-        ];
-        
-        // ✅ Calculăm start time pentru segmente
-        const totalStartTime = new Date(emp.firstClockIn);
-        
-        // Creăm segmente cu intervale de timp proporționale
-        let currentTime = new Date(totalStartTime);
-        
-        fieldMapping.forEach(({ field, type }) => {
-          const value = Number(dailyRecord[field]) || 0;
-          if (value > 0) {
-            // Calculăm end time pentru acest segment (proporțional cu durata)
-            const segmentEndTime = new Date(currentTime.getTime() + value * 60 * 60 * 1000);
-            
-            syntheticSegments.push({
-              id: `synthetic-${field}-${userId}`,
-              type: type,
-              startTime: currentTime.toISOString(),
-              endTime: segmentEndTime.toISOString(),
-              duration: value,
-            });
-            
-            syntheticTotal += value;
-            currentTime = segmentEndTime; // Următorul segment începe unde s-a terminat acesta
-          }
-        });
-        
-        // ✅ ACUM calculăm lastClockOut DUPĂ ce avem syntheticTotal
-        emp.lastClockOut = currentTime.toISOString();
-        
-        // Override-ul complet
-        emp.segments = syntheticSegments;
-        emp.totalHours = Math.round(syntheticTotal * 100) / 100;
-      } else {
-        // Sortăm segmentele cronologic pentru cazuri normale
-        emp.segments.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-        emp.totalHours = Math.round(emp.totalHours * 100) / 100;
-      }
+    // Sortăm segmentele cronologic
+    grouped.forEach(emp => {
+      emp.segments.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      emp.totalHours = Math.round(emp.totalHours * 100) / 100;
     });
     
     return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
-  }, [displayedEntries, dailyByUser]);
-
-  // Keep Map version for BulkClockTimeEditDialog
-  const groupedByEmployeeMap = useMemo(() => {
-    const map = new Map<string, {
-      userId: string;
-      userName: string;
-      entries: Array<{
-        id: string;
-        clock_in_time: string;
-        clock_out_time: string | null;
-      }>;
-    }>();
-    
-    groupedByEmployee.forEach(emp => {
-      map.set(emp.userId, {
-        userId: emp.userId,
-        userName: emp.fullName,
-        entries: emp.entries.map(e => ({
-          id: e.id,
-          clock_in_time: e.clock_in_time,
-          clock_out_time: e.clock_out_time,
-        })),
-      });
-    });
-    
-    return map;
-  }, [groupedByEmployee]);
+  }, [displayedEntries]);
 
   // Helper pentru icon-uri segment
   const getSegmentIcon = (type: string) => {
@@ -514,13 +377,8 @@ export const TeamTimeApprovalManager = ({
         });
       }
       
-      // ✅ BLOCARE: Nu permite salvarea segmentelor sintetice
-      if (segmentId.startsWith('synthetic-')) {
-        throw new Error('Nu poți salva modificări pe segmente sintetice. Folosește "Editează Clock In/Out" sau repartizează manual din dialogul de aprobare.');
-      }
-      
       // Update segment in time_entry_segments
-      const updateData = field === 'startTime'
+      const updateData = field === 'startTime' 
         ? { start_time: newDate.toISOString(), hours_decimal: durationHours }
         : { end_time: newDate.toISOString(), hours_decimal: durationHours };
       
@@ -577,31 +435,7 @@ export const TeamTimeApprovalManager = ({
       return;
     }
     
-    // ✅ SEGMENT SINTETIC: Deschide dialogul de editare cu entry-ul REAL
-    if (segmentId.startsWith('synthetic-')) {
-      console.log('[handleTimeClick] Segment sintetic detectat, deschid dialogul cu entry-ul real:', segmentId);
-      
-      // Găsește datele angajatului
-      const employeeData = groupedByEmployee.find(emp => emp.userId === userId);
-      
-      // Încearcă să găsești entry-ul real
-      const realEntry = employeeData?.realEntries?.[0] || employeeData?.entries?.[0];
-      
-      if (realEntry) {
-        // Deschide dialogul de editare cu entry-ul real
-        setEditEntry(realEntry);
-        setEditDialogOpen(true);
-      } else {
-        toast({
-          title: '⚠️ Nu există pontaj real',
-          description: 'Folosește butonul "Editează Clock In/Out".',
-          variant: 'default',
-        });
-      }
-      return;
-    }
-    
-    // Extract HH:mm from ISO timestamp pentru editare inline
+    // Extract HH:mm from ISO timestamp
     const timeOnly = formatRomania(currentTime, 'HH:mm');
     setEditingSegment({
       userId,
@@ -894,14 +728,11 @@ export const TeamTimeApprovalManager = ({
               onEdit={handleEdit}
               onDelete={handleDelete}
               onUniformize={() => setUniformizeDialogOpen(true)}
-              onBulkClockEdit={() => setBulkClockEditDialogOpen(true)}
               onTimeClick={handleTimeClick}
               editingSegment={editingSegment}
               onTimeChange={handleTimeChange}
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
-              selectedDay={format(addDays(new Date(selectedWeek), selectedDayOfWeek), 'yyyy-MM-dd')}
-              selectedTeam={selectedTeam || ''}
             />
           ) : (
             // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)
@@ -1109,13 +940,24 @@ export const TeamTimeApprovalManager = ({
             if (!open) setEditEntry(null);
           }}
           onSuccess={() => {
-            // ✅ FIX: Nu schimbăm automat echipa - user rămâne pe pagina curentă
+            // Auto-scroll la următoarea echipă needitată după editare
             if (selectedTeam) {
               onTeamEdited(selectedTeam);
-              toast({
-                title: '✅ Pontaj editat și aprobat',
-                description: 'Modificările au fost salvate cu succes.',
-              });
+              
+              const nextTeam = getNextUneditedTeam();
+              if (nextTeam) {
+                onTeamChange(nextTeam);
+                toast({
+                  title: '✅ Pontaj editat și aprobat',
+                  description: `Trecem automat la echipa ${nextTeam}`,
+                });
+              } else {
+                toast({
+                  title: '🎉 Toate echipele verificate!',
+                  description: 'Poți schimba ziua acum sau continua editarea.',
+                });
+                // NU schimbăm ziua automat - user decide manual
+              }
             }
           }}
         />
@@ -1130,13 +972,23 @@ export const TeamTimeApprovalManager = ({
             if (!open) setDeleteEntry(null);
           }}
           onSuccess={() => {
-            // ✅ FIX: Nu schimbăm automat echipa - user rămâne pe pagina curentă
+            // Reîmprospătare automată + navigare la următoarea echipă
             if (selectedTeam) {
               onTeamEdited(selectedTeam);
-              toast({
-                title: '✅ Pontaj șters',
-                description: 'Pontajul a fost șters cu succes.',
-              });
+              
+              const nextTeam = getNextUneditedTeam();
+              if (nextTeam) {
+                onTeamChange(nextTeam);
+                toast({
+                  title: '✅ Pontaj șters',
+                  description: `Trecem automat la echipa ${nextTeam}`,
+                });
+              } else {
+                toast({
+                  title: '🎉 Toate echipele verificate!',
+                  description: 'Poți schimba ziua acum sau continua verificarea.',
+                });
+              }
             }
           }}
         />
@@ -1147,14 +999,6 @@ export const TeamTimeApprovalManager = ({
         onOpenChange={setUniformizeDialogOpen}
         groupedByEmployee={groupedByEmployee}
         onConfirm={handleUniformize}
-      />
-
-      <BulkClockTimeEditDialog
-        open={bulkClockEditDialogOpen}
-        onOpenChange={setBulkClockEditDialogOpen}
-        groupedByEmployee={groupedByEmployeeMap}
-        dailyTimesheets={dailyTimesheets}
-        selectedDate={selectedDate!}
       />
     </>
   );
