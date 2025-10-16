@@ -587,25 +587,42 @@ export const TeamTimeComparisonTable = ({
                   {/* Pauză - calculată automat */}
                   <TableCell>
                     {(() => {
+                      if (!employee.lastClockOut) {
+                        return <span className="text-sm text-muted-foreground">—</span>;
+                      }
+                      
+                      // Calculăm timpul brut lucrat (în ore)
+                      const clockInDate = new Date(employee.firstClockIn);
+                      const clockOutDate = new Date(employee.lastClockOut);
+                      const totalMinutes = (clockOutDate.getTime() - clockInDate.getTime()) / (1000 * 60);
+                      const grossHours = totalMinutes / 60;
+                      
+                      // Suma segmentelor
                       const normalHours = getSegmentHours(employee.segments, 'hours_regular');
                       const drivingHours = getSegmentHours(employee.segments, 'hours_driving');
                       const passengerHours = getSegmentHours(employee.segments, 'hours_passenger');
                       const equipmentHours = getSegmentHours(employee.segments, 'hours_equipment');
-                      
-                      // Calculăm pauza ca diferență între sumă segmente și total real
                       const sumSegments = normalHours + drivingHours + passengerHours + equipmentHours;
-                      const breakHours = Math.max(0, sumSegments - employee.totalHours);
                       
-                      return breakHours > 0 ? (
+                      // Pauza = Timp brut - Suma segmentelor
+                      const breakHours = Math.max(0, grossHours - sumSegments);
+                      
+                      return breakHours >= 0.01 ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-sm text-muted-foreground font-mono">
+                              <span className="text-sm font-mono text-orange-600 dark:text-orange-400">
                                 {breakHours.toFixed(2)}h
                               </span>
                             </TooltipTrigger>
                             <TooltipContent>
-                              Pauză scăzută automat (30 min pentru ture &gt;6h)
+                              <div className="text-xs space-y-1">
+                                <div>Timp brut: {grossHours.toFixed(2)}h</div>
+                                <div>Segmente: {sumSegments.toFixed(2)}h</div>
+                                <div className="font-semibold mt-1 pt-1 border-t">
+                                  Pauză: {breakHours.toFixed(2)}h ({Math.round(breakHours * 60)} min)
+                                </div>
+                              </div>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
