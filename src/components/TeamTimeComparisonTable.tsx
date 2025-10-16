@@ -299,22 +299,32 @@ export const TeamTimeComparisonTable = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button
-                              onClick={() => {
-                                const firstSegment = employee.segments[0];
-                                if (firstSegment) {
-                                  onTimeClick(employee.userId, 0, firstSegment.id, 'startTime', firstSegment.startTime);
-                                }
-                              }}
-                              className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockInColor}`}
-                            >
-                              {clockInTime}
-                              {!isDrv && clockInDiff && (
-                                <span className="block text-xs">{clockInDiff}</span>
-                              )}
-                            </button>
+                            {(() => {
+                              const firstSegment = employee.segments[0];
+                              const isSynthetic = firstSegment?.id.startsWith('synthetic-');
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (firstSegment && !isSynthetic) {
+                                      onTimeClick(employee.userId, 0, firstSegment.id, 'startTime', firstSegment.startTime);
+                                    }
+                                  }}
+                                  className={`px-2 py-1 rounded text-sm font-mono ${isSynthetic ? 'cursor-not-allowed opacity-60' : 'hover:opacity-80 transition-opacity'} ${clockInColor}`}
+                                >
+                                  {clockInTime}
+                                  {!isDrv && clockInDiff && (
+                                    <span className="block text-xs">{clockInDiff}</span>
+                                  )}
+                                </button>
+                              );
+                            })()}
                           </TooltipTrigger>
-                          <TooltipContent>Click pentru editare</TooltipContent>
+                          <TooltipContent>
+                            {employee.segments[0]?.id.startsWith('synthetic-') 
+                              ? 'Editarea inline este dezactivată pentru ore din fișa zilnică'
+                              : 'Click pentru editare'
+                            }
+                          </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     )}
@@ -360,22 +370,32 @@ export const TeamTimeComparisonTable = ({
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button
-                                onClick={() => {
-                                  const lastSegment = employee.segments[employee.segments.length - 1];
-                                  if (lastSegment) {
-                                    onTimeClick(employee.userId, employee.segments.length - 1, lastSegment.id, 'endTime', lastSegment.endTime);
-                                  }
-                                }}
-                                className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${clockOutColor}`}
-                              >
-                                {clockOutTime}
-                                {!isDrv && clockOutDiff && (
-                                  <span className="block text-xs">{clockOutDiff}</span>
-                                )}
-                              </button>
+                              {(() => {
+                                const lastSegment = employee.segments[employee.segments.length - 1];
+                                const isSynthetic = lastSegment?.id.startsWith('synthetic-');
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      if (lastSegment && !isSynthetic) {
+                                        onTimeClick(employee.userId, employee.segments.length - 1, lastSegment.id, 'endTime', lastSegment.endTime);
+                                      }
+                                    }}
+                                    className={`px-2 py-1 rounded text-sm font-mono ${isSynthetic ? 'cursor-not-allowed opacity-60' : 'hover:opacity-80 transition-opacity'} ${clockOutColor}`}
+                                  >
+                                    {clockOutTime}
+                                    {!isDrv && clockOutDiff && (
+                                      <span className="block text-xs">{clockOutDiff}</span>
+                                    )}
+                                  </button>
+                                );
+                              })()}
                             </TooltipTrigger>
-                            <TooltipContent>Click pentru editare</TooltipContent>
+                            <TooltipContent>
+                              {employee.segments[employee.segments.length - 1]?.id.startsWith('synthetic-')
+                                ? 'Editarea inline este dezactivată pentru ore din fișa zilnică'
+                                : 'Click pentru editare'
+                              }
+                            </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )

@@ -323,12 +323,8 @@ export const TeamTimeApprovalManager = ({
           { field: 'hours_equipment', type: 'hours_equipment' },
         ];
         
-        // ✅ Calculăm intervalul EXTINS pentru a acomoda orele din daily_timesheets
+        // ✅ Calculăm start time pentru segmente
         const totalStartTime = new Date(emp.firstClockIn);
-        const calculatedEndTime = new Date(totalStartTime.getTime() + syntheticTotal * 60 * 60 * 1000);
-        
-        // Override lastClockOut pentru display-ul corect în UI
-        emp.lastClockOut = calculatedEndTime.toISOString();
         
         // Creăm segmente cu intervale de timp proporționale
         let currentTime = new Date(totalStartTime);
@@ -351,6 +347,9 @@ export const TeamTimeApprovalManager = ({
             currentTime = segmentEndTime; // Următorul segment începe unde s-a terminat acesta
           }
         });
+        
+        // ✅ ACUM calculăm lastClockOut DUPĂ ce avem syntheticTotal
+        emp.lastClockOut = currentTime.toISOString();
         
         // Override-ul complet
         emp.segments = syntheticSegments;
@@ -515,8 +514,13 @@ export const TeamTimeApprovalManager = ({
         });
       }
       
+      // ✅ BLOCARE: Nu permite salvarea segmentelor sintetice
+      if (segmentId.startsWith('synthetic-')) {
+        throw new Error('Nu poți salva modificări pe segmente sintetice. Folosește "Editează Clock In/Out" sau repartizează manual din dialogul de aprobare.');
+      }
+      
       // Update segment in time_entry_segments
-      const updateData = field === 'startTime' 
+      const updateData = field === 'startTime'
         ? { start_time: newDate.toISOString(), hours_decimal: durationHours }
         : { end_time: newDate.toISOString(), hours_decimal: durationHours };
       
@@ -569,6 +573,17 @@ export const TeamTimeApprovalManager = ({
         title: '⚠️ Segment invalid',
         description: 'Acest segment nu poate fi editat. Încearcă să recalculezi segmentele.',
         variant: 'destructive',
+      });
+      return;
+    }
+    
+    // ✅ BLOCARE: Nu permite editarea segmentelor sintetice
+    if (segmentId.startsWith('synthetic-')) {
+      console.warn('[handleTimeClick] Segment sintetic detectat, editare blocată:', segmentId);
+      toast({
+        title: '⚠️ Editare blocată',
+        description: 'Acest interval este generat din fișa zilnică și nu poate fi editat direct. Folosește butonul "Editează Clock In/Out".',
+        variant: 'default',
       });
       return;
     }
