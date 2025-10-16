@@ -701,6 +701,50 @@ export const TeamTimeApprovalManager = ({
         return;
       }
       
+      // ✅ VALIDARE 1: Verifică Clock Out
+      const clockIn = new Date(userEntry.clock_in_time);
+      const clockOut = userEntry.clock_out_time ? new Date(userEntry.clock_out_time) : null;
+
+      if (!clockOut) {
+        toast({
+          title: "⚠️ Pontaj incomplet",
+          description: "Nu se poate edita - lipsește Clock Out",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const totalAvailableHours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
+      
+      // ✅ VALIDARE 2: Calculează totalul segmentelor DUPĂ editare
+      const currentUser = managementGroupedByUser.find(u => u.userId === userId);
+      if (!currentUser) {
+        toast({
+          title: "Nu s-a găsit utilizatorul",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let totalSegmentHours = 0;
+      standardTypes.forEach(type => {
+        if (type === segmentType) {
+          totalSegmentHours += newValue; // Noua valoare
+        } else {
+          totalSegmentHours += getDisplayHoursMgmt(currentUser, type); // Valorile existente
+        }
+      });
+
+      // ✅ VALIDARE 3: Verifică dacă totalul depășește timpul disponibil
+      if (totalSegmentHours > totalAvailableHours + 0.05) { // +3 minute toleranță
+        toast({
+          title: "❌ Eroare: Total segmente depășește Clock In/Out",
+          description: `Total segmente (${totalSegmentHours.toFixed(1)}h) depășește diferența Clock In/Out (${totalAvailableHours.toFixed(1)}h)`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const workDate = format(new Date(userEntry.clock_in_time), 'yyyy-MM-dd');
       
       // Verifică dacă există deja daily_timesheet
