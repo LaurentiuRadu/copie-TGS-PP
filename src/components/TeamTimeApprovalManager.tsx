@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List, X } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List, X, Plus } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
@@ -1348,11 +1348,35 @@ export const TeamTimeApprovalManager = ({
           <div className="flex flex-wrap gap-2 mt-2">
             {standardTypes.map((t) => {
               const val = getDisplayHoursMgmt(user, t);
-              if (val <= 0) return null; // afișăm doar > 0
               const label = getSegmentLabel(t);
               const icon = getSegmentIcon(t);
               const isEditing = editingManagementHours.userId === user.userId 
                 && editingManagementHours.segmentType === t;
+              
+              // Afișăm TOATE tipurile:
+              // - Dacă val > 0: badge normal clickable
+              // - Dacă val === 0: buton "+" pentru a adăuga
+              
+              if (val <= 0 && !isEditing) {
+                // Buton "+" pentru a adăuga tipul de ore
+                return (
+                  <Button
+                    key={t}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 opacity-60 hover:opacity-100"
+                    onClick={() => setEditingManagementHours({
+                      userId: user.userId,
+                      segmentType: t,
+                      value: '0.0'
+                    })}
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </Button>
+                );
+              }
               
               return (
                 <div key={t} className="inline-flex items-center gap-1">
@@ -1382,8 +1406,9 @@ export const TeamTimeApprovalManager = ({
                           ...prev,
                           value: e.target.value
                         }))}
-                        className="w-16 h-7 text-xs"
+                        className="w-24 h-8 text-sm font-mono"
                         autoFocus
+                        onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             handleSaveManagementSegmentHours(
@@ -1400,7 +1425,7 @@ export const TeamTimeApprovalManager = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0"
                         onClick={() => {
                           handleSaveManagementSegmentHours(
                             user.userId,
@@ -1410,19 +1435,19 @@ export const TeamTimeApprovalManager = ({
                           setEditingManagementHours({ userId: null, segmentType: null, value: '' });
                         }}
                       >
-                        <Check className="h-3 w-3" />
+                        <Check className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0"
+                        className="h-8 w-8 p-0"
                         onClick={() => setEditingManagementHours({ 
                           userId: null, 
                           segmentType: null, 
                           value: '' 
                         })}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
