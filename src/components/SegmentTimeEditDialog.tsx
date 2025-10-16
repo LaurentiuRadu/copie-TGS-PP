@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { formatRomania } from '@/lib/timezone';
+import { formatRomania, toRomaniaZoned } from '@/lib/timezone';
 import { Loader2 } from 'lucide-react';
 
 interface SegmentTimeEditDialogProps {
@@ -169,12 +169,20 @@ export const SegmentTimeEditDialog = ({
       }
 
       // Validate within main time_entry bounds
-      const entryStart = new Date(entry.clock_in_time);
-      const entryEnd = entry.clock_out_time ? new Date(entry.clock_out_time) : new Date();
-      const newStart = new Date(`${workDate}T${newStartTime}:00Z`);
-      const newEnd = new Date(`${workDate}T${newEndTime}:00Z`);
+      const entryStart = toRomaniaZoned(entry.clock_in_time);
+      const entryEnd = entry.clock_out_time ? toRomaniaZoned(entry.clock_out_time) : new Date();
+      
+      // Construiește date-uri pentru validare în timezone România
+      const workDateObj = new Date(workDate);
+      const newStartDate = new Date(workDateObj);
+      const [startHours, startMinutes] = newStartTime.split(':').map(Number);
+      newStartDate.setHours(startHours, startMinutes, 0, 0);
+      
+      const newEndDate = new Date(workDateObj);
+      const [endHours, endMinutes] = newEndTime.split(':').map(Number);
+      newEndDate.setHours(endHours, endMinutes, 0, 0);
 
-      if (newStart < entryStart || newEnd > entryEnd) {
+      if (newStartDate < entryStart || newEndDate > entryEnd) {
         throw new Error('Segmentul trebuie să fie în interiorul pontajului principal');
       }
 

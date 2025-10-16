@@ -113,8 +113,24 @@ export const TeamTimeComparisonTable = ({
     const entry = eventData.entry;
     const segment = eventData.segment;
     
-    // Găsește vehiculul din weekly_schedules (assume first entry has it)
-    const vehicle = entry.vehicle || 'Necunoscut';
+    // Găsește employeeData pentru acest user_id
+    const employeeData = groupedByEmployee.find(emp => emp.userId === entry.user_id);
+    
+    // Extrage vehiculul din realEntries (care vine din weekly_schedules)
+    const vehicle = employeeData?.realEntries?.[0]?.vehicle || 
+                    employeeData?.entries?.[0]?.vehicle || 
+                    'Necunoscut';
+    
+    console.log('[SegmentEdit] Opening dialog:', {
+      userId: entry.user_id,
+      segmentId: segment.id,
+      segmentType: segment.segment_type || segment.type,
+      startTime: segment.start_time,
+      endTime: segment.end_time,
+      vehicle,
+      workDate: selectedDay,
+      teamId: selectedTeam,
+    });
     
     setSegmentEditDialog({
       open: true,
