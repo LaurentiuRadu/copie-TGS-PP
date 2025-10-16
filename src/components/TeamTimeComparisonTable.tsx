@@ -24,7 +24,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { EmployeePunchList } from './EmployeePunchList';
-import { SegmentTimeEditDialog } from './SegmentTimeEditDialog';
 import { cn } from '@/lib/utils';
 
 interface Segment {
@@ -85,16 +84,6 @@ export const TeamTimeComparisonTable = ({
 }: TeamTimeComparisonTableProps) => {
   // State pentru rânduri expandabile
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  
-  // State pentru dialog editare segment
-  const [segmentEditDialog, setSegmentEditDialog] = useState<{
-    open: boolean;
-    entry: any;
-    segment: any;
-    workDate: string;
-    teamId: string;
-    vehicle: string;
-  } | null>(null);
 
   const toggleRow = (userId: string) => {
     setExpandedRows(prev => {
@@ -105,46 +94,6 @@ export const TeamTimeComparisonTable = ({
         newSet.add(userId);
       }
       return newSet;
-    });
-  };
-
-  // Handler pentru editare segment
-  const handleSegmentEdit = (eventData: any) => {
-    const entry = eventData.entry;
-    const segment = eventData.segment;
-    
-    // Găsește employeeData pentru acest user_id
-    const employeeData = groupedByEmployee.find(emp => emp.userId === entry.user_id);
-    
-    // Extrage vehiculul din realEntries (care vine din weekly_schedules)
-    const vehicle = employeeData?.realEntries?.[0]?.vehicle || 
-                    employeeData?.entries?.[0]?.vehicle || 
-                    'Necunoscut';
-    
-    console.log('[SegmentEdit] Opening dialog:', {
-      userId: entry.user_id,
-      segmentId: segment.id,
-      segmentType: segment.segment_type || segment.type,
-      startTime: segment.start_time,
-      endTime: segment.end_time,
-      vehicle,
-      workDate: selectedDay,
-      teamId: selectedTeam,
-    });
-    
-    setSegmentEditDialog({
-      open: true,
-      entry,
-      segment: {
-        id: segment.id,
-        start_time: segment.start_time,
-        end_time: segment.end_time,
-        hours_decimal: segment.hours_decimal,
-        segment_type: segment.segment_type || segment.type,
-      },
-      workDate: selectedDay,
-      teamId: selectedTeam,
-      vehicle,
     });
   };
   
@@ -580,13 +529,9 @@ export const TeamTimeComparisonTable = ({
                       <div className="px-6 py-3 border-l-2 border-primary/20">
                         <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                           📋 Pontaje cronologice
-                          <span className="text-xs text-muted-foreground font-normal">
-                            (Click pentru editare)
-                          </span>
                         </h4>
                         <EmployeePunchList 
-                          entries={employee.realEntries || employee.entries} 
-                          onSegmentEdit={handleSegmentEdit}
+                          entries={employee.realEntries || employee.entries}
                         />
                       </div>
                     </TableCell>
@@ -598,19 +543,6 @@ export const TeamTimeComparisonTable = ({
           </TableBody>
         </Table>
       </div>
-
-      {/* Dialog editare segment */}
-      {segmentEditDialog?.open && (
-        <SegmentTimeEditDialog
-          entry={segmentEditDialog.entry}
-          segment={segmentEditDialog.segment}
-          workDate={segmentEditDialog.workDate}
-          teamId={segmentEditDialog.teamId}
-          vehicle={segmentEditDialog.vehicle}
-          open={segmentEditDialog.open}
-          onOpenChange={(open) => setSegmentEditDialog(open ? segmentEditDialog : null)}
-        />
-      )}
     </div>
   );
 };

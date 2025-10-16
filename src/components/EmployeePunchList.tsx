@@ -12,7 +12,6 @@ interface PunchEvent {
 
 interface EmployeePunchListProps {
   entries: any[];
-  onSegmentEdit?: (event: PunchEvent) => void;
 }
 
 const getSegmentLabel = (type: string) => {
@@ -27,16 +26,16 @@ const getSegmentLabel = (type: string) => {
   }
 };
 
-export const EmployeePunchList = ({ entries, onSegmentEdit }: EmployeePunchListProps) => {
+export const EmployeePunchList = ({ entries }: EmployeePunchListProps) => {
   // Construim lista de evenimente din segmente
   const events: PunchEvent[] = [];
   
   entries.forEach(entry => {
     const segments = entry.time_entry_segments || entry.segments || [];
     
-    // Deduplicare prin cheie compusă ID + start_time pentru eliminare duplicate reale
+    // Deduplicare prin ID pentru a evita afișarea duplicatelor
     const uniqueSegments = Array.from(
-      new Map(segments.map((s: any) => [`${s.id}-${s.start_time}`, s])).values()
+      new Map(segments.map((s: any) => [s.id, s])).values()
     );
     
     uniqueSegments.forEach((segment: any) => {
@@ -78,14 +77,9 @@ export const EmployeePunchList = ({ entries, onSegmentEdit }: EmployeePunchListP
   return (
     <div className="space-y-1 py-2">
       {events.map((event, idx) => (
-        <button
+        <div
           key={idx}
-          onClick={() => onSegmentEdit?.(event)}
-          disabled={!onSegmentEdit}
-          className={cn(
-            "flex items-center gap-3 text-sm w-full text-left p-1 rounded transition-colors",
-            onSegmentEdit && "hover:bg-muted/50 cursor-pointer"
-          )}
+          className="flex items-center gap-3 text-sm w-full text-left p-1"
         >
           <span className={cn(
             "w-36 font-medium flex items-center gap-1",
@@ -94,13 +88,12 @@ export const EmployeePunchList = ({ entries, onSegmentEdit }: EmployeePunchListP
               : "text-red-600 dark:text-red-400"
           )}>
             {event.label}
-            {onSegmentEdit && <span className="text-xs">✏️</span>}
           </span>
           <span className="text-muted-foreground">-</span>
           <span className="font-mono text-foreground">
             {formatRomania(event.time, 'HH:mm')}
           </span>
-        </button>
+        </div>
       ))}
     </div>
   );
