@@ -234,6 +234,7 @@ export const TeamTimeApprovalManager = ({
       duration: number;
     }>;
     entries: TimeEntryForApproval[];
+    realEntries: TimeEntryForApproval[]; // ✅ Entry-uri REALE pentru editare
     allApproved: boolean;
   }
 
@@ -253,12 +254,14 @@ export const TeamTimeApprovalManager = ({
           lastClockOut: entry.clock_out_time,
           segments: [],
           entries: [],
+          realEntries: [], // ✅ Păstrăm entry-urile reale separate
           allApproved: true,
         });
       }
       
       const employeeData = grouped.get(userId)!;
       employeeData.entries.push(entry);
+      employeeData.realEntries.push(entry); // ✅ Păstrăm și în realEntries pentru butonul Edit
       
       // Update first/last timestamps
       if (entry.clock_in_time < employeeData.firstClockIn) {
@@ -320,9 +323,12 @@ export const TeamTimeApprovalManager = ({
           { field: 'hours_equipment', type: 'hours_equipment' },
         ];
         
-        // ✅ Calculăm intervalul total disponibil
+        // ✅ Calculăm intervalul EXTINS pentru a acomoda orele din daily_timesheets
         const totalStartTime = new Date(emp.firstClockIn);
-        const totalEndTime = emp.lastClockOut ? new Date(emp.lastClockOut) : new Date(emp.firstClockIn);
+        const calculatedEndTime = new Date(totalStartTime.getTime() + syntheticTotal * 60 * 60 * 1000);
+        
+        // Override lastClockOut pentru display-ul corect în UI
+        emp.lastClockOut = calculatedEndTime.toISOString();
         
         // Creăm segmente cu intervale de timp proporționale
         let currentTime = new Date(totalStartTime);

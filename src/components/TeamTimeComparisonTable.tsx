@@ -36,6 +36,7 @@ interface EmployeeDayData {
   lastClockOut: string | null;
   segments: Segment[];
   entries: any[];
+  realEntries?: any[]; // ✅ Entry-uri REALE pentru editare
   allApproved: boolean;
 }
 
@@ -420,7 +421,11 @@ export const TeamTimeComparisonTable = ({
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              onClick={() => onEdit(employee.entries[0])}
+                              onClick={() => {
+                                // ✅ Folosim REAL entry, nu synthetic segment
+                                const entryToEdit = employee.realEntries?.[0] || employee.entries[0];
+                                onEdit(entryToEdit);
+                              }}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -436,7 +441,11 @@ export const TeamTimeComparisonTable = ({
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-destructive"
-                              onClick={() => onDelete(employee.entries[0])}
+                              onClick={() => {
+                                // ✅ Folosim REAL entry, nu synthetic segment
+                                const entryToDelete = employee.realEntries?.[0] || employee.entries[0];
+                                onDelete(entryToDelete);
+                              }}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
