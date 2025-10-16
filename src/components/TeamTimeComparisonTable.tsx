@@ -801,66 +801,6 @@ export const TeamTimeComparisonTable = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-sm font-mono cursor-default">
-                              {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs text-orange-600 dark:text-orange-400">
-                              ⚠️ Ore setate manual — editează din dialog
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_driving' ? (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="24"
-                          value={editingHours.value}
-                          onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value));
-                            if (e.key === 'Escape') setEditingHours(null);
-                          }}
-                          className="h-8 w-16"
-                          autoFocus
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6"
-                          onClick={() => handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value))}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6"
-                          onClick={() => setEditingHours(null)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) })}
-                        className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
-                      >
-                        {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
-                      </button>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Pasager - editabil */}
-                  <TableCell>
-                    {employee.manualOverride ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
                             <span className="text-xs font-mono cursor-default">
                               {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
                             </span>
@@ -1119,7 +1059,7 @@ export const TeamTimeComparisonTable = ({
                                 <div className="font-semibold">Segmentare Manuală</div>
                                 <div className="text-muted-foreground">
                                   Orele au fost ajustate manual.<br/>
-                                  Pentru re-calcul automat, editează Clock In/Out din butonul "Edit".
+                                  Pentru re-calcul automat, editează Clock In/Out direct în tabel.
                                 </div>
                               </div>
                             </TooltipContent>
@@ -1147,22 +1087,6 @@ export const TeamTimeComparisonTable = ({
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Aprobă pontajul acestui angajat</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8"
-                                  onClick={() => onEdit(employee.entries[0])}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Editează pontaj</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
 
