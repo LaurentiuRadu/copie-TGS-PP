@@ -320,17 +320,29 @@ export const TeamTimeApprovalManager = ({
           { field: 'hours_equipment', type: 'hours_equipment' },
         ];
         
+        // ✅ Calculăm intervalul total disponibil
+        const totalStartTime = new Date(emp.firstClockIn);
+        const totalEndTime = emp.lastClockOut ? new Date(emp.lastClockOut) : new Date(emp.firstClockIn);
+        
+        // Creăm segmente cu intervale de timp proporționale
+        let currentTime = new Date(totalStartTime);
+        
         fieldMapping.forEach(({ field, type }) => {
           const value = Number(dailyRecord[field]) || 0;
           if (value > 0) {
+            // Calculăm end time pentru acest segment (proporțional cu durata)
+            const segmentEndTime = new Date(currentTime.getTime() + value * 60 * 60 * 1000);
+            
             syntheticSegments.push({
               id: `synthetic-${field}-${userId}`,
               type: type,
-              startTime: emp.firstClockIn, // Păstrăm timestamp-uri originale pentru UI
-              endTime: emp.lastClockOut || emp.firstClockIn,
+              startTime: currentTime.toISOString(),
+              endTime: segmentEndTime.toISOString(),
               duration: value,
             });
+            
             syntheticTotal += value;
+            currentTime = segmentEndTime; // Următorul segment începe unde s-a terminat acesta
           }
         });
         
