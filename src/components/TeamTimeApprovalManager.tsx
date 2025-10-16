@@ -452,6 +452,120 @@ export const TeamTimeApprovalManager = ({
     setEditingSegment(null);
   };
 
+  // Mutation pentru editare ore segment
+  const editSegmentHoursMutation = useMutation({
+    mutationFn: async ({ userId, segmentType, newHours }: { userId: string; segmentType: string; newHours: number }) => {
+      // Găsește primul pontaj al user-ului pentru a obține time_entry_id
+      const employee = groupedByEmployee.find(e => e.userId === userId);
+      if (!employee || employee.entries.length === 0) {
+        throw new Error('Pontaj negăsit');
+      }
+
+      const timeEntryId = employee.entries[0].id;
+
+      // Găsește toate segmentele de acest tip
+      const segments = employee.segments.filter(s => s.type === segmentType);
+      if (segments.length === 0) {
+        throw new Error(`Nu există segmente de tip ${segmentType}`);
+      }
+
+      // Calculează total ore actuale pentru acest tip
+      const currentTotalHours = segments.reduce((sum, s) => sum + s.duration, 0);
+      
+      // Calculează factorul de scalare
+      const scaleFactor = newHours / currentTotalHours;
+
+      // Update fiecare segment de acest tip proporțional
+      for (const segment of segments) {
+        const newDuration = segment.duration * scaleFactor;
+        
+        // Calculează noul end_time bazat pe durată
+        const startTime = new Date(segment.startTime);
+        const endTime = new Date(startTime.getTime() + newDuration * 60 * 60 * 1000);
+
+        await supabase
+          .from('time_entry_segments')
+          .update({
+            hours_decimal: newDuration,
+            end_time: endTime.toISOString(),
+          })
+          .eq('id', segment.id);
+      }
+
+      return { userId, segmentType, newHours };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      toast({
+        title: '✅ Ore actualizate',
+        description: 'Segmentele au fost recalculate',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: '❌ Eroare',
+        description: error.message || 'Nu s-au putut actualiza orele',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSegmentHoursEdit = (userId: string, segmentType: string, newHours: number) => {
+    if (newHours < 0 || newHours > 24) {
+      toast({
+        title: '⚠️ Valoare invalidă',
+        description: 'Orele trebuie să fie între 0 și 24',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    editSegmentHoursMutation.mutate({ userId, segmentType, newHours });
+  };
+
+  // Mutation pentru ștergere toate segmentele
+  const deleteSegmentsMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      // Găsește primul pontaj al user-ului
+      const employee = groupedByEmployee.find(e => e.userId === userId);
+      if (!employee || employee.entries.length === 0) {
+        throw new Error('Pontaj negăsit');
+      }
+
+      const timeEntryId = employee.entries[0].id;
+
+      // Șterge toate segmentele acestui pontaj
+      const { error } = await supabase
+        .from('time_entry_segments')
+        .delete()
+        .eq('time_entry_id', timeEntryId);
+
+      if (error) throw error;
+
+      return timeEntryId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      toast({
+        title: '🗑️ Segmente șterse',
+        description: 'Toate segmentele au fost șterse. Poți recalcula automat.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: '❌ Eroare',
+        description: error.message || 'Nu s-au putut șterge segmentele',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleDeleteSegments = (userId: string) => {
+    deleteSegmentsMutation.mutate(userId);
+  };
+
   // Handler pentru uniformizare
   const handleUniformize = async (avgClockIn: string, avgClockOut: string | null) => {
     const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_driving' || s.type === 'hours_equipment');
@@ -704,6 +818,8 @@ export const TeamTimeApprovalManager = ({
               onTimeChange={handleTimeChange}
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
+              onSegmentHoursEdit={handleSegmentHoursEdit}
+              onDeleteSegments={handleDeleteSegments}
             />
           ) : (
             // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)
