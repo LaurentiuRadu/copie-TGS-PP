@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -9,6 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, CheckCircle, RotateCcw, X } from "lucide-react";
+import { AlertCircle, CheckCircle, RotateCcw, X, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 
@@ -56,6 +66,14 @@ export function TimeEntryApprovalEditDialog({
   // State pentru segmentare manuală
   const [manualSegmentation, setManualSegmentation] = useState(false);
   
+  // State pentru confirmare propagare pasageri
+  const [showPassengerConfirm, setShowPassengerConfirm] = useState(false);
+  const [otherPassengers, setOtherPassengers] = useState<Array<{
+    user_id: string;
+    full_name: string;
+    entry_id: string;
+  }>>([]);
+  
   // Refactor: Draft pentru UI (string) + Parsed pentru calcule/salvare
   const [manualHoursDraft, setManualHoursDraft] = useState({
     hours_regular: '',
@@ -81,6 +99,89 @@ export function TimeEntryApprovalEditDialog({
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Detectează dacă entry-ul curent este pentru pasager
+  const isPassengerEntry = useQuery({
+    queryKey: ['is-passenger', entry.id],
+    queryFn: async () => {
+      const workDate = format(new Date(entry.clock_in_time), 'yyyy-MM-dd');
+      const { data } = await supabase
+        .from('daily_timesheets')
+        .select('hours_passenger')
+        .eq('employee_id', entry.user_id)
+        .eq('work_date', workDate)
+        .single();
+      
+      return (data?.hours_passenger || 0) > 0;
+    },
+    enabled: open,
+  });
+
+  // Găsește alți pasageri din aceeași echipă și vehicul
+  const findOtherPassengers = async () => {
+    const workDate = format(new Date(entry.clock_in_time), 'yyyy-MM-dd');
+    const dayOfWeek = new Date(entry.clock_in_time).getDay();
+    
+    // Găsește echipa și vehiculul angajatului curent
+    const { data: currentSchedule } = await supabase
+      .from('weekly_schedules')
+      .select('team_id, vehicle, week_start_date')
+      .eq('user_id', entry.user_id)
+      .lte('week_start_date', workDate)
+      .gte('week_start_date', format(new Date(new Date(workDate).getTime() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'))
+      .eq('day_of_week', dayOfWeek)
+      .single();
+
+    if (!currentSchedule?.team_id || !currentSchedule?.vehicle) {
+      return [];
+    }
+
+    // Găsește toți membrii echipei cu același vehicul
+    const { data: teamMembers } = await supabase
+      .from('weekly_schedules')
+      .select('user_id, profiles(full_name)')
+      .eq('team_id', currentSchedule.team_id)
+      .eq('vehicle', currentSchedule.vehicle)
+      .eq('week_start_date', currentSchedule.week_start_date)
+      .eq('day_of_week', dayOfWeek)
+      .neq('user_id', entry.user_id);
+
+    if (!teamMembers || teamMembers.length === 0) {
+      return [];
+    }
+
+    // Verifică care au hours_passenger > 0
+    const { data: passengerTimesheets } = await supabase
+      .from('daily_timesheets')
+      .select('employee_id, hours_passenger')
+      .eq('work_date', workDate)
+      .in('employee_id', teamMembers.map(m => m.user_id))
+      .gt('hours_passenger', 0);
+
+    if (!passengerTimesheets || passengerTimesheets.length === 0) {
+      return [];
+    }
+
+    // Găsește time_entries pentru acești pasageri
+    const { data: passengerEntries } = await supabase
+      .from('time_entries')
+      .select('id, user_id')
+      .in('user_id', passengerTimesheets.map(p => p.employee_id))
+      .gte('clock_in_time', workDate)
+      .lt('clock_in_time', format(new Date(new Date(workDate).getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
+
+    return teamMembers
+      .filter(member => {
+        const hasPassengerHours = passengerTimesheets.some(p => p.employee_id === member.user_id);
+        const hasEntry = passengerEntries?.some(e => e.user_id === member.user_id);
+        return hasPassengerHours && hasEntry;
+      })
+      .map(member => ({
+        user_id: member.user_id,
+        full_name: (member.profiles as any)?.full_name || 'Necunoscut',
+        entry_id: passengerEntries?.find(e => e.user_id === member.user_id)?.id || '',
+      }));
+  };
 
   // Calculează total ore din pontaj
   const totalHours = useMemo(() => {
@@ -173,7 +274,7 @@ export function TimeEntryApprovalEditDialog({
   };
 
   const updateAndApprove = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ applyToAll = false }: { applyToAll?: boolean } = {}) => {
       // Verifică dacă pontajul este invalid (< 10 min)
       if (clockOut) {
         const duration = (new Date(clockOut).getTime() - new Date(clockIn).getTime()) / (1000 * 60 * 60);
@@ -261,8 +362,67 @@ export function TimeEntryApprovalEditDialog({
 
       if (updateError) throw updateError;
 
-      // Trigger recalculation DOAR dacă nu e segmentare manuală
-      if (!manualSegmentation) {
+      // Aplică modificările la alți pasageri dacă este cazul
+      if (applyToAll && otherPassengers.length > 0) {
+        const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
+        
+        for (const passenger of otherPassengers) {
+          // Update time_entry pentru fiecare pasager
+          const { data: passengerEntry } = await supabase
+            .from('time_entries')
+            .select('original_clock_in_time, original_clock_out_time, clock_in_time, clock_out_time')
+            .eq('id', passenger.entry_id)
+            .single();
+
+          const passengerUpdateData: any = {
+            clock_in_time: new Date(clockIn).toISOString(),
+            clock_out_time: new Date(clockOut).toISOString(),
+            approval_status: 'approved',
+            approved_at: new Date().toISOString(),
+            approval_notes: `[AUTO-SINCRONIZAT CU ${entry.profiles.full_name}] ${adminNotes}`,
+            needs_reprocessing: !manualSegmentation,
+            was_edited_by_admin: true,
+          };
+
+          if (passengerEntry && !passengerEntry.original_clock_in_time) {
+            passengerUpdateData.original_clock_in_time = passengerEntry.clock_in_time;
+          }
+          if (passengerEntry && !passengerEntry.original_clock_out_time) {
+            passengerUpdateData.original_clock_out_time = passengerEntry.clock_out_time;
+          }
+
+          await supabase
+            .from('time_entries')
+            .update(passengerUpdateData)
+            .eq('id', passenger.entry_id);
+
+          // Update daily_timesheets dacă e segmentare manuală
+          if (manualSegmentation) {
+            await supabase
+              .from('daily_timesheets')
+              .update({
+                hours_passenger: manualHoursParsed.hours_passenger,
+                notes: `[AUTO-SINCRONIZAT] ${adminNotes || 'Sincronizat cu echipa'}`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('employee_id', passenger.user_id)
+              .eq('work_date', workDate);
+          } else {
+            // Trigger recalculation pentru fiecare pasager
+            await supabase.functions.invoke('calculate-time-segments', {
+              body: {
+                user_id: passenger.user_id,
+                time_entry_id: passenger.entry_id,
+                clock_in_time: new Date(clockIn).toISOString(),
+                clock_out_time: new Date(clockOut).toISOString(),
+              },
+            });
+          }
+        }
+      }
+
+      // Trigger recalculation DOAR dacă nu e segmentare manuală pentru entry-ul principal
+      if (!manualSegmentation && !applyToAll) {
         const { error: functionError } = await supabase.functions.invoke('calculate-time-segments', {
           body: {
             user_id: entry.user_id,
@@ -285,12 +445,19 @@ export function TimeEntryApprovalEditDialog({
         predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'daily-timesheets-for-approval'
       });
       
+      const appliedCount = otherPassengers.length > 0 ? otherPassengers.length + 1 : 1;
+      
       toast({
         title: "✅ Pontaj corectat și aprobat",
-        description: manualSegmentation 
-          ? "Orele au fost repartizate manual cu succes." 
-          : "Modificările au fost salvate și pontajul a fost aprobat automat.",
+        description: otherPassengers.length > 0 
+          ? `Modificările au fost aplicate la ${appliedCount} pasageri din echipă.`
+          : manualSegmentation 
+            ? "Orele au fost repartizate manual cu succes." 
+            : "Modificările au fost salvate și pontajul a fost aprobat automat.",
       });
+      
+      setShowPassengerConfirm(false);
+      setOtherPassengers([]);
       onOpenChange(false);
       
       // Trigger auto-scroll callback
@@ -306,7 +473,7 @@ export function TimeEntryApprovalEditDialog({
     },
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setError(null);
     
     const validationError = validateDuration();
@@ -334,7 +501,17 @@ export function TimeEntryApprovalEditDialog({
       }
     }
     
-    updateAndApprove.mutate();
+    // Verifică dacă este pasager și dacă există alți pasageri în echipă
+    if (isPassengerEntry.data) {
+      const passengers = await findOtherPassengers();
+      if (passengers.length > 0) {
+        setOtherPassengers(passengers);
+        setShowPassengerConfirm(true);
+        return;
+      }
+    }
+    
+    updateAndApprove.mutate({ applyToAll: false });
   };
 
   const calculateDuration = () => {
@@ -346,7 +523,8 @@ export function TimeEntryApprovalEditDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
       <DialogHeader>
         <DialogTitle>✏️ Editare și Aprobare Pontaj</DialogTitle>
@@ -588,5 +766,56 @@ export function TimeEntryApprovalEditDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Dialog confirmare propagare la alți pasageri */}
+    <AlertDialog open={showPassengerConfirm} onOpenChange={setShowPassengerConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            Sincronizare Pasageri din Echipă
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-3">
+            <p>
+              <strong>{entry.profiles.full_name}</strong> este pasager și face parte dintr-o echipă cu încă <strong>{otherPassengers.length} {otherPassengers.length === 1 ? 'pasager' : 'pasageri'}</strong>:
+            </p>
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              {otherPassengers.map((passenger) => (
+                <div key={passenger.user_id} className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span>{passenger.full_name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm font-medium">
+              Vrei să aplici aceleași modificări de orar (intrare/ieșire) la toți pasagerii din echipă?
+            </p>
+            <Alert className="bg-blue-50 dark:bg-blue-950/20 border-blue-300">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-sm">
+                Pasagerii din aceeași echipă și vehicul trebuie să aibă aceleași ore de intrare/ieșire.
+              </AlertDescription>
+            </Alert>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => {
+            setShowPassengerConfirm(false);
+            updateAndApprove.mutate({ applyToAll: false });
+          }}>
+            Nu, doar {entry.profiles.full_name}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              updateAndApprove.mutate({ applyToAll: true });
+            }}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Da, sincronizează toată echipa
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
