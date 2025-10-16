@@ -873,14 +873,19 @@ export const TeamTimeComparisonTable = ({
                         </Tooltip>
                       </TooltipProvider>
                     ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_passenger' ? (
-                      <div className="flex items-center gap-1">
+                      <div key={`${employee.userId}-hours_passenger`} className="flex items-center gap-1">
                         <Input
                           type="number"
                           step="0.1"
                           min="0"
                           max="24"
                           value={editingHours.value}
-                          onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                          onChange={(e) => {
+                            console.log('[EDIT CHANGE] Passenger:', e.target.value, 'Current segment:', editingHours.segmentType);
+                            if (editingHours.segmentType === 'hours_passenger') {
+                              setEditingHours({ ...editingHours, value: e.target.value });
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_passenger', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
@@ -907,7 +912,10 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) })}
+                        onClick={() => {
+                          console.log('[EDIT START] Passenger:', employee.userId);
+                          setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) });
+                        }}
                         className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
                       >
                         {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
@@ -933,14 +941,19 @@ export const TeamTimeComparisonTable = ({
                         </Tooltip>
                       </TooltipProvider>
                     ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_driving' ? (
-                      <div className="flex items-center gap-1">
+                      <div key={`${employee.userId}-hours_driving`} className="flex items-center gap-1">
                         <Input
                           type="number"
                           step="0.1"
                           min="0"
                           max="24"
                           value={editingHours.value}
-                          onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                          onChange={(e) => {
+                            console.log('[EDIT CHANGE] Driving:', e.target.value, 'Current segment:', editingHours.segmentType);
+                            if (editingHours.segmentType === 'hours_driving') {
+                              setEditingHours({ ...editingHours, value: e.target.value });
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
@@ -967,7 +980,10 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) })}
+                        onClick={() => {
+                          console.log('[EDIT START] Driving:', employee.userId);
+                          setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) });
+                        }}
                         className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
                       >
                         {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
@@ -993,14 +1009,19 @@ export const TeamTimeComparisonTable = ({
                         </Tooltip>
                       </TooltipProvider>
                     ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_equipment' ? (
-                      <div className="flex items-center gap-1">
+                      <div key={`${employee.userId}-hours_equipment`} className="flex items-center gap-1">
                         <Input
                           type="number"
                           step="0.1"
                           min="0"
                           max="24"
                           value={editingHours.value}
-                          onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                          onChange={(e) => {
+                            console.log('[EDIT CHANGE] Equipment:', e.target.value, 'Current segment:', editingHours.segmentType);
+                            if (editingHours.segmentType === 'hours_equipment') {
+                              setEditingHours({ ...editingHours, value: e.target.value });
+                            }
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_equipment', parseFloat(editingHours.value));
                             if (e.key === 'Escape') setEditingHours(null);
@@ -1027,7 +1048,10 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) })}
+                        onClick={() => {
+                          console.log('[EDIT START] Equipment:', employee.userId);
+                          setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) });
+                        }}
                         className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
                       >
                         {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
