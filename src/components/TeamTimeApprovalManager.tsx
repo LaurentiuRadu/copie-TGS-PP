@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useDailyTimesheets, type DailyTimesheet } from '@/hooks/useDailyTimesheets';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Collapsible,
@@ -175,6 +176,25 @@ export const TeamTimeApprovalManager = ({
   const pendingOnlyEntries = validPendingEntries.filter(e => e.approval_status === 'pending_review');
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
 
+  // Calculăm data exactă a zilei pentru a prelua daily_timesheets
+  const dayDate = useMemo(() => {
+    const weekStartDate = new Date(selectedWeek);
+    weekStartDate.setDate(weekStartDate.getDate() + (selectedDayOfWeek - 1));
+    return weekStartDate;
+  }, [selectedWeek, selectedDayOfWeek]);
+
+  // Preluăm daily_timesheets pentru ziua selectată
+  const { data: dailyTimesheets = [] } = useDailyTimesheets(dayDate);
+
+  // Construim map pentru override-uri manuale
+  const overrideByUser = useMemo(() => {
+    const map = new Map<string, DailyTimesheet>();
+    dailyTimesheets.forEach(dt => {
+      map.set(dt.employee_id, dt);
+    });
+    return map;
+  }, [dailyTimesheets]);
+
   // ✅ GRUPARE PE ANGAJAT: combinăm toate pontajele unui user într-o singură structură
   interface EmployeeDayData {
     userId: string;
@@ -192,6 +212,17 @@ export const TeamTimeApprovalManager = ({
     }>;
     entries: TimeEntryForApproval[];
     allApproved: boolean;
+    overrideHours?: {
+      hours_regular: number;
+      hours_driving: number;
+      hours_passenger: number;
+      hours_equipment: number;
+      hours_night: number;
+      hours_saturday: number;
+      hours_sunday: number;
+      hours_holiday: number;
+    };
+    manualOverride?: boolean;
   }
 
   const groupedByEmployee = useMemo(() => {
@@ -245,14 +276,46 @@ export const TeamTimeApprovalManager = ({
       }
     });
     
+    // Aplicăm override-uri manuale din daily_timesheets
+    grouped.forEach((emp, userId) => {
+      const override = overrideByUser.get(userId);
+      
+      if (override) {
+        // Detectăm override manual dacă notes conține "[SEGMENTARE MANUALĂ]" sau "[OVERRIDE MANUAL"
+        const hasManualOverride = override.notes?.includes('[SEGMENTARE MANUALĂ]') || 
+                                 override.notes?.includes('[OVERRIDE MANUAL') ||
+                                 emp.entries.some(e => e.was_edited_by_admin);
+        
+        if (hasManualOverride) {
+          emp.overrideHours = {
+            hours_regular: override.hours_regular || 0,
+            hours_driving: override.hours_driving || 0,
+            hours_passenger: override.hours_passenger || 0,
+            hours_equipment: override.hours_equipment || 0,
+            hours_night: override.hours_night || 0,
+            hours_saturday: override.hours_saturday || 0,
+            hours_sunday: override.hours_sunday || 0,
+            hours_holiday: override.hours_holiday || 0,
+          };
+          emp.manualOverride = true;
+          
+          // Recalculăm totalHours din override
+          emp.totalHours = Object.values(emp.overrideHours).reduce((sum, val) => sum + val, 0);
+          emp.totalHours = Math.round(emp.totalHours * 100) / 100;
+        }
+      }
+    });
+    
     // Sortăm segmentele cronologic
     grouped.forEach(emp => {
       emp.segments.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-      emp.totalHours = Math.round(emp.totalHours * 100) / 100;
+      if (!emp.manualOverride) {
+        emp.totalHours = Math.round(emp.totalHours * 100) / 100;
+      }
     });
     
     return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
-  }, [displayedEntries]);
+  }, [displayedEntries, overrideByUser]);
 
   // Helper pentru icon-uri segment
   const getSegmentIcon = (type: string) => {

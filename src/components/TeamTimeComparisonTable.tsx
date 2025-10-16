@@ -37,6 +37,17 @@ interface EmployeeDayData {
   segments: Segment[];
   entries: any[];
   allApproved: boolean;
+  overrideHours?: {
+    hours_regular: number;
+    hours_driving: number;
+    hours_passenger: number;
+    hours_equipment: number;
+    hours_night: number;
+    hours_saturday: number;
+    hours_sunday: number;
+    hours_holiday: number;
+  };
+  manualOverride?: boolean;
 }
 
 interface TeamTimeComparisonTableProps {
@@ -188,6 +199,14 @@ export const TeamTimeComparisonTable = ({
       .reduce((sum, s) => sum + s.duration, 0);
   };
 
+  // Helper pentru a obține orele de afișat (override manual sau calculate din segmente)
+  const getDisplayHours = (employee: EmployeeDayData, type: string): number => {
+    if (employee.overrideHours && employee.manualOverride) {
+      return employee.overrideHours[type as keyof typeof employee.overrideHours] || 0;
+    }
+    return getSegmentHours(employee.segments, type);
+  };
+
   // Handler pentru salvare ore segment
   const handleSaveSegmentHours = (userId: string, segmentType: string, newHours: number) => {
     onSegmentHoursEdit(userId, segmentType, newHours);
@@ -270,7 +289,23 @@ export const TeamTimeComparisonTable = ({
                 <TableRow key={employee.userId}>
                   <TableCell>
                     <div className="flex flex-col gap-1">
-                      <div className="font-medium">{employee.fullName}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{employee.fullName}</span>
+                        {employee.manualOverride && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-xs bg-orange-50 dark:bg-orange-950/30 border-orange-300">
+                                  ✋ Manual
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">Ore setate manual de admin</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">@{employee.username}</div>
                       {isDrv && (
                         <Badge variant="secondary" className="w-fit text-xs">
@@ -406,7 +441,22 @@ export const TeamTimeComparisonTable = ({
 
                   {/* Ore Normal - editabil */}
                   <TableCell>
-                    {editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_regular' ? (
+                    {employee.manualOverride ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-mono cursor-default">
+                              {getDisplayHours(employee, 'hours_regular').toFixed(1)}h
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs text-orange-600 dark:text-orange-400">
+                              ⚠️ Ore setate manual — editează din dialog
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_regular' ? (
                       <div className="flex items-center gap-1">
                         <Input
                           type="number"
@@ -441,17 +491,32 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_regular', value: getSegmentHours(employee.segments, 'hours_regular').toFixed(1) })}
+                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_regular', value: getDisplayHours(employee, 'hours_regular').toFixed(1) })}
                         className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
                       >
-                        {getSegmentHours(employee.segments, 'hours_regular').toFixed(1)}h
+                        {getDisplayHours(employee, 'hours_regular').toFixed(1)}h
                       </button>
                     )}
                   </TableCell>
 
                   {/* Ore Șofer - editabil */}
                   <TableCell>
-                    {editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_driving' ? (
+                    {employee.manualOverride ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-mono cursor-default">
+                              {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs text-orange-600 dark:text-orange-400">
+                              ⚠️ Ore setate manual — editează din dialog
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_driving' ? (
                       <div className="flex items-center gap-1">
                         <Input
                           type="number"
@@ -486,17 +551,32 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getSegmentHours(employee.segments, 'hours_driving').toFixed(1) })}
+                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) })}
                         className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
                       >
-                        {getSegmentHours(employee.segments, 'hours_driving').toFixed(1)}h
+                        {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
                       </button>
                     )}
                   </TableCell>
 
                   {/* Ore Pasager - editabil */}
                   <TableCell>
-                    {editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_passenger' ? (
+                    {employee.manualOverride ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-mono cursor-default">
+                              {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs text-orange-600 dark:text-orange-400">
+                              ⚠️ Ore setate manual — editează din dialog
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_passenger' ? (
                       <div className="flex items-center gap-1">
                         <Input
                           type="number"
@@ -531,17 +611,32 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getSegmentHours(employee.segments, 'hours_passenger').toFixed(1) })}
+                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) })}
                         className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
                       >
-                        {getSegmentHours(employee.segments, 'hours_passenger').toFixed(1)}h
+                        {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
                       </button>
                     )}
                   </TableCell>
 
                   {/* Ore Utilaj - editabil */}
                   <TableCell>
-                    {editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_equipment' ? (
+                    {employee.manualOverride ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-mono cursor-default">
+                              {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs text-orange-600 dark:text-orange-400">
+                              ⚠️ Ore setate manual — editează din dialog
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_equipment' ? (
                       <div className="flex items-center gap-1">
                         <Input
                           type="number"
@@ -576,10 +671,10 @@ export const TeamTimeComparisonTable = ({
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getSegmentHours(employee.segments, 'hours_equipment').toFixed(1) })}
+                        onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) })}
                         className="px-2 py-1 rounded text-sm font-mono hover:bg-muted transition-colors"
                       >
-                        {getSegmentHours(employee.segments, 'hours_equipment').toFixed(1)}h
+                        {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
                       </button>
                     )}
                   </TableCell>
@@ -591,8 +686,8 @@ export const TeamTimeComparisonTable = ({
                         return <span className="text-sm text-muted-foreground">—</span>;
                       }
                       
-                      // Verificăm dacă există ore normale
-                      const normalHours = getSegmentHours(employee.segments, 'hours_regular');
+                      // Folosim getDisplayHours pentru ore normale (respectă override-ul)
+                      const normalHours = getDisplayHours(employee, 'hours_regular');
                       
                       // Regula: Pauza de 30 min (0.5h) se scade AUTOMAT din ore normale de către edge function
                       // NU se scade din ore Pasager/Condus/Utilaj
