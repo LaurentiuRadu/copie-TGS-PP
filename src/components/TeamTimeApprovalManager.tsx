@@ -178,7 +178,7 @@ export const TeamTimeApprovalManager = ({
   // ✅ FETCH DAILY TIMESHEETS pentru detectare segmentare manuală
   const selectedDate = useMemo(() => {
     if (!selectedWeek) return null;
-    return addDays(new Date(selectedWeek), selectedDayOfWeek);
+    return addDays(new Date(selectedWeek), selectedDayOfWeek - 1);
   }, [selectedWeek, selectedDayOfWeek]);
 
   const userIds = useMemo(() => {
@@ -186,17 +186,22 @@ export const TeamTimeApprovalManager = ({
   }, [displayedEntries]);
 
   const { data: dailyTimesheets = [] } = useQuery({
-    queryKey: ['daily-timesheets-for-approval', selectedDate?.toISOString(), userIds],
+    queryKey: ['daily-timesheets-for-approval', selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null, userIds],
     queryFn: async () => {
       if (!selectedDate || userIds.length === 0) return [];
+      
+      const workDate = format(selectedDate, 'yyyy-MM-dd');
       
       const { data, error } = await supabase
         .from('daily_timesheets')
         .select('*')
-        .eq('work_date', format(selectedDate, 'yyyy-MM-dd'))
+        .eq('work_date', workDate)
         .in('employee_id', userIds);
       
       if (error) throw error;
+      
+      console.log('[DailyTimesheets]', workDate, 'records:', data?.length || 0);
+      
       return data || [];
     },
     enabled: !!selectedDate && userIds.length > 0,
@@ -283,10 +288,10 @@ export const TeamTimeApprovalManager = ({
     
     // ✅ DETECTARE SEGMENTARE MANUALĂ și override cu daily_timesheets
     grouped.forEach((emp, userId) => {
-      // Check dacă există marker de segmentare manuală
+      // Check dacă există marker de segmentare manuală (folosim includes pentru robustețe)
       const hasManualSegmentation = emp.entries.some(e => 
-        (e.approval_notes || '').startsWith('[SEGMENTARE MANUALĂ]') ||
-        (e.approval_notes || '').startsWith('[OVERRIDE MANUAL')
+        (e.approval_notes || '').includes('[SEGMENTARE MANUALĂ]') ||
+        (e.approval_notes || '').includes('[OVERRIDE MANUAL')
       );
       
       // Fallback: dacă suma segmentelor auto depășește 24h, e clar că e greșit
