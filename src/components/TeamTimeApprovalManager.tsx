@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDailyTimesheets, type DailyTimesheet } from '@/hooks/useDailyTimesheets';
+import { useUserRole } from '@/hooks/useUserRole';
 // ✅ Tabs import eliminat
 import {
   Collapsible,
@@ -62,6 +63,9 @@ export const TeamTimeApprovalManager = ({
   onTeamEdited,
   onTeamChange
 }: TeamTimeApprovalManagerProps) => {
+  // Verificare rol admin pentru restricționare editare management
+  const { isAdmin } = useUserRole();
+
   // Găsește următoarea echipă needitată
   const getNextUneditedTeam = (): string | null => {
     const sortedTeams = Array.from(availableTeams).sort((a, b) => {
@@ -690,6 +694,16 @@ export const TeamTimeApprovalManager = ({
     segmentType: string,
     newValue: number
   ) => {
+    // ✅ Verificare de securitate: doar adminii pot edita management
+    if (!isAdmin) {
+      toast({
+        title: '🚫 Acces Interzis',
+        description: 'Doar adminii pot edita pontajele pentru management',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       // Găsește work_date din managementEntries
       const userEntry = managementEntries.find(e => e.user_id === userId);
@@ -989,6 +1003,17 @@ export const TeamTimeApprovalManager = ({
 
   // Handler pentru click pe Clock In/Out
   const handleClockTimeClick = (employee: EmployeeDayData, fieldName: 'Clock In' | 'Clock Out') => {
+    // ✅ Verificare de securitate pentru management
+    const isManagement = managementEntries.some(e => e.user_id === employee.userId);
+    if (isManagement && !isAdmin) {
+      toast({
+        title: '🚫 Acces Interzis',
+        description: 'Doar adminii pot edita Clock In/Out pentru management',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const currentValue = fieldName === 'Clock In' 
       ? formatRomania(employee.firstClockIn, 'HH:mm')
       : employee.lastClockOut ? formatRomania(employee.lastClockOut, 'HH:mm') : '';
@@ -1365,42 +1390,48 @@ export const TeamTimeApprovalManager = ({
                                       <Pencil className="h-3 w-3 opacity-60" />
                                     </button>
                                   </div>
-                                  {/* Clock Out - editabil cu buton */}
+                                  {/* Clock Out - editabil doar pentru admini */}
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Clock Out</p>
-                                    <button
-                                      onClick={() => {
-                                        // Găsește entry-ul management pentru acest user
-                                        const managementEntry = managementEntries.find(e => e.user_id === user.userId);
-                                        if (managementEntry && user.lastClockOut) {
-                                          // Convertim la format EmployeeDayData
-                                          const employeeData: EmployeeDayData = {
-                                            userId: user.userId,
-                                            fullName: user.fullName,
-                                            username: user.username,
-                                            totalHours: user.totalHours,
-                                            firstClockIn: user.firstClockIn,
-                                            lastClockOut: user.lastClockOut,
-                                            segments: managementEntry.segments?.map(s => ({
-                                              id: s.id,
-                                              type: s.segment_type,
-                                              startTime: s.start_time,
-                                              endTime: s.end_time,
-                                              duration: s.hours_decimal,
-                                            })) || [],
-                                            entries: managementEntries.filter(e => e.user_id === user.userId),
-                                            allApproved: user.approvalStatus === 'approved',
-                                            manualOverride: user.manualOverride,
-                                            overrideHours: user.overrideHours,
-                                          };
-                                          handleClockTimeClick(employeeData, 'Clock Out');
-                                        }
-                                      }}
-                                      className="font-mono font-semibold hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
-                                    >
-                                      {user.lastClockOut ? formatRomania(user.lastClockOut, 'HH:mm') : '—'}
-                                      {user.lastClockOut && <Pencil className="h-3 w-3 opacity-60" />}
-                                    </button>
+                                    {isAdmin ? (
+                                      <button
+                                        onClick={() => {
+                                          // Găsește entry-ul management pentru acest user
+                                          const managementEntry = managementEntries.find(e => e.user_id === user.userId);
+                                          if (managementEntry && user.lastClockOut) {
+                                            // Convertim la format EmployeeDayData
+                                            const employeeData: EmployeeDayData = {
+                                              userId: user.userId,
+                                              fullName: user.fullName,
+                                              username: user.username,
+                                              totalHours: user.totalHours,
+                                              firstClockIn: user.firstClockIn,
+                                              lastClockOut: user.lastClockOut,
+                                              segments: managementEntry.segments?.map(s => ({
+                                                id: s.id,
+                                                type: s.segment_type,
+                                                startTime: s.start_time,
+                                                endTime: s.end_time,
+                                                duration: s.hours_decimal,
+                                              })) || [],
+                                              entries: managementEntries.filter(e => e.user_id === user.userId),
+                                              allApproved: user.approvalStatus === 'approved',
+                                              manualOverride: user.manualOverride,
+                                              overrideHours: user.overrideHours,
+                                            };
+                                            handleClockTimeClick(employeeData, 'Clock Out');
+                                          }
+                                        }}
+                                        className="font-mono font-semibold hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
+                                      >
+                                        {user.lastClockOut ? formatRomania(user.lastClockOut, 'HH:mm') : '—'}
+                                        {user.lastClockOut && <Pencil className="h-3 w-3 opacity-60" />}
+                                      </button>
+                                    ) : (
+                                      <span className="font-mono font-semibold">
+                                        {user.lastClockOut ? formatRomania(user.lastClockOut, 'HH:mm') : '—'}
+                                      </span>
+                                    )}
                                   </div>
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Total Ore</p>
@@ -1410,7 +1441,7 @@ export const TeamTimeApprovalManager = ({
                                   </div>
                                 </div>
 
-          {/* Badge-uri standardizate de tipuri de ore - EDITABILE */}
+          {/* Badge-uri standardizate de tipuri de ore - EDITABILE doar pentru admini */}
           <div className="flex flex-wrap gap-2 mt-2">
             {standardTypes.map((t) => {
               const val = getDisplayHoursMgmt(user, t);
@@ -1419,10 +1450,23 @@ export const TeamTimeApprovalManager = ({
               const isEditing = editingManagementHours.userId === user.userId 
                 && editingManagementHours.segmentType === t;
               
-              // Afișăm TOATE tipurile:
-              // - Dacă val > 0: badge normal clickable
-              // - Dacă val === 0: buton "+" pentru a adăuga
+              // Dacă user NU este admin, afișează doar badge-uri read-only
+              if (!isAdmin) {
+                if (val <= 0) return null; // Nu afișa tipuri cu 0h
+                return (
+                  <Badge 
+                    key={t}
+                    variant="secondary" 
+                    className="text-xs gap-1"
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                    <span className="font-mono">{val.toFixed(1)}h</span>
+                  </Badge>
+                );
+              }
               
+              // DOAR pentru admini: afișăm butoane editare
               if (val <= 0 && !isEditing) {
                 // Buton "+" pentru a adăuga tipul de ore
                 return (
