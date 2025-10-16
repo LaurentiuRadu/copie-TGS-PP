@@ -239,6 +239,9 @@ export const TeamTimeComparisonTable = ({
 
   // Helper pentru editabilitate condiționată
   const isSegmentEditable = (employee: EmployeeDayData, segmentType: string): boolean => {
+    // ✅ Adminii pot edita ORICE segment, chiar dacă are 0 ore
+    if (isAdmin) return true;
+    
     const currentHours = getDisplayHours(employee, segmentType);
     // Editabil dacă există ore alocate automat SAU dacă există override manual
     return currentHours > 0 || employee.manualOverride || false;
