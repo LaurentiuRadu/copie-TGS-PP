@@ -283,9 +283,25 @@ export function TimeEntryApprovalEditDialog({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      // Invalidare cache COMPLETĂ pentru toate variantele de query-uri
+      queryClient.invalidateQueries({ 
+        queryKey: ['team-pending-approvals'], 
+        exact: false 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['time-entries'], 
+        exact: false 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['daily-timesheets'], 
+        exact: false 
+      });
+      
+      // ✅ FIX: Invalidare pentru segmente după recalculare
+      queryClient.invalidateQueries({ 
+        queryKey: ['time-entry-segments'], 
+        exact: false 
+      });
       
       toast({
         title: "✅ Pontaj corectat și aprobat",
