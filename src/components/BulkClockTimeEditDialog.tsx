@@ -145,6 +145,11 @@ export function BulkClockTimeEditDialog({
       });
   }, [groupedByEmployee, dailyByUser]);
 
+  // Helper function to check if entry ID is valid (not synthetic)
+  const isValidTimeEntry = (entryId: string): boolean => {
+    return !entryId.startsWith('synthetic-');
+  };
+
   // Validate time input
   const validateTimes = (clockIn: string, clockOut: string): { valid: boolean; error?: string } => {
     try {
@@ -176,7 +181,8 @@ export function BulkClockTimeEditDialog({
     const updates: BulkUpdatePayload[] = [];
     normalEmployees.forEach(emp => {
       emp.entries.forEach(entry => {
-        if (entry.clock_out_time) {
+        // DOAR entry-uri reale, NU sintetice
+        if (entry.clock_out_time && isValidTimeEntry(entry.id)) {
           const clockIn = format(parse(normalClockIn, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
           const clockOut = format(parse(normalClockOut, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
           
@@ -219,7 +225,8 @@ export function BulkClockTimeEditDialog({
       
       if (clockIn && clockOut) {
         emp.entries.forEach(entry => {
-          if (entry.clock_out_time) {
+          // DOAR entry-uri reale, NU sintetice
+          if (entry.clock_out_time && isValidTimeEntry(entry.id)) {
             const formattedClockIn = format(parse(clockIn, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
             const formattedClockOut = format(parse(clockOut, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
             
@@ -253,7 +260,8 @@ export function BulkClockTimeEditDialog({
     
     passengersWithHours.forEach(emp => {
       emp.entries.forEach(entry => {
-        if (entry.clock_out_time) {
+        // DOAR entry-uri reale, NU sintetice
+        if (entry.clock_out_time && isValidTimeEntry(entry.id)) {
           const formattedClockIn = format(parse(passengerClockIn, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
           const formattedClockOut = format(parse(passengerClockOut, 'HH:mm', selectedDate), "yyyy-MM-dd'T'HH:mm:ssXXX");
           
@@ -421,6 +429,14 @@ export function BulkClockTimeEditDialog({
                   return null;
                 })()}
 
+                {normalUpdates.length === 0 && normalEmployees.length > 0 && (
+                  <Alert>
+                    <AlertDescription>
+                      Nu există pontaje reale de actualizat. Angajații au doar date calculate automat.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="border rounded-lg p-4 max-h-[200px] overflow-y-auto">
                   <h4 className="font-semibold mb-2">Preview ({normalUpdates.length} pontaje):</h4>
                   <div className="space-y-1 text-sm">
@@ -511,6 +527,14 @@ export function BulkClockTimeEditDialog({
                   </div>
                 </div>
 
+                {driverUpdates.length === 0 && driversWithHours.length > 0 && (
+                  <Alert>
+                    <AlertDescription>
+                      Nu există pontaje reale de actualizat. Angajații au doar date calculate automat.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="border rounded-lg p-4 max-h-[200px] overflow-y-auto">
                   <h4 className="font-semibold mb-2">Preview ({driverUpdates.length} pontaje):</h4>
                   <div className="space-y-1 text-sm">
@@ -567,6 +591,14 @@ export function BulkClockTimeEditDialog({
                     </div>
                   </div>
                 </div>
+
+                {passengerUpdates.length === 0 && passengersWithHours.length > 0 && (
+                  <Alert>
+                    <AlertDescription>
+                      Nu există pontaje reale de actualizat. Angajații au doar date calculate automat.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="border rounded-lg p-4 max-h-[200px] overflow-y-auto">
                   <h4 className="font-semibold mb-2">Preview ({passengerUpdates.length} pontaje):</h4>
