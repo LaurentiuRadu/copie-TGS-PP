@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,7 +15,7 @@ import { TeamTimeComparisonTable } from '@/components/TeamTimeComparisonTable';
 import { UniformizeDialog } from '@/components/UniformizeDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -175,6 +175,42 @@ export const TeamTimeApprovalManager = ({
   const pendingOnlyEntries = validPendingEntries.filter(e => e.approval_status === 'pending_review');
   const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
 
+  // ✅ FETCH DAILY TIMESHEETS pentru detectare segmentare manuală
+  const selectedDate = useMemo(() => {
+    if (!selectedWeek) return null;
+    return addDays(new Date(selectedWeek), selectedDayOfWeek);
+  }, [selectedWeek, selectedDayOfWeek]);
+
+  const userIds = useMemo(() => {
+    return Array.from(new Set(displayedEntries.map(e => e.user_id)));
+  }, [displayedEntries]);
+
+  const { data: dailyTimesheets = [] } = useQuery({
+    queryKey: ['daily-timesheets-for-approval', selectedDate?.toISOString(), userIds],
+    queryFn: async () => {
+      if (!selectedDate || userIds.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('daily_timesheets')
+        .select('*')
+        .eq('work_date', selectedDate.toISOString().split('T')[0])
+        .in('employee_id', userIds);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedDate && userIds.length > 0,
+  });
+
+  // Map daily timesheets by user for quick lookup
+  const dailyByUser = useMemo(() => {
+    const map = new Map();
+    dailyTimesheets.forEach(dt => {
+      map.set(dt.employee_id, dt);
+    });
+    return map;
+  }, [dailyTimesheets]);
+
   // ✅ GRUPARE PE ANGAJAT: combinăm toate pontajele unui user într-o singură structură
   interface EmployeeDayData {
     userId: string;
@@ -245,14 +281,63 @@ export const TeamTimeApprovalManager = ({
       }
     });
     
-    // Sortăm segmentele cronologic
-    grouped.forEach(emp => {
-      emp.segments.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-      emp.totalHours = Math.round(emp.totalHours * 100) / 100;
+    // ✅ DETECTARE SEGMENTARE MANUALĂ și override cu daily_timesheets
+    grouped.forEach((emp, userId) => {
+      // Check dacă există marker de segmentare manuală
+      const hasManualSegmentation = emp.entries.some(e => 
+        e.approval_notes?.startsWith('[SEGMENTARE MANUALĂ]')
+      );
+      
+      // Fallback: dacă suma segmentelor auto depășește 24h, e clar că e greșit
+      const autoSumExceeds24h = emp.totalHours > 24;
+      
+      const dailyRecord = dailyByUser.get(userId);
+      
+      if ((hasManualSegmentation || autoSumExceeds24h) && dailyRecord) {
+        console.log(`[Segments Override] Using manual daily_timesheets for ${emp.fullName} (${userId})`);
+        
+        // Construim segmente sintetice din daily_timesheets
+        const syntheticSegments = [];
+        let syntheticTotal = 0;
+        
+        // Map pentru fielduri și tipuri
+        const fieldMapping = [
+          { field: 'hours_regular', type: 'hours_regular' },
+          { field: 'hours_night', type: 'hours_night' },
+          { field: 'hours_saturday', type: 'hours_saturday' },
+          { field: 'hours_sunday', type: 'hours_sunday' },
+          { field: 'hours_holiday', type: 'hours_holiday' },
+          { field: 'hours_passenger', type: 'hours_passenger' },
+          { field: 'hours_driving', type: 'hours_driving' },
+          { field: 'hours_equipment', type: 'hours_equipment' },
+        ];
+        
+        fieldMapping.forEach(({ field, type }) => {
+          const value = Number(dailyRecord[field]) || 0;
+          if (value > 0) {
+            syntheticSegments.push({
+              id: `synthetic-${field}-${userId}`,
+              type: type,
+              startTime: emp.firstClockIn, // Păstrăm timestamp-uri originale pentru UI
+              endTime: emp.lastClockOut || emp.firstClockIn,
+              duration: value,
+            });
+            syntheticTotal += value;
+          }
+        });
+        
+        // Override-ul complet
+        emp.segments = syntheticSegments;
+        emp.totalHours = Math.round(syntheticTotal * 100) / 100;
+      } else {
+        // Sortăm segmentele cronologic pentru cazuri normale
+        emp.segments.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+        emp.totalHours = Math.round(emp.totalHours * 100) / 100;
+      }
     });
     
     return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
-  }, [displayedEntries]);
+  }, [displayedEntries, dailyByUser]);
 
   // Helper pentru icon-uri segment
   const getSegmentIcon = (type: string) => {
@@ -940,24 +1025,13 @@ export const TeamTimeApprovalManager = ({
             if (!open) setEditEntry(null);
           }}
           onSuccess={() => {
-            // Auto-scroll la următoarea echipă needitată după editare
+            // ✅ FIX: Nu schimbăm automat echipa - user rămâne pe pagina curentă
             if (selectedTeam) {
               onTeamEdited(selectedTeam);
-              
-              const nextTeam = getNextUneditedTeam();
-              if (nextTeam) {
-                onTeamChange(nextTeam);
-                toast({
-                  title: '✅ Pontaj editat și aprobat',
-                  description: `Trecem automat la echipa ${nextTeam}`,
-                });
-              } else {
-                toast({
-                  title: '🎉 Toate echipele verificate!',
-                  description: 'Poți schimba ziua acum sau continua editarea.',
-                });
-                // NU schimbăm ziua automat - user decide manual
-              }
+              toast({
+                title: '✅ Pontaj editat și aprobat',
+                description: 'Modificările au fost salvate cu succes.',
+              });
             }
           }}
         />
@@ -972,23 +1046,13 @@ export const TeamTimeApprovalManager = ({
             if (!open) setDeleteEntry(null);
           }}
           onSuccess={() => {
-            // Reîmprospătare automată + navigare la următoarea echipă
+            // ✅ FIX: Nu schimbăm automat echipa - user rămâne pe pagina curentă
             if (selectedTeam) {
               onTeamEdited(selectedTeam);
-              
-              const nextTeam = getNextUneditedTeam();
-              if (nextTeam) {
-                onTeamChange(nextTeam);
-                toast({
-                  title: '✅ Pontaj șters',
-                  description: `Trecem automat la echipa ${nextTeam}`,
-                });
-              } else {
-                toast({
-                  title: '🎉 Toate echipele verificate!',
-                  description: 'Poți schimba ziua acum sau continua verificarea.',
-                });
-              }
+              toast({
+                title: '✅ Pontaj șters',
+                description: 'Pontajul a fost șters cu succes.',
+              });
             }
           }}
         />
