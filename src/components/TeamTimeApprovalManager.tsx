@@ -215,6 +215,99 @@ export const TeamTimeApprovalManager = ({
     return map;
   }, [dailyTimesheets]);
 
+  // ✅ GRUPARE MANAGEMENT PE UTILIZATOR: agregăm și aplicăm override-uri
+  const standardTypes = ['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'] as const;
+  type SegmentType = typeof standardTypes[number];
+
+  const managementGroupedByUser = useMemo(() => {
+    const byUser = new Map<string, {
+      userId: string;
+      fullName: string;
+      username: string;
+      aggregated: Record<SegmentType, number>;
+      firstClockIn: string;
+      lastClockOut: string | null;
+      totalHours: number;
+      manualOverride?: boolean;
+      overrideHours?: Record<SegmentType, number>;
+      approvalStatus: 'pending_review' | 'approved';
+    }>();
+
+    for (const entry of managementEntries) {
+      const uid = entry.user_id;
+      if (!byUser.has(uid)) {
+        byUser.set(uid, {
+          userId: uid,
+          fullName: entry.profiles.full_name,
+          username: entry.profiles.username,
+          aggregated: {
+            hours_regular: 0, hours_night: 0, hours_saturday: 0, hours_sunday: 0, hours_holiday: 0,
+            hours_passenger: 0, hours_driving: 0, hours_equipment: 0
+          },
+          firstClockIn: entry.clock_in_time,
+          lastClockOut: entry.clock_out_time,
+          totalHours: 0,
+          approvalStatus: entry.approval_status as 'pending_review' | 'approved',
+        });
+      }
+      const user = byUser.get(uid)!;
+
+      // Update first/last timestamps
+      if (entry.clock_in_time < user.firstClockIn) user.firstClockIn = entry.clock_in_time;
+      if (entry.clock_out_time && (!user.lastClockOut || entry.clock_out_time > user.lastClockOut)) {
+        user.lastClockOut = entry.clock_out_time;
+      }
+
+      // Agregăm segmentele din intrări
+      if (entry.segments?.length) {
+        for (const s of entry.segments) {
+          const t = s.segment_type as SegmentType;
+          if (standardTypes.includes(t)) {
+            user.aggregated[t] += s.hours_decimal || 0;
+            user.totalHours += s.hours_decimal || 0;
+          }
+        }
+      }
+
+      // Păstrează cel mai restrictiv status (dacă oricare e pending, marchez pending)
+      if (user.approvalStatus !== 'approved') {
+        user.approvalStatus = entry.approval_status as 'pending_review' | 'approved';
+      }
+    }
+
+    // Aplicăm override-uri manuale din daily_timesheets
+    byUser.forEach((user, uid) => {
+      const override = overrideByUser.get(uid);
+      if (override) {
+        const hasManualOverride = override.notes?.includes('[SEGMENTARE MANUALĂ]')
+          || override.notes?.includes('[OVERRIDE MANUAL')
+          || managementEntries.some(e => e.user_id === uid && e.was_edited_by_admin);
+
+        if (hasManualOverride) {
+          user.manualOverride = true;
+          user.overrideHours = {
+            hours_regular: override.hours_regular || 0,
+            hours_night: override.hours_night || 0,
+            hours_saturday: override.hours_saturday || 0,
+            hours_sunday: override.hours_sunday || 0,
+            hours_holiday: override.hours_holiday || 0,
+            hours_passenger: override.hours_passenger || 0,
+            hours_driving: override.hours_driving || 0,
+            hours_equipment: override.hours_equipment || 0,
+          };
+          user.totalHours = standardTypes.reduce((s, t) => s + (user.overrideHours![t] || 0), 0);
+          user.totalHours = Math.round(user.totalHours * 100) / 100;
+        } else {
+          user.totalHours = Math.round(user.totalHours * 100) / 100;
+        }
+      } else {
+        user.totalHours = Math.round(user.totalHours * 100) / 100;
+      }
+    });
+
+    return Array.from(byUser.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }, [managementEntries, overrideByUser]);
+
   // ✅ GRUPARE PE ANGAJAT: combinăm toate pontajele unui user într-o singură structură
   interface EmployeeDayData {
     userId: string;
@@ -395,8 +488,18 @@ export const TeamTimeApprovalManager = ({
       case 'hours_night': return 'Noapte';
       case 'hours_holiday': return 'Sărbătoare';
       case 'hours_regular': return 'Normal';
+      case 'hours_saturday': return 'Sâm';
+      case 'hours_sunday': return 'Dum';
       default: return type;
     }
+  };
+
+  // Helper pentru afișare ore management (cu override)
+  const getDisplayHoursMgmt = (user: typeof managementGroupedByUser[number], type: SegmentType) => {
+    if (user.manualOverride && user.overrideHours) {
+      return user.overrideHours[type] || 0;
+    }
+    return user.aggregated[type] || 0;
   };
 
   const reprocessMutation = useMutation({
@@ -1069,16 +1172,13 @@ export const TeamTimeApprovalManager = ({
                 <CollapsibleContent>
                   <CardContent className="pt-0">
                     <div className="space-y-3">
-                      {managementEntries.map((entry) => {
-                        const isApproved = entry.approval_status === 'approved';
-                        const duration = entry.clock_out_time 
-                          ? ((new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60)).toFixed(2)
-                          : 'N/A';
-                        const isTeamLeader = entry.user_id === teamLeader?.id;
+                      {managementGroupedByUser.map((user) => {
+                        const isTeamLeader = user.userId === teamLeader?.id;
+                        const isApproved = user.approvalStatus === 'approved';
                         
                         return (
                           <div 
-                            key={entry.id} 
+                            key={user.userId} 
                             className={`p-4 rounded-lg border ${isApproved ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-muted/30'}`}
                           >
                             <div className="flex items-start justify-between gap-4">
@@ -1087,14 +1187,19 @@ export const TeamTimeApprovalManager = ({
                                   <Badge variant={isTeamLeader ? 'default' : 'secondary'} className={isTeamLeader ? 'bg-blue-600' : 'bg-purple-600'}>
                                     {isTeamLeader ? '👔 Șef Echipă' : '👑 Coordonator'}
                                   </Badge>
-                                  <span className="font-semibold">{entry.profiles.full_name}</span>
+                                  <span className="font-semibold">{user.fullName}</span>
                                   <Badge variant="outline" className="text-xs">
-                                    {entry.profiles.username}
+                                    {user.username}
                                   </Badge>
                                   {isApproved && (
                                     <Badge variant="default" className="bg-green-600 text-white gap-1">
                                       <CheckCircle2 className="h-3 w-3" />
                                       Aprobat
+                                    </Badge>
+                                  )}
+                                  {user.manualOverride && (
+                                    <Badge variant="outline" className="text-xs bg-orange-50 dark:bg-orange-950/30 border-orange-300">
+                                      ✋ Manual
                                     </Badge>
                                   )}
                                 </div>
@@ -1103,40 +1208,49 @@ export const TeamTimeApprovalManager = ({
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Clock In</p>
                                     <p className="font-mono font-semibold">
-                                      {formatRomania(entry.clock_in_time, 'HH:mm')}
+                                      {formatRomania(user.firstClockIn, 'HH:mm')}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Clock Out</p>
                                     <p className="font-mono font-semibold">
-                                      {entry.clock_out_time ? formatRomania(entry.clock_out_time, 'HH:mm') : '—'}
+                                      {user.lastClockOut ? formatRomania(user.lastClockOut, 'HH:mm') : '—'}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Total Ore</p>
                                     <p className="font-mono font-semibold text-primary">
-                                      {duration}h
+                                      {user.totalHours.toFixed(2)}h
                                     </p>
                                   </div>
                                 </div>
 
-                                {entry.segments && entry.segments.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    {entry.segments.map(seg => (
-                                      <Badge key={seg.id} variant="secondary" className="text-xs gap-1">
-                                        <span>{getSegmentIcon(seg.segment_type)}</span>
-                                        <span>{getSegmentLabel(seg.segment_type)}</span>
-                                        <span className="font-mono">{seg.hours_decimal.toFixed(1)}h</span>
+                                {/* Badge-uri standardizate de tipuri de ore */}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {standardTypes.map((t) => {
+                                    const val = getDisplayHoursMgmt(user, t);
+                                    if (val <= 0) return null; // afișăm doar > 0
+                                    const label = getSegmentLabel(t);
+                                    const icon = getSegmentIcon(t);
+                                    return (
+                                      <Badge key={t} variant="secondary" className="text-xs gap-1">
+                                        <span>{icon}</span>
+                                        <span>{label}</span>
+                                        <span className="font-mono">{val.toFixed(1)}h</span>
                                       </Badge>
-                                    ))}
-                                  </div>
-                                )}
+                                    );
+                                  })}
+                                </div>
                               </div>
 
                               <div className="flex gap-2">
                                 {!isApproved && (
                                   <Button
-                                    onClick={() => handleApprove(entry.id)}
+                                    onClick={() => {
+                                      // Găsim prima intrare pending a utilizatorului
+                                      const entry = managementEntries.find(e => e.user_id === user.userId);
+                                      if (entry) handleApprove(entry.id);
+                                    }}
                                     size="sm"
                                     variant="default"
                                     className="gap-2"
