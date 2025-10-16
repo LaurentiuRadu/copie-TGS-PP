@@ -44,6 +44,7 @@ interface TeamTimeComparisonTableProps {
   onEdit: (entry: any) => void;
   onDelete: (entry: any) => void;
   onUniformize: () => void;
+  onBulkClockEdit: () => void;
   onTimeClick: (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => void;
   editingSegment: {
     userId: string;
@@ -62,6 +63,7 @@ export const TeamTimeComparisonTable = ({
   onEdit,
   onDelete,
   onUniformize,
+  onBulkClockEdit,
   onTimeClick,
   editingSegment,
   onTimeChange,
@@ -184,11 +186,16 @@ export const TeamTimeComparisonTable = ({
             Legenda: 🟢 ≤15min | 🟡 15-30min | 🔴 &gt;30min diferență
           </p>
         </div>
-        {groupedByEmployee.some(emp => !isDriver(emp.segments)) && (
-          <Button onClick={onUniformize} variant="secondary" size="sm">
-            🔄 Uniformizează Orele
+        <div className="flex gap-2">
+          {groupedByEmployee.some(emp => !isDriver(emp.segments)) && (
+            <Button onClick={onUniformize} variant="secondary" size="sm">
+              🔄 Uniformizează Orele
+            </Button>
+          )}
+          <Button onClick={onBulkClockEdit} variant="outline" size="sm">
+            🕐 Editează Clock In/Out
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Tabel orizontal */}

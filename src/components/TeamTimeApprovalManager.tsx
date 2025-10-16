@@ -13,6 +13,7 @@ import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditD
 import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
 import { TeamTimeComparisonTable } from '@/components/TeamTimeComparisonTable';
 import { UniformizeDialog } from '@/components/UniformizeDialog';
+import { BulkClockTimeEditDialog } from '@/components/BulkClockTimeEditDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
@@ -98,6 +99,7 @@ export const TeamTimeApprovalManager = ({
   } | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'details'>('table');
   const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
+  const [bulkClockEditDialogOpen, setBulkClockEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -344,6 +346,33 @@ export const TeamTimeApprovalManager = ({
     
     return Array.from(grouped.values()).sort((a, b) => a.fullName.localeCompare(b.fullName));
   }, [displayedEntries, dailyByUser]);
+
+  // Keep Map version for BulkClockTimeEditDialog
+  const groupedByEmployeeMap = useMemo(() => {
+    const map = new Map<string, {
+      userId: string;
+      userName: string;
+      entries: Array<{
+        id: string;
+        clock_in_time: string;
+        clock_out_time: string | null;
+      }>;
+    }>();
+    
+    groupedByEmployee.forEach(emp => {
+      map.set(emp.userId, {
+        userId: emp.userId,
+        userName: emp.fullName,
+        entries: emp.entries.map(e => ({
+          id: e.id,
+          clock_in_time: e.clock_in_time,
+          clock_out_time: e.clock_out_time,
+        })),
+      });
+    });
+    
+    return map;
+  }, [groupedByEmployee]);
 
   // Helper pentru icon-uri segment
   const getSegmentIcon = (type: string) => {
@@ -819,6 +848,7 @@ export const TeamTimeApprovalManager = ({
               onEdit={handleEdit}
               onDelete={handleDelete}
               onUniformize={() => setUniformizeDialogOpen(true)}
+              onBulkClockEdit={() => setBulkClockEditDialogOpen(true)}
               onTimeClick={handleTimeClick}
               editingSegment={editingSegment}
               onTimeChange={handleTimeChange}
@@ -1069,6 +1099,14 @@ export const TeamTimeApprovalManager = ({
         onOpenChange={setUniformizeDialogOpen}
         groupedByEmployee={groupedByEmployee}
         onConfirm={handleUniformize}
+      />
+
+      <BulkClockTimeEditDialog
+        open={bulkClockEditDialogOpen}
+        onOpenChange={setBulkClockEditDialogOpen}
+        groupedByEmployee={groupedByEmployeeMap}
+        dailyTimesheets={dailyTimesheets}
+        selectedDate={selectedDate!}
       />
     </>
   );
