@@ -169,8 +169,22 @@ export const useTeamApprovalWorkflow = (
       // Track pontaj numbers per user for multiple entries per day
       const pontajCountByUser = new Map<string, number>();
 
+      // ✅ DEDUPE PROTECTION: Group entries by user+time to avoid displaying duplicates
+      const seenEntries = new Map<string, string>(); // key: user_id + clock_in + clock_out, value: entry_id
+      const uniqueEntriesData = entriesData?.filter(entry => {
+        if (!entry.clock_out_time) return true; // Keep incomplete entries
+        
+        const key = `${entry.user_id}_${entry.clock_in_time}_${entry.clock_out_time}`;
+        if (seenEntries.has(key)) {
+          console.warn(`[Dedupe Protection] Skipping duplicate entry ${entry.id} for user ${entry.user_id}`);
+          return false;
+        }
+        seenEntries.set(key, entry.id);
+        return true;
+      }) || [];
+
       // Merge profiles with entries and match with schedules
-      const result = (entriesData || []).map(entry => {
+      const result = uniqueEntriesData.map(entry => {
         // ✅ FIX: Convert UTC to Romania time (+3 hours) before getting day_of_week
         const clockInDate = new Date(entry.clock_in_time);
         const romaniaTime = new Date(clockInDate.getTime() + 3 * 60 * 60 * 1000);
