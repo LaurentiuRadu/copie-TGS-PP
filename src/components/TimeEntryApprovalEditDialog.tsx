@@ -162,25 +162,46 @@ export function TimeEntryApprovalEditDialog({
       return [];
     }
 
-    // Găsește time_entries pentru acești pasageri
+    // Toleranță de ±15 minute pentru identificare cursă comună
+    const TOLERANCE_MINUTES = 15;
+    const entryClockIn = new Date(entry.clock_in_time);
+    const entryClockOut = entry.clock_out_time ? new Date(entry.clock_out_time) : null;
+
+    const clockInStart = new Date(entryClockIn.getTime() - TOLERANCE_MINUTES * 60 * 1000);
+    const clockInEnd = new Date(entryClockIn.getTime() + TOLERANCE_MINUTES * 60 * 1000);
+
+    // Găsește time_entries care au clock_in_time apropiat (±15 min)
     const { data: passengerEntries } = await supabase
       .from('time_entries')
-      .select('id, user_id')
+      .select('id, user_id, clock_in_time, clock_out_time')
       .in('user_id', passengerTimesheets.map(p => p.employee_id))
-      .gte('clock_in_time', workDate)
-      .lt('clock_in_time', format(new Date(new Date(workDate).getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
+      .gte('clock_in_time', clockInStart.toISOString())
+      .lte('clock_in_time', clockInEnd.toISOString());
+
+    // Filtrare suplimentară în JavaScript pentru clock_out_time
+    const matchingEntries = passengerEntries?.filter(e => {
+      if (!entryClockOut || !e.clock_out_time) return true; // Skip dacă lipsește clock-out
+      
+      const passengerClockOut = new Date(e.clock_out_time);
+      const clockOutDiff = Math.abs(passengerClockOut.getTime() - entryClockOut.getTime()) / (1000 * 60);
+      
+      return clockOutDiff <= TOLERANCE_MINUTES;
+    }) || [];
 
     return teamMembers
       .filter(member => {
         const hasPassengerHours = passengerTimesheets.some(p => p.employee_id === member.user_id);
-        const hasEntry = passengerEntries?.some(e => e.user_id === member.user_id);
-        return hasPassengerHours && hasEntry;
+        const matchingEntry = matchingEntries.find(e => e.user_id === member.user_id);
+        return hasPassengerHours && matchingEntry && member.user_id !== entry.user_id;
       })
-      .map(member => ({
-        user_id: member.user_id,
-        full_name: (member.profiles as any)?.full_name || 'Necunoscut',
-        entry_id: passengerEntries?.find(e => e.user_id === member.user_id)?.id || '',
-      }));
+      .map(member => {
+        const matchingEntry = matchingEntries.find(e => e.user_id === member.user_id);
+        return {
+          user_id: member.user_id,
+          full_name: (member.profiles as any)?.full_name || 'Necunoscut',
+          entry_id: matchingEntry!.id,
+        };
+      });
   };
 
   // Calculează total ore din pontaj
@@ -367,12 +388,27 @@ export function TimeEntryApprovalEditDialog({
         const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
         
         for (const passenger of otherPassengers) {
-          // Update time_entry pentru fiecare pasager
+          // Fetch entry-ul pasagerului pentru validare finală
           const { data: passengerEntry } = await supabase
             .from('time_entries')
             .select('original_clock_in_time, original_clock_out_time, clock_in_time, clock_out_time')
             .eq('id', passenger.entry_id)
             .single();
+
+          if (!passengerEntry) {
+            console.warn(`[SKIP] Pasager ${passenger.full_name}: entry not found`);
+            continue;
+          }
+
+          // Validare interval temporal (safety check)
+          const passengerClockIn = new Date(passengerEntry.clock_in_time);
+          const entryClockInTime = new Date(entry.clock_in_time);
+          const clockInDiff = Math.abs(passengerClockIn.getTime() - entryClockInTime.getTime()) / (1000 * 60);
+
+          if (clockInDiff > 15) {
+            console.warn(`[SKIP] Pasager ${passenger.full_name}: clock_in diferă cu ${clockInDiff.toFixed(1)} min`);
+            continue; // Skip entry-uri care nu corespund
+          }
 
           const passengerUpdateData: any = {
             clock_in_time: new Date(clockIn).toISOString(),
