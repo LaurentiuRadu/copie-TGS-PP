@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2 } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -54,6 +54,7 @@ interface TeamTimeComparisonTableProps {
   groupedByEmployee: EmployeeDayData[];
   onEdit: (entry: any) => void;
   onDelete: (entry: any) => void;
+  onApprove: (entryId: string) => void;  // ✅ ADĂUGAT
   onUniformize: () => void;
   onTimeClick: (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => void;
   editingSegment: {
@@ -75,6 +76,7 @@ export const TeamTimeComparisonTable = ({
   groupedByEmployee,
   onEdit,
   onDelete,
+  onApprove,  // ✅ ADĂUGAT
   onUniformize,
   onTimeClick,
   editingSegment,
@@ -264,7 +266,7 @@ export const TeamTimeComparisonTable = ({
               <TableHead className="min-w-[90px]">Utilaj</TableHead>
               <TableHead className="min-w-[80px]">Pauză</TableHead>
               <TableHead className="min-w-[100px]">Total Ore</TableHead>
-              <TableHead className="min-w-[120px] text-right">Acțiuni</TableHead>
+              <TableHead className="min-w-[150px] text-right">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -342,15 +344,13 @@ export const TeamTimeComparisonTable = ({
                       </div>
                       <div className="text-xs text-muted-foreground">@{employee.username}</div>
                       
-                      {/* Timpul afișat sub username când e manual override */}
-                      {employee.manualOverride && (() => {
-                        const discrepancyMin = getClockInDiscrepancy(employee);
-                        return (
-                          <div className="text-xs font-mono text-muted-foreground">
-                            {Math.abs(discrepancyMin).toFixed(2).replace('.', ',')}
-                          </div>
-                        );
-                      })()}
+                      {/* ✅ Total ore când e manual override */}
+                      {employee.manualOverride && (
+                        <div className="text-xs font-mono text-orange-600 dark:text-orange-400 font-medium flex items-center gap-1">
+                          <span>📊</span>
+                          <span>{employee.totalHours.toFixed(2).replace('.', ',')}h</span>
+                        </div>
+                      )}
                       
                       {isDrv && (
                         <Badge variant="secondary" className="w-fit text-xs">
@@ -791,40 +791,65 @@ export const TeamTimeComparisonTable = ({
                     {employee.totalHours.toFixed(2)}h
                   </TableCell>
 
-                  {/* Acțiuni */}
+                  {/* Status cu buton Aprobă */}
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => onEdit(employee.entries[0])}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editează pontaj</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      {!employee.allApproved ? (
+                        <>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  onClick={() => onApprove(employee.entries[0].id)}
+                                  className="gap-1"
+                                >
+                                  <Check className="h-4 w-4" />
+                                  Aprobă
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Aprobă pontajul acestui angajat</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8"
+                                  onClick={() => onEdit(employee.entries[0])}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Editează pontaj</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => onDelete(employee.entries[0])}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Șterge pontaj</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-destructive"
+                                  onClick={() => onDelete(employee.entries[0])}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Șterge pontaj</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-400">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Aprobat
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

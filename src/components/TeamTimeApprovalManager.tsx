@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDailyTimesheets, type DailyTimesheet } from '@/hooks/useDailyTimesheets';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// ✅ Tabs import eliminat
 import {
   Collapsible,
   CollapsibleContent,
@@ -98,7 +98,7 @@ export const TeamTimeApprovalManager = ({
     field: 'startTime' | 'endTime';
     value: string;
   } | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'details'>('table');
+  // ✅ View mode eliminat - folosim doar tabel
   const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -173,11 +173,15 @@ export const TeamTimeApprovalManager = ({
     }
   };
 
-  // Filtrare pontaje invalide (< 10 min durata)
+  // Filtrare pontaje invalide (< 10 min durata) ȘI exclude coordonatori
   const validPendingEntries = pendingEntries.filter(entry => {
     if (!entry.clock_in_time || !entry.clock_out_time) return false;
     const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
-    return duration >= 0.17; // ✅ 10 min = 0.167h (rotunjit la 0.17 pentru siguranță)
+    
+    // ✅ FIX 1: Exclude coordonatori și team leaders
+    const isCoordinator = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
+    
+    return duration >= 0.17 && !isCoordinator;
   });
 
   const approvedEntries = validPendingEntries.filter(e => e.approval_status === 'approved');
@@ -675,10 +679,11 @@ export const TeamTimeApprovalManager = ({
 
         if (updateError) throw updateError;
 
-        // 2️⃣ Apelează edge function pentru recalculare segmente
+        // 2️⃣ Apelează edge function pentru recalculare segmente (FINAL MODE)
         const { error: calcError } = await supabase.functions.invoke('calculate-time-segments', {
           body: { 
             time_entry_id: timeEntry.id,
+            isIntermediateCalculation: false,  // ✅ FIX 3: FORCE FINAL MODE
             force_recalculate: true 
           }
         });
@@ -794,7 +799,7 @@ export const TeamTimeApprovalManager = ({
     editSegmentHoursMutation.mutate({ userId, segmentType, newHours });
   };
 
-  // Handler pentru uniformizare
+  // ✅ FIX 2: Handler pentru uniformizare cu recalculare completă
   const handleUniformize = async (avgClockIn: string, avgClockOut: string | null) => {
     const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_driving' || s.type === 'hours_equipment');
     const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
@@ -816,58 +821,72 @@ export const TeamTimeApprovalManager = ({
 
       // Update pentru fiecare non-driver
       for (const employee of nonDrivers) {
-        const firstSegment = employee.segments[0];
-        const lastSegment = employee.segments[employee.segments.length - 1];
+        const timeEntry = employee.entries[0];
+        if (!timeEntry) continue;
 
-        if (!firstSegment || !lastSegment) continue;
-
-        // Update Clock In (primul segment)
-        const clockInDate = new Date(firstSegment.startTime);
+        // 1️⃣ Calculează noile timestampuri
+        const clockInDate = new Date(employee.firstClockIn);
         clockInDate.setHours(avgInHour, avgInMin, 0, 0);
 
-        // Update Clock Out (ultimul segment)
         let clockOutDate: Date | null = null;
         if (avgOutHour !== null && avgOutMin !== null && employee.lastClockOut) {
-          clockOutDate = new Date(lastSegment.endTime);
+          clockOutDate = new Date(employee.lastClockOut);
           clockOutDate.setHours(avgOutHour, avgOutMin, 0, 0);
         }
 
-        // Calculează noua durată pentru primul segment
-        const firstSegmentEnd = new Date(firstSegment.endTime);
-        const firstSegmentDuration = (firstSegmentEnd.getTime() - clockInDate.getTime()) / (1000 * 60 * 60);
-
-        // Update primul segment (Clock In)
-        await supabase
-          .from('time_entry_segments')
-          .update({
-            start_time: clockInDate.toISOString(),
-            hours_decimal: firstSegmentDuration,
-          })
-          .eq('id', firstSegment.id);
-
-        // Update ultimul segment (Clock Out) dacă există
+        // 2️⃣ Update Clock In/Out în time_entries
+        const updateData: any = {
+          clock_in_time: clockInDate.toISOString(),
+        };
+        
         if (clockOutDate) {
-          const lastSegmentStart = new Date(lastSegment.startTime);
-          const lastSegmentDuration = (clockOutDate.getTime() - lastSegmentStart.getTime()) / (1000 * 60 * 60);
+          updateData.clock_out_time = clockOutDate.toISOString();
+        }
 
-          await supabase
-            .from('time_entry_segments')
-            .update({
-              end_time: clockOutDate.toISOString(),
-              hours_decimal: lastSegmentDuration,
-            })
-            .eq('id', lastSegment.id);
+        const { error: updateError } = await supabase
+          .from('time_entries')
+          .update(updateData)
+          .eq('id', timeEntry.id);
+
+        if (updateError) throw updateError;
+
+        // 3️⃣ Trigger recalculare COMPLETĂ prin edge function
+        const { error: calcError } = await supabase.functions.invoke('calculate-time-segments', {
+          body: { 
+            time_entry_id: timeEntry.id,
+            isIntermediateCalculation: false,  // ✅ FORCE FINAL MODE
+            force_recalculate: true
+          }
+        });
+
+        if (calcError) throw calcError;
+
+        // 4️⃣ Șterge manual override dacă există
+        if (employee.manualOverride) {
+          const workDate = new Date(selectedWeek);
+          workDate.setDate(workDate.getDate() + selectedDayOfWeek);
+          
+          const { error: deleteError } = await supabase
+            .from('daily_timesheets')
+            .delete()
+            .eq('employee_id', employee.userId)
+            .eq('work_date', workDate.toISOString().split('T')[0]);
+
+          if (deleteError) console.error('[Delete Override Error]', deleteError);
         }
       }
 
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['time-entry-segments'] });
 
       toast({
         title: '✅ Uniformizare completă',
-        description: `${nonDrivers.length} angajați au fost actualizați la orele medii.`,
+        description: `${nonDrivers.length} angajați actualizați cu recalculare COMPLETĂ a segmentelor.`,
       });
+      
+      setUniformizeDialogOpen(false);
     } catch (error) {
       console.error('[Uniformize Error]', error);
       toast({
@@ -924,20 +943,6 @@ export const TeamTimeApprovalManager = ({
                   Săptămâna {format(new Date(selectedWeek), 'dd MMM yyyy', { locale: ro })}
                 </CardDescription>
               </div>
-              
-              {/* Toggle pentru vizualizare */}
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'table' | 'details')}>
-                <TabsList>
-                  <TabsTrigger value="table" className="flex items-center gap-2">
-                    <TableIcon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Tabel</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="details" className="flex items-center gap-2">
-                    <List className="h-4 w-4" />
-                    <span className="hidden sm:inline">Detalii</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
             </div>
             
             <Button
@@ -1034,12 +1039,13 @@ export const TeamTimeApprovalManager = ({
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-lg font-medium">Nu există pontaje</p>
             </div>
-          ) : viewMode === 'table' ? (
-            // ✅ VIZUALIZARE TABEL ORIZONTAL
+          ) : (
+            // ✅ VIZUALIZARE TABEL (tab "Detalii" eliminat)
             <TeamTimeComparisonTable
               groupedByEmployee={groupedByEmployee}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onApprove={handleApprove}
               onUniformize={() => setUniformizeDialogOpen(true)}
               onTimeClick={handleTimeClick}
               editingSegment={editingSegment}
@@ -1050,182 +1056,6 @@ export const TeamTimeApprovalManager = ({
               onClockInEdit={(emp) => handleClockTimeClick(emp, 'Clock In')}
               onClockOutEdit={(emp) => handleClockTimeClick(emp, 'Clock Out')}
             />
-          ) : (
-            // ✅ VIZUALIZARE DETALII (UI VERTICAL EXISTENT)
-            <div className="space-y-4">
-              {groupedByEmployee.map((employee) => (
-                <Card key={employee.userId} className={employee.allApproved ? 'bg-green-50/30 dark:bg-green-950/10 border-green-200' : ''}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          👤 {employee.fullName}
-                          <Badge variant="outline">{employee.username}</Badge>
-                          {employee.allApproved && (
-                            <Badge variant="outline" className="bg-green-100 text-green-800">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Aprobat
-                            </Badge>
-                          )}
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          Total: <span className="font-bold text-lg">{employee.totalHours.toFixed(2)}h</span>
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {/* Segmente de timp */}
-                    {employee.segments.length > 0 ? (
-                      <div className="space-y-2 mb-4">
-                        {employee.segments.map((segment, idx) => {
-                          const isEditingStart = editingSegment?.userId === employee.userId && 
-                                                 editingSegment?.segmentIndex === idx &&
-                                                 editingSegment?.field === 'startTime';
-                          const isEditingEnd = editingSegment?.userId === employee.userId && 
-                                               editingSegment?.segmentIndex === idx &&
-                                               editingSegment?.field === 'endTime';
-                          
-                          return (
-                            <div key={idx} className="flex items-center gap-3 p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors">
-                              <span className="text-2xl">{getSegmentIcon(segment.type)}</span>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-medium">{getSegmentLabel(segment.type)}</span>
-                                  <Badge variant="secondary" className="text-xs">
-                                    {segment.duration.toFixed(2)}h
-                                  </Badge>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  {isEditingStart ? (
-                                    <Input
-                                      type="time"
-                                      value={editingSegment.value}
-                                      onChange={(e) => handleTimeChange(e.target.value)}
-                                      onBlur={() => handleTimeSave(employee)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleTimeSave(employee);
-                                        if (e.key === 'Escape') handleTimeCancel();
-                                      }}
-                                      autoFocus
-                                      className="w-24 h-7 text-xs"
-                                    />
-                                  ) : (
-                                    <span 
-                                      className="cursor-pointer hover:bg-primary/10 px-2 py-1 rounded transition-colors"
-                                      onClick={() => handleTimeClick(employee.userId, idx, segment.id, 'startTime', segment.startTime)}
-                                      title="Click pentru a edita ora de start"
-                                    >
-                                      {formatRomania(segment.startTime, 'HH:mm')}
-                                    </span>
-                                  )}
-                                  
-                                  <span>→</span>
-                                  
-                                  {isEditingEnd ? (
-                                    <Input
-                                      type="time"
-                                      value={editingSegment.value}
-                                      onChange={(e) => handleTimeChange(e.target.value)}
-                                      onBlur={() => handleTimeSave(employee)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleTimeSave(employee);
-                                        if (e.key === 'Escape') handleTimeCancel();
-                                      }}
-                                      autoFocus
-                                      className="w-24 h-7 text-xs"
-                                    />
-                                  ) : (
-                                    <span 
-                                      className="cursor-pointer hover:bg-primary/10 px-2 py-1 rounded transition-colors"
-                                      onClick={() => handleTimeClick(employee.userId, idx, segment.id, 'endTime', segment.endTime)}
-                                      title="Click pentru a edita ora de final"
-                                    >
-                                      {formatRomania(segment.endTime, 'HH:mm')}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                        <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                          ⚠️ Segmente lipsă - folosește butonul "Recalculează Segmente"
-                        </p>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md mb-4">
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">Clock In: <span className="font-medium">{formatRomania(employee.firstClockIn, 'HH:mm')}</span></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                        <span className="text-sm">Clock Out: <span className="font-medium">{employee.lastClockOut ? formatRomania(employee.lastClockOut, 'HH:mm') : '-'}</span></span>
-                      </div>
-                    </div>
-                    
-                    {!employee.allApproved && (
-                      <div className="flex gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            employee.entries.forEach(entry => {
-                              if (entry.approval_status !== 'approved') {
-                                handleApprove(entry.id);
-                              }
-                            });
-                          }}
-                          className="gap-1"
-                        >
-                          <Check className="h-4 w-4" />
-                          Aprobă Toate
-                        </Button>
-                        
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(employee.entries[0])}
-                              className="gap-1"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Editează
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Modifică orele și recalculează automat</p>
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDelete(employee.entries[0])}
-                              className="gap-1 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Șterge
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Șterge pontajul complet</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           )}
         </CardContent>
       </Card>
