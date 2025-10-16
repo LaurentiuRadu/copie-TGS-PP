@@ -148,9 +148,14 @@ export const useTeamApprovalWorkflow = (
         .in('time_entry_id', entryIds)
         .order('start_time', { ascending: true });
 
+      // Deduplicare la nivel de query result pentru eliminare duplicate la sursă
+      const uniqueSegmentsData = segmentsData ? Array.from(
+        new Map(segmentsData.map(s => [s.id, s])).values()
+      ) : [];
+
       // Grupăm segmentele pe time_entry_id
-      const segmentsByEntry = new Map<string, Array<typeof segmentsData[0]>>();
-      segmentsData?.forEach(segment => {
+      const segmentsByEntry = new Map<string, Array<typeof uniqueSegmentsData[0]>>();
+      uniqueSegmentsData.forEach(segment => {
         if (!segmentsByEntry.has(segment.time_entry_id)) {
           segmentsByEntry.set(segment.time_entry_id, []);
         }

@@ -34,9 +34,9 @@ export const EmployeePunchList = ({ entries, onSegmentEdit }: EmployeePunchListP
   entries.forEach(entry => {
     const segments = entry.time_entry_segments || entry.segments || [];
     
-    // Deduplicare prin ID pentru a evita afișarea duplicatelor
+    // Deduplicare prin cheie compusă ID + start_time pentru eliminare duplicate reale
     const uniqueSegments = Array.from(
-      new Map(segments.map((s: any) => [s.id, s])).values()
+      new Map(segments.map((s: any) => [`${s.id}-${s.start_time}`, s])).values()
     );
     
     uniqueSegments.forEach((segment: any) => {
