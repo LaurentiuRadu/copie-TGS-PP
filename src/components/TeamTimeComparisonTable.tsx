@@ -256,12 +256,14 @@ export const TeamTimeComparisonTable = ({
 
     const workDate = format(new Date(employee.firstClockIn), 'yyyy-MM-dd');
 
-    // Funcție helper pentru override manual (DOAR admin)
+    // Funcție helper pentru override manual (AUTOMAT pentru zilele cu manualOverride)
     const saveAdminOverride = async () => {
       const overridePayload: any = {
         employee_id: userId,
         work_date: workDate,
-        notes: '[SEGMENTARE MANUALĂ] Setat manual din tabel',
+        notes: employee.manualOverride 
+          ? '[SEGMENTARE MANUALĂ] Actualizat din tabel (mod manual)'
+          : '[SEGMENTARE MANUALĂ] Setat manual din tabel',
       };
       segmentTypes.forEach((t) => {
         overridePayload[t] = t === segmentType ? Number(newHours.toFixed(2)) : Number(getDisplayHours(employee, t).toFixed(2));
@@ -325,6 +327,12 @@ export const TeamTimeComparisonTable = ({
 
       setEditingHours(null);
     };
+
+    // ✅ FIX: Dacă e Manual Override, salvăm DIRECT în daily_timesheets (orice segment)
+    if (employee.manualOverride) {
+      await saveAdminOverride();
+      return;
+    }
 
     if (segmentType !== 'hours_regular') {
       const regular = getDisplayHours(employee, 'hours_regular');

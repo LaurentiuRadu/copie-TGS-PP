@@ -851,8 +851,52 @@ export const TeamTimeApprovalManager = ({
 
       // Găsește toate segmentele de acest tip
       const segments = employee.segments.filter(s => s.type === segmentType);
-      if (segments.length === 0) {
-        throw new Error(`Nu există segmente de tip ${segmentType}`);
+      
+      // ✅ FIX: Dacă nu există segmente SAU e Manual Override → update direct în daily_timesheets
+      if (segments.length === 0 || employee.manualOverride) {
+        const workDate = format(dayDate, 'yyyy-MM-dd');
+        const standardTypes = ['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'];
+        
+        // Construim payload cu valorile curente + modificarea nouă
+        const overridePayload: any = {
+          employee_id: userId,
+          work_date: workDate,
+          notes: employee.manualOverride 
+            ? '[SEGMENTARE MANUALĂ] Actualizat din tabel (mod manual)'
+            : '[SEGMENTARE MANUALĂ] Creat automat (fără segmente)',
+        };
+        
+        // Populăm fiecare tip cu valorile curente (din overrideHours sau 0)
+        standardTypes.forEach((t) => {
+          if (t === segmentType) {
+            overridePayload[t] = Number(newHours.toFixed(2));
+          } else if (employee.overrideHours) {
+            overridePayload[t] = Number((employee.overrideHours[t] || 0).toFixed(2));
+          } else {
+            overridePayload[t] = 0;
+          }
+        });
+
+        // Upsert în daily_timesheets
+        const { data: existing } = await supabase
+          .from('daily_timesheets')
+          .select('id')
+          .eq('employee_id', userId)
+          .eq('work_date', workDate)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('daily_timesheets')
+            .update(overridePayload)
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('daily_timesheets')
+            .insert(overridePayload);
+        }
+
+        return { userId, segmentType, newHours, isManualOverride: true };
       }
 
       // Calculează total ore actuale pentru acest tip
@@ -878,9 +922,9 @@ export const TeamTimeApprovalManager = ({
           .eq('id', segment.id);
       }
 
-      return { userId, segmentType, newHours };
+      return { userId, segmentType, newHours, isManualOverride: false };
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       // ✅ FIX 2: Force refetch IMEDIAT (nu doar invalidate)
       await queryClient.refetchQueries({ 
         queryKey: ['team-pending-approvals'],
@@ -893,7 +937,9 @@ export const TeamTimeApprovalManager = ({
       
       toast({
         title: '✅ Ore actualizate',
-        description: 'Segmentele au fost recalculate',
+        description: data.isManualOverride 
+          ? 'Orele au fost salvate (mod manual)' 
+          : 'Segmentele au fost recalculate',
       });
     },
     onError: (error: any) => {
