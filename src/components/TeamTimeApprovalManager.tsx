@@ -199,7 +199,16 @@ export const TeamTimeApprovalManager = ({
     // ✅ Permitem entries "missing" să treacă
     if (entry.isMissing) return true;
     
-    if (!entry.clock_in_time || !entry.clock_out_time) return false;
+    // ✅ Permitem pontajele incomplete (fără clock_out) pentru aprobare/editare
+    if (!entry.clock_in_time) return false;
+    
+    // Dacă nu există clock_out, permitem (pontaj incomplet, dar valid pentru aprobare)
+    if (!entry.clock_out_time) {
+      const isManagement = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
+      return !isManagement;
+    }
+    
+    // Pentru pontaje complete, verificăm durata minimă
     const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
     
     // ✅ Exclude coordonatori și team leaders din tabelul principal
