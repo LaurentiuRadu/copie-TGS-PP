@@ -587,34 +587,6 @@ export const TeamTimeApprovalManager = ({
     return user.aggregated[type] || 0;
   };
 
-  const reprocessMutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('reprocess-missing-segments', {
-        body: { 
-          mode: 'missing_segments',
-          batch_size: 100
-        }
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
-      toast({
-        title: '✅ Recalculare finalizată',
-        description: `${data.success}/${data.total} pontaje procesate cu succes`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: '❌ Eroare recalculare',
-        description: error.message,
-      });
-    },
-  });
-
   const updateSegmentTimeMutation = useMutation({
     mutationFn: async ({ 
       segmentId,
@@ -1440,21 +1412,6 @@ export const TeamTimeApprovalManager = ({
                 </CardDescription>
               </div>
             </div>
-            
-            <Button
-              onClick={() => reprocessMutation.mutate()}
-              disabled={reprocessMutation.isPending}
-              variant="secondary"
-              size="sm"
-              className="gap-2"
-            >
-              {reprocessMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Recalculează Segmente
-            </Button>
           </div>
         </CardHeader>
         <CardContent>

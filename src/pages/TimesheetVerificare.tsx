@@ -297,53 +297,6 @@ export default function TimesheetVerificare() {
     });
   };
 
-  // 🆕 Mutation pentru curățarea dublurilor
-  const dedupeMutation = useMutation({
-    mutationFn: async ({ teamId, workDate }: { teamId: string; workDate: string }) => {
-      const { data, error } = await supabase.functions.invoke('dedupe-time-entries', {
-        body: { team_id: teamId, work_date: workDate }
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
-      
-      toast({
-        title: '✅ Dubluri eliminate',
-        description: data.message || `Au fost eliminate ${data.duplicates_removed || 0} dubluri.`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: '❌ Eroare',
-        description: error instanceof Error ? error.message : 'Nu s-au putut elimina dublurile',
-        variant: 'destructive',
-      });
-    }
-  });
-
-  const handleDedupe = () => {
-    if (!selectedTeam) {
-      toast({
-        title: '⚠️ Selectează echipa',
-        description: 'Alege mai întâi o echipă pentru a curăța dublurile.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Calculează data exactă pentru ziua selectată
-    const weekStart = new Date(selectedWeek);
-    const targetDate = addDays(weekStart, selectedDayOfWeek - 1);
-    const workDate = format(targetDate, 'yyyy-MM-dd');
-
-    dedupeMutation.mutate({ teamId: selectedTeam, workDate });
-  };
-
   // 🆕 Calculare progres verificare
   const verificationProgress = {
     total: availableTeams?.size || 0,
@@ -679,33 +632,6 @@ export default function TimesheetVerificare() {
         </CardHeader>
 
         <CardContent>
-          {/* 🆕 Buton pentru curățare dubluri - afișat doar când este selectată o echipă */}
-          {selectedTeam && (
-            <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                  <div>
-                    <p className="text-sm font-medium">Curăță pontajele duplicate</p>
-                    <p className="text-xs text-muted-foreground">
-                      Elimină automat pontajele duplicate pentru ziua și echipa curentă
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDedupe}
-                  disabled={dedupeMutation.isPending}
-                  className="gap-1"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {dedupeMutation.isPending ? 'Se procesează...' : 'Curăță Dublurile'}
-                </Button>
-              </div>
-            </div>
-          )}
-
           <TeamTimeApprovalManager
             selectedWeek={selectedWeek}
             selectedDayOfWeek={selectedDayOfWeek}
