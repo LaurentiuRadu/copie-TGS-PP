@@ -173,7 +173,7 @@ export const TeamTimeApprovalManager = ({
       if (selectedTeam) {
         onTeamEdited(selectedTeam);
         toast({
-          title: '✅ Pontaj aprobat',
+          title: 'Pontaj aprobat',
           description: 'Selectează manual următoarea echipă din dropdown.',
         });
       }

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Bell, BellOff, Search, ArrowRightLeft } from 'lucide-react';
+import { Bell, BellOff, Search, ArrowRightLeft, Sun, Moon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -191,8 +191,13 @@ export function AllScheduleNotifications() {
                             {notif.metadata?.previous_team_id} → {notif.metadata?.new_team_id}
                           </Badge>
                         ) : notif.notification_type === 'schedule_updated' ? (
-                          <Badge variant="outline">
-                            {notif.metadata?.shift_type === 'zi' ? '☀️' : '🌙'} {notif.metadata?.location || 'Modificare'}
+                          <Badge variant="outline" className="gap-1.5">
+                            {notif.metadata?.shift_type === 'zi' ? (
+                              <Sun className="h-3 w-3" />
+                            ) : (
+                              <Moon className="h-3 w-3" />
+                            )}
+                            {notif.metadata?.location || 'Modificare'}
                           </Badge>
                         ) : (
                           <Badge>Nouă</Badge>
@@ -210,8 +215,12 @@ export function AllScheduleNotifications() {
                           : 'N/A'}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={schedule.shift_type === 'noapte' ? 'secondary' : 'default'}>
-                          {schedule.shift_type === 'zi' ? '☀️' : '🌙'}
+                        <Badge variant={schedule.shift_type === 'noapte' ? 'secondary' : 'default'} className="gap-1.5">
+                          {schedule.shift_type === 'zi' ? (
+                            <Sun className="h-3 w-3" />
+                          ) : (
+                            <Moon className="h-3 w-3" />
+                          )}
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">

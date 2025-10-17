@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Clock, Calendar } from 'lucide-react';
+import { AlertCircle, Clock, Calendar, Sun, Moon, Users, Car, MapPin, CheckCircle2 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { normalizeTimeInput } from '@/lib/utils';
@@ -149,7 +149,10 @@ export function AddMissingEntryDialog({
                 {format(workDate, 'EEEE, d MMMM yyyy', { locale: ro })}
               </p>
               {employee.scheduledLocation && (
-                <p className="text-xs">📍 {employee.scheduledLocation}</p>
+                <p className="text-xs flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {employee.scheduledLocation}
+                </p>
               )}
             </div>
           </DialogDescription>
@@ -196,10 +199,30 @@ export function AddMissingEntryDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">☀️ Zi (Normal)</SelectItem>
-                  <SelectItem value="night">🌙 Noapte</SelectItem>
-                  <SelectItem value="passenger">👥 Pasager</SelectItem>
-                  <SelectItem value="driver">🚗 Șofer</SelectItem>
+                  <SelectItem value="normal">
+                    <div className="flex items-center gap-2">
+                      <Sun className="h-4 w-4" />
+                      <span>Zi (Normal)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="night">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-4 w-4" />
+                      <span>Noapte</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="passenger">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>Pasager</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="driver">
+                    <div className="flex items-center gap-2">
+                      <Car className="h-4 w-4" />
+                      <span>Șofer</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
           </div>
@@ -245,9 +268,17 @@ export function AddMissingEntryDialog({
             }
             className="gap-2"
           >
-            {!clockIn || !clockOut || !shiftType 
-              ? '⚠️ Completează toate câmpurile' 
-              : 'Salvează Pontaj'}
+            {!clockIn || !clockOut || !shiftType ? (
+              <>
+                <AlertCircle className="h-4 w-4" />
+                Completează toate câmpurile
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                Salvează Pontaj
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

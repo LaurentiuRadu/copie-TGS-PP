@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info, Calendar, Car, Users, Settings, Moon, PartyPopper, ClipboardList, Sun, BarChart, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import { normalizeTimeInput } from '@/lib/utils';
+import { RefreshCw } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -212,13 +213,13 @@ export const TeamTimeComparisonTable = ({
 
   const getSegmentIcon = (type: string) => {
     switch(type) {
-      case 'hours_driving': return '🚗';
-      case 'hours_passenger': return '👥';
-      case 'hours_equipment': return '🚜';
-      case 'hours_night': return '🌙';
-      case 'hours_holiday': return '🎉';
-      case 'hours_regular': return '⚙️';
-      default: return '📋';
+      case 'hours_driving': return <Car className="h-3.5 w-3.5" />;
+      case 'hours_passenger': return <Users className="h-3.5 w-3.5" />;
+      case 'hours_equipment': return <Settings className="h-3.5 w-3.5" />;
+      case 'hours_night': return <Moon className="h-3.5 w-3.5" />;
+      case 'hours_holiday': return <PartyPopper className="h-3.5 w-3.5" />;
+      case 'hours_regular': return <Settings className="h-3.5 w-3.5" />;
+      default: return <ClipboardList className="h-3.5 w-3.5" />;
     }
   };
 
@@ -256,7 +257,7 @@ export const TeamTimeComparisonTable = ({
   }: { 
     type: string; 
     hours: number; 
-    icon: string;
+    icon: React.ReactNode;
     onClick?: () => void;
   }) => {
     const colors: Record<string, string> = {
@@ -275,7 +276,7 @@ export const TeamTimeComparisonTable = ({
         className={`${colors[type]} gap-1.5 text-xs font-medium px-2.5 py-1 cursor-pointer hover:opacity-90 transition-opacity`}
         onClick={onClick}
       >
-        <span className="text-sm">{icon}</span>
+        {icon}
         <span>{getSegmentLabel(type)}</span>
         <span className="font-mono font-semibold">{hours.toFixed(1)}h</span>
       </Badge>
@@ -450,13 +451,15 @@ export const TeamTimeComparisonTable = ({
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h3 className="text-lg font-semibold">Comparație Pontaje</h3>
-          <p className="text-sm text-muted-foreground">
-            Legenda: 🟢 ≤15min | 🟡 15-30min | 🔴 &gt;30min diferență
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <Info className="h-3.5 w-3.5" />
+            <span>Legenda: Verde ≤15min | Galben 15-30min | Roșu &gt;30min diferență</span>
           </p>
         </div>
         {groupedByEmployee.some(emp => !isDriver(emp.segments)) && (
-          <Button onClick={onUniformize} variant="secondary" size="sm">
-            🔄 Uniformizează Orele
+          <Button onClick={onUniformize} variant="secondary" size="sm" className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Uniformizează Orele
           </Button>
         )}
       </div>
@@ -479,7 +482,10 @@ export const TeamTimeComparisonTable = ({
             {teamAverage.avgClockIn && (
               <TableRow className="bg-muted/50 font-medium">
                 <TableCell>
-                  📊 Media Echipei
+                  <div className="flex items-center gap-2">
+                    <BarChart className="h-4 w-4 text-primary" />
+                    <span>Media Echipei</span>
+                  </div>
                   <div className="text-xs text-muted-foreground font-normal">
                     (exclude șoferii)
                   </div>

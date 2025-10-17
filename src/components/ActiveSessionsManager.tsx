@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smartphone, Monitor, Tablet, Clock, X, ClipboardCheck } from "lucide-react";
+import { Smartphone, Monitor, Tablet, Clock, X, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfWeek } from "date-fns";
@@ -155,8 +155,9 @@ export function ActiveSessionsManager() {
                 <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2">
                   Sesiuni active: <strong>{sessions.length}</strong> / {maxSessions}
                   {isApproachingLimit && (
-                    <Badge variant="outline" className="text-xs">
-                      ⚠️ Aproape de limită
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Aproape de limită
                     </Badge>
                   )}
                 </div>
