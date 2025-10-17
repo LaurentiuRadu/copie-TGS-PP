@@ -102,28 +102,61 @@ export const useTeamApprovalWorkflow = (
         .eq('profiles.is_office_staff', false);
 
       if (schedError) throw schedError;
-      const userIds = schedules?.map(s => s.user_id) || [];
 
       // ✅ Debugging: log schedules found
       console.log('[Team Approval] Schedules found:', schedules?.length, 'for team:', teamId, 'week:', weekStartDate);
+
+      // ✅ DETECTARE MANAGEMENT LIPSĂ: Identifică coordonatori/team leaders angajați care NU au user_id în schedules
+      const coordinatorIds = Array.from(new Set(schedules?.map(s => s.coordinator_id).filter(Boolean) || []));
+      const teamLeaderIds = Array.from(new Set(schedules?.map(s => s.team_leader_id).filter(Boolean) || []));
+      const allManagementIds = [...new Set([...coordinatorIds, ...teamLeaderIds])];
+
+      const scheduledUserIds = schedules?.map(s => s.user_id) || [];
+      const missingManagementIds = allManagementIds.filter(id => !scheduledUserIds.includes(id));
+
+      console.log(`[Management Detection] Total management: ${allManagementIds.length}, Lipsă din user_id: ${missingManagementIds.length}`, missingManagementIds);
+
+      // Fetch profiles pentru management lipsă - DOAR ANGAJAȚI
+      let managementProfiles: any[] = [];
+      if (missingManagementIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, is_external_contractor, is_office_staff')
+          .in('id', missingManagementIds)
+          .eq('is_external_contractor', false)
+          .eq('is_office_staff', false);
+        
+        managementProfiles = profiles || [];
+        console.log(`[Management Profiles] Angajați găsiți: ${managementProfiles.length}`, managementProfiles.map(p => p.full_name));
+      }
+
+      // Creăm virtual schedules pentru management angajat lipsă (ex: CANBEI)
+      const virtualManagementSchedules = managementProfiles.map(profile => ({
+        user_id: profile.id,
+        team_leader_id: teamLeaderIds.includes(profile.id) ? profile.id : null,
+        coordinator_id: coordinatorIds.includes(profile.id) ? profile.id : null,
+        day_of_week: selectedDayOfWeek,
+        shift_type: 'zi',
+        location: 'BIROU',
+        activity: 'Coordonare',
+        vehicle: null,
+        observations: 'Management - fără programare pe teren',
+        profiles: profile
+      }));
+
+      console.log(`[Virtual Management] Created ${virtualManagementSchedules.length} virtual schedules`);
+
+      // ✅ Combinăm schedules reale cu virtuale
+      const allSchedules = [...(schedules || []), ...virtualManagementSchedules];
+      const userIds = allSchedules.map(s => s.user_id);
 
       if (userIds.length === 0) {
         console.warn('[Team Approval] ⚠️ No schedules found for this team/week');
         return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
       }
 
-      // Extract team leader and coordinator IDs
-      const teamLeaderIds = schedules
-        ?.map(s => s.team_leader_id)
-        .filter((id): id is string => id !== null) || [];
-      const coordinatorIds = schedules
-        ?.map(s => s.coordinator_id)
-        .filter((id): id is string => id !== null) || [];
-
       // Combine all IDs for profile fetch
       const allUserIds = [...new Set([...userIds, ...teamLeaderIds, ...coordinatorIds])];
-
-      if (userIds.length === 0) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 
       // Calculăm data exactă pentru ziua selectată
       const targetDate = addDays(weekStart, selectedDayOfWeek - 1);
@@ -185,16 +218,16 @@ export const useTeamApprovalWorkflow = (
         return true;
       }) || [];
 
-      // ✅ DETECTARE ANGAJAȚI LIPSĂ (programați dar fără pontaj)
-      const scheduledUserIds = schedules?.map(s => s.user_id) || [];
+      // ✅ DETECTARE ANGAJAȚI LIPSĂ (programați dar fără pontaj) - folosim allSchedules cu virtual management
+      const allScheduledUserIds = allSchedules.map(s => s.user_id);
       const entriesUserIds = new Set(uniqueEntriesData.map(e => e.user_id));
-      const missingUserIds = scheduledUserIds.filter(id => !entriesUserIds.has(id));
+      const missingUserIds = allScheduledUserIds.filter(id => !entriesUserIds.has(id));
 
-      console.log(`[Missing Detection] Programați: ${scheduledUserIds.length}, Cu pontaje: ${entriesUserIds.size}, Lipsă: ${missingUserIds.length}`);
+      console.log(`[Missing Detection] Programați: ${allScheduledUserIds.length}, Cu pontaje: ${entriesUserIds.size}, Lipsă: ${missingUserIds.length}`);
 
-      // Creează entries "virtuale" pentru angajați lipsă
+      // Creează entries "virtuale" pentru angajați lipsă (inclusiv management virtual)
       const virtualEntries = missingUserIds.map(userId => {
-        const schedule = schedules?.find(s => s.user_id === userId);
+        const schedule = allSchedules.find(s => s.user_id === userId);
         const profile = profilesData?.find(p => p.id === userId);
         
         // ✅ Verificăm dacă user-ul este coordinator sau team leader
@@ -238,8 +271,8 @@ export const useTeamApprovalWorkflow = (
         const currentCount = (pontajCountByUser.get(entry.user_id) || 0) + 1;
         pontajCountByUser.set(entry.user_id, currentCount);
         
-        // Find matching schedule for this user and day
-        const matchingSchedule = schedules?.find(
+        // Find matching schedule for this user and day (folosim allSchedules cu virtual management)
+        const matchingSchedule = allSchedules.find(
           s => s.user_id === entry.user_id && s.day_of_week === dayOfWeek
         );
 
@@ -248,7 +281,7 @@ export const useTeamApprovalWorkflow = (
         }
 
         // Fallback: try to find any schedule for this user
-        const fallbackSchedule = !matchingSchedule ? schedules?.find(s => s.user_id === entry.user_id) : null;
+        const fallbackSchedule = !matchingSchedule ? allSchedules.find(s => s.user_id === entry.user_id) : null;
         if (fallbackSchedule && !matchingSchedule) {
           console.log(`[Matching] 📌 Using fallback schedule for user ${entry.user_id}`);
         }

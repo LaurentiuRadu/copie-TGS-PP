@@ -72,38 +72,72 @@ export default function TimesheetVerificare() {
     setVerifiedTeams(stored ? new Set(JSON.parse(stored)) : new Set());
   }, [selectedWeek, selectedDayOfWeek]);
   
-  // Fetch echipele disponibile pentru ziua selectată (exclude contractori + personal birou + coordonatori)
-  const { data: availableTeams } = useQuery({
+  // Fetch echipele disponibile pentru ziua selectată (include și echipe cu management angajat)
+  const { data: availableTeams = new Set<string>() } = useQuery<Set<string>>({
     queryKey: ['teams-for-day', selectedWeek, selectedDayOfWeek],
-    queryFn: async () => {
-      // Get coordinator IDs to exclude them
-      const { data: coordinatorData } = await supabase
-        .from('weekly_schedules')
-        .select('coordinator_id')
-        .not('coordinator_id', 'is', null);
-      
-      const coordinatorIds = Array.from(new Set(coordinatorData?.map(c => c.coordinator_id).filter(Boolean) || []));
-
+    queryFn: async (): Promise<Set<string>> => {
       const { data } = await supabase
         .from('weekly_schedules')
         .select(`
           team_id,
           user_id,
-          profiles!inner(is_external_contractor, is_office_staff)
+          coordinator_id,
+          team_leader_id,
+          profiles!inner(id, is_external_contractor, is_office_staff)
         `)
         .eq('week_start_date', selectedWeek)
-        .eq('day_of_week', selectedDayOfWeek)
-        .eq('profiles.is_external_contractor', false)
-        .eq('profiles.is_office_staff', false);
+        .eq('day_of_week', selectedDayOfWeek);
       
-      // Filter out coordinators
-      const filteredData = data?.filter(s => !coordinatorIds.includes(s.user_id)) || [];
-      return new Set(filteredData.map(s => s.team_id));
+      if (!data) return new Set();
+      
+      // ✅ Colectăm toate ID-urile unice de coordonatori și team leaders
+      const allManagementIds = new Set<string>();
+      data.forEach(s => {
+        if (s.coordinator_id) allManagementIds.add(s.coordinator_id);
+        if (s.team_leader_id) allManagementIds.add(s.team_leader_id);
+      });
+      
+      // ✅ Fetch profiles pentru management pentru a verifica dacă sunt angajați
+      const { data: managementProfiles } = await supabase
+        .from('profiles')
+        .select('id, is_external_contractor, is_office_staff')
+        .in('id', Array.from(allManagementIds));
+      
+      const employedManagementIds = new Set(
+        managementProfiles
+          ?.filter(p => !p.is_external_contractor && !p.is_office_staff)
+          .map(p => p.id) || []
+      );
+      
+      // ✅ Echipele care au cel puțin UN angajat (ca user_id SAU ca management)
+      const teamsWithEmployees = new Set<string>();
+      
+      data.forEach(schedule => {
+        // Verifică dacă user_id este angajat
+        if (!schedule.profiles.is_external_contractor && !schedule.profiles.is_office_staff) {
+          teamsWithEmployees.add(schedule.team_id);
+          return;
+        }
+        
+        // Verifică dacă coordinator este angajat
+        if (schedule.coordinator_id && employedManagementIds.has(schedule.coordinator_id)) {
+          teamsWithEmployees.add(schedule.team_id);
+          return;
+        }
+        
+        // Verifică dacă team_leader este angajat
+        if (schedule.team_leader_id && employedManagementIds.has(schedule.team_leader_id)) {
+          teamsWithEmployees.add(schedule.team_id);
+        }
+      });
+      
+      console.log('[Available Teams] Total teams with employees:', teamsWithEmployees.size);
+      return teamsWithEmployees;
     },
     enabled: !!selectedWeek && !!selectedDayOfWeek,
   });
 
-  // 🆕 Fetch pending and incomplete counts per team pentru status vizual (exclude coordonatori)
+  // 🆕 Fetch pending and incomplete counts per team pentru status vizual (exclude managementul din counters)
   const { data: teamPendingCounts = {} } = useQuery({
     queryKey: ['team-pending-counts', selectedWeek, selectedDayOfWeek, Array.from(availableTeams || [])],
     queryFn: async () => {
@@ -114,41 +148,32 @@ export default function TimesheetVerificare() {
       const startOfDay = format(targetDate, 'yyyy-MM-dd');
       const endOfDay = format(addDays(targetDate, 1), 'yyyy-MM-dd');
 
-      // Get coordinator IDs to exclude them
-      const { data: coordinatorData } = await supabase
-        .from('weekly_schedules')
-        .select('coordinator_id')
-        .not('coordinator_id', 'is', null);
-      
-      const coordinatorIds = Array.from(new Set(coordinatorData?.map(c => c.coordinator_id).filter(Boolean) || []));
-
       const { data: schedules, error: schedulesError } = await supabase
         .from('weekly_schedules')
-        .select('user_id, team_id, profiles!inner(is_external_contractor, is_office_staff)')
+        .select(`
+          user_id, 
+          team_id, 
+          coordinator_id,
+          team_leader_id,
+          profiles!inner(is_external_contractor, is_office_staff)
+        `)
         .eq('week_start_date', selectedWeek)
         .eq('day_of_week', selectedDayOfWeek)
-        .in('team_id', Array.from(availableTeams))
-        .eq('profiles.is_external_contractor', false)
-        .eq('profiles.is_office_staff', false);
+        .in('team_id', Array.from(availableTeams));
 
       if (schedulesError) throw schedulesError;
 
-      // Filter out coordinators
-      const filteredSchedules = schedules?.filter(s => !coordinatorIds.includes(s.user_id)) || [];
-
-      // Get team leader IDs to exclude them (similar to coordinator exclusion)
-      const { data: teamLeaderData } = await supabase
-        .from('weekly_schedules')
-        .select('team_leader_id')
-        .eq('week_start_date', selectedWeek)
-        .eq('day_of_week', selectedDayOfWeek)
-        .in('team_id', Array.from(availableTeams))
-        .not('team_leader_id', 'is', null);
-
-      const teamLeaderIds = Array.from(new Set(teamLeaderData?.map(t => t.team_leader_id).filter(Boolean) || []));
+      // Colectăm management IDs pentru excludere din counters
+      const coordinatorIds = Array.from(new Set(schedules?.map(s => s.coordinator_id).filter(Boolean) || []));
+      const teamLeaderIds = Array.from(new Set(schedules?.map(s => s.team_leader_id).filter(Boolean) || []));
       const managementIds = [...coordinatorIds, ...teamLeaderIds];
 
-      const userIds = filteredSchedules.map(s => s.user_id);
+      // Filtrăm doar membrii normali (nu contractori, nu office staff)
+      const normalMembers = schedules?.filter(
+        s => !s.profiles.is_external_contractor && !s.profiles.is_office_staff
+      ) || [];
+
+      const userIds = normalMembers.map(s => s.user_id);
       if (userIds.length === 0) return {};
 
       const { data: timeEntries, error: entriesError } = await supabase
@@ -172,15 +197,12 @@ export default function TimesheetVerificare() {
       // Count pending complete entries and incomplete entries per team (exclude management)
       const counts: Record<string, { pending: number; incomplete: number; total: number }> = {};
       
-      filteredSchedules.forEach(schedule => {
-        const userComplete = completeEntries.filter(e => 
-          e.user_id === schedule.user_id && 
-          !managementIds.includes(e.user_id)
-        );
-        const userIncomplete = incompleteEntries.filter(e => 
-          e.user_id === schedule.user_id && 
-          !managementIds.includes(e.user_id)
-        );
+      normalMembers.forEach(schedule => {
+        // Skip management din counters
+        if (managementIds.includes(schedule.user_id)) return;
+        
+        const userComplete = completeEntries.filter(e => e.user_id === schedule.user_id);
+        const userIncomplete = incompleteEntries.filter(e => e.user_id === schedule.user_id);
         
         const pendingCount = userComplete.filter(e => e.approval_status === 'pending_review').length;
         const incompleteCount = userIncomplete.length;
