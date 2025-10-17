@@ -217,11 +217,17 @@ export const TeamTimeApprovalManager = ({
     return duration >= 0.17 && !isManagement;
   });
 
-  // ✅ Pontaje pentru management (șef echipă + coordonator) - secțiune separată
+  // ✅ PONTAJE MANAGEMENT: Includem și pontaje incomplete (fără clock_out)
+  // Problema: Coordonatorii/supervizori pot avea pontaje incomplete → trebuie afișați în caseta dedicată
   const managementEntries = pendingEntries.filter(entry => {
-    if (!entry.clock_in_time || !entry.clock_out_time) return false;
-    const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
+    if (!entry.clock_in_time) return false; // Exclude doar pontaje fără clock_in deloc
     const isManagement = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
+    
+    // ✅ Dacă este pontaj incomplet (fără clock_out), îl includem în management
+    if (!entry.clock_out_time) return isManagement;
+    
+    // Pentru pontaje complete, verificăm durata minimă
+    const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
     return duration >= 0.17 && isManagement;
   });
 
@@ -285,7 +291,7 @@ export const TeamTimeApprovalManager = ({
       username: string;
       aggregated: Record<SegmentType, number>;
       firstClockIn: string;
-      lastClockOut: string | null;
+      lastClockOut: string | null; // ✅ Permite null pentru pontaje incomplete
       totalHours: number;
       manualOverride?: boolean;
       overrideHours?: Record<SegmentType, number>;
@@ -304,7 +310,7 @@ export const TeamTimeApprovalManager = ({
             hours_passenger: 0, hours_driving: 0, hours_equipment: 0
           },
           firstClockIn: entry.clock_in_time,
-          lastClockOut: entry.clock_out_time,
+          lastClockOut: entry.clock_out_time || null, // ✅ Permite null pentru incomplete
           totalHours: 0,
           approvalStatus: entry.approval_status as 'pending_review' | 'approved',
         });
@@ -313,6 +319,7 @@ export const TeamTimeApprovalManager = ({
 
       // Update first/last timestamps
       if (entry.clock_in_time < user.firstClockIn) user.firstClockIn = entry.clock_in_time;
+      // ✅ Update: permite lastClockOut null
       if (entry.clock_out_time && (!user.lastClockOut || entry.clock_out_time > user.lastClockOut)) {
         user.lastClockOut = entry.clock_out_time;
       }
@@ -1726,7 +1733,7 @@ export const TeamTimeApprovalManager = ({
                                       <Pencil className="h-3 w-3 opacity-60" />
                                     </button>
                                   </div>
-                                  {/* Clock Out - editabil doar pentru admini */}
+                                  {/* Clock Out - editabil doar pentru admini, afișează "—" dacă incomplet */}
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Clock Out</p>
                                     {isAdmin ? (
@@ -1734,7 +1741,8 @@ export const TeamTimeApprovalManager = ({
                                         onClick={() => {
                                           // Găsește entry-ul management pentru acest user
                                           const managementEntry = managementEntries.find(e => e.user_id === user.userId);
-                                          if (managementEntry && user.lastClockOut) {
+                                          if (managementEntry) {
+                                            // ✅ Permite editare chiar și când lastClockOut e null (pontaj incomplet)
                                             // Convertim la format EmployeeDayData
                                             const employeeData: EmployeeDayData = {
                                               userId: user.userId,
@@ -1742,7 +1750,7 @@ export const TeamTimeApprovalManager = ({
                                               username: user.username,
                                               totalHours: user.totalHours,
                                               firstClockIn: user.firstClockIn,
-                                              lastClockOut: user.lastClockOut,
+                                              lastClockOut: user.lastClockOut || '', // ✅ Permite string gol pentru incomplete
                                               segments: managementEntry.segments?.map(s => ({
                                                 id: s.id,
                                                 type: s.segment_type,
@@ -1761,7 +1769,7 @@ export const TeamTimeApprovalManager = ({
                                         className="font-mono font-semibold hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
                                       >
                                         {user.lastClockOut ? formatRomania(user.lastClockOut, 'HH:mm') : '—'}
-                                        {user.lastClockOut && <Pencil className="h-3 w-3 opacity-60" />}
+                                        <Pencil className="h-3 w-3 opacity-60" />
                                       </button>
                                     ) : (
                                       <span className="font-mono font-semibold">
@@ -1772,7 +1780,7 @@ export const TeamTimeApprovalManager = ({
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">Total Ore</p>
                                     <p className="font-mono font-semibold text-primary">
-                                      {user.totalHours.toFixed(2)}h
+                                      {user.lastClockOut ? `${user.totalHours.toFixed(2)}h` : '—'}
                                     </p>
                                   </div>
                                 </div>

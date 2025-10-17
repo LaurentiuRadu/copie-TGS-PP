@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,13 @@ export function AddMissingEntryDialog({
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
 
+  // ✅ Validare automată când se schimbă valorile (live feedback)
+  useEffect(() => {
+    if (clockIn || clockOut) {
+      validate(); // Validare live pentru feedback imediat
+    }
+  }, [clockIn, clockOut, workDate]);
+
   // Validare
   const validate = () => {
     const errs: string[] = [];
@@ -82,7 +89,17 @@ export function AddMissingEntryDialog({
   };
 
   const handleSubmit = () => {
-    if (!validate()) return;
+    console.log('[AddMissingEntry] Submit clicked', { clockIn, clockOut, shiftType, notes, workDate });
+    
+    const isValid = validate();
+    console.log('[AddMissingEntry] Validation result:', { isValid, errors });
+    
+    if (!isValid) {
+      console.error('[AddMissingEntry] Validation failed, blocking submit');
+      return;
+    }
+    
+    console.log('[AddMissingEntry] Validation passed, calling onConfirm');
 
     // ✅ FIX 1: Asigură-te că workDate este Date valid
     const baseDate = workDate instanceof Date ? workDate : new Date(workDate);
@@ -209,8 +226,19 @@ export function AddMissingEntryDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Anulează
           </Button>
-          <Button onClick={handleSubmit} disabled={errors.some(e => !e.includes('WARNING'))}>
-            Salvează Pontaj
+          <Button 
+            onClick={handleSubmit} 
+            disabled={
+              !clockIn || 
+              !clockOut || 
+              !shiftType || 
+              errors.some(e => !e.includes('WARNING'))
+            }
+            className="gap-2"
+          >
+            {!clockIn || !clockOut || !shiftType 
+              ? '⚠️ Completează toate câmpurile' 
+              : 'Salvează Pontaj'}
           </Button>
         </DialogFooter>
       </DialogContent>
