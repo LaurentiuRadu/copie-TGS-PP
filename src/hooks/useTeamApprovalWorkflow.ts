@@ -199,7 +199,7 @@ export const useTeamApprovalWorkflow = (
         return {
           id: `virtual-${userId}-${selectedDayOfWeek}`,
           user_id: userId,
-          clock_in_time: '',
+          clock_in_time: null as any,
           clock_out_time: null,
           approval_status: 'missing',
           isMissing: true,

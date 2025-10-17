@@ -193,6 +193,9 @@ export const TeamTimeApprovalManager = ({
 
   // Filtrare pontaje invalide (< 10 min durata) ȘI exclude coordonatori și team leaders din tabelul principal
   const validPendingEntries = pendingEntries.filter(entry => {
+    // ✅ Permitem entries "missing" să treacă
+    if (entry.isMissing) return true;
+    
     if (!entry.clock_in_time || !entry.clock_out_time) return false;
     const duration = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
     
@@ -212,7 +215,15 @@ export const TeamTimeApprovalManager = ({
 
   const approvedEntries = validPendingEntries.filter(e => e.approval_status === 'approved');
   const pendingOnlyEntries = validPendingEntries.filter(e => e.approval_status === 'pending_review');
-  const displayedEntries = [...pendingOnlyEntries, ...approvedEntries];
+  
+  // ✅ Separăm incomplete (au clock_in, lipsă clock_out) și missing (nu s-au pontajat deloc)
+  const incompleteEntries = pendingEntries.filter(e => 
+    e.clock_in_time && !e.clock_out_time && !e.isMissing
+  );
+  const missingEntries = pendingEntries.filter(e => e.isMissing);
+  
+  // ✅ Include și missing entries pentru a apărea în tabel
+  const displayedEntries = [...pendingOnlyEntries, ...approvedEntries, ...missingEntries];
 
   // Calculăm data exactă a zilei pentru a prelua daily_timesheets
   const dayDate = useMemo(() => {
@@ -354,6 +365,11 @@ export const TeamTimeApprovalManager = ({
       hours_holiday: number;
     };
     manualOverride?: boolean;
+    isMissing?: boolean;
+    scheduled_shift?: string;
+    scheduled_location?: string;
+    scheduled_activity?: string;
+    scheduled_vehicle?: string;
   }
 
   const groupedByEmployee = useMemo(() => {
@@ -361,6 +377,27 @@ export const TeamTimeApprovalManager = ({
     
     displayedEntries.forEach(entry => {
       const userId = entry.user_id;
+      
+      // ✅ Procesăm mai întâi entries cu isMissing
+      if (entry.isMissing) {
+        grouped.set(userId, {
+          userId,
+          fullName: entry.profiles.full_name,
+          username: entry.profiles.username,
+          totalHours: 0,
+          firstClockIn: '',
+          lastClockOut: null,
+          segments: [],
+          entries: [entry],
+          allApproved: false,
+          isMissing: true,
+          scheduled_shift: entry.scheduled_shift,
+          scheduled_location: entry.scheduled_location,
+          scheduled_activity: entry.scheduled_activity,
+          scheduled_vehicle: entry.scheduled_vehicle,
+        });
+        return;
+      }
       
       if (!grouped.has(userId)) {
         grouped.set(userId, {
@@ -1442,12 +1479,12 @@ export const TeamTimeApprovalManager = ({
             </div>
           )}
 
-          {validPendingEntries.length > 0 && (
+          {(validPendingEntries.length > 0 || missingEntries.length > 0) && (
             <div className="mb-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-6 flex-wrap">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total pontaje valide</p>
-                  <p className="text-2xl font-bold">{validPendingEntries.length}</p>
+                  <p className="text-sm text-muted-foreground">Total pontaje complete</p>
+                  <p className="text-2xl font-bold">{validPendingEntries.filter(e => e.clock_out_time).length}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">În așteptare</p>
@@ -1457,6 +1494,18 @@ export const TeamTimeApprovalManager = ({
                   <div>
                     <p className="text-sm text-muted-foreground">Deja aprobate</p>
                     <p className="text-2xl font-bold text-green-600">{approvedEntries.length}</p>
+                  </div>
+                )}
+                {incompleteEntries.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Nefinalizate (fără clock-out)</p>
+                    <p className="text-2xl font-bold text-orange-600">{incompleteEntries.length}</p>
+                  </div>
+                )}
+                {missingEntries.length > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Lipsă complet</p>
+                    <p className="text-2xl font-bold text-red-600">{missingEntries.length}</p>
                   </div>
                 )}
               </div>
@@ -1898,8 +1947,8 @@ export const TeamTimeApprovalManager = ({
           userId: addingEmployee?.userId || '',
           fullName: addingEmployee?.fullName || '',
           username: addingEmployee?.username || '',
-          scheduledShift: addingEmployee?.entries[0]?.scheduled_shift,
-          scheduledLocation: addingEmployee?.entries[0]?.scheduled_location,
+          scheduledShift: addingEmployee?.scheduled_shift,
+          scheduledLocation: addingEmployee?.scheduled_location,
         }}
         workDate={dayDate}
         onConfirm={handleConfirmManualEntry}
