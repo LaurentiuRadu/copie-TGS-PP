@@ -238,19 +238,28 @@ export default function TimesheetVerificare() {
 
       // Numără pontajele pending pentru acești useri în ziua selectată
       // EXCLUDE office staff explicit prin JOIN cu profiles
-      const { count } = await supabase
+      // EXCLUDE entries incomplete (fără clock_out)
+      const { data: entries } = await supabase
         .from('time_entries')
         .select(`
           *,
           profiles!inner(is_office_staff)
-        `, { count: 'exact', head: true })
+        `)
         .in('user_id', userIds)
         .gte('clock_in_time', `${targetDateStr}T00:00:00Z`)
         .lt('clock_in_time', `${format(addDays(targetDate, 1), 'yyyy-MM-dd')}T00:00:00Z`)
         .eq('approval_status', 'pending_review')
-        .eq('profiles.is_office_staff', false);
+        .eq('profiles.is_office_staff', false)
+        .not('clock_out_time', 'is', null);
 
-      return count || 0;
+      // Filtrare pe client pentru durată >= 10 min (0.17 ore)
+      const validEntries = (entries || []).filter(entry => {
+        if (!entry.clock_out_time) return false;
+        const durationHours = (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60);
+        return durationHours >= 0.17;
+      });
+
+      return validEntries.length;
     },
     enabled: !!selectedWeek && !!selectedDayOfWeek,
     refetchInterval: false, // Disabled to prevent losing edit context
