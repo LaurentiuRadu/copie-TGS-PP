@@ -10,12 +10,15 @@ import { Bell, BellOff, Search, ArrowRightLeft, Sun, Moon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { NotificationCard } from '@/components/NotificationCard';
 
 const dayNames = ['Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ', 'Du'];
 
 export function AllScheduleNotifications() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const isMobile = useIsMobile();
 
   // Fetch TOATE notificările (nu limitate la 30 zile)
   const { data: notifications, isLoading } = useQuery({
@@ -146,8 +149,22 @@ export function AllScheduleNotifications() {
           </Select>
         </div>
 
-        {/* Tabel */}
-        <div className="rounded-md border">
+        {/* Mobile Card View or Desktop Table */}
+        {isMobile ? (
+          <div className="space-y-3">
+            {!filteredNotifications || filteredNotifications.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                Nu s-au găsit notificări
+              </div>
+            ) : (
+              filteredNotifications.map((notif: any) => (
+                <NotificationCard key={notif.id} notification={notif} />
+              ))
+            )}
+          </div>
+        ) : (
+          /* Desktop Table */
+          <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -242,6 +259,7 @@ export function AllScheduleNotifications() {
             </TableBody>
           </Table>
         </div>
+        )}
 
         {filteredNotifications && filteredNotifications.length > 0 && (
           <p className="text-sm text-muted-foreground mt-4 text-center">

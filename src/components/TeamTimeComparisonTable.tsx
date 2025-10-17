@@ -6,6 +6,8 @@ import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info,
 import { formatRomania } from '@/lib/timezone';
 import { normalizeTimeInput } from '@/lib/utils';
 import { RefreshCw } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { EmployeeCard } from '@/components/TeamApproval/EmployeeCard';
 import {
   Table,
   TableBody,
@@ -113,6 +115,7 @@ export const TeamTimeComparisonTable = ({
   const { isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   // Detectează șoferii (cei care conduc efectiv)
   const isDriver = (segments: Segment[]) => {
@@ -465,8 +468,45 @@ export const TeamTimeComparisonTable = ({
         )}
       </div>
 
-      {/* Tabel orizontal */}
-      <div className="border rounded-lg overflow-x-auto">
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <div className="space-y-3">
+          {groupedByEmployee.map((employee) => {
+            const isDrv = isDriver(employee.segments);
+            
+            return (
+              <EmployeeCard
+                key={employee.userId}
+                employee={employee}
+                teamAverage={{
+                  clockIn: teamAverage.avgClockIn || '00:00',
+                  clockOut: teamAverage.avgClockOut || '00:00',
+                  totalHours: teamAverage.avgHours,
+                }}
+                isDriver={isDrv}
+                onEdit={() => employee.entries[0] && onEdit(employee.entries[0])}
+                onDelete={() => employee.entries[0] && onDelete(employee.entries[0])}
+                onApprove={() => employee.entries[0] && onApprove(employee.entries[0].id)}
+                onAddManualEntry={() => onAddManualEntry?.(employee)}
+                onClockInEdit={() => onClockInEdit?.(employee)}
+                onClockOutEdit={() => onClockOutEdit?.(employee)}
+                onSegmentClick={(segmentType, hours) => {
+                  if (isAdmin && isSegmentEditable(employee, segmentType)) {
+                    setEditingHours({
+                      userId: employee.userId,
+                      segmentType,
+                      value: hours.toString(),
+                    });
+                  }
+                }}
+                isAdmin={isAdmin}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <div className="border rounded-lg overflow-x-auto">
         <Table className="w-full min-w-[1200px]">
           <TableHeader>
             <TableRow>
@@ -1025,6 +1065,7 @@ export const TeamTimeComparisonTable = ({
           </TableBody>
         </Table>
       </div>
+      )}
     </div>
   );
 };

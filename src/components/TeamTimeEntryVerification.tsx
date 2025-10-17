@@ -8,6 +8,8 @@ import { format, addDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Clock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { TeamVerificationCard } from '@/components/TeamVerificationCard';
 
 interface TeamTimeEntryVerificationProps {
   selectedWeek: string;
@@ -20,6 +22,7 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
   const [selectedTeam, setSelectedTeam] = useState<string | null>(
     availableTeams.size > 0 ? Array.from(availableTeams)[0] : null
   );
+  const isMobile = useIsMobile();
 
   // Reset echipa selectată când se schimbă săptămâna sau echipele disponibile
   useEffect(() => {
@@ -180,7 +183,22 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
       ) : data?.members && data.members.length > 0 ? (
         <Card>
           <CardContent className="pt-6">
-            <div className="overflow-x-auto">
+            {/* Mobile Card View or Desktop Table */}
+            {isMobile ? (
+              <div className="space-y-3">
+                {data.members.map(member => (
+                  <TeamVerificationCard
+                    key={member.user_id}
+                    member={member}
+                    selectedWeek={selectedWeek}
+                    teamStats={teamStats}
+                    isTeamLeader={!!(data.teamLeader && member.user_id === data.teamLeader.user_id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* Desktop Table */
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -269,6 +287,7 @@ export function TeamTimeEntryVerification({ selectedWeek, availableTeams }: Team
                 </TableBody>
               </Table>
             </div>
+            )}
 
             <div className="mt-4 flex items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
