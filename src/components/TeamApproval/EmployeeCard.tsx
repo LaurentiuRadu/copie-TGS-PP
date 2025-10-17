@@ -2,35 +2,13 @@ import React from 'react';
 import { MobileTableCard, MobileTableRow } from '@/components/MobileTableCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2, CheckCircle2, Plus, Clock, Car, AlertCircle, Users, Settings, Moon, PartyPopper, Sun, ClipboardList } from 'lucide-react';
+import { Pencil, Trash2, CheckCircle2, Plus, Clock, Car, AlertCircle } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
-
-interface Segment {
-  id: string;
-  type: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
-}
+import { getSegmentIcon, getSegmentLabel } from '@/lib/segments';
+import { EmployeeDayData } from '@/types/timeApproval';
 
 interface EmployeeCardProps {
-  employee: {
-    userId: string;
-    fullName: string;
-    username: string;
-    totalHours: number;
-    firstClockIn: string;
-    lastClockOut: string | null;
-    segments: Segment[];
-    entries: any[];
-    allApproved: boolean;
-    isMissing?: boolean;
-    scheduled_shift?: string;
-    scheduled_location?: string;
-    scheduled_activity?: string;
-    overrideHours?: any;
-    manualOverride?: boolean;
-  };
+  employee: EmployeeDayData;
   teamAverage: {
     clockIn: string;
     clockOut: string;
@@ -46,35 +24,6 @@ interface EmployeeCardProps {
   onSegmentClick?: (segmentType: string, hours: number) => void;
   isAdmin: boolean;
 }
-
-const getSegmentIcon = (type: string) => {
-  switch (type) {
-    case 'conducere': return <Car className="h-3.5 w-3.5" />;
-    case 'pasager': return <Users className="h-3.5 w-3.5" />;
-    case 'odihna': return <Clock className="h-3.5 w-3.5" />;
-    case 'disponibilitate': return <Settings className="h-3.5 w-3.5" />;
-    case 'noapte': return <Moon className="h-3.5 w-3.5" />;
-    case 'sambata': return <PartyPopper className="h-3.5 w-3.5" />;
-    case 'duminica': return <Sun className="h-3.5 w-3.5" />;
-    case 'sarbatoare': return <PartyPopper className="h-3.5 w-3.5" />;
-    default: return <ClipboardList className="h-3.5 w-3.5" />;
-  }
-};
-
-const getSegmentLabel = (type: string) => {
-  const labels: Record<string, string> = {
-    conducere: 'Conducere',
-    pasager: 'Pasager',
-    echipament: 'Echipament',
-    odihna: 'Odihnă',
-    disponibilitate: 'Disponibilitate',
-    noapte: 'Noapte',
-    sambata: 'Sâmbătă',
-    duminica: 'Duminică',
-    sarbatoare: 'Sărbătoare',
-  };
-  return labels[type] || type;
-};
 
 const getDiscrepancyColor = (actualTime: string, averageTime: string, threshold: number = 30): string => {
   if (!actualTime || !averageTime) return 'text-foreground';
