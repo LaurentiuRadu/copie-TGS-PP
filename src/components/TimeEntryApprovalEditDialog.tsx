@@ -145,7 +145,7 @@ export function TimeEntryApprovalEditDialog({
         console.warn('[Approval Edit] Recalculation warning:', functionError);
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       // Invalidare cache COMPLETĂ pentru toate variantele de query-uri
       queryClient.invalidateQueries({ 
         queryKey: ['team-pending-approvals'], 
@@ -166,10 +166,36 @@ export function TimeEntryApprovalEditDialog({
         exact: false 
       });
       
-      toast({
-        title: "✅ Pontaj corectat și aprobat",
-        description: "Modificările au fost salvate și pontajul a fost aprobat automat.",
-      });
+      // ✅ Verifică dacă utilizatorul este coordonator/șef în mai multe echipe
+      const workDate = format(new Date(clockIn), 'yyyy-MM-dd');
+      const { data: schedules } = await supabase
+        .from('weekly_schedules')
+        .select('team_id, coordinator_id, team_leader_id')
+        .or(`coordinator_id.eq.${entry.user_id},team_leader_id.eq.${entry.user_id}`)
+        .gte('week_start_date', workDate)
+        .lte('week_start_date', workDate);
+      
+      const coordinatorTeams = schedules?.filter(s => s.coordinator_id === entry.user_id).map(s => s.team_id) || [];
+      const leaderTeams = schedules?.filter(s => s.team_leader_id === entry.user_id).map(s => s.team_id) || [];
+      
+      const isMultiTeam = coordinatorTeams.length > 1 || leaderTeams.length > 1;
+      
+      if (isMultiTeam) {
+        const role = coordinatorTeams.length > 1 ? 'coordonator' : 'șef echipă';
+        const teams = coordinatorTeams.length > 1 ? coordinatorTeams : leaderTeams;
+        
+        toast({
+          title: `✅ Pontaj actualizat și sincronizat automat`,
+          description: `${entry.profiles.full_name} (${role}) a fost sincronizat în ${teams.length} echipe: ${teams.join(', ')}`,
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "✅ Pontaj corectat și aprobat",
+          description: "Modificările au fost salvate și pontajul a fost aprobat automat.",
+        });
+      }
+      
       onOpenChange(false);
       
       // Trigger auto-scroll callback

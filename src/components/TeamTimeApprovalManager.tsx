@@ -1233,6 +1233,41 @@ export const TeamTimeApprovalManager = ({
     });
   };
 
+  // ✅ Handler pentru editare coordonator/șef de echipă
+  const handleEditManagementEntry = async (person: { id: string; full_name: string; username: string }) => {
+    const dayDate = new Date(selectedWeek);
+    dayDate.setDate(dayDate.getDate() + selectedDayOfWeek);
+    
+    // Găsește pontajul pentru această persoană folosind user_id direct
+    const { data, error } = await supabase
+      .from('time_entries')
+      .select('*')
+      .eq('user_id', person.id)
+      .gte('clock_in_time', format(dayDate, 'yyyy-MM-dd'))
+      .lt('clock_in_time', format(new Date(dayDate.getTime() + 86400000), 'yyyy-MM-dd'))
+      .maybeSingle();
+    
+    if (error || !data) {
+      toast({
+        title: '❌ Pontaj negăsit',
+        description: 'Nu s-a găsit pontajul pentru această persoană',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Deschide dialog de editare cu toate datele necesare
+    setEditEntry({
+      ...data,
+      profiles: {
+        id: person.id,
+        full_name: person.full_name,
+        username: person.username,
+      }
+    } as TimeEntryForApproval);
+    setEditDialogOpen(true);
+  };
+
   const handleSegmentHoursEdit = (userId: string, segmentType: string, newHours: number) => {
     if (newHours < 0 || newHours > 24) {
       toast({
@@ -1422,47 +1457,91 @@ export const TeamTimeApprovalManager = ({
             </AlertDescription>
           </Alert>
 
+          {/* ✅ CARDURI CU BUTOANE DE EDITARE pentru Coordonator */}
           {coordinator && (
-            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-2">
-                <Badge variant="default" className="bg-purple-600">
-                  Coordonator
-                </Badge>
-                <span className="font-medium">{coordinator.full_name}</span>
-                <Badge variant="outline" className="text-xs">
-                  {coordinator.username}
-                </Badge>
-              </div>
-            </div>
-          )}
-
-          {(teamLeader || teamMembers.length > 0) && (
-            <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
-              <div className="space-y-2">
-                {teamLeader && (
-                  <div className="flex items-center gap-2 pb-2">
-                    <Badge variant="default" className="bg-blue-600">
-                      Șef Echipă
+            <Card className="mb-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 border-2 border-purple-200 dark:border-purple-800">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-purple-600 text-white">
+                      👔 Coordonator
                     </Badge>
-                    <span className="font-medium">{teamLeader.full_name}</span>
+                    <span className="font-medium text-purple-900 dark:text-purple-100">{coordinator.full_name}</span>
                     <Badge variant="outline" className="text-xs">
-                      {teamLeader.username}
+                      {coordinator.username}
                     </Badge>
                   </div>
-                )}
-                
-                {teamMembers
-                  .filter(m => m.id !== teamLeader?.id)
-                  .map(member => (
-                    <div key={member.id} className="flex items-center gap-2 text-sm">
-                      <span>{member.full_name}</span>
-                      <Badge variant="outline" className="text-xs opacity-60">
-                        {member.username}
-                      </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEditManagementEntry({ 
+                      id: coordinator.id, 
+                      full_name: coordinator.full_name, 
+                      username: coordinator.username 
+                    })}
+                    className="h-7 gap-1 border-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Editează
+                  </Button>
+                </div>
+              </CardHeader>
+            </Card>
+          )}
+
+          {/* ✅ CARD CU BUTON DE EDITARE pentru Șef Echipă + Membri */}
+          {(teamLeader || teamMembers.length > 0) && (
+            <div className="mb-6 space-y-4">
+              {teamLeader && (
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="bg-blue-600">
+                          👷 Șef Echipă
+                        </Badge>
+                        <span className="font-medium text-blue-900 dark:text-blue-100">{teamLeader.full_name}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {teamLeader.username}
+                        </Badge>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditManagementEntry({ 
+                          id: teamLeader.id, 
+                          full_name: teamLeader.full_name, 
+                          username: teamLeader.username 
+                        })}
+                        className="h-7 gap-1 border-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Editează
+                      </Button>
                     </div>
-                  ))
-                }
-              </div>
+                  </CardHeader>
+                </Card>
+              )}
+              
+              {/* Membri echipă (fără team leader) */}
+              {teamMembers.length > 0 && teamMembers.some(m => m.id !== teamLeader?.id) && (
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Membri echipă:</p>
+                    {teamMembers
+                      .filter(m => m.id !== teamLeader?.id)
+                      .map(member => (
+                        <div key={member.id} className="flex items-center gap-2 text-sm">
+                          <span>{member.full_name}</span>
+                          <Badge variant="outline" className="text-xs opacity-60">
+                            {member.username}
+                          </Badge>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
