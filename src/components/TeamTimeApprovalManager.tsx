@@ -1520,7 +1520,7 @@ export const TeamTimeApprovalManager = ({
                     ))}
                   </ul>
                   <p className="text-xs text-muted-foreground mt-2">
-                    👉 Deschide tabelul "Comparație Pontaje" pentru a edita manual sau adăuga pontaje lipsă
+                    👉 Vezi secțiunea <strong>"📊 Comparație Pontaje Echipă"</strong> de mai jos pentru a edita manual sau adăuga pontaje lipsă
                   </p>
                 </div>
               </AlertDescription>
@@ -1872,8 +1872,24 @@ export const TeamTimeApprovalManager = ({
               <p className="text-lg font-medium">Nu există pontaje</p>
             </div>
           ) : (
-            // ✅ VIZUALIZARE TABEL (tab "Detalii" eliminat)
-            <TeamTimeComparisonTable
+            <>
+              {/* 📊 HEADER PENTRU TABEL COMPARAȚIE */}
+              <div className="mb-4 pb-3 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <TableIcon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">📊 Comparație Pontaje Echipă</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Editează manual clock-in/out, segmente sau adaugă pontaje lipsă
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ✅ VIZUALIZARE TABEL (tab "Detalii" eliminat) */}
+              <TeamTimeComparisonTable
               groupedByEmployee={groupedByEmployee}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -1889,6 +1905,7 @@ export const TeamTimeApprovalManager = ({
               onClockOutEdit={(emp) => handleClockTimeClick(emp, 'Clock Out')}
               onAddManualEntry={handleAddManualEntry}
             />
+            </>
           )}
         </CardContent>
       </Card>
