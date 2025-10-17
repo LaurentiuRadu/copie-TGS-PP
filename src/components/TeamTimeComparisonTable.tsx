@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info, Calendar, Car, Users, Settings, Moon, PartyPopper, ClipboardList, Sun, BarChart, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info, Calendar, Car, Users, Settings, Moon, PartyPopper, ClipboardList, BarChart, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import { normalizeTimeInput } from '@/lib/utils';
 import { RefreshCw } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { EmployeeCard } from '@/components/TeamApproval/EmployeeCard';
+import { getSegmentIcon, getSegmentLabel, getSegmentColors } from '@/lib/segments';
 import {
   Table,
   TableBody,
@@ -47,20 +48,11 @@ interface EmployeeDayData {
   segments: Segment[];
   entries: any[];
   allApproved: boolean;
-  isMissing?: boolean; // ← NOU: flag pentru angajați lipsă
+  isMissing?: boolean;
   scheduled_shift?: string;
   scheduled_location?: string;
   scheduled_activity?: string;
-  overrideHours?: {
-    hours_regular: number;
-    hours_driving: number;
-    hours_passenger: number;
-    hours_equipment: number;
-    hours_night: number;
-    hours_saturday: number;
-    hours_sunday: number;
-    hours_holiday: number;
-  };
+  overrideHours?: Record<string, number>;
   manualOverride?: boolean;
 }
 
@@ -101,31 +93,13 @@ const SegmentBadge = React.memo(({
   icon: React.ReactNode;
   onClick?: () => void;
 }) => {
-  const colors: Record<string, string> = {
-    hours_regular: 'bg-slate-900 dark:bg-slate-700 text-white border-slate-700 dark:border-slate-600',
-    hours_night: 'bg-purple-600 dark:bg-purple-700 text-white border-purple-500 dark:border-purple-600',
-    hours_saturday: 'bg-blue-500 dark:bg-blue-600 text-white border-blue-400 dark:border-blue-500',
-    hours_sunday: 'bg-red-500 dark:bg-red-600 text-white border-red-400 dark:border-red-500',
-    hours_holiday: 'bg-pink-500 dark:bg-pink-600 text-white border-pink-400 dark:border-pink-500',
-    hours_passenger: 'bg-teal-500 dark:bg-teal-600 text-white border-teal-400 dark:border-teal-500',
-    hours_driving: 'bg-orange-500 dark:bg-orange-600 text-white border-orange-400 dark:border-orange-500',
-    hours_equipment: 'bg-amber-500 dark:bg-amber-600 text-white border-amber-400 dark:border-amber-500',
-  };
-  
   return (
     <Badge 
-      className={`${colors[type]} gap-1.5 text-xs font-medium px-2.5 py-1 cursor-pointer hover:opacity-90 transition-opacity`}
+      className={`${getSegmentColors(type)} gap-1.5 text-xs font-medium px-2.5 py-1 cursor-pointer hover:opacity-90 transition-opacity`}
       onClick={onClick}
     >
       {icon}
-      <span>{type === 'hours_regular' ? 'Normal' : 
-             type === 'hours_night' ? 'Noapte' :
-             type === 'hours_saturday' ? 'Sâmbătă' :
-             type === 'hours_sunday' ? 'Duminică' :
-             type === 'hours_holiday' ? 'Sărbătoare' :
-             type === 'hours_passenger' ? 'Pasager' :
-             type === 'hours_driving' ? 'Condus' :
-             type === 'hours_equipment' ? 'Utilaj' : type}</span>
+      <span>{getSegmentLabel(type)}</span>
       <span className="font-mono font-semibold">{hours.toFixed(1)}h</span>
     </Badge>
   );

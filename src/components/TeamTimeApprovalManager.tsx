@@ -162,6 +162,11 @@ export const TeamTimeApprovalManager = ({
     setDeleteDialogOpen(true);
   }, []);
 
+  // ✅ FIX WHITE PAGE: Callback-uri pentru TeamTimeComparisonTable (moved from JSX)
+  const openUniformize = useCallback(() => {
+    setUniformizeDialogOpen(true);
+  }, []);
+
   const handleConfirmApproval = async () => {
     if (!actionEntryId) return;
 
@@ -1272,6 +1277,15 @@ export const TeamTimeApprovalManager = ({
     });
   }, [managementEntries, isAdmin, toast]);
 
+  // ✅ FIX WHITE PAGE: Callback-uri pentru Clock In/Out editing (moved from JSX)
+  const handleClockInEditMemo = useCallback((emp: EmployeeDayData) => {
+    handleClockTimeClick(emp, 'Clock In');
+  }, [handleClockTimeClick]);
+
+  const handleClockOutEditMemo = useCallback((emp: EmployeeDayData) => {
+    handleClockTimeClick(emp, 'Clock Out');
+  }, [handleClockTimeClick]);
+
   // ✅ Handler pentru editare coordonator/șef de echipă
   const handleEditManagementEntry = async (person: { id: string; full_name: string; username: string }) => {
     const dayDate = new Date(selectedWeek);
@@ -2072,15 +2086,15 @@ export const TeamTimeApprovalManager = ({
               onEdit={handleEdit}
               onDelete={handleDelete}
               onApprove={handleApprove}
-              onUniformize={useCallback(() => setUniformizeDialogOpen(true), [])}
+              onUniformize={openUniformize}
               onTimeClick={handleTimeClick}
               editingSegment={editingSegment}
               onTimeChange={handleTimeChange}
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
               onSegmentHoursEdit={handleSegmentHoursEdit}
-              onClockInEdit={useCallback((emp: EmployeeDayData) => handleClockTimeClick(emp, 'Clock In'), [handleClockTimeClick])}
-              onClockOutEdit={useCallback((emp: EmployeeDayData) => handleClockTimeClick(emp, 'Clock Out'), [handleClockTimeClick])}
+              onClockInEdit={handleClockInEditMemo}
+              onClockOutEdit={handleClockOutEditMemo}
               onAddManualEntry={handleAddManualEntry}
               selectedWeek={selectedWeek}
               selectedDayOfWeek={selectedDayOfWeek}
