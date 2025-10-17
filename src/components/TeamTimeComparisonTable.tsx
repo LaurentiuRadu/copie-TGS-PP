@@ -311,11 +311,6 @@ export const TeamTimeComparisonTable = ({
         }
       );
 
-      // ✅ SINCRONIZĂM STATE-UL LOCAL prin onSegmentHoursEdit pentru toate segmentele
-      segmentTypes.forEach((t) => {
-        onSegmentHoursEdit(userId, t, overridePayload[t]);
-      });
-
       // APOI force refetch pentru validare
       await queryClient.refetchQueries({ queryKey: ['dailyTimesheets'], type: 'active' });
       await queryClient.refetchQueries({ queryKey: ['team-pending-approvals'], type: 'active' });
