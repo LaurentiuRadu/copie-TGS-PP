@@ -239,11 +239,8 @@ export const TeamTimeComparisonTable = ({
 
   // Helper pentru editabilitate condiționată
   const isSegmentEditable = (employee: EmployeeDayData, segmentType: string): boolean => {
-    // ✅ Adminii pot edita ORICE segment, chiar dacă are 0 ore
-    if (isAdmin) return true;
-    
     const currentHours = getDisplayHours(employee, segmentType);
-    // Editabil dacă există ore alocate automat SAU dacă există override manual
+    // Editabil doar dacă există ore calculate (> 0) SAU există override manual explicit
     return currentHours > 0 || employee.manualOverride || false;
   };
 
@@ -907,9 +904,9 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Ore Pasager - editabil */}
+                  {/* Ore Pasager - editabil pentru admin chiar cu manualOverride */}
                   <TableCell>
-                    {employee.manualOverride ? (
+                    {employee.manualOverride && !isAdmin ? (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -976,9 +973,9 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Ore Condus - editabil */}
+                  {/* Ore Condus - editabil pentru admin chiar cu manualOverride */}
                   <TableCell>
-                    {employee.manualOverride ? (
+                    {employee.manualOverride && !isAdmin ? (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -1045,9 +1042,9 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Ore Utilaj - editabil */}
+                  {/* Ore Utilaj - editabil pentru admin chiar cu manualOverride */}
                   <TableCell>
-                    {employee.manualOverride ? (
+                    {employee.manualOverride && !isAdmin ? (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
