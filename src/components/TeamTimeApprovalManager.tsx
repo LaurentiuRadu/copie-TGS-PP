@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { QUERY_KEYS } from '@/lib/queryKeys';
 import { ro } from 'date-fns/locale';
 import { formatRomania } from '@/lib/timezone';
+import { normalizeTimeInput } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
 import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
@@ -733,9 +734,12 @@ export const TeamTimeApprovalManager = ({
 
     const segment = employee.segments[editingSegment.segmentIndex];
     
-    // Validare format HH:mm
+    // Normalizăm input-ul MAI ÎNTÂI
+    const normalizedValue = normalizeTimeInput(editingSegment.value);
+    
+    // Validare format HH:mm pe valoarea normalizată
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(editingSegment.value)) {
+    if (!timeRegex.test(normalizedValue)) {
       toast({
         title: '⚠️ Format invalid',
         description: 'Folosește formatul HH:mm (ex: 10:30)',
@@ -745,11 +749,11 @@ export const TeamTimeApprovalManager = ({
       return;
     }
 
-    // Apelează mutation-ul
+    // Apelează mutation-ul cu valoarea normalizată
     updateSegmentTimeMutation.mutate({
       segmentId: editingSegment.segmentId,
       field: editingSegment.field,
-      newTime: editingSegment.value,
+      newTime: normalizedValue,
       currentSegment: segment,
     });
   };
@@ -1240,8 +1244,11 @@ export const TeamTimeApprovalManager = ({
     
     if (!newValue || newValue === currentValue) return;
     
-    // Validare format HH:MM
-    if (!/^\d{2}:\d{2}$/.test(newValue)) {
+    // Normalizăm input-ul MAI ÎNTÂI
+    const normalizedValue = normalizeTimeInput(newValue);
+    
+    // Validare format HH:MM pe valoarea normalizată
+    if (!/^\d{2}:\d{2}$/.test(normalizedValue)) {
       toast({
         title: '❌ Format invalid',
         description: 'Folosește formatul HH:MM (ex: 08:30)',
@@ -1255,7 +1262,7 @@ export const TeamTimeApprovalManager = ({
       fieldName,
       employee,
       currentValue,
-      newValue,
+      newValue: normalizedValue,
     });
   };
 
