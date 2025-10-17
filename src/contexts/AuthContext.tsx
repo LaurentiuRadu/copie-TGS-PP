@@ -8,6 +8,7 @@ import { checkUserConsents } from '@/lib/gdprHelpers';
 import { iosStorage } from '@/lib/iosStorage';
 import { generateDeviceFingerprint } from '@/lib/deviceFingerprint';
 import { useSessionMonitor } from '@/hooks/useSessionMonitor';
+import { logger } from '@/lib/logger';
 
 type UserRole = 'admin' | 'employee' | null;
 
@@ -40,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
   useEffect(() => {
-    console.log('[AuthProvider] 🔧 Mounting auth provider');
+    logger.info('[AuthProvider] Mounting auth provider');
     
     // AbortController pentru cleanup
     const abortController = new AbortController();
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (abortController.signal.aborted) return;
       
       if (!document.hidden) {
-        console.log('[AuthProvider] 👁️ App became visible, checking session...');
+        logger.info('[AuthProvider] App became visible, checking session...');
         try {
           // Try to get session from Supabase first
           const { data: { session } } = await supabase.auth.getSession();
@@ -58,19 +59,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (abortController.signal.aborted) return;
           
           if (session) {
-            console.log('[AuthProvider] ✅ Session still valid after visibility change');
+            logger.info('[AuthProvider] Session still valid after visibility change');
             setSession(session);
             setUser(session.user);
           } else {
             // If no session, try to restore from backup tokens (iOS)
-            console.log('[AuthProvider] 🔄 No session found, attempting restore from backup...');
+            logger.info('[AuthProvider] No session found, attempting restore from backup...');
             const refreshToken = await iosStorage.getItem(TOKEN_KEY_REFRESH);
             const accessToken = await iosStorage.getItem(TOKEN_KEY_ACCESS);
             
             if (abortController.signal.aborted) return;
             
             if (refreshToken && accessToken) {
-              console.log('[AuthProvider] 🔓 Restoring session from backup tokens');
+              logger.info('[AuthProvider] Restoring session from backup tokens');
               const { data, error } = await supabase.auth.setSession({
                 refresh_token: refreshToken,
                 access_token: accessToken,
@@ -79,11 +80,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (abortController.signal.aborted) return;
               
               if (!error && data.session) {
-                console.log('[AuthProvider] ✅ Session restored successfully');
+                logger.info('[AuthProvider] Session restored successfully');
                 setSession(data.session);
                 setUser(data.session.user);
               } else {
-                console.warn('[AuthProvider] ⚠️ Could not restore session:', error?.message);
+                logger.warn('[AuthProvider] Could not restore session:', error?.message);
                 // Only clear if tokens are truly invalid
                 if (error?.message?.includes('invalid') || error?.message?.includes('expired')) {
                   await iosStorage.removeItem(TOKEN_KEY_ACCESS);
@@ -94,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
               }
             } else {
-              console.warn('[AuthProvider] ⚠️ No backup tokens available');
+              logger.warn('[AuthProvider] No backup tokens available');
               setSession(null);
               setUser(null);
               setUserRole(null);
@@ -102,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           if (abortController.signal.aborted) return;
-          console.error('[AuthProvider] ❌ Error checking session on visibility change:', error);
+          logger.error('[AuthProvider] Error checking session on visibility change:', error);
         }
       }
     };
@@ -111,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleFocus = async () => {
       if (abortController.signal.aborted) return;
       
-      console.log('[AuthProvider] 🎯 App focused, verifying session...');
+      logger.info('[AuthProvider] App focused, verifying session...');
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
@@ -121,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Try backup restore
           const refreshToken = await iosStorage.getItem(TOKEN_KEY_REFRESH);
           if (refreshToken) {
-            console.log('[AuthProvider] 🔄 Attempting session restore on focus...');
+            logger.info('[AuthProvider] Attempting session restore on focus...');
             const { data, error } = await supabase.auth.refreshSession({
               refresh_token: refreshToken,
             });
@@ -129,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (abortController.signal.aborted) return;
             
             if (!error && data.session) {
-              console.log('[AuthProvider] ✅ Session restored on focus');
+              logger.info('[AuthProvider] Session restored on focus');
               setSession(data.session);
               setUser(data.session.user);
             }
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         if (abortController.signal.aborted) return;
-        console.error('[AuthProvider] ❌ Error on focus check:', error);
+        logger.error('[AuthProvider] Error on focus check:', error);
       }
     };
 
@@ -157,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (abortController.signal.aborted) return;
         
         if (refreshToken && !hasLocal) {
-          console.log('[AuthProvider] ♻️ Restoring session from backup tokens');
+          logger.info('[AuthProvider] Restoring session from backup tokens');
           const { data, error } = await supabase.auth.setSession({
             refresh_token: refreshToken,
             access_token: accessToken || '',
@@ -166,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (abortController.signal.aborted) return;
           
           if (error) {
-            console.warn('[AuthProvider] Could not restore session from tokens:', error.message);
+            logger.warn('[AuthProvider] Could not restore session from tokens:', error.message);
           } else if (data.session) {
             setSession(data.session);
             setUser(data.session.user);
@@ -174,14 +175,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (e) {
         if (abortController.signal.aborted) return;
-        console.warn('[AuthProvider] Backup restore skipped:', e);
+        logger.warn('[AuthProvider] Backup restore skipped:', e);
       }
     })();
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('[AuthProvider] 🔔 Auth state changed:', { 
+        logger.info('[AuthProvider] Auth state changed:', { 
           event, 
           hasSession: !!session,
           userId: session?.user?.id,
@@ -190,7 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Handle SIGNED_OUT immediately
         if (event === 'SIGNED_OUT') {
-          console.warn('[AuthProvider] ⚠️ User signed out detected');
+          logger.warn('[AuthProvider] User signed out detected');
           setSession(null);
           setUser(null);
           setUserRole(null);
@@ -202,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Prevent unnecessary re-authentication on TOKEN_REFRESHED
         if (event === 'TOKEN_REFRESHED') {
-          console.log('[AuthProvider] 🔄 Token refreshed, keeping current state');
+          logger.info('[AuthProvider] Token refreshed, keeping current state');
           setSession(session);
           // Don't reset user or trigger role fetch again
           return;
@@ -227,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // THEN check for existing session
     supabase.auth.getSession()
       .then(async ({ data: { session } }) => {
-        console.log('[AuthProvider] 📝 Initial session check:', { 
+        logger.info('[AuthProvider] Initial session check:', { 
           hasSession: !!session,
           userId: session?.user?.id 
         });
@@ -281,10 +282,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((err) => {
-        console.error('Session fetch error:', err);
+        logger.error('Session fetch error:', err);
       })
       .finally(() => {
-        console.log('[AuthProvider] ✅ Auth initialization complete');
+        logger.info('[AuthProvider] Auth initialization complete');
         setLoading(false);
       });
 
@@ -309,7 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (abortController.signal.aborted) return;
 
       try {
-        console.log('[AuthContext] 🔐 Registering session for device:', sessionId.substring(0, 8));
+        logger.info('[AuthContext] Registering session for device:', sessionId.substring(0, 8));
         
         // Verifică dacă există deja o sesiune activă pentru acest device
         const { data: existingSession } = await supabase
@@ -324,7 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (existingSession && !existingSession.invalidated_at) {
           // Sesiune existentă validă - doar actualizează timestamp
-          console.log('[AuthContext] ♻️ Updating existing session');
+          logger.info('[AuthContext] Updating existing session');
           await supabase
             .from('active_sessions')
             .update({ 
@@ -335,7 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .abortSignal(abortController.signal);
         } else {
           // Sesiune nouă sau invalidată - verifică limita și creează
-          console.log('[AuthContext] 🆕 Creating new session, checking limits...');
+          logger.info('[AuthContext] Creating new session, checking limits...');
           const { data: limitCheck, error: limitError } = await supabase.rpc('check_session_limit', {
             _user_id: userId,
             _session_id: sessionId,
@@ -345,12 +346,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (abortController.signal.aborted) return;
           
           if (limitError) {
-            console.error('[AuthContext] ❌ Session limit check failed:', limitError);
+            logger.error('[AuthContext] Session limit check failed:', limitError);
             return;
           }
           
           const limitResult = limitCheck as { allowed?: boolean; action?: string; message?: string };
-          console.log('[AuthContext] 📊 Limit check result:', limitResult);
+          logger.info('[AuthContext] Limit check result:', limitResult);
           
           if (limitResult?.allowed) {
             // Șterge sesiunea veche invalidată dacă există
@@ -376,17 +377,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .abortSignal(abortController.signal);
             
             if (insertError) {
-              console.error('[AuthContext] ❌ Failed to insert session:', insertError);
+              logger.error('[AuthContext] Failed to insert session:', insertError);
             } else {
-              console.log('[AuthContext] ✅ Session registered successfully');
+              logger.info('[AuthContext] Session registered successfully');
             }
           } else {
-            console.warn('[AuthContext] ⚠️ Session not allowed:', limitResult?.message);
+            logger.warn('[AuthContext] Session not allowed:', limitResult?.message);
           }
         }
       } catch (error) {
         if (abortController.signal.aborted) return;
-        console.error('[AuthContext] ❌ Session registration error:', error);
+        logger.error('[AuthContext] Session registration error:', error);
       }
     })();
 
@@ -434,18 +435,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                              (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
         
         if (!isOnValidPath) {
-          console.log('[AuthProvider] 🔀 Redirecting user - invalid path for role:', { currentPath, role });
+          logger.info('[AuthProvider] Redirecting user - invalid path for role:', { currentPath, role });
           if (role === 'admin') {
             navigate('/admin');
           } else if (role === 'employee') {
             navigate('/mobile');
           }
         } else {
-          console.log('[AuthProvider] ✅ User on valid path, no redirect needed:', currentPath);
+          logger.info('[AuthProvider] User on valid path, no redirect needed:', currentPath);
         }
       } catch (error) {
         if (abortController.signal.aborted) return;
-        console.error('[AuthContext] ❌ Role fetch error:', error);
+        logger.error('[AuthContext] Role fetch error:', error);
       }
     })();
 

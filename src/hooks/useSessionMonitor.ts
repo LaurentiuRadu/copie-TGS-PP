@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { generateDeviceFingerprint } from '@/lib/deviceFingerprint';
+import { logger } from '@/lib/logger';
 
 /**
  * Hook care monitorizează validitatea sesiunii curente
@@ -26,13 +27,13 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
   const checkSessionValidity = useCallback(async () => {
     // ✅ Debounce: dacă deja rulează un check, returnează promisiunea existentă
     if (pendingCheckRef.current) {
-      console.log('[SessionMonitor] Check in progress, skipping duplicate');
+      logger.debug('[SessionMonitor] Check in progress, skipping duplicate');
       return pendingCheckRef.current;
     }
 
     // ✅ Verifică flag-ul stabil
     if (isLoggingOutRef.current) {
-      console.log('[SessionMonitor] Already logging out, skipping check');
+      logger.debug('[SessionMonitor] Already logging out, skipping check');
       return;
     }
 
@@ -48,7 +49,7 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!currentSession || controller.signal.aborted) {
-          console.log('[SessionMonitor] No active session or aborted');
+          logger.debug('[SessionMonitor] No active session or aborted');
           return;
         }
         
@@ -62,18 +63,18 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
 
         // ✅ Check abort după fiecare operație async
         if (controller.signal.aborted) {
-          console.log('[SessionMonitor] Check aborted');
+          logger.debug('[SessionMonitor] Check aborted');
           return;
         }
 
         if (error) {
-          console.error('[SessionMonitor] Error checking session:', error);
+          logger.error('[SessionMonitor] Error checking session:', error);
           return;
         }
 
         // Dacă sesiunea a fost invalidată, delogăm utilizatorul
         if (data?.invalidated_at) {
-          console.warn('[SessionMonitor] ⚠️ Session invalidated, reason:', data.invalidation_reason);
+          logger.warn('[SessionMonitor] Session invalidated, reason:', data.invalidation_reason);
           
           // ✅ Setăm flag-ul ÎNAINTE de logout pentru a preveni duplicate calls
           isLoggingOutRef.current = true;
@@ -92,10 +93,10 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
         }
       } catch (error) {
         if (controller.signal.aborted) {
-          console.log('[SessionMonitor] Request cancelled');
+          logger.debug('[SessionMonitor] Request cancelled');
           return;
         }
-        console.error('[SessionMonitor] Error:', error);
+        logger.error('[SessionMonitor] Error:', error);
       } finally {
         // ✅ Eliberăm lock-ul de debounce
         pendingCheckRef.current = null;
@@ -131,7 +132,7 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
         },
         (payload) => {
           if (payload.new.session_id === sessionId && payload.new.invalidated_at) {
-            console.warn('[SessionMonitor] Realtime: Session invalidated');
+            logger.warn('[SessionMonitor] Realtime: Session invalidated');
             checkSessionValidity();
           }
         }

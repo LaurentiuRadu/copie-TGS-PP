@@ -18,13 +18,6 @@ interface UsePasswordPolicyResult {
  * 
  * @param userId - UUID of the current user
  * @returns {UsePasswordPolicyResult} Password policy state and controls
- * 
- * TODO Implementation:
- * 1. On mount, query user_password_tracking WHERE user_id = userId
- * 2. Check must_change_password boolean
- * 3. If true, set showPasswordDialog to true
- * 4. Provide setShowPasswordDialog to allow dialog to close itself
- * 5. After password change, refetch to verify flag was cleared
  */
 export function usePasswordPolicy(userId: string | undefined): UsePasswordPolicyResult {
   const [mustChangePassword, setMustChangePassword] = useState(false);
@@ -42,7 +35,6 @@ export function usePasswordPolicy(userId: string | undefined): UsePasswordPolicy
     const checkPasswordPolicy = async () => {
       setLoading(true);
       try {
-        // TODO: Query user_password_tracking table
         const { data, error } = await supabase
           .from('user_password_tracking')
           .select('must_change_password')
@@ -56,7 +48,6 @@ export function usePasswordPolicy(userId: string | undefined): UsePasswordPolicy
           const needsChange = data.must_change_password || false;
           setMustChangePassword(needsChange);
           setShowPasswordDialog(needsChange);
-          console.debug('[usePasswordPolicy] Must change password:', needsChange);
         }
       } catch (error) {
         console.error('[usePasswordPolicy] Exception:', error);

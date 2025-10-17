@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { useAutoDarkMode } from "./hooks/useAutoDarkMode";
 import { useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Mobile from "./pages/Mobile";
@@ -68,13 +69,13 @@ const App = () => {
       if (storedTheme === "dark" && !hasDark) {
         html.classList.add("dark");
         html.classList.remove("light");
-        console.warn("Forced dark class on <html> (auto mode)");
+        logger.warn("Forced dark class on <html> (auto mode)");
       } else if (storedTheme === "light" && hasDark) {
         html.classList.remove("dark");
         html.classList.add("light");
-        console.warn("Forced light class on <html> (auto mode)");
+        logger.warn("Forced light class on <html> (auto mode)");
       }
-      console.info(`[Theme] auto ensure → app-theme=${storedTheme}, html=${html.className}`);
+      logger.info(`[Theme] auto ensure → app-theme=${storedTheme}, html=${html.className}`);
     };
 
     // run immediately and on interval

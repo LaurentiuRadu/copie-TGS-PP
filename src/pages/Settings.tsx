@@ -350,32 +350,34 @@ export default function Settings() {
                   </Button>
                 </div>
                 
-                {/* Developer Tools - Collapsible */}
-                <Collapsible open={devToolsOpen} onOpenChange={setDevToolsOpen}>
-                  <Card className="border-dashed">
-                    <CollapsibleTrigger className="w-full">
-                      <CardHeader className="cursor-pointer hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="flex items-center gap-2 text-sm">
-                            <Code className="h-4 w-4" />
-                            Developer Tools
-                          </CardTitle>
-                          <ChevronDown 
-                            className={`h-4 w-4 transition-transform ${devToolsOpen ? 'rotate-180' : ''}`}
-                          />
-                        </div>
-                        <CardDescription className="text-xs">
-                          Instrumente avansate de debugging
-                        </CardDescription>
-                      </CardHeader>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <CardContent className="pt-0">
-                        <TimeSegmentDebugPanel />
-                      </CardContent>
-                    </CollapsibleContent>
-                  </Card>
-                </Collapsible>
+                {/* Developer Tools - Only visible in development */}
+                {import.meta.env.DEV && (
+                  <Collapsible open={devToolsOpen} onOpenChange={setDevToolsOpen}>
+                    <Card className="border-dashed">
+                      <CollapsibleTrigger className="w-full">
+                        <CardHeader className="cursor-pointer hover:bg-accent/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-sm">
+                              <Code className="h-4 w-4" />
+                              Developer Tools
+                            </CardTitle>
+                            <ChevronDown 
+                              className={`h-4 w-4 transition-transform ${devToolsOpen ? 'rotate-180' : ''}`}
+                            />
+                          </div>
+                          <CardDescription className="text-xs">
+                            Instrumente avansate de debugging
+                          </CardDescription>
+                        </CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="pt-0">
+                          <TimeSegmentDebugPanel />
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -25,13 +25,6 @@ interface UseGDPRConsentResult {
  * @param userId - UUID of the current user
  * @param userRole - Current user role ('admin' | 'employee' | null)
  * @returns {UseGDPRConsentResult} GDPR consent state and controls
- * 
- * TODO Implementation:
- * 1. Skip check if userRole !== 'employee'
- * 2. Query user_consents table for all 4 required consent types
- * 3. Check that consent_given = true AND consent_withdrawn_date IS NULL
- * 4. If any consent is missing/withdrawn, set showConsentDialog = true
- * 5. Provide setShowConsentDialog to allow dialog to close itself
  */
 export function useGDPRConsent(
   userId: string | undefined,
@@ -60,7 +53,6 @@ export function useGDPRConsent(
           'data_processing'
         ];
 
-        // TODO: Query user_consents table
         const { data, error } = await supabase
           .from('user_consents')
           .select('consent_type, consent_given, consent_withdrawn_date')
@@ -79,8 +71,6 @@ export function useGDPRConsent(
           const missingConsents = validConsents.length < requiredConsents.length;
           setNeedsConsent(missingConsents);
           setShowConsentDialog(missingConsents);
-          
-          console.debug('[useGDPRConsent] Needs consent:', missingConsents);
         }
       } catch (error) {
         console.error('[useGDPRConsent] Exception:', error);

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 interface ActiveTimeEntry {
   id: string;
@@ -43,7 +44,7 @@ export const useActiveTimeEntry = (userId: string | undefined) => {
   useEffect(() => {
     if (!userId) return;
 
-    console.log('[useActiveTimeEntry] Setting up realtime subscription for user:', userId);
+    logger.info('[useActiveTimeEntry] Setting up realtime subscription for user:', userId);
 
     const channel = supabase
       .channel(`active-time-entry-${userId}`)
@@ -56,7 +57,7 @@ export const useActiveTimeEntry = (userId: string | undefined) => {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          console.log('[useActiveTimeEntry] Realtime update:', payload.eventType);
+          logger.info('[useActiveTimeEntry] Realtime update:', payload.eventType);
           // Refetch doar când se schimbă ceva relevant pentru active entry
           refetch();
         }
@@ -64,7 +65,7 @@ export const useActiveTimeEntry = (userId: string | undefined) => {
       .subscribe();
 
     return () => {
-      console.log('[useActiveTimeEntry] Cleaning up realtime subscription');
+      logger.info('[useActiveTimeEntry] Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [userId, refetch]);
@@ -73,7 +74,7 @@ export const useActiveTimeEntry = (userId: string | undefined) => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && userId) {
-        console.log('[useActiveTimeEntry] App became visible, refetching active entry...');
+        logger.info('[useActiveTimeEntry] App became visible, refetching active entry...');
         refetch();
       }
     };
