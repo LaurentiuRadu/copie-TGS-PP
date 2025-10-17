@@ -32,6 +32,7 @@ interface TimeEntry {
 export const useOptimizedTimeEntries = (selectedDate: Date) => {
   return useQuery({
     queryKey: QUERY_KEYS.timeEntries(selectedDate),
+    structuralSharing: true, // ✅ FIX 5: Păstrează referința dacă datele sunt identice
     queryFn: async () => {
       const startOfDayTime = startOfDay(selectedDate);
       const endOfDayTime = endOfDay(selectedDate);
@@ -74,6 +75,7 @@ export const useOptimizedTimeEntries = (selectedDate: Date) => {
 export const useOptimizedMyTimeEntries = (userId: string | undefined, selectedMonth: Date) => {
   return useQuery({
     queryKey: QUERY_KEYS.myTimeEntries(userId, selectedMonth),
+    structuralSharing: true, // ✅ FIX 5: Păstrează referința dacă datele sunt identice
     queryFn: async () => {
       if (!userId) {
         console.log('[useOptimizedMyTimeEntries] No userId provided');

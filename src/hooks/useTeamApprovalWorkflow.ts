@@ -74,6 +74,7 @@ export const useTeamApprovalWorkflow = (
   // 1. Fetch pending time entries pentru echipă și săptămână (exclude contractori + personal birou)
   const { data, isLoading } = useQuery<TeamApprovalData>({
     queryKey: ['team-pending-approvals', teamId, weekStartDate, selectedDayOfWeek],
+    structuralSharing: true, // ✅ FIX 5: Păstrează referința dacă datele sunt identice
     queryFn: async (): Promise<TeamApprovalData> => {
       if (!teamId || !weekStartDate) return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
 

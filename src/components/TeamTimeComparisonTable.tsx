@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -170,7 +170,8 @@ export const TeamTimeComparisonTable = ({
     return { avgClockIn, avgClockOut, avgHours };
   };
 
-  const teamAverage = calculateTeamAverage();
+  // ✅ FIX 5: Memoizare teamAverage pentru a evita recalcul la fiecare render
+  const teamAverage = React.useMemo(() => calculateTeamAverage(), [groupedByEmployee]);
 
   // Calculează diferența în minute
   const getTimeDifferenceMinutes = (time: string, avgTime: string | null): number => {
@@ -248,8 +249,8 @@ export const TeamTimeComparisonTable = ({
     return Math.round(discrepancyHours * 60); // Convert to minutes
   };
 
-  // Segment Badge Component
-  const SegmentBadge = ({ 
+  // ✅ FIX 5: Memoizare SegmentBadge pentru a evita re-render la hover/edit
+  const SegmentBadge = React.memo(({ 
     type, 
     hours, 
     icon,
@@ -281,7 +282,7 @@ export const TeamTimeComparisonTable = ({
         <span className="font-mono font-semibold">{hours.toFixed(1)}h</span>
       </Badge>
     );
-  };
+  });
 
   // Helper pentru a calcula total ore pe tip segment
   const getSegmentHours = (segments: Segment[], type: string): number => {

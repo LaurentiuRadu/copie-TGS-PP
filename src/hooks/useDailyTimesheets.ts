@@ -58,6 +58,7 @@ export const useDailyTimesheets = (date: Date) => {
       return data as DailyTimesheet[];
     },
     staleTime: STALE_TIME.ADMIN_DATA,
+    structuralSharing: true, // ✅ FIX 5: Păstrează referința dacă datele sunt identice
   });
 };
 
@@ -100,6 +101,7 @@ export const useMyDailyTimesheets = (userId: string | undefined, month: Date) =>
     },
     enabled: !!userId,
     staleTime: STALE_TIME.USER_TRACKING,
+    structuralSharing: true, // ✅ FIX 5: Păstrează referința dacă datele sunt identice
   });
 };
 
@@ -143,5 +145,6 @@ export const useWeeklyTimesheets = (weekStart: Date, userId?: string) => {
       return data as DailyTimesheet[];
     },
     staleTime: STALE_TIME.ADMIN_DATA,
+    structuralSharing: true, // ✅ FIX 5: Păstrează referința dacă datele sunt identice
   });
 };

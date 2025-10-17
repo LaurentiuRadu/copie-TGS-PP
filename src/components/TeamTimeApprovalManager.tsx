@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -146,20 +146,21 @@ export const TeamTimeApprovalManager = ({
 
   const isScheduleExpanded = (entryId: string) => expandedSchedules.has(entryId);
 
-  const handleApprove = (entryId: string) => {
+  // ✅ FIX 5: Memoizare callbacks cu useCallback
+  const handleApprove = useCallback((entryId: string) => {
     setActionEntryId(entryId);
     setActionDialogOpen(true);
-  };
+  }, []);
 
-  const handleEdit = (entry: TimeEntryForApproval) => {
+  const handleEdit = useCallback((entry: TimeEntryForApproval) => {
     setEditEntry(entry);
     setEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (entry: TimeEntryForApproval) => {
+  const handleDelete = useCallback((entry: TimeEntryForApproval) => {
     setDeleteEntry(entry);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
   const handleConfirmApproval = async () => {
     if (!actionEntryId) return;
@@ -270,8 +271,12 @@ export const TeamTimeApprovalManager = ({
   // ✅ Entries COMPLETE (exclude missing) pentru statistici corecte
   const actualValidEntries = validPendingEntries.filter(e => !e.isMissing && e.clock_out_time);
   
-  // ✅ displayedEntries = complete + incomplete + missing (pentru tabel)
-  const displayedEntries = [...actualValidEntries, ...incompleteEntries, ...missingEntries];
+  // ✅ FIX 5: Memoizare displayedEntries pentru stabilitate referință
+  const displayedEntries = useMemo(() => [
+    ...actualValidEntries,
+    ...incompleteEntries,
+    ...missingEntries,
+  ], [actualValidEntries, incompleteEntries, missingEntries]);
 
   // Calculăm data exactă a zilei pentru a prelua daily_timesheets
   const dayDate = useMemo(() => {
@@ -701,7 +706,8 @@ export const TeamTimeApprovalManager = ({
     },
   });
 
-  const handleTimeClick = (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => {
+  // ✅ FIX 5: Memoizare callbacks pentru stabilitate referință
+  const handleTimeClick = useCallback((userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => {
     // ✅ VALIDARE: Siguranță runtime (deși tipul garantează că e definit)
     if (!segmentId) {
       console.error('[handleTimeClick] Segment ID is undefined');
@@ -722,14 +728,13 @@ export const TeamTimeApprovalManager = ({
       field,
       value: timeOnly,
     });
-  };
+  }, [toast]);
 
-  const handleTimeChange = (newValue: string) => {
-    if (!editingSegment) return;
-    setEditingSegment({ ...editingSegment, value: newValue });
-  };
+  const handleTimeChange = useCallback((newValue: string) => {
+    setEditingSegment(prev => prev ? { ...prev, value: newValue } : null);
+  }, []);
 
-  const handleTimeSave = (employee: EmployeeDayData) => {
+  const handleTimeSave = useCallback((employee: EmployeeDayData) => {
     if (!editingSegment) return;
 
     const segment = employee.segments[editingSegment.segmentIndex];
@@ -756,11 +761,11 @@ export const TeamTimeApprovalManager = ({
       newTime: normalizedValue,
       currentSegment: segment,
     });
-  };
+  }, [editingSegment, toast, updateSegmentTimeMutation]);
 
-  const handleTimeCancel = () => {
+  const handleTimeCancel = useCallback(() => {
     setEditingSegment(null);
-  };
+  }, []);
 
   const handleSaveManagementSegmentHours = async (
     userId: string,
@@ -1220,7 +1225,8 @@ export const TeamTimeApprovalManager = ({
   });
 
   // Handler pentru click pe Clock In/Out
-  const handleClockTimeClick = (employee: EmployeeDayData, fieldName: 'Clock In' | 'Clock Out') => {
+  // ✅ FIX 5: Memoizare handleClockTimeClick
+  const handleClockTimeClick = useCallback((employee: EmployeeDayData, fieldName: 'Clock In' | 'Clock Out') => {
     // ✅ Verificare de securitate pentru management
     const isManagement = managementEntries.some(e => e.user_id === employee.userId);
     if (isManagement && !isAdmin) {
@@ -1264,7 +1270,7 @@ export const TeamTimeApprovalManager = ({
       currentValue,
       newValue: normalizedValue,
     });
-  };
+  }, [managementEntries, isAdmin, toast]);
 
   // ✅ Handler pentru editare coordonator/șef de echipă
   const handleEditManagementEntry = async (person: { id: string; full_name: string; username: string }) => {
@@ -1301,7 +1307,8 @@ export const TeamTimeApprovalManager = ({
     setEditDialogOpen(true);
   };
 
-  const handleSegmentHoursEdit = (userId: string, segmentType: string, newHours: number) => {
+  // ✅ FIX 5: Memoizare handleSegmentHoursEdit
+  const handleSegmentHoursEdit = useCallback((userId: string, segmentType: string, newHours: number) => {
     if (newHours < 0 || newHours > 24) {
       toast({
         title: '⚠️ Valoare invalidă',
@@ -1312,13 +1319,13 @@ export const TeamTimeApprovalManager = ({
     }
 
     editSegmentHoursMutation.mutate({ userId, segmentType, newHours });
-  };
+  }, [toast, editSegmentHoursMutation]);
 
-  // Handler pentru butonul "Adaugă Pontaj Manual"
-  const handleAddManualEntry = (employee: EmployeeDayData) => {
+  // ✅ FIX 5: Memoizare handleAddManualEntry
+  const handleAddManualEntry = useCallback((employee: EmployeeDayData) => {
     setAddingEmployee(employee);
     setAddMissingDialogOpen(true);
-  };
+  }, []);
 
   // Handler pentru confirm manual entry din dialog
   const handleConfirmManualEntry = (data: {
@@ -1335,8 +1342,8 @@ export const TeamTimeApprovalManager = ({
     });
   };
 
-  // ✅ FIX 2: Handler pentru uniformizare cu recalculare completă
-  const handleUniformize = async (avgClockIn: string, avgClockOut: string | null) => {
+  // ✅ FIX 5: Memoizare handleUniformize
+  const handleUniformize = useCallback(async (avgClockIn: string, avgClockOut: string | null) => {
     const isDriver = (segments: any[]) => segments.some((s: any) => s.type === 'hours_driving' || s.type === 'hours_equipment');
     const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
 
@@ -1431,7 +1438,7 @@ export const TeamTimeApprovalManager = ({
         variant: 'destructive',
       });
     }
-  };
+  }, [groupedByEmployee, toast, queryClient, selectedWeek, selectedDayOfWeek]);
 
   if (availableTeams.size === 0) {
     return (
@@ -2065,15 +2072,15 @@ export const TeamTimeApprovalManager = ({
               onEdit={handleEdit}
               onDelete={handleDelete}
               onApprove={handleApprove}
-              onUniformize={() => setUniformizeDialogOpen(true)}
+              onUniformize={useCallback(() => setUniformizeDialogOpen(true), [])}
               onTimeClick={handleTimeClick}
               editingSegment={editingSegment}
               onTimeChange={handleTimeChange}
               onTimeSave={handleTimeSave}
               onTimeCancel={handleTimeCancel}
               onSegmentHoursEdit={handleSegmentHoursEdit}
-              onClockInEdit={(emp) => handleClockTimeClick(emp, 'Clock In')}
-              onClockOutEdit={(emp) => handleClockTimeClick(emp, 'Clock Out')}
+              onClockInEdit={useCallback((emp: EmployeeDayData) => handleClockTimeClick(emp, 'Clock In'), [handleClockTimeClick])}
+              onClockOutEdit={useCallback((emp: EmployeeDayData) => handleClockTimeClick(emp, 'Clock Out'), [handleClockTimeClick])}
               onAddManualEntry={handleAddManualEntry}
               selectedWeek={selectedWeek}
               selectedDayOfWeek={selectedDayOfWeek}
