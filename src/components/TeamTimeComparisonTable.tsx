@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, CheckCircle2 } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2, Plus } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -681,110 +681,83 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Fragmentare - Badge display */}
+                  {/* Fragmentare - Badge display cu butoane + pentru tipuri noi */}
                   <TableCell>
                     <div className="flex flex-wrap gap-1.5 max-w-2xl">
-                      {getDisplayHours(employee, 'hours_regular') > 0 && (
-                        <SegmentBadge 
-                          type="hours_regular" 
-                          hours={getDisplayHours(employee, 'hours_regular')} 
-                          icon="⚙️"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_regular', value: getDisplayHours(employee, 'hours_regular').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_night') > 0 && (
-                        <SegmentBadge 
-                          type="hours_night" 
-                          hours={getDisplayHours(employee, 'hours_night')} 
-                          icon="🌙"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_night', value: getDisplayHours(employee, 'hours_night').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_saturday') > 0 && (
-                        <SegmentBadge 
-                          type="hours_saturday" 
-                          hours={getDisplayHours(employee, 'hours_saturday')} 
-                          icon="📅"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_saturday', value: getDisplayHours(employee, 'hours_saturday').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_sunday') > 0 && (
-                        <SegmentBadge 
-                          type="hours_sunday" 
-                          hours={getDisplayHours(employee, 'hours_sunday')} 
-                          icon="📅"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_sunday', value: getDisplayHours(employee, 'hours_sunday').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_holiday') > 0 && (
-                        <SegmentBadge 
-                          type="hours_holiday" 
-                          hours={getDisplayHours(employee, 'hours_holiday')} 
-                          icon="🎉"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_holiday', value: getDisplayHours(employee, 'hours_holiday').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_passenger') > 0 && (
-                        <SegmentBadge 
-                          type="hours_passenger" 
-                          hours={getDisplayHours(employee, 'hours_passenger')} 
-                          icon="👥"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_driving') > 0 && (
-                        <SegmentBadge 
-                          type="hours_driving" 
-                          hours={getDisplayHours(employee, 'hours_driving')} 
-                          icon="🚗"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) })}
-                        />
-                      )}
-                      {getDisplayHours(employee, 'hours_equipment') > 0 && (
-                        <SegmentBadge 
-                          type="hours_equipment" 
-                          hours={getDisplayHours(employee, 'hours_equipment')} 
-                          icon="🚜"
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) })}
-                        />
-                      )}
-                      
-                      {/* Inline editing dialog */}
-                      {editingHours && editingHours.userId === employee.userId && (
-                        <div className="flex items-center gap-1 ml-2 p-2 bg-muted rounded-md border">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="24"
-                            value={editingHours.value}
-                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, editingHours.segmentType, parseFloat(editingHours.value));
-                              if (e.key === 'Escape') setEditingHours(null);
-                            }}
-                            className="h-7 w-16 text-xs"
-                            autoFocus
-                            onFocus={(e) => e.target.select()}
-                          />
+                      {/* Afișăm TOATE tipurile de segmente */}
+                      {['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'].map((segmentType) => {
+                        const hours = getDisplayHours(employee, segmentType);
+                        const icon = getSegmentIcon(segmentType);
+                        const label = getSegmentLabel(segmentType);
+                        
+                        // Dacă este în editare pentru acest segment
+                        if (editingHours && editingHours.userId === employee.userId && editingHours.segmentType === segmentType) {
+                          return (
+                            <div key={segmentType} className="flex items-center gap-1 p-2 bg-muted rounded-md border">
+                              <span className="text-sm">{icon}</span>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="24"
+                                value={editingHours.value}
+                                onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, editingHours.segmentType, parseFloat(editingHours.value));
+                                  if (e.key === 'Escape') setEditingHours(null);
+                                }}
+                                className="h-7 w-16 text-xs"
+                                autoFocus
+                                onFocus={(e) => e.target.select()}
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => handleSaveSegmentHours(employee.userId, editingHours.segmentType, parseFloat(editingHours.value))}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingHours(null)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          );
+                        }
+                        
+                        // Dacă are ore > 0, arată badge clickable
+                        if (hours > 0) {
+                          return (
+                            <SegmentBadge 
+                              key={segmentType}
+                              type={segmentType} 
+                              hours={hours} 
+                              icon={icon}
+                              onClick={() => setEditingHours({ userId: employee.userId, segmentType: segmentType, value: hours.toFixed(1) })}
+                            />
+                          );
+                        }
+                        
+                        // Dacă are ore === 0, arată buton "+"
+                        return (
                           <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => handleSaveSegmentHours(employee.userId, editingHours.segmentType, parseFloat(editingHours.value))}
+                            key={segmentType}
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1 opacity-60 hover:opacity-100 transition-opacity"
+                            onClick={() => setEditingHours({ userId: employee.userId, segmentType: segmentType, value: '0.0' })}
                           >
-                            <Check className="h-3 w-3" />
+                            <Plus className="h-3 w-3" />
+                            <span className="text-sm">{icon}</span>
+                            <span>{label}</span>
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => setEditingHours(null)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
                   </TableCell>
 
