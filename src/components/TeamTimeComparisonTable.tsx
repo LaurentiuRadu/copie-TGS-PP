@@ -29,32 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { QUERY_KEYS } from '@/lib/queryKeys';
-
-interface Segment {
-  id: string;
-  type: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
-}
-
-interface EmployeeDayData {
-  userId: string;
-  fullName: string;
-  username: string;
-  totalHours: number;
-  firstClockIn: string;
-  lastClockOut: string | null;
-  segments: Segment[];
-  entries: any[];
-  allApproved: boolean;
-  isMissing?: boolean;
-  scheduled_shift?: string;
-  scheduled_location?: string;
-  scheduled_activity?: string;
-  overrideHours?: Record<string, number>;
-  manualOverride?: boolean;
-}
+import { EmployeeDayData, Segment } from '@/types/timeApproval';
 
 interface TeamTimeComparisonTableProps {
   groupedByEmployee: EmployeeDayData[];

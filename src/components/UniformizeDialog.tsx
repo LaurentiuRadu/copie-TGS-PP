@@ -10,26 +10,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { formatRomania } from '@/lib/timezone';
-
-interface Segment {
-  id: string;
-  type: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
-}
-
-interface EmployeeDayData {
-  userId: string;
-  fullName: string;
-  username: string;
-  totalHours: number;
-  firstClockIn: string;
-  lastClockOut: string | null;
-  segments: Segment[];
-  entries: any[];
-  allApproved: boolean;
-}
+import { EmployeeDayData, Segment } from '@/types/timeApproval';
 
 interface UniformizeDialogProps {
   open: boolean;

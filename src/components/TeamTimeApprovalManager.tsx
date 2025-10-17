@@ -46,6 +46,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { EmployeeDayData, Segment, ManagementUser } from '@/types/timeApproval';
 
 interface TeamTimeApprovalManagerProps {
   selectedWeek: string;
@@ -403,42 +404,6 @@ export const TeamTimeApprovalManager = ({
   }, [managementEntries, overrideByUser]);
 
   // ✅ GRUPARE PE ANGAJAT: combinăm toate pontajele unui user într-o singură structură
-  interface EmployeeDayData {
-    userId: string;
-    fullName: string;
-    username: string;
-    totalHours: number;
-    firstClockIn: string;
-    lastClockOut: string | null;
-    segments: Array<{
-      id: string;
-      type: string;
-      startTime: string;
-      endTime: string;
-      duration: number;
-    }>;
-    entries: TimeEntryForApproval[];
-    allApproved: boolean;
-    overrideHours?: {
-      hours_regular: number;
-      hours_driving: number;
-      hours_passenger: number;
-      hours_equipment: number;
-      hours_night: number;
-      hours_saturday: number;
-      hours_sunday: number;
-      hours_holiday: number;
-    };
-    manualOverride?: boolean;
-    isMissing?: boolean;
-    scheduled_shift?: string;
-    scheduled_location?: string;
-    scheduled_activity?: string;
-    scheduled_vehicle?: string;
-    teamId?: string | null; // ✅ Adăugat pentru missing entries
-    dayOfWeek?: number; // ✅ Adăugat pentru missing entries
-  }
-
   const groupedByEmployee = useMemo(() => {
     const grouped = new Map<string, EmployeeDayData>();
     

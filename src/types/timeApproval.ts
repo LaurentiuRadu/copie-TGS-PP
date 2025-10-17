@@ -28,15 +28,17 @@ export interface EmployeeDayData {
   firstClockIn: string;
   lastClockOut: string | null;
   segments: Segment[];
-  entries: TimeEntry[];
+  entries: any[];
   allApproved: boolean;
   isMissing?: boolean;
   manualOverride?: boolean;
-  overrideHours?: number;
+  overrideHours?: Record<string, number>;
   teamId?: string;
   dayOfWeek?: number;
   scheduled_shift?: string;
   scheduled_location?: string;
+  scheduled_activity?: string;
+  scheduled_vehicle?: string;
 }
 
 export interface ManagementUser {
@@ -49,7 +51,7 @@ export interface ManagementUser {
   approvalStatus: 'pending_review' | 'approved';
   isMissing: boolean;
   manualOverride?: boolean;
-  overrideHours?: number;
+  overrideHours?: Record<string, number>;
   segmentsByType: Record<string, number>;
 }
 
