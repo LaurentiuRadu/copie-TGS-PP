@@ -252,8 +252,8 @@ export const TeamTimeApprovalManager = ({
   // ✅ Entries COMPLETE (exclude missing) pentru statistici corecte
   const actualValidEntries = validPendingEntries.filter(e => !e.isMissing && e.clock_out_time);
   
-  // ✅ displayedEntries = complete + missing (pentru tabel)
-  const displayedEntries = [...actualValidEntries, ...missingEntries];
+  // ✅ displayedEntries = complete + incomplete + missing (pentru tabel)
+  const displayedEntries = [...actualValidEntries, ...incompleteEntries, ...missingEntries];
 
   // Calculăm data exactă a zilei pentru a prelua daily_timesheets
   const dayDate = useMemo(() => {
