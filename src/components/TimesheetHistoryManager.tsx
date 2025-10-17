@@ -227,6 +227,7 @@ export function TimesheetHistoryManager() {
           clock_out_time: clockOutDate.toISOString(),
           approval_notes: `[RE-EDITAT] ${reason}`,
           approved_at: new Date().toISOString(),
+          needs_reprocessing: false, // ✅ Auto-clear din "Pontaje Suspicioase"
         })
         .eq('id', entryId);
 

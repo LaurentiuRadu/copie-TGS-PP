@@ -88,7 +88,7 @@ export function TimeEntryManualCorrectionDialog({
         .update({
           clock_in_time: new Date(clockIn).toISOString(),
           clock_out_time: new Date(clockOut).toISOString(),
-          needs_reprocessing: true, // Mark for reprocessing
+          needs_reprocessing: false, // ✅ Clear after correction
           updated_at: new Date().toISOString(),
         })
         .eq('id', entry.id);

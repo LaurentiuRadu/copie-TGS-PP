@@ -406,6 +406,7 @@ export const useTeamApprovalWorkflow = (
           approval_status: 'approved',
           approved_at: new Date().toISOString(),
           approval_notes: notes,
+          needs_reprocessing: false, // ✅ Auto-clear din "Pontaje Suspicioase"
         })
         .eq('id', entryId);
 
@@ -424,6 +425,7 @@ export const useTeamApprovalWorkflow = (
       queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['suspicious-entries'] }); // ✅ Auto-refresh în "Pontaje Suspicioase"
       toast({
         title: 'Pontaj aprobat',
         description: 'Pontajul a fost aprobat cu succes',
@@ -477,6 +479,7 @@ export const useTeamApprovalWorkflow = (
           approval_status: 'approved',
           approved_at: new Date().toISOString(),
           approval_notes: 'Aprobare în lot',
+          needs_reprocessing: false, // ✅ Auto-clear din "Pontaje Suspicioase"
         })
         .in('id', entryIds);
 
@@ -520,6 +523,7 @@ export const useTeamApprovalWorkflow = (
       await queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
       await queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       await queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      await queryClient.invalidateQueries({ queryKey: ['suspicious-entries'] }); // ✅ Auto-refresh în "Pontaje Suspicioase"
       
       // ✅ Force refetch immediate pentru refresh vizual
       await queryClient.refetchQueries({ 
