@@ -231,6 +231,17 @@ export const TeamTimeComparisonTable = ({
     }
   };
 
+  // Calculează diferența dintre Clock In/Out și Total Ore alocate (în minute)
+  const getHoursDiscrepancyMinutes = (employee: EmployeeDayData): number | null => {
+    if (!employee.firstClockIn || !employee.lastClockOut) return null;
+    
+    const rawDurationMs = new Date(employee.lastClockOut).getTime() - new Date(employee.firstClockIn).getTime();
+    const rawDurationHours = rawDurationMs / (1000 * 60 * 60);
+    const discrepancyHours = Math.abs(rawDurationHours - employee.totalHours);
+    
+    return Math.round(discrepancyHours * 60); // Convert to minutes
+  };
+
   // Segment Badge Component
   const SegmentBadge = ({ 
     type, 
@@ -820,26 +831,53 @@ export const TeamTimeComparisonTable = ({
                     <div className="flex items-center gap-1 justify-center">
                       <span>{employee.totalHours.toFixed(1)}h</span>
                       
-                      {employee.manualOverride && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-xs px-1 bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700">
-                                ⚠️
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <div className="text-xs space-y-1">
-                                <div className="font-semibold">Segmentare Manuală</div>
-                                <div className="text-muted-foreground">
-                                  Orele au fost ajustate manual.<br/>
-                                  Pentru re-calcul automat, editează Clock In/Out direct în tabel.
-                                </div>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+                      {(() => {
+                        const discrepancyMin = getHoursDiscrepancyMinutes(employee);
+                        
+                        // ✅ Ascunde badge dacă diferența ≤ 20 min
+                        if (discrepancyMin !== null && discrepancyMin <= 20) {
+                          return null;
+                        }
+                        
+                        // ✅ Afișează badge doar dacă > 20 min SAU nu există Clock In/Out
+                        if (employee.manualOverride) {
+                          const rawDurationMs = employee.lastClockOut && employee.firstClockIn
+                            ? new Date(employee.lastClockOut).getTime() - new Date(employee.firstClockIn).getTime()
+                            : 0;
+                          const rawDurationHours = rawDurationMs / (1000 * 60 * 60);
+                          
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="text-xs px-1 bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700">
+                                    ⚠️
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-semibold">Segmentare Manuală</div>
+                                    <div className="text-muted-foreground">
+                                      Orele au fost ajustate manual.<br/>
+                                      {discrepancyMin !== null && (
+                                        <>
+                                          Diferență: {discrepancyMin} min (toleranță: ±20 min)<br/>
+                                          <span className="text-xs opacity-75">
+                                            Clock brut: {rawDurationHours.toFixed(2)}h | Alocat: {employee.totalHours.toFixed(1)}h
+                                          </span><br/>
+                                        </>
+                                      )}
+                                      Pentru re-calcul automat, editează Clock In/Out direct în tabel.
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
                     </div>
                   </TableCell>
 

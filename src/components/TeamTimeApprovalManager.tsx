@@ -218,7 +218,7 @@ export const TeamTimeApprovalManager = ({
   
   // ✅ Separăm incomplete (au clock_in, lipsă clock_out) și missing (nu s-au pontajat deloc)
   const incompleteEntries = pendingEntries.filter(e => 
-    e.clock_in_time && !e.clock_out_time && !e.isMissing
+    e.clock_in_time && !e.clock_out_time && !e.isMissing && e.approval_status !== 'approved'
   );
   const missingEntries = pendingEntries.filter(e => e.isMissing);
   
