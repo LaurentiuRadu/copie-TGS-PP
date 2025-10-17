@@ -436,31 +436,36 @@ export default function TimesheetVerificare() {
                       </SelectTrigger>
                       <SelectContent>
                         {(() => {
-                          const today = new Date();
-                          const currentDayOfWeek = today.getDay() || 7; // 1=Luni, 7=Duminică
+                          const weekStart = new Date(selectedWeek);
+                          
+                          const formatDayLabel = (dayOfWeek: number, dayName: string) => {
+                            const dayDate = addDays(weekStart, dayOfWeek - 1);
+                            const formattedDate = format(dayDate, 'dd.MM');
+                            return `${formattedDate} ${dayName}`;
+                          };
                           
                           return (
                             <>
                               <SelectItem value="1" disabled={false}>
-                                📅 Luni
+                                {formatDayLabel(1, 'Luni')}
                               </SelectItem>
                               <SelectItem value="2" disabled={false}>
-                                📅 Marți
+                                {formatDayLabel(2, 'Marți')}
                               </SelectItem>
                               <SelectItem value="3" disabled={false}>
-                                📅 Miercuri
+                                {formatDayLabel(3, 'Miercuri')}
                               </SelectItem>
                               <SelectItem value="4" disabled={false}>
-                                📅 Joi
+                                {formatDayLabel(4, 'Joi')}
                               </SelectItem>
                               <SelectItem value="5" disabled={false}>
-                                📅 Vineri
+                                {formatDayLabel(5, 'Vineri')}
                               </SelectItem>
                               <SelectItem value="6" disabled={false}>
-                                📅 Sâmbătă
+                                {formatDayLabel(6, 'Sâmbătă')}
                               </SelectItem>
                               <SelectItem value="7" disabled={false}>
-                                📅 Duminică
+                                {formatDayLabel(7, 'Duminică')}
                               </SelectItem>
                             </>
                           );
