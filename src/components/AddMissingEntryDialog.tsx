@@ -38,7 +38,7 @@ export function AddMissingEntryDialog({
 }: AddMissingEntryDialogProps) {
   const [clockIn, setClockIn] = useState('');
   const [clockOut, setClockOut] = useState('');
-  const [shiftType, setShiftType] = useState(employee.scheduledShift || 'zi');
+  const [shiftType, setShiftType] = useState(employee.scheduledShift || 'normal'); // ✅ FIX: Default value corect
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -84,19 +84,27 @@ export function AddMissingEntryDialog({
   const handleSubmit = () => {
     if (!validate()) return;
 
+    // ✅ FIX 1: Asigură-te că workDate este Date valid
+    const baseDate = workDate instanceof Date ? workDate : new Date(workDate);
+    
     // Construiește timestamp-uri complete
-    const clockInDateTime = new Date(workDate);
+    const clockInDateTime = new Date(baseDate);
     const [inH, inM] = clockIn.split(':').map(Number);
     clockInDateTime.setHours(inH, inM, 0, 0);
 
-    const clockOutDateTime = new Date(workDate);
+    const clockOutDateTime = new Date(baseDate);
     const [outH, outM] = clockOut.split(':').map(Number);
     clockOutDateTime.setHours(outH, outM, 0, 0);
+
+    // Dacă clockOut e înainte de clockIn (ex: 08:00 -> 02:00 a doua zi), adaugă 1 zi
+    if (clockOutDateTime <= clockInDateTime) {
+      clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+    }
 
     onConfirm({
       clockIn: clockInDateTime.toISOString(),
       clockOut: clockOutDateTime.toISOString(),
-      shiftType,
+      shiftType, // ✅ Deja corect datorită fix-ului din Select
       notes: notes || 'Adăugat manual - uitat să se ponteze',
     });
 
@@ -157,17 +165,17 @@ export function AddMissingEntryDialog({
           {/* Shift Type */}
           <div>
             <Label>Tip Tură</Label>
-            <Select value={shiftType} onValueChange={setShiftType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="zi">☀️ Zi (Normal)</SelectItem>
-                <SelectItem value="noapte">🌙 Noapte</SelectItem>
-                <SelectItem value="pasager">👥 Pasager</SelectItem>
-                <SelectItem value="sofer">🚗 Șofer</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={shiftType} onValueChange={setShiftType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">☀️ Zi (Normal)</SelectItem>
+                  <SelectItem value="night">🌙 Noapte</SelectItem>
+                  <SelectItem value="passenger">👥 Pasager</SelectItem>
+                  <SelectItem value="driver">🚗 Șofer</SelectItem>
+                </SelectContent>
+              </Select>
           </div>
 
           {/* Notes */}

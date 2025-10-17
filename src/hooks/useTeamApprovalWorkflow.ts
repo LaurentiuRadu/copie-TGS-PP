@@ -331,11 +331,15 @@ export const useTeamApprovalWorkflow = (
     if (clockIns.length > 0) {
       const avgMinutes = Math.round(clockIns.reduce((a, b) => a + b, 0) / clockIns.length);
       teamStats.avgClockIn = `${Math.floor(avgMinutes / 60).toString().padStart(2, '0')}:${(avgMinutes % 60).toString().padStart(2, '0')}`;
+    } else {
+      teamStats.avgClockIn = '--:--'; // ✅ FIX: Fallback pentru NaN
     }
 
     if (clockOuts.length > 0) {
       const avgMinutes = Math.round(clockOuts.reduce((a, b) => a + b, 0) / clockOuts.length);
       teamStats.avgClockOut = `${Math.floor(avgMinutes / 60).toString().padStart(2, '0')}:${(avgMinutes % 60).toString().padStart(2, '0')}`;
+    } else {
+      teamStats.avgClockOut = '--:--'; // ✅ FIX: Fallback pentru NaN
     }
   }
 

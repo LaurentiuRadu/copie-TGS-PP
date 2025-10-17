@@ -742,7 +742,19 @@ export const TeamTimeComparisonTable = ({
                         </TooltipProvider>
                       )
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="destructive" className="gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Lipsă Clock-Out
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            ⚠️ Clock-Out lipsește - folosește editare manuală
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </TableCell>
 

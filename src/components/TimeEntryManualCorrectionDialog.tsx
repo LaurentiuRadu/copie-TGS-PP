@@ -43,15 +43,27 @@ export function TimeEntryManualCorrectionDialog({
     format(new Date(entry.clock_in_time), "yyyy-MM-dd'T'HH:mm")
   );
   const [clockOut, setClockOut] = useState(
-    format(new Date(entry.clock_out_time), "yyyy-MM-dd'T'HH:mm")
+    entry.clock_out_time 
+      ? format(new Date(entry.clock_out_time), "yyyy-MM-dd'T'HH:mm")
+      : '' // ✅ FIX: Dacă NULL, setează string gol pentru input manual
   );
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const validateDuration = () => {
+    if (!clockOut) {
+      return 'Clock-out este obligatoriu';
+    }
+    
     const start = new Date(clockIn);
     const end = new Date(clockOut);
+    
+    // ✅ Validare Date invalid
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return 'Format date invalid';
+    }
+
     const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
     if (durationHours <= 0) {
