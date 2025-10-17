@@ -23,6 +23,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { QUERY_KEYS } from '@/lib/queryKeys';
 
 interface Segment {
   id: string;
@@ -289,7 +290,7 @@ export const TeamTimeComparisonTable = ({
 
       // ✅ OPTIMISTIC UPDATE: actualizăm cache-ul ÎNAINTE de refetch
       queryClient.setQueryData(
-        ['dailyTimesheets', workDate],
+        QUERY_KEYS.dailyTimesheets(new Date(workDate)),
         (oldData: any[] | undefined) => {
           if (!oldData) return oldData;
           
@@ -312,8 +313,8 @@ export const TeamTimeComparisonTable = ({
       );
 
       // APOI force refetch pentru validare
-      await queryClient.refetchQueries({ queryKey: ['dailyTimesheets'], type: 'active' });
-      await queryClient.refetchQueries({ queryKey: ['team-pending-approvals'], type: 'active' });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
 
       toast({
         title: '✅ Override salvat',

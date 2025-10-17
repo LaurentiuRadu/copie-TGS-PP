@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { QUERY_KEYS } from '@/lib/queryKeys';
+import { useRealtimeTimeEntries } from '@/hooks/useRealtimeTimeEntries';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +49,9 @@ export default function TimesheetVerificare() {
   const [editedTeams, setEditedTeams] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Realtime updates for time_entries and daily_timesheets
+  useRealtimeTimeEntries(true);
 
   // 🆕 localStorage key pentru tracking echipe verificate
   const getVerificationStorageKey = () => `team-verification-${selectedWeek}-${selectedDayOfWeek}`;
@@ -276,9 +281,9 @@ export default function TimesheetVerificare() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       
       toast({
         title: '✅ Dubluri eliminate',

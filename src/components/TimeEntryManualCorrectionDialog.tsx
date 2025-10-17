@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
+import { QUERY_KEYS } from '@/lib/queryKeys';
 
 interface TimeEntryManualCorrectionDialogProps {
   entry: {
@@ -98,8 +99,8 @@ export function TimeEntryManualCorrectionDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suspicious-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       
       toast({
         title: "✅ Pontaj corectat",

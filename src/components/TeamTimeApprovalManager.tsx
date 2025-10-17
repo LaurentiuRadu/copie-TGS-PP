@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Check, AlertCircle, Calendar, MapPin, Activity, Car, FileText, Moon, Sun, Pencil, ChevronDown, ChevronUp, Info, CheckCircle2, RefreshCw, Trash2, RotateCcw, Table as TableIcon, List, X, Plus } from 'lucide-react';
 import { useTeamApprovalWorkflow, type TimeEntryForApproval } from '@/hooks/useTeamApprovalWorkflow';
 import { format } from 'date-fns';
+import { QUERY_KEYS } from '@/lib/queryKeys';
 import { ro } from 'date-fns/locale';
 import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -529,7 +530,7 @@ export const TeamTimeApprovalManager = ({
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
       toast({
         title: '✅ Recalculare finalizată',
         description: `${data.success}/${data.total} pontaje procesate cu succes`,
@@ -614,8 +615,8 @@ export const TeamTimeApprovalManager = ({
       });
       
       // Invalidează cache-ul pentru a reîncărca datele
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       
       // Resetează editing state
       setEditingSegment(null);
@@ -795,7 +796,7 @@ export const TeamTimeApprovalManager = ({
       
       // ✅ FIX 1: Optimistic update în cache ÎNAINTE de invalidate
       queryClient.setQueryData(
-        ['dailyTimesheets', dayDate],
+        QUERY_KEYS.dailyTimesheets(dayDate),
         (oldData: DailyTimesheet[] | undefined) => {
           if (!oldData) return oldData;
           
@@ -820,9 +821,9 @@ export const TeamTimeApprovalManager = ({
       );
       
       // Invalidate queries pentru refresh - FIX pentru actualiz date în UI
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals', selectedTeam, selectedWeek, selectedDayOfWeek] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets', dayDate] });
-      queryClient.invalidateQueries({ queryKey: ['myDailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(dayDate) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.myDailyTimesheets() });
       
       toast({
         title: `✅ Ore actualizate`,
@@ -926,13 +927,11 @@ export const TeamTimeApprovalManager = ({
     },
     onSuccess: async (data) => {
       // ✅ FIX 2: Force refetch IMEDIAT (nu doar invalidate)
-      await queryClient.refetchQueries({ 
-        queryKey: ['team-pending-approvals'],
-        type: 'active' 
+      await queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.teamPendingApprovals(),
       });
-      await queryClient.refetchQueries({ 
-        queryKey: ['dailyTimesheets'],
-        type: 'active' 
+      await queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.dailyTimesheets(),
       });
       
       toast({
@@ -1059,9 +1058,9 @@ export const TeamTimeApprovalManager = ({
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
       queryClient.invalidateQueries({ queryKey: ['time-entry-segments'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       
       toast({
         title: '✅ Modificare aplicată',
@@ -1216,8 +1215,8 @@ export const TeamTimeApprovalManager = ({
       }
 
       // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       queryClient.invalidateQueries({ queryKey: ['time-entry-segments'] });
 
       toast({
