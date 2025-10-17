@@ -16,7 +16,8 @@ export interface TimeEntryForApproval {
   approved_at?: string;
   approved_by?: string;
   pontajNumber?: number;
-  isMissing?: boolean; // ← NOU: flag pentru angajați lipsă
+  isMissing?: boolean; // ← Flag pentru angajați lipsă
+  isManagement?: boolean; // ← ✅ NOU: Flag pentru coordonatori/team leaders
   profiles: {
     id: string;
     full_name: string;
@@ -196,6 +197,11 @@ export const useTeamApprovalWorkflow = (
         const schedule = schedules?.find(s => s.user_id === userId);
         const profile = profilesData?.find(p => p.id === userId);
         
+        // ✅ Verificăm dacă user-ul este coordinator sau team leader
+        const isCoordinator = coordinatorIds.includes(userId);
+        const isTeamLeader = teamLeaderIds.includes(userId);
+        const isManagement = isCoordinator || isTeamLeader;
+        
         return {
           id: `virtual-${userId}-${selectedDayOfWeek}`,
           user_id: userId,
@@ -203,6 +209,7 @@ export const useTeamApprovalWorkflow = (
           clock_out_time: null,
           approval_status: 'missing',
           isMissing: true,
+          isManagement, // ✅ FIX: setăm corect flag-ul pentru management
           profiles: profile || { id: userId, full_name: 'Unknown', username: 'unknown' },
           scheduled_shift: schedule?.shift_type,
           scheduled_location: schedule?.location,

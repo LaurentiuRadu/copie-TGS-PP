@@ -196,7 +196,12 @@ export const TeamTimeApprovalManager = ({
 
   // Filtrare pontaje invalide (< 10 min durata) ȘI exclude coordonatori și team leaders din tabelul principal
   const validPendingEntries = pendingEntries.filter(entry => {
-    // ✅ Permitem entries "missing" să treacă
+    // ✅ Exclude virtual entries management (vor apărea în caseta specială)
+    if (entry.isMissing && entry.isManagement) {
+      return false;
+    }
+    
+    // ✅ Permitem entries "missing" normale (non-management) să treacă
     if (entry.isMissing) return true;
     
     // ✅ Permitem pontajele incomplete (fără clock_out) pentru aprobare/editare
@@ -217,10 +222,16 @@ export const TeamTimeApprovalManager = ({
     return duration >= 0.17 && !isManagement;
   });
 
-  // ✅ PONTAJE MANAGEMENT: Includem și pontaje incomplete (fără clock_out)
-  // Problema: Coordonatorii/supervizori pot avea pontaje incomplete → trebuie afișați în caseta dedicată
+  // ✅ PONTAJE MANAGEMENT: Includem pontaje reale, incomplete ȘI virtual entries management
   const managementEntries = pendingEntries.filter(entry => {
-    if (!entry.clock_in_time) return false; // Exclude doar pontaje fără clock_in deloc
+    // ✅ Pentru virtual entries, verificăm flag-ul isManagement
+    if (entry.isMissing) {
+      return entry.isManagement === true;
+    }
+    
+    // Exclude doar pontaje fără clock_in deloc (pentru entries reale)
+    if (!entry.clock_in_time) return false;
+    
     const isManagement = entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id;
     
     // ✅ Dacă este pontaj incomplet (fără clock_out), îl includem în management
@@ -290,12 +301,13 @@ export const TeamTimeApprovalManager = ({
       fullName: string;
       username: string;
       aggregated: Record<SegmentType, number>;
-      firstClockIn: string;
-      lastClockOut: string | null; // ✅ Permite null pentru pontaje incomplete
+      firstClockIn: string | null; // ✅ Permite null pentru virtual entries
+      lastClockOut: string | null;
       totalHours: number;
       manualOverride?: boolean;
       overrideHours?: Record<SegmentType, number>;
       approvalStatus: 'pending_review' | 'approved';
+      isMissing?: boolean; // ✅ Flag pentru virtual entries
     }>();
 
     for (const entry of managementEntries) {
@@ -310,18 +322,23 @@ export const TeamTimeApprovalManager = ({
             hours_passenger: 0, hours_driving: 0, hours_equipment: 0
           },
           firstClockIn: entry.clock_in_time,
-          lastClockOut: entry.clock_out_time || null, // ✅ Permite null pentru incomplete
+          lastClockOut: entry.clock_out_time || null,
           totalHours: 0,
           approvalStatus: entry.approval_status as 'pending_review' | 'approved',
+          isMissing: entry.isMissing || false, // ✅ Flag pentru virtual entries
         });
       }
       const user = byUser.get(uid)!;
 
-      // Update first/last timestamps
-      if (entry.clock_in_time < user.firstClockIn) user.firstClockIn = entry.clock_in_time;
-      // ✅ Update: permite lastClockOut null
-      if (entry.clock_out_time && (!user.lastClockOut || entry.clock_out_time > user.lastClockOut)) {
-        user.lastClockOut = entry.clock_out_time;
+      // ✅ Skip timestamp updates pentru virtual entries (sunt null)
+      if (!entry.isMissing) {
+        // Update first/last timestamps
+        if (entry.clock_in_time && (!user.firstClockIn || entry.clock_in_time < user.firstClockIn)) {
+          user.firstClockIn = entry.clock_in_time;
+        }
+        if (entry.clock_out_time && (!user.lastClockOut || entry.clock_out_time > user.lastClockOut)) {
+          user.lastClockOut = entry.clock_out_time;
+        }
       }
 
       // Agregăm segmentele din intrări
@@ -407,6 +424,8 @@ export const TeamTimeApprovalManager = ({
     scheduled_location?: string;
     scheduled_activity?: string;
     scheduled_vehicle?: string;
+    teamId?: string | null; // ✅ Adăugat pentru missing entries
+    dayOfWeek?: number; // ✅ Adăugat pentru missing entries
   }
 
   const groupedByEmployee = useMemo(() => {
@@ -1670,7 +1689,13 @@ export const TeamTimeApprovalManager = ({
                         return (
                           <div 
                             key={user.userId} 
-                            className={`p-4 rounded-lg border ${isApproved ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-muted/30'}`}
+                            className={`p-4 rounded-lg border ${
+                              user.isMissing 
+                                ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800' 
+                                : isApproved 
+                                  ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' 
+                                  : 'bg-muted/30'
+                            }`}
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="space-y-2 flex-1">
@@ -1695,6 +1720,44 @@ export const TeamTimeApprovalManager = ({
                                   )}
                                 </div>
                                 
+                                {/* ✅ Condiție pentru virtual entries (CHITICARU lipsă) */}
+                                {user.isMissing ? (
+                                  <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <AlertCircle className="h-5 w-5 text-red-500" />
+                                      <p className="text-red-600 dark:text-red-400 font-medium">
+                                        Lipsă complet - nu s-a pontajat
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="mt-2"
+                                      onClick={() => {
+                                        const employeeData: EmployeeDayData = {
+                                          userId: user.userId,
+                                          fullName: user.fullName,
+                                          username: user.username,
+                                          totalHours: 0,
+                                          firstClockIn: '',
+                                          lastClockOut: null,
+                                          segments: [],
+                                          entries: [],
+                                          allApproved: false,
+                                          teamId: selectedTeam,
+                                          dayOfWeek: selectedDayOfWeek,
+                                        };
+                                        setAddingEmployee(employeeData);
+                                        setAddMissingDialogOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4 mr-1" />
+                                      Adaugă Pontaj Manual
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  /* ✅ Afișare normală pentru pontaje reale (ALEXANDRESCU, JIMBU cu pontaj) */
+                                  <>
                                 <div className="grid grid-cols-3 gap-4 text-sm">
                                   {/* Clock In - editabil cu buton */}
                                   <div>
@@ -1909,10 +1972,13 @@ export const TeamTimeApprovalManager = ({
               );
             })}
           </div>
+                              </>
+                                )}
+                                
                               </div>
 
                               <div className="flex gap-2">
-                                {!isApproved && (
+                                {!isApproved && !user.isMissing && (
                                   <Button
                                     onClick={() => {
                                       // Găsim prima intrare pending a utilizatorului
