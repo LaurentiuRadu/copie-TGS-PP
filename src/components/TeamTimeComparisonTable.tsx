@@ -89,6 +89,50 @@ interface TeamTimeComparisonTableProps {
   selectedDayOfWeek: number; // ✅ ADĂUGAT
 }
 
+// ✅ SegmentBadge component moved to top-level to fix Hook rules violation
+const SegmentBadge = React.memo(({ 
+  type, 
+  hours, 
+  icon,
+  onClick 
+}: { 
+  type: string; 
+  hours: number; 
+  icon: React.ReactNode;
+  onClick?: () => void;
+}) => {
+  const colors: Record<string, string> = {
+    hours_regular: 'bg-slate-900 dark:bg-slate-700 text-white border-slate-700 dark:border-slate-600',
+    hours_night: 'bg-purple-600 dark:bg-purple-700 text-white border-purple-500 dark:border-purple-600',
+    hours_saturday: 'bg-blue-500 dark:bg-blue-600 text-white border-blue-400 dark:border-blue-500',
+    hours_sunday: 'bg-red-500 dark:bg-red-600 text-white border-red-400 dark:border-red-500',
+    hours_holiday: 'bg-pink-500 dark:bg-pink-600 text-white border-pink-400 dark:border-pink-500',
+    hours_passenger: 'bg-teal-500 dark:bg-teal-600 text-white border-teal-400 dark:border-teal-500',
+    hours_driving: 'bg-orange-500 dark:bg-orange-600 text-white border-orange-400 dark:border-orange-500',
+    hours_equipment: 'bg-amber-500 dark:bg-amber-600 text-white border-amber-400 dark:border-amber-500',
+  };
+  
+  return (
+    <Badge 
+      className={`${colors[type]} gap-1.5 text-xs font-medium px-2.5 py-1 cursor-pointer hover:opacity-90 transition-opacity`}
+      onClick={onClick}
+    >
+      {icon}
+      <span>{type === 'hours_regular' ? 'Normal' : 
+             type === 'hours_night' ? 'Noapte' :
+             type === 'hours_saturday' ? 'Sâmbătă' :
+             type === 'hours_sunday' ? 'Duminică' :
+             type === 'hours_holiday' ? 'Sărbătoare' :
+             type === 'hours_passenger' ? 'Pasager' :
+             type === 'hours_driving' ? 'Condus' :
+             type === 'hours_equipment' ? 'Utilaj' : type}</span>
+      <span className="font-mono font-semibold">{hours.toFixed(1)}h</span>
+    </Badge>
+  );
+});
+
+SegmentBadge.displayName = 'SegmentBadge';
+
 export const TeamTimeComparisonTable = ({
   groupedByEmployee,
   onEdit,
@@ -251,41 +295,6 @@ export const TeamTimeComparisonTable = ({
     
     return Math.round(discrepancyHours * 60); // Convert to minutes
   };
-
-  // ✅ FIX 5: Memoizare SegmentBadge pentru a evita re-render la hover/edit
-  const SegmentBadge = React.memo(({ 
-    type, 
-    hours, 
-    icon,
-    onClick 
-  }: { 
-    type: string; 
-    hours: number; 
-    icon: React.ReactNode;
-    onClick?: () => void;
-  }) => {
-    const colors: Record<string, string> = {
-      hours_regular: 'bg-slate-900 dark:bg-slate-700 text-white border-slate-700 dark:border-slate-600',
-      hours_night: 'bg-purple-600 dark:bg-purple-700 text-white border-purple-500 dark:border-purple-600',
-      hours_saturday: 'bg-blue-500 dark:bg-blue-600 text-white border-blue-400 dark:border-blue-500',
-      hours_sunday: 'bg-red-500 dark:bg-red-600 text-white border-red-400 dark:border-red-500',
-      hours_holiday: 'bg-pink-500 dark:bg-pink-600 text-white border-pink-400 dark:border-pink-500',
-      hours_passenger: 'bg-teal-500 dark:bg-teal-600 text-white border-teal-400 dark:border-teal-500',
-      hours_driving: 'bg-orange-500 dark:bg-orange-600 text-white border-orange-400 dark:border-orange-500',
-      hours_equipment: 'bg-amber-500 dark:bg-amber-600 text-white border-amber-400 dark:border-amber-500',
-    };
-    
-    return (
-      <Badge 
-        className={`${colors[type]} gap-1.5 text-xs font-medium px-2.5 py-1 cursor-pointer hover:opacity-90 transition-opacity`}
-        onClick={onClick}
-      >
-        {icon}
-        <span>{getSegmentLabel(type)}</span>
-        <span className="font-mono font-semibold">{hours.toFixed(1)}h</span>
-      </Badge>
-    );
-  });
 
   // Helper pentru a calcula total ore pe tip segment
   const getSegmentHours = (segments: Segment[], type: string): number => {
