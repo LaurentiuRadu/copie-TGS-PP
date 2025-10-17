@@ -219,8 +219,45 @@ export const TeamTimeComparisonTable = ({
       case 'hours_night': return 'Noapte';
       case 'hours_holiday': return 'Sărbătoare';
       case 'hours_regular': return 'Normal';
+      case 'hours_saturday': return 'Sâmbătă';
+      case 'hours_sunday': return 'Duminică';
       default: return type;
     }
+  };
+
+  // Segment Badge Component
+  const SegmentBadge = ({ 
+    type, 
+    hours, 
+    icon,
+    onClick 
+  }: { 
+    type: string; 
+    hours: number; 
+    icon: string;
+    onClick?: () => void;
+  }) => {
+    const colors: Record<string, string> = {
+      hours_regular: 'bg-slate-900 dark:bg-slate-700 text-white border-slate-700 dark:border-slate-600',
+      hours_night: 'bg-purple-600 dark:bg-purple-700 text-white border-purple-500 dark:border-purple-600',
+      hours_saturday: 'bg-blue-500 dark:bg-blue-600 text-white border-blue-400 dark:border-blue-500',
+      hours_sunday: 'bg-red-500 dark:bg-red-600 text-white border-red-400 dark:border-red-500',
+      hours_holiday: 'bg-pink-500 dark:bg-pink-600 text-white border-pink-400 dark:border-pink-500',
+      hours_passenger: 'bg-teal-500 dark:bg-teal-600 text-white border-teal-400 dark:border-teal-500',
+      hours_driving: 'bg-orange-500 dark:bg-orange-600 text-white border-orange-400 dark:border-orange-500',
+      hours_equipment: 'bg-amber-500 dark:bg-amber-600 text-white border-amber-400 dark:border-amber-500',
+    };
+    
+    return (
+      <Badge 
+        className={`${colors[type]} gap-1.5 text-xs font-medium px-2.5 py-1 cursor-pointer hover:opacity-90 transition-opacity`}
+        onClick={onClick}
+      >
+        <span className="text-sm">{icon}</span>
+        <span>{getSegmentLabel(type)}</span>
+        <span className="font-mono font-semibold">{hours.toFixed(1)}h</span>
+      </Badge>
+    );
   };
 
   // Helper pentru a calcula total ore pe tip segment
@@ -401,15 +438,7 @@ export const TeamTimeComparisonTable = ({
               <TableHead className="min-w-[180px]">Angajat</TableHead>
               <TableHead className="min-w-[120px]">Clock In</TableHead>
               <TableHead className="min-w-[120px]">Clock Out</TableHead>
-              <TableHead className="min-w-[80px] text-xs">Zi</TableHead>
-              <TableHead className="min-w-[80px] text-xs">Noapte</TableHead>
-              <TableHead className="min-w-[70px] text-xs">Sâm</TableHead>
-              <TableHead className="min-w-[70px] text-xs">Dum</TableHead>
-              <TableHead className="min-w-[70px] text-xs">Sârb</TableHead>
-              <TableHead className="min-w-[80px] text-xs">Pasager</TableHead>
-              <TableHead className="min-w-[80px] text-xs">Condus</TableHead>
-              <TableHead className="min-w-[80px] text-xs">Utilaj</TableHead>
-              <TableHead className="min-w-[80px] text-xs">Pauză</TableHead>
+              <TableHead className="min-w-[500px]">Fragmentare</TableHead>
               <TableHead className="min-w-[100px]">Total Ore</TableHead>
               <TableHead className="min-w-[150px] text-right">Status</TableHead>
             </TableRow>
@@ -426,15 +455,14 @@ export const TeamTimeComparisonTable = ({
                 </TableCell>
                 <TableCell>{teamAverage.avgClockIn}</TableCell>
                 <TableCell>{teamAverage.avgClockOut || '—'}</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
-                <TableCell className="text-muted-foreground text-xs">—</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="secondary" className="gap-1.5 text-xs">
+                      <span>⚙️</span>
+                      <span>Media echipei (exclude șoferii)</span>
+                    </Badge>
+                  </div>
+                </TableCell>
                 <TableCell>{teamAverage.avgHours.toFixed(2)}h</TableCell>
                 <TableCell className="text-muted-foreground">—</TableCell>
               </TableRow>
@@ -653,513 +681,111 @@ export const TeamTimeComparisonTable = ({
                     )}
                   </TableCell>
 
-                  {/* Ore Zi - editabil condiționat */}
+                  {/* Fragmentare - Badge display */}
                   <TableCell>
-                    {isSegmentEditable(employee, 'hours_regular') ? (
-                      editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_regular' ? (
-                        <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="24"
-                        value={editingHours.value}
-                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_regular', parseFloat(editingHours.value));
-                          if (e.key === 'Escape') setEditingHours(null);
-                        }}
-                        className="h-7 w-16 text-xs"
-                        autoFocus
-                        onFocus={(e) => e.target.select()}
-                      />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => handleSaveSegmentHours(employee.userId, 'hours_regular', parseFloat(editingHours.value))}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => setEditingHours(null)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
+                    <div className="flex flex-wrap gap-1.5 max-w-2xl">
+                      {getDisplayHours(employee, 'hours_regular') > 0 && (
+                        <SegmentBadge 
+                          type="hours_regular" 
+                          hours={getDisplayHours(employee, 'hours_regular')} 
+                          icon="⚙️"
                           onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_regular', value: getDisplayHours(employee, 'hours_regular').toFixed(1) })}
-                          className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                        >
-                          {getDisplayHours(employee, 'hours_regular').toFixed(1)}h
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {getDisplayHours(employee, 'hours_regular').toFixed(1)}h
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Noapte - editabil condiționat */}
-                  <TableCell>
-                    {isSegmentEditable(employee, 'hours_night') ? (
-                      editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_night' ? (
-                        <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="24"
-                        value={editingHours.value}
-                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_night', parseFloat(editingHours.value));
-                          if (e.key === 'Escape') setEditingHours(null);
-                        }}
-                        className="h-7 w-16 text-xs"
-                        autoFocus
-                        onFocus={(e) => e.target.select()}
-                      />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => handleSaveSegmentHours(employee.userId, 'hours_night', parseFloat(editingHours.value))}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => setEditingHours(null)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_night') > 0 && (
+                        <SegmentBadge 
+                          type="hours_night" 
+                          hours={getDisplayHours(employee, 'hours_night')} 
+                          icon="🌙"
                           onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_night', value: getDisplayHours(employee, 'hours_night').toFixed(1) })}
-                          className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                        >
-                          {getDisplayHours(employee, 'hours_night').toFixed(1)}h
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {getDisplayHours(employee, 'hours_night').toFixed(1)}h
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Sâmbătă - editabil condiționat */}
-                  <TableCell>
-                    {isSegmentEditable(employee, 'hours_saturday') ? (
-                      editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_saturday' ? (
-                        <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="24"
-                        value={editingHours.value}
-                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_saturday', parseFloat(editingHours.value));
-                          if (e.key === 'Escape') setEditingHours(null);
-                        }}
-                        className="h-7 w-16 text-xs"
-                        autoFocus
-                        onFocus={(e) => e.target.select()}
-                      />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => handleSaveSegmentHours(employee.userId, 'hours_saturday', parseFloat(editingHours.value))}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => setEditingHours(null)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_saturday') > 0 && (
+                        <SegmentBadge 
+                          type="hours_saturday" 
+                          hours={getDisplayHours(employee, 'hours_saturday')} 
+                          icon="📅"
                           onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_saturday', value: getDisplayHours(employee, 'hours_saturday').toFixed(1) })}
-                          className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                        >
-                          {getDisplayHours(employee, 'hours_saturday').toFixed(1)}h
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {getDisplayHours(employee, 'hours_saturday').toFixed(1)}h
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Duminică - editabil condiționat */}
-                  <TableCell>
-                    {isSegmentEditable(employee, 'hours_sunday') ? (
-                      editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_sunday' ? (
-                        <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="24"
-                        value={editingHours.value}
-                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_sunday', parseFloat(editingHours.value));
-                          if (e.key === 'Escape') setEditingHours(null);
-                        }}
-                        className="h-7 w-16 text-xs"
-                        autoFocus
-                        onFocus={(e) => e.target.select()}
-                      />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => handleSaveSegmentHours(employee.userId, 'hours_sunday', parseFloat(editingHours.value))}
-                          >
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => setEditingHours(null)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_sunday') > 0 && (
+                        <SegmentBadge 
+                          type="hours_sunday" 
+                          hours={getDisplayHours(employee, 'hours_sunday')} 
+                          icon="📅"
                           onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_sunday', value: getDisplayHours(employee, 'hours_sunday').toFixed(1) })}
-                          className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                        >
-                          {getDisplayHours(employee, 'hours_sunday').toFixed(1)}h
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {getDisplayHours(employee, 'hours_sunday').toFixed(1)}h
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Sărbătoare - editabil condiționat */}
-                  <TableCell>
-                    {isSegmentEditable(employee, 'hours_holiday') ? (
-                      editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_holiday' ? (
-                        <div className="flex items-center gap-1">
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="24"
-                        value={editingHours.value}
-                        onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_holiday', parseFloat(editingHours.value));
-                          if (e.key === 'Escape') setEditingHours(null);
-                        }}
-                        className="h-7 w-16 text-xs"
-                        autoFocus
-                        onFocus={(e) => e.target.select()}
-                      />
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_holiday') > 0 && (
+                        <SegmentBadge 
+                          type="hours_holiday" 
+                          hours={getDisplayHours(employee, 'hours_holiday')} 
+                          icon="🎉"
+                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_holiday', value: getDisplayHours(employee, 'hours_holiday').toFixed(1) })}
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_passenger') > 0 && (
+                        <SegmentBadge 
+                          type="hours_passenger" 
+                          hours={getDisplayHours(employee, 'hours_passenger')} 
+                          icon="👥"
+                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) })}
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_driving') > 0 && (
+                        <SegmentBadge 
+                          type="hours_driving" 
+                          hours={getDisplayHours(employee, 'hours_driving')} 
+                          icon="🚗"
+                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) })}
+                        />
+                      )}
+                      {getDisplayHours(employee, 'hours_equipment') > 0 && (
+                        <SegmentBadge 
+                          type="hours_equipment" 
+                          hours={getDisplayHours(employee, 'hours_equipment')} 
+                          icon="🚜"
+                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) })}
+                        />
+                      )}
+                      
+                      {/* Inline editing dialog */}
+                      {editingHours && editingHours.userId === employee.userId && (
+                        <div className="flex items-center gap-1 ml-2 p-2 bg-muted rounded-md border">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="24"
+                            value={editingHours.value}
+                            onChange={(e) => setEditingHours({ ...editingHours, value: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, editingHours.segmentType, parseFloat(editingHours.value));
+                              if (e.key === 'Escape') setEditingHours(null);
+                            }}
+                            className="h-7 w-16 text-xs"
+                            autoFocus
+                            onFocus={(e) => e.target.select()}
+                          />
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-5 w-5"
-                            onClick={() => handleSaveSegmentHours(employee.userId, 'hours_holiday', parseFloat(editingHours.value))}
+                            className="h-6 w-6"
+                            onClick={() => handleSaveSegmentHours(employee.userId, editingHours.segmentType, parseFloat(editingHours.value))}
                           >
                             <Check className="h-3 w-3" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-5 w-5"
+                            className="h-6 w-6"
                             onClick={() => setEditingHours(null)}
                           >
                             <X className="h-3 w-3" />
                           </Button>
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => setEditingHours({ userId: employee.userId, segmentType: 'hours_holiday', value: getDisplayHours(employee, 'hours_holiday').toFixed(1) })}
-                          className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                        >
-                          {getDisplayHours(employee, 'hours_holiday').toFixed(1)}h
-                        </button>
-                      )
-                    ) : (
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {getDisplayHours(employee, 'hours_holiday').toFixed(1)}h
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Pasager - editabil pentru admin chiar cu manualOverride */}
-                  <TableCell>
-                    {employee.manualOverride && !isAdmin ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs font-mono cursor-default">
-                              {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs text-orange-600 dark:text-orange-400">
-                              ⚠️ Ore setate manual — editează din dialog
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_passenger' ? (
-                      <div key={`${employee.userId}-hours_passenger`} className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="24"
-                          value={editingHours.value}
-                          onChange={(e) => {
-                            console.log('[EDIT CHANGE] Passenger:', e.target.value, 'Current segment:', editingHours.segmentType);
-                            if (editingHours.segmentType === 'hours_passenger') {
-                              setEditingHours({ ...editingHours, value: e.target.value });
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_passenger', parseFloat(editingHours.value));
-                            if (e.key === 'Escape') setEditingHours(null);
-                          }}
-                          className="h-7 w-16 text-xs"
-                          autoFocus
-                          onFocus={(e) => e.target.select()}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
-                          onClick={() => handleSaveSegmentHours(employee.userId, 'hours_passenger', parseFloat(editingHours.value))}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
-                          onClick={() => setEditingHours(null)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          console.log('[EDIT START] Passenger:', employee.userId);
-                          setEditingHours({ userId: employee.userId, segmentType: 'hours_passenger', value: getDisplayHours(employee, 'hours_passenger').toFixed(1) });
-                        }}
-                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                      >
-                        {getDisplayHours(employee, 'hours_passenger').toFixed(1)}h
-                      </button>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Condus - editabil pentru admin chiar cu manualOverride */}
-                  <TableCell>
-                    {employee.manualOverride && !isAdmin ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs font-mono cursor-default">
-                              {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs text-orange-600 dark:text-orange-400">
-                              ⚠️ Ore setate manual — editează din dialog
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_driving' ? (
-                      <div key={`${employee.userId}-hours_driving`} className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="24"
-                          value={editingHours.value}
-                          onChange={(e) => {
-                            console.log('[EDIT CHANGE] Driving:', e.target.value, 'Current segment:', editingHours.segmentType);
-                            if (editingHours.segmentType === 'hours_driving') {
-                              setEditingHours({ ...editingHours, value: e.target.value });
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value));
-                            if (e.key === 'Escape') setEditingHours(null);
-                          }}
-                          className="h-7 w-16 text-xs"
-                          autoFocus
-                          onFocus={(e) => e.target.select()}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
-                          onClick={() => handleSaveSegmentHours(employee.userId, 'hours_driving', parseFloat(editingHours.value))}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
-                          onClick={() => setEditingHours(null)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          console.log('[EDIT START] Driving:', employee.userId);
-                          setEditingHours({ userId: employee.userId, segmentType: 'hours_driving', value: getDisplayHours(employee, 'hours_driving').toFixed(1) });
-                        }}
-                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                      >
-                        {getDisplayHours(employee, 'hours_driving').toFixed(1)}h
-                      </button>
-                    )}
-                  </TableCell>
-
-                  {/* Ore Utilaj - editabil pentru admin chiar cu manualOverride */}
-                  <TableCell>
-                    {employee.manualOverride && !isAdmin ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs font-mono cursor-default">
-                              {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="text-xs text-orange-600 dark:text-orange-400">
-                              ⚠️ Ore setate manual — editează din dialog
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : editingHours && editingHours.userId === employee.userId && editingHours.segmentType === 'hours_equipment' ? (
-                      <div key={`${employee.userId}-hours_equipment`} className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="24"
-                          value={editingHours.value}
-                          onChange={(e) => {
-                            console.log('[EDIT CHANGE] Equipment:', e.target.value, 'Current segment:', editingHours.segmentType);
-                            if (editingHours.segmentType === 'hours_equipment') {
-                              setEditingHours({ ...editingHours, value: e.target.value });
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveSegmentHours(employee.userId, 'hours_equipment', parseFloat(editingHours.value));
-                            if (e.key === 'Escape') setEditingHours(null);
-                          }}
-                          className="h-7 w-16 text-xs"
-                          autoFocus
-                          onFocus={(e) => e.target.select()}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
-                          onClick={() => handleSaveSegmentHours(employee.userId, 'hours_equipment', parseFloat(editingHours.value))}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5"
-                          onClick={() => setEditingHours(null)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          console.log('[EDIT START] Equipment:', employee.userId);
-                          setEditingHours({ userId: employee.userId, segmentType: 'hours_equipment', value: getDisplayHours(employee, 'hours_equipment').toFixed(1) });
-                        }}
-                        className="px-2 py-1 rounded text-xs font-mono hover:bg-muted transition-colors"
-                      >
-                        {getDisplayHours(employee, 'hours_equipment').toFixed(1)}h
-                      </button>
-                    )}
-                  </TableCell>
-
-                  {/* Pauză - scăzută automat de edge function din ore normale */}
-                  <TableCell>
-                    {(() => {
-                      if (!employee.lastClockOut) {
-                        return <span className="text-sm text-muted-foreground">—</span>;
-                      }
-                      
-                      // Folosim getDisplayHours pentru ore normale (respectă override-ul)
-                      const normalHours = getDisplayHours(employee, 'hours_regular');
-                      
-                      // Regula: Pauza de 30 min (0.5h) se scade AUTOMAT din ore normale de către edge function
-                      // NU se scade din ore Pasager/Condus/Utilaj
-                      // Deci afișăm fix 0.5h dacă există ore normale >= 0.5h, 0h altfel
-                      const breakHours = normalHours >= 0.5 ? 0.5 : 0;
-                      
-                      return breakHours > 0 ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-sm font-mono text-orange-600 dark:text-orange-400">
-                                {breakHours.toFixed(2)}h
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-xs space-y-1">
-                                <div>Pauză standard: 30 min</div>
-                                <div className="text-muted-foreground">
-                                  Scăzută automat din ore normale
-                                </div>
-                                <div className="font-semibold mt-1 pt-1 border-t">
-                                  {normalHours >= 0.5 ? '✅ Pauză aplicată' : '❌ Fără ore normale'}
-                                </div>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      );
-                    })()}
+                      )}
+                    </div>
                   </TableCell>
 
                   {/* Total Ore */}
