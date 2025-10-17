@@ -2085,7 +2085,16 @@ export const TeamTimeApprovalManager = ({
             return !hasDriverSegments && !isCoord;
           }).length}
           employeesWithManualOverride={groupedByEmployee
-            .filter(e => e.manualOverride)
+            .filter(e => {
+              // Exclude șoferii și managementul din avertisment (consistență cu affectedCount)
+              const hasDriverSegments = e.segments.some(
+                s => s.type === 'hours_driving' || s.type === 'hours_equipment'
+              );
+              const isCoord = e.entries.some(entry => 
+                entry.user_id === teamLeader?.id || entry.user_id === coordinator?.id
+              );
+              return e.manualOverride && !hasDriverSegments && !isCoord;
+            })
             .map(e => e.fullName)
           }
           onConfirm={(scope) => {
