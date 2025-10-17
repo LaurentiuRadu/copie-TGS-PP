@@ -1722,39 +1722,64 @@ export const TeamTimeApprovalManager = ({
                                 
                                 {/* ✅ Condiție pentru virtual entries (CHITICARU lipsă) */}
                                 {user.isMissing ? (
-                                  <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <AlertCircle className="h-5 w-5 text-red-500" />
-                                      <p className="text-red-600 dark:text-red-400 font-medium">
-                                        Lipsă complet - nu s-a pontajat
-                                      </p>
-                                    </div>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="mt-2"
-                                      onClick={() => {
-                                        const employeeData: EmployeeDayData = {
-                                          userId: user.userId,
-                                          fullName: user.fullName,
-                                          username: user.username,
-                                          totalHours: 0,
-                                          firstClockIn: '',
-                                          lastClockOut: null,
-                                          segments: [],
-                                          entries: [],
-                                          allApproved: false,
-                                          teamId: selectedTeam,
-                                          dayOfWeek: selectedDayOfWeek,
-                                        };
-                                        setAddingEmployee(employeeData);
-                                        setAddMissingDialogOpen(true);
-                                      }}
-                                    >
-                                      <Plus className="h-4 w-4 mr-1" />
-                                      Adaugă Pontaj Manual
-                                    </Button>
-                                  </div>
+                                  (() => {
+                                    const weekStart = new Date(selectedWeek);
+                                    const dayDate = new Date(weekStart);
+                                    dayDate.setDate(dayDate.getDate() + (selectedDayOfWeek - 1));
+                                    const isFutureDate = dayDate > new Date();
+                                    
+                                    return (
+                                      <div className={`p-4 rounded-lg border ${
+                                        isFutureDate 
+                                          ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800'
+                                          : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                                      }`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                          {isFutureDate ? (
+                                            <>
+                                              <Calendar className="h-5 w-5 text-blue-500" />
+                                              <p className="text-blue-600 dark:text-blue-400 font-medium">
+                                                Programat - fără pontaj înregistrat încă
+                                              </p>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <AlertCircle className="h-5 w-5 text-red-500" />
+                                              <p className="text-red-600 dark:text-red-400 font-medium">
+                                                Lipsă complet - nu s-a pontajat
+                                              </p>
+                                            </>
+                                          )}
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="mt-2"
+                                          onClick={() => {
+                                            const employeeData: EmployeeDayData = {
+                                              userId: user.userId,
+                                              fullName: user.fullName,
+                                              username: user.username,
+                                              totalHours: 0,
+                                              firstClockIn: '',
+                                              lastClockOut: null,
+                                              segments: [],
+                                              entries: [],
+                                              allApproved: false,
+                                              isMissing: true,
+                                              teamId: selectedTeam,
+                                              dayOfWeek: selectedDayOfWeek,
+                                            };
+                                            setAddingEmployee(employeeData);
+                                            setAddMissingDialogOpen(true);
+                                          }}
+                                        >
+                                          <Plus className="h-4 w-4 mr-2" />
+                                          {isFutureDate ? 'Adaugă Pontaj Manual' : 'Adaugă Pontaj Lipsă'}
+                                        </Button>
+                                      </div>
+                                    );
+                                  })()
                                 ) : (
                                   /* ✅ Afișare normală pentru pontaje reale (ALEXANDRESCU, JIMBU cu pontaj) */
                                   <>
@@ -2043,6 +2068,8 @@ export const TeamTimeApprovalManager = ({
               onClockInEdit={(emp) => handleClockTimeClick(emp, 'Clock In')}
               onClockOutEdit={(emp) => handleClockTimeClick(emp, 'Clock Out')}
               onAddManualEntry={handleAddManualEntry}
+              selectedWeek={selectedWeek}
+              selectedDayOfWeek={selectedDayOfWeek}
             />
             </>
           )}

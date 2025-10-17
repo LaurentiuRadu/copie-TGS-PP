@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info, Calendar } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -80,7 +80,9 @@ interface TeamTimeComparisonTableProps {
   onSegmentHoursEdit: (userId: string, segmentType: string, hours: number) => void;
   onClockInEdit?: (employee: EmployeeDayData) => void;
   onClockOutEdit?: (employee: EmployeeDayData) => void;
-  onAddManualEntry?: (employee: EmployeeDayData) => void; // ← NOU
+  onAddManualEntry?: (employee: EmployeeDayData) => void;
+  selectedWeek: string; // ✅ ADĂUGAT
+  selectedDayOfWeek: number; // ✅ ADĂUGAT
 }
 
 export const TeamTimeComparisonTable = ({
@@ -97,7 +99,9 @@ export const TeamTimeComparisonTable = ({
   onSegmentHoursEdit,
   onClockInEdit,
   onClockOutEdit,
-  onAddManualEntry, // ← NOU
+  onAddManualEntry,
+  selectedWeek, // ✅ ADĂUGAT
+  selectedDayOfWeek, // ✅ ADĂUGAT
 }: TeamTimeComparisonTableProps) => {
   const [editingHours, setEditingHours] = useState<{
     userId: string;
@@ -507,10 +511,25 @@ export const TeamTimeComparisonTable = ({
                     </TableCell>
                     
                     <TableCell>
-                      <Badge variant="destructive" className="gap-1">
-                        <Clock className="h-3 w-3" />
-                        NU S-A PONTAJAT
-                      </Badge>
+                      {(() => {
+                        // Calculăm data zilei selectate
+                        const weekStart = new Date(selectedWeek);
+                        const dayDate = new Date(weekStart);
+                        dayDate.setDate(dayDate.getDate() + (selectedDayOfWeek - 1));
+                        const isFutureDate = dayDate > new Date();
+                        
+                        return isFutureDate ? (
+                          <Badge variant="outline" className="gap-1 border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">
+                            <Calendar className="h-3 w-3" />
+                            Programat
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="gap-1">
+                            <Clock className="h-3 w-3" />
+                            NU S-A PONTAJAT
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
 
                     <TableCell colSpan={2}>
