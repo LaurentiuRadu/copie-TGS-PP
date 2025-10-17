@@ -546,7 +546,7 @@ export const TeamTimeComparisonTable = ({
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => {
-                                if (employee.manualOverride) {
+                                if (employee.manualOverride && !isAdmin) {
                                   return;
                                 }
                                 const firstSegment = employee.segments[0];
@@ -554,9 +554,9 @@ export const TeamTimeComparisonTable = ({
                                   onClockInEdit(employee);
                                 }
                               }}
-                              disabled={employee.manualOverride}
+                              disabled={employee.manualOverride && !isAdmin}
                               className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${
-                                employee.manualOverride ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                                (employee.manualOverride && !isAdmin) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                               } ${clockInColor}`}
                             >
                               {clockInTime}
@@ -566,7 +566,7 @@ export const TeamTimeComparisonTable = ({
                             </button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            {employee.manualOverride 
+                            {(employee.manualOverride && !isAdmin)
                               ? "⚠️ Ore setate manual — editează din dialog" 
                               : "Click pentru a modifica Clock In"}
                           </TooltipContent>
@@ -617,7 +617,7 @@ export const TeamTimeComparisonTable = ({
                             <TooltipTrigger asChild>
                               <button
                                 onClick={() => {
-                                  if (employee.manualOverride) {
+                                  if (employee.manualOverride && !isAdmin) {
                                     return;
                                   }
                                   const lastSegment = employee.segments[employee.segments.length - 1];
@@ -625,9 +625,9 @@ export const TeamTimeComparisonTable = ({
                                     onClockOutEdit(employee);
                                   }
                                 }}
-                                disabled={employee.manualOverride}
+                                disabled={employee.manualOverride && !isAdmin}
                                 className={`px-2 py-1 rounded text-sm font-mono hover:opacity-80 transition-opacity ${
-                                  employee.manualOverride ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                                  (employee.manualOverride && !isAdmin) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
                                 } ${clockOutColor}`}
                               >
                                 {clockOutTime}
@@ -637,9 +637,9 @@ export const TeamTimeComparisonTable = ({
                               </button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {employee.manualOverride 
+                              {(employee.manualOverride && !isAdmin)
                                 ? "⚠️ Ore setate manual — editează din dialog" 
-                                : "Click pentru a modifica Clock Out"}
+                                : "Click pentru a modifica Clock In/Out"}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
