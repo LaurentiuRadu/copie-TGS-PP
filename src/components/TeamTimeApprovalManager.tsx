@@ -222,8 +222,11 @@ export const TeamTimeApprovalManager = ({
   );
   const missingEntries = pendingEntries.filter(e => e.isMissing);
   
-  // ✅ Include și missing entries pentru a apărea în tabel
-  const displayedEntries = [...pendingOnlyEntries, ...approvedEntries, ...missingEntries];
+  // ✅ Entries COMPLETE (exclude missing) pentru statistici corecte
+  const actualValidEntries = validPendingEntries.filter(e => !e.isMissing && e.clock_out_time);
+  
+  // ✅ displayedEntries = complete + missing (pentru tabel)
+  const displayedEntries = [...actualValidEntries, ...missingEntries];
 
   // Calculăm data exactă a zilei pentru a prelua daily_timesheets
   const dayDate = useMemo(() => {
@@ -416,8 +419,8 @@ export const TeamTimeApprovalManager = ({
       const employeeData = grouped.get(userId)!;
       employeeData.entries.push(entry);
       
-      // Update first/last timestamps
-      if (entry.clock_in_time < employeeData.firstClockIn) {
+      // Update first/last timestamps - ✅ SAFE: verificăm null pentru missing entries
+      if (entry.clock_in_time && (!employeeData.firstClockIn || entry.clock_in_time < employeeData.firstClockIn)) {
         employeeData.firstClockIn = entry.clock_in_time;
       }
       if (entry.clock_out_time && (!employeeData.lastClockOut || entry.clock_out_time > employeeData.lastClockOut)) {
@@ -1479,21 +1482,25 @@ export const TeamTimeApprovalManager = ({
             </div>
           )}
 
-          {(validPendingEntries.length > 0 || missingEntries.length > 0) && (
+          {(actualValidEntries.length > 0 || missingEntries.length > 0) && (
             <div className="mb-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-6 flex-wrap">
                 <div>
                   <p className="text-sm text-muted-foreground">Total pontaje complete</p>
-                  <p className="text-2xl font-bold">{validPendingEntries.filter(e => e.clock_out_time).length}</p>
+                  <p className="text-2xl font-bold">{actualValidEntries.length}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">În așteptare</p>
-                  <p className="text-2xl font-bold text-yellow-600">{pendingOnlyEntries.length}</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {actualValidEntries.filter(e => e.approval_status === 'pending_review').length}
+                  </p>
                 </div>
-                {approvedEntries.length > 0 && (
+                {actualValidEntries.filter(e => e.approval_status === 'approved').length > 0 && (
                   <div>
                     <p className="text-sm text-muted-foreground">Deja aprobate</p>
-                    <p className="text-2xl font-bold text-green-600">{approvedEntries.length}</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {actualValidEntries.filter(e => e.approval_status === 'approved').length}
+                    </p>
                   </div>
                 )}
                 {incompleteEntries.length > 0 && (
