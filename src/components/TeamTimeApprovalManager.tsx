@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +97,9 @@ export const TeamTimeApprovalManager = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteEntry, setDeleteEntry] = useState<TimeEntryForApproval | null>(null);
   const [expandedSchedules, setExpandedSchedules] = useState<Set<string>>(new Set());
+  
+  // Ref pentru scroll automat la tabel comparație
+  const comparisonTableRef = useRef<HTMLDivElement>(null);
   const [editingSegment, setEditingSegment] = useState<{
     userId: string;
     segmentIndex: number;
@@ -1520,7 +1523,24 @@ export const TeamTimeApprovalManager = ({
                     ))}
                   </ul>
                   <p className="text-xs text-muted-foreground mt-2">
-                    👉 Vezi secțiunea <strong>"📊 Comparație Pontaje Echipă"</strong> de mai jos pentru a edita manual sau adăuga pontaje lipsă
+                    👉 Vezi secțiunea{' '}
+                    <button
+                      onClick={() => {
+                        comparisonTableRef.current?.scrollIntoView({ 
+                          behavior: 'smooth', 
+                          block: 'start' 
+                        });
+                        // Highlight temporar
+                        comparisonTableRef.current?.classList.add('highlight-pulse');
+                        setTimeout(() => {
+                          comparisonTableRef.current?.classList.remove('highlight-pulse');
+                        }, 2000);
+                      }}
+                      className="font-bold text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
+                    >
+                      "📊 Comparație Pontaje Echipă"
+                    </button>{' '}
+                    de mai jos pentru a edita manual sau adăuga pontaje lipsă
                   </p>
                 </div>
               </AlertDescription>
@@ -1874,7 +1894,7 @@ export const TeamTimeApprovalManager = ({
           ) : (
             <>
               {/* 📊 HEADER PENTRU TABEL COMPARAȚIE */}
-              <div className="mb-4 pb-3 border-b">
+              <div ref={comparisonTableRef} className="mb-4 pb-3 border-b scroll-mt-20">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
                     <TableIcon className="h-5 w-5 text-primary" />

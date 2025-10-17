@@ -388,3 +388,18 @@ All colors MUST be HSL.
     font-size: clamp(2rem, 5vw, 3rem);
   }
 }
+
+/* Highlight animation pentru scroll automat */
+@keyframes highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px hsl(var(--primary) / 0.3);
+  }
+}
+
+.highlight-pulse {
+  animation: highlight-pulse 1s ease-in-out 2;
+  border-radius: 0.5rem;
+}
