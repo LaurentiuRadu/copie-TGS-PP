@@ -313,7 +313,7 @@ export const ManagementSection = React.memo(({
                                   if (val <= 0) return null;
                                   return (
                                     <Badge key={t} variant="secondary" className="text-xs gap-1">
-                                      <span>{icon}</span>
+                                      {icon}
                                       <span>{label}</span>
                                       <span className="font-mono">{val.toFixed(1)}h</span>
                                     </Badge>
@@ -336,7 +336,7 @@ export const ManagementSection = React.memo(({
                                       }
                                     >
                                       <Plus className="h-3 w-3" />
-                                      <span>{icon}</span>
+                                      {icon}
                                       <span>{label}</span>
                                     </Button>
                                   );
@@ -356,7 +356,7 @@ export const ManagementSection = React.memo(({
                                           })
                                         }
                                       >
-                                        <span>{icon}</span>
+                                        {icon}
                                         <span>{label}</span>
                                         <span className="font-mono">{val.toFixed(1)}h</span>
                                       </Badge>
