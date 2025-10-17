@@ -442,18 +442,18 @@ export default function TimesheetVerificare() {
                         setSelectedDayOfWeek(targetDay);
                       }}
                     >
-                      <SelectTrigger id="day-selector" className="w-[180px]">
+                      <SelectTrigger id="day-selector" className="w-[220px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {(() => {
                           const weekStart = new Date(selectedWeek);
                           
-                          const formatDayLabel = (dayOfWeek: number, dayName: string) => {
-                            const dayDate = addDays(weekStart, dayOfWeek - 1);
-                            const formattedDate = format(dayDate, 'dd.MM');
-                            return `${formattedDate} ${dayName}`;
-                          };
+    const formatDayLabel = (dayOfWeek: number, dayName: string) => {
+      const dayDate = addDays(weekStart, dayOfWeek - 1);
+      const formattedDate = format(dayDate, 'd MMMM', { locale: ro });
+      return `${dayName} ${formattedDate}`;
+    };
                           
                           return (
                             <>
