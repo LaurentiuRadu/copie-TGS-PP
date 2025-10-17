@@ -136,6 +136,18 @@ export default function TimesheetVerificare() {
       // Filter out coordinators
       const filteredSchedules = schedules?.filter(s => !coordinatorIds.includes(s.user_id)) || [];
 
+      // Get team leader IDs to exclude them (similar to coordinator exclusion)
+      const { data: teamLeaderData } = await supabase
+        .from('weekly_schedules')
+        .select('team_leader_id')
+        .eq('week_start_date', selectedWeek)
+        .eq('day_of_week', selectedDayOfWeek)
+        .in('team_id', Array.from(availableTeams))
+        .not('team_leader_id', 'is', null);
+
+      const teamLeaderIds = Array.from(new Set(teamLeaderData?.map(t => t.team_leader_id).filter(Boolean) || []));
+      const managementIds = [...coordinatorIds, ...teamLeaderIds];
+
       const userIds = filteredSchedules.map(s => s.user_id);
       if (userIds.length === 0) return {};
 
@@ -157,12 +169,18 @@ export default function TimesheetVerificare() {
 
       const incompleteEntries = timeEntries.filter(entry => !entry.clock_out_time);
 
-      // Count pending complete entries and incomplete entries per team
+      // Count pending complete entries and incomplete entries per team (exclude management)
       const counts: Record<string, { pending: number; incomplete: number; total: number }> = {};
       
       filteredSchedules.forEach(schedule => {
-        const userComplete = completeEntries.filter(e => e.user_id === schedule.user_id);
-        const userIncomplete = incompleteEntries.filter(e => e.user_id === schedule.user_id);
+        const userComplete = completeEntries.filter(e => 
+          e.user_id === schedule.user_id && 
+          !managementIds.includes(e.user_id)
+        );
+        const userIncomplete = incompleteEntries.filter(e => 
+          e.user_id === schedule.user_id && 
+          !managementIds.includes(e.user_id)
+        );
         
         const pendingCount = userComplete.filter(e => e.approval_status === 'pending_review').length;
         const incompleteCount = userIncomplete.length;
