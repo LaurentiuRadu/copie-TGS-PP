@@ -353,8 +353,8 @@ function segmentShiftIntoTimesheets(
 function validateTimesheet(timesheet: TimesheetEntry): string[] {
   const errors: string[] = [];
   
-  // 1. Total ore/zi <= 24h
-  const totalHours = 
+  // ✅ FIX CRITICAL: Validare durată minimă
+  const totalWorkHours = 
     timesheet.hours_regular +
     timesheet.hours_night +
     timesheet.hours_saturday +
@@ -362,8 +362,28 @@ function validateTimesheet(timesheet: TimesheetEntry): string[] {
     timesheet.hours_holiday +
     timesheet.hours_passenger +
     timesheet.hours_driving +
-    timesheet.hours_equipment +
-    timesheet.hours_leave;
+    timesheet.hours_equipment;
+  
+  const totalLeaveHours = timesheet.hours_leave + timesheet.hours_medical_leave;
+  
+  // Pentru ore NORMALE: minimum 10 min (0.17h)
+  if (totalWorkHours > 0 && totalWorkHours < 0.17) {
+    const minutes = Math.round(totalWorkHours * 60);
+    errors.push(
+      `⚠️ Durata prea scurtă: ${minutes} min (minim: 10 min). ` +
+      `Pontajul nu va fi adăugat în fise pontaj.`
+    );
+  }
+  
+  // Pentru LEAVE: minimum 4 ore (0.5 zile)
+  if (totalLeaveHours > 0 && totalLeaveHours < 4) {
+    errors.push(
+      `⚠️ Durata leave prea scurtă: ${totalLeaveHours.toFixed(2)}h (minim: 4h = 0.5 zile)`
+    );
+  }
+  
+  // 1. Total ore/zi <= 24h
+  const totalHours = totalWorkHours + totalLeaveHours;
   
   if (totalHours > 24) {
     errors.push(`Total ore (${totalHours}h) depășește 24h pentru ${timesheet.work_date}`);
@@ -379,7 +399,7 @@ function validateTimesheet(timesheet: TimesheetEntry): string[] {
   const hourFields: (keyof TimesheetEntry)[] = [
     'hours_regular', 'hours_night', 'hours_saturday', 
     'hours_sunday', 'hours_holiday', 'hours_passenger',
-    'hours_driving', 'hours_equipment', 'hours_leave'
+    'hours_driving', 'hours_equipment', 'hours_leave', 'hours_medical_leave'
   ];
   
   hourFields.forEach(field => {
@@ -863,13 +883,50 @@ Deno.serve(async (req) => {
     const allErrors: string[] = [];
     finalTimesheets.forEach(timesheet => {
       const errors = validateTimesheet(timesheet);
+      
+      // ✅ FIX: Log explicit pentru debugging când validarea eșuează
+      if (errors.length > 0) {
+        const totalHours = 
+          timesheet.hours_regular +
+          timesheet.hours_night +
+          timesheet.hours_saturday +
+          timesheet.hours_sunday +
+          timesheet.hours_holiday +
+          timesheet.hours_passenger +
+          timesheet.hours_driving +
+          timesheet.hours_equipment +
+          timesheet.hours_leave +
+          timesheet.hours_medical_leave;
+        
+        console.error('❌ [Validation Failed]', {
+          user_id: userId,
+          date: timesheet.work_date,
+          errors: errors,
+          hours_total: totalHours.toFixed(2),
+          breakdown: {
+            regular: timesheet.hours_regular,
+            night: timesheet.hours_night,
+            driving: timesheet.hours_driving,
+            passenger: timesheet.hours_passenger,
+            equipment: timesheet.hours_equipment,
+            leave: timesheet.hours_leave,
+            medical_leave: timesheet.hours_medical_leave
+          }
+        });
+      }
+      
       allErrors.push(...errors);
     });
 
     if (allErrors.length > 0) {
       console.error('Validation errors:', allErrors);
       return new Response(
-        JSON.stringify({ error: 'Erori de validare', details: allErrors }),
+        JSON.stringify({ 
+          error: 'Erori de validare', 
+          details: allErrors,
+          segments_saved: true,
+          timesheet_saved: false
+        }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }

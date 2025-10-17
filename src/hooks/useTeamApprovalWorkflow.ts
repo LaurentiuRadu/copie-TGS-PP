@@ -479,13 +479,38 @@ export const useTeamApprovalWorkflow = (
       if (updateError) throw updateError;
 
       // Trigger calculate-time-segments for each (parallel)
-      await Promise.allSettled(
+      const segmentResults = await Promise.allSettled(
         entryIds.map(id =>
           supabase.functions.invoke('calculate-time-segments', {
             body: { time_entry_id: id },
           })
         )
       );
+
+      // ✅ FIX: Log failures pentru diagnoză
+      const failures = segmentResults.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.error('❌ [Batch Approval] Edge function failures:', {
+          total: entryIds.length,
+          failed: failures.length,
+          details: failures.map((f, idx) => ({
+            entry_id: entryIds[idx],
+            reason: (f as PromiseRejectedResult).reason
+          }))
+        });
+      }
+
+      // ✅ Log successes cu warnings (ex: validation errors)
+      const successes = segmentResults.filter(r => r.status === 'fulfilled');
+      successes.forEach((result, idx) => {
+        const response = (result as PromiseFulfilledResult<any>).value;
+        if (response.error) {
+          console.warn(`⚠️ Entry ${entryIds[idx]}: ${response.error.message}`, response.error);
+        }
+        if (response.data?.segments_saved === true && response.data?.timesheet_saved === false) {
+          console.warn(`⚠️ Entry ${entryIds[idx]}: Segments salvate DAR timesheet NU (validare eșuată)`);
+        }
+      });
     },
     onSuccess: async (_, entryIds) => {
       await queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
