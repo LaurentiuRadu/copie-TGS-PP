@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -742,19 +742,36 @@ export const TeamTimeComparisonTable = ({
                         </TooltipProvider>
                       )
                     ) : (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertCircle className="h-3 w-3" />
-                              Lipsă Clock-Out
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            ⚠️ Clock-Out lipsește - folosește editare manuală
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="flex items-center gap-1.5">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge variant="destructive" className="gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                Lipsă Clock-Out
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              ⚠️ Clock-Out lipsește - folosește editare manuală
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Info className="h-3.5 w-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p className="text-xs leading-relaxed">
+                                ⚠️ <strong>Angajatul nu a dat clock-out.</strong><br />
+                                Folosește butonul <strong>"✏️ Editare"</strong> din coloana <em>Actions</em> pentru a completa manual clock-out sau ajusta orele.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                     )}
                   </TableCell>
 

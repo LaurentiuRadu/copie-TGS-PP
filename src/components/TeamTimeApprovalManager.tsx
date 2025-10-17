@@ -1497,6 +1497,36 @@ export const TeamTimeApprovalManager = ({
             </div>
           )}
 
+          {/* Alert pentru echipă incompletă */}
+          {(incompleteEntries.length > 0 || missingEntries.length > 0) && (
+            <Alert className="mb-4 border-destructive/50 bg-destructive/10">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">
+                    ⚠️ {incompleteEntries.length + missingEntries.length} angajați cu probleme:
+                  </p>
+                  <ul className="text-sm space-y-1 ml-4 list-disc">
+                    {incompleteEntries.map(e => (
+                      <li key={e.id}>
+                        <strong>{e.profiles.full_name}</strong> - 🚨 lipsă clock-out
+                      </li>
+                    ))}
+                    
+                    {missingEntries.map(e => (
+                      <li key={e.user_id}>
+                        <strong>{e.profiles.full_name}</strong> - ❌ programat dar fără pontaj
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    👉 Deschide tabelul "Comparație Pontaje" pentru a edita manual sau adăuga pontaje lipsă
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {(actualValidEntries.length > 0 || missingEntries.length > 0) && (
             <div className="mb-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-6 flex-wrap">
@@ -1544,11 +1574,11 @@ export const TeamTimeApprovalManager = ({
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg">
                           <Badge variant="default" className="bg-primary text-primary-foreground">
-                            🎖️ Management
+                            👔 Supervizori și Coordonatori
                           </Badge>
                         </div>
                         <div>
-                          <CardTitle className="text-lg">Pontaje Management</CardTitle>
+                          <CardTitle className="text-lg">Pontaje Supervizori și Coordonatori</CardTitle>
                           <CardDescription>
                             {managementEntries.length} {managementEntries.length === 1 ? 'pontaj' : 'pontaje'}
                           </CardDescription>
