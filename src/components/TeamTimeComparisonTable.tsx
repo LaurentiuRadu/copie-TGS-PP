@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, CheckCircle2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
 import {
   Table,
@@ -43,6 +43,10 @@ interface EmployeeDayData {
   segments: Segment[];
   entries: any[];
   allApproved: boolean;
+  isMissing?: boolean; // ← NOU: flag pentru angajați lipsă
+  scheduled_shift?: string;
+  scheduled_location?: string;
+  scheduled_activity?: string;
   overrideHours?: {
     hours_regular: number;
     hours_driving: number;
@@ -60,7 +64,7 @@ interface TeamTimeComparisonTableProps {
   groupedByEmployee: EmployeeDayData[];
   onEdit: (entry: any) => void;
   onDelete: (entry: any) => void;
-  onApprove: (entryId: string) => void;  // ✅ ADĂUGAT
+  onApprove: (entryId: string) => void;
   onUniformize: () => void;
   onTimeClick: (userId: string, segmentIndex: number, segmentId: string, field: 'startTime' | 'endTime', currentTime: string) => void;
   editingSegment: {
@@ -76,13 +80,14 @@ interface TeamTimeComparisonTableProps {
   onSegmentHoursEdit: (userId: string, segmentType: string, hours: number) => void;
   onClockInEdit?: (employee: EmployeeDayData) => void;
   onClockOutEdit?: (employee: EmployeeDayData) => void;
+  onAddManualEntry?: (employee: EmployeeDayData) => void; // ← NOU
 }
 
 export const TeamTimeComparisonTable = ({
   groupedByEmployee,
   onEdit,
   onDelete,
-  onApprove,  // ✅ ADĂUGAT
+  onApprove,
   onUniformize,
   onTimeClick,
   editingSegment,
@@ -92,6 +97,7 @@ export const TeamTimeComparisonTable = ({
   onSegmentHoursEdit,
   onClockInEdit,
   onClockOutEdit,
+  onAddManualEntry, // ← NOU
 }: TeamTimeComparisonTableProps) => {
   const [editingHours, setEditingHours] = useState<{
     userId: string;
@@ -470,6 +476,54 @@ export const TeamTimeComparisonTable = ({
 
             {/* Rânduri angajați */}
             {groupedByEmployee.map((employee) => {
+              // ✅ SPECIAL CASE: Angajat lipsă
+              if (employee.isMissing) {
+                return (
+                  <TableRow 
+                    key={employee.userId} 
+                    className="bg-red-50 dark:bg-red-950/20 border-l-4 border-l-red-500 hover:bg-red-100 dark:hover:bg-red-950/30"
+                  >
+                    <TableCell className="font-semibold">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-red-700 dark:text-red-400">{employee.fullName}</p>
+                          <p className="text-xs text-red-600 dark:text-red-500">
+                            @{employee.username}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <Badge variant="destructive" className="gap-1">
+                        <Clock className="h-3 w-3" />
+                        NU S-A PONTAJAT
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell colSpan={2}>
+                      <div className="text-xs text-muted-foreground">
+                        {employee.scheduled_location && `📍 ${employee.scheduled_location}`}
+                        {employee.scheduled_activity && ` • ${employee.scheduled_activity}`}
+                      </div>
+                    </TableCell>
+
+                    <TableCell colSpan={2} className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2 border-red-300 hover:bg-red-50"
+                        onClick={() => onAddManualEntry?.(employee)}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adaugă Pontaj Manual
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+
               const isDrv = isDriver(employee.segments);
               const clockInTime = formatRomania(employee.firstClockIn, 'HH:mm');
               const clockOutTime = employee.lastClockOut ? formatRomania(employee.lastClockOut, 'HH:mm') : '—';

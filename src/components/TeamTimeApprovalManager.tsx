@@ -12,6 +12,7 @@ import { formatRomania } from '@/lib/timezone';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimeEntryApprovalEditDialog } from '@/components/TimeEntryApprovalEditDialog';
 import { DeleteTimeEntryDialog } from '@/components/DeleteTimeEntryDialog';
+import { AddMissingEntryDialog } from '@/components/AddMissingEntryDialog';
 import { TeamTimeComparisonTable } from '@/components/TeamTimeComparisonTable';
 import { UniformizeDialog } from '@/components/UniformizeDialog';
 import { TeamEditScopeDialog } from '@/components/TeamEditScopeDialog';
@@ -115,6 +116,8 @@ export const TeamTimeApprovalManager = ({
   });
   // ✅ View mode eliminat - folosim doar tabel
   const [uniformizeDialogOpen, setUniformizeDialogOpen] = useState(false);
+  const [addMissingDialogOpen, setAddMissingDialogOpen] = useState(false);
+  const [addingEmployee, setAddingEmployee] = useState<EmployeeDayData | null>(null);
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
     fieldName: 'Clock In' | 'Clock Out';
@@ -950,6 +953,73 @@ export const TeamTimeApprovalManager = ({
     },
   });
 
+  // Mutation pentru adăugare pontaj manual (angajați lipsă)
+  const addManualEntryMutation = useMutation({
+    mutationFn: async (data: {
+      userId: string;
+      clockIn: string;
+      clockOut: string;
+      shiftType: string;
+      notes: string;
+    }) => {
+      console.log('[Manual Entry] Creating entry:', data);
+
+      // 1. Creează time_entry
+      const { data: entry, error: entryError } = await supabase
+        .from('time_entries')
+        .insert({
+          user_id: data.userId,
+          clock_in_time: data.clockIn,
+          clock_out_time: data.clockOut,
+          notes: `[ADĂUGAT MANUAL] ${data.notes}`,
+          approval_status: 'pending_review',
+          was_edited_by_admin: true,
+        })
+        .select()
+        .single();
+
+      if (entryError) throw entryError;
+
+      // 2. Trigger calcul segmente automat
+      const { error: calcError } = await supabase.functions.invoke('calculate-time-segments', {
+        body: {
+          user_id: data.userId,
+          time_entry_id: entry.id,
+          clock_in_time: data.clockIn,
+          clock_out_time: data.clockOut,
+          notes: data.shiftType,
+        },
+      });
+
+      if (calcError) {
+        console.warn('[Manual Entry] Segment calculation warning:', calcError);
+      }
+
+      return entry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
+      
+      toast({
+        title: '✅ Pontaj adăugat',
+        description: 'Segmentele au fost calculate automat.',
+      });
+
+      setAddMissingDialogOpen(false);
+      setAddingEmployee(null);
+    },
+    onError: (error) => {
+      console.error('[Manual Entry Error]', error);
+      toast({
+        title: '❌ Eroare',
+        description: error instanceof Error ? error.message : 'Nu s-a putut adăuga pontajul',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Mutation pentru editare Clock In/Out cu logging
   const editClockTimeMutation = useMutation({
     mutationFn: async ({ 
@@ -1135,6 +1205,27 @@ export const TeamTimeApprovalManager = ({
     }
 
     editSegmentHoursMutation.mutate({ userId, segmentType, newHours });
+  };
+
+  // Handler pentru butonul "Adaugă Pontaj Manual"
+  const handleAddManualEntry = (employee: EmployeeDayData) => {
+    setAddingEmployee(employee);
+    setAddMissingDialogOpen(true);
+  };
+
+  // Handler pentru confirm manual entry din dialog
+  const handleConfirmManualEntry = (data: {
+    clockIn: string;
+    clockOut: string;
+    shiftType: string;
+    notes: string;
+  }) => {
+    if (!addingEmployee) return;
+
+    addManualEntryMutation.mutate({
+      userId: addingEmployee.userId,
+      ...data,
+    });
   };
 
   // ✅ FIX 2: Handler pentru uniformizare cu recalculare completă
@@ -1695,6 +1786,7 @@ export const TeamTimeApprovalManager = ({
               onSegmentHoursEdit={handleSegmentHoursEdit}
               onClockInEdit={(emp) => handleClockTimeClick(emp, 'Clock In')}
               onClockOutEdit={(emp) => handleClockTimeClick(emp, 'Clock Out')}
+              onAddManualEntry={handleAddManualEntry}
             />
           )}
         </CardContent>
@@ -1797,6 +1889,20 @@ export const TeamTimeApprovalManager = ({
         onOpenChange={setUniformizeDialogOpen}
         groupedByEmployee={groupedByEmployee}
         onConfirm={handleUniformize}
+      />
+
+      <AddMissingEntryDialog
+        open={addMissingDialogOpen}
+        onOpenChange={setAddMissingDialogOpen}
+        employee={{
+          userId: addingEmployee?.userId || '',
+          fullName: addingEmployee?.fullName || '',
+          username: addingEmployee?.username || '',
+          scheduledShift: addingEmployee?.entries[0]?.scheduled_shift,
+          scheduledLocation: addingEmployee?.entries[0]?.scheduled_location,
+        }}
+        workDate={dayDate}
+        onConfirm={handleConfirmManualEntry}
       />
     </>
   );

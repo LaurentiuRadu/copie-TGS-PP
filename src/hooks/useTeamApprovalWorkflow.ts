@@ -16,6 +16,7 @@ export interface TimeEntryForApproval {
   approved_at?: string;
   approved_by?: string;
   pontajNumber?: number;
+  isMissing?: boolean; // ← NOU: flag pentru angajați lipsă
   profiles: {
     id: string;
     full_name: string;
@@ -183,6 +184,38 @@ export const useTeamApprovalWorkflow = (
         return true;
       }) || [];
 
+      // ✅ DETECTARE ANGAJAȚI LIPSĂ (programați dar fără pontaj)
+      const scheduledUserIds = schedules?.map(s => s.user_id) || [];
+      const entriesUserIds = new Set(uniqueEntriesData.map(e => e.user_id));
+      const missingUserIds = scheduledUserIds.filter(id => !entriesUserIds.has(id));
+
+      console.log(`[Missing Detection] Programați: ${scheduledUserIds.length}, Cu pontaje: ${entriesUserIds.size}, Lipsă: ${missingUserIds.length}`);
+
+      // Creează entries "virtuale" pentru angajați lipsă
+      const virtualEntries = missingUserIds.map(userId => {
+        const schedule = schedules?.find(s => s.user_id === userId);
+        const profile = profilesData?.find(p => p.id === userId);
+        
+        return {
+          id: `virtual-${userId}-${selectedDayOfWeek}`,
+          user_id: userId,
+          clock_in_time: '',
+          clock_out_time: null,
+          approval_status: 'missing',
+          isMissing: true,
+          profiles: profile || { id: userId, full_name: 'Unknown', username: 'unknown' },
+          scheduled_shift: schedule?.shift_type,
+          scheduled_location: schedule?.location,
+          scheduled_activity: schedule?.activity,
+          scheduled_vehicle: schedule?.vehicle,
+          scheduled_observations: schedule?.observations,
+          day_of_week: selectedDayOfWeek,
+          segments: [],
+          calculated_hours: { total: 0 },
+          pontajNumber: 0,
+        };
+      });
+
       // Merge profiles with entries and match with schedules
       const result = uniqueEntriesData.map(entry => {
         // ✅ FIX: Convert UTC to Romania time (+3 hours) before getting day_of_week
@@ -256,8 +289,11 @@ export const useTeamApprovalWorkflow = (
       // Sort alphabetically by full_name
       teamMembersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
 
+      // Combină entries reale cu virtuale
+      const allEntries = [...result, ...virtualEntries];
+
       return { 
-        entries: result as TimeEntryForApproval[], 
+        entries: allEntries as TimeEntryForApproval[], 
         teamLeader, 
         coordinator,
         teamMembers: teamMembersData
