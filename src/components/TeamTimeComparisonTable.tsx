@@ -304,29 +304,71 @@ export const TeamTimeComparisonTable = ({
     return currentHours > 0 || employee.manualOverride || false;
   };
 
-  // Handler pentru salvare ore segment cu validare + auto-rebalansare
+  // Handler pentru salvare ore segment cu VALIDARE STRICTĂ
   const handleSaveSegmentHours = async (userId: string, segmentType: string, newHours: number) => {
     const employee = groupedByEmployee.find(e => e.userId === userId);
     if (!employee) return;
     
-    const tolerance = 0.5; // 30 min toleranță
-    const segmentTypes = ['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'];
-
-    const getSum = (types: string[]) => types.reduce((sum, t) => sum + getDisplayHours(employee, t), 0);
-
+    // ✅ STEP 1: Calculează durata brută pontaj (clock_in → clock_out)
+    const clockInTime = new Date(employee.firstClockIn);
+    const clockOutTime = new Date(employee.lastClockOut || employee.firstClockIn);
+    const durataBrutaOre = (clockOutTime.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
+    
+    // ✅ STEP 2: Definește tipuri segmente (exclude hours_regular, leave, medical_leave)
+    const segmentTypesManuale = [
+      'hours_passenger', 
+      'hours_driving', 
+      'hours_equipment', 
+      'hours_night', 
+      'hours_saturday', 
+      'hours_sunday', 
+      'hours_holiday'
+    ];
+    
+    const segmentTypes = ['hours_regular', ...segmentTypesManuale, 'hours_leave', 'hours_medical_leave'];
+    
+    // Calculează suma orelor MANUALE după modificare
+    const oreManuale = segmentTypesManuale.reduce((sum, t) => {
+      const hours = (t === segmentType) ? newHours : getDisplayHours(employee, t);
+      return sum + hours;
+    }, 0);
+    
+    // ✅ STEP 3: Validare strictă cu toleranță 0.05h (3 minute pentru rotunjiri)
+    const TOLERANCE = 0.05;
+    
+    if (oreManuale > durataBrutaOre + TOLERANCE) {
+      toast({
+        variant: 'destructive',
+        title: '❌ Eroare Validare Ore',
+        description: `Orele introduse (${oreManuale.toFixed(2)}h) depășesc durata pontajului (${durataBrutaOre.toFixed(2)}h)!\n\nVerifică valorile pentru: Pasager, Condus, Utilaj, Noapte.`,
+        duration: 5000,
+      });
+      return;
+    }
+    
+    // ✅ STEP 4: Auto-calculează hours_regular
+    const hoursRegularCalculated = Math.max(0, durataBrutaOre - oreManuale);
+    
     const workDate = format(new Date(employee.firstClockIn), 'yyyy-MM-dd');
 
-    // Funcție helper pentru override manual (AUTOMAT pentru zilele cu manualOverride)
+    // Funcție helper pentru override manual
     const saveAdminOverride = async () => {
       const overridePayload: any = {
         employee_id: userId,
         work_date: workDate,
         notes: employee.manualOverride 
-          ? '[SEGMENTARE MANUALĂ] Actualizat din tabel (mod manual)'
-          : '[SEGMENTARE MANUALĂ] Setat manual din tabel',
+          ? '[SEGMENTARE VALIDATĂ] Actualizat din tabel (mod manual)'
+          : '[SEGMENTARE VALIDATĂ] Setat manual din tabel',
       };
+      
       segmentTypes.forEach((t) => {
-        overridePayload[t] = t === segmentType ? Number(newHours.toFixed(2)) : Number(getDisplayHours(employee, t).toFixed(2));
+        if (t === 'hours_regular') {
+          overridePayload[t] = Number(hoursRegularCalculated.toFixed(2)); // FORȚAT
+        } else if (t === segmentType) {
+          overridePayload[t] = Number(newHours.toFixed(2));
+        } else {
+          overridePayload[t] = Number(getDisplayHours(employee, t).toFixed(2));
+        }
       });
 
       const { data: existing } = await supabase
@@ -347,7 +389,7 @@ export const TeamTimeComparisonTable = ({
           .insert(overridePayload);
       }
 
-      // ✅ OPTIMISTIC UPDATE: actualizăm cache-ul ÎNAINTE de refetch
+      // Optimistic update cache
       queryClient.setQueryData(
         QUERY_KEYS.dailyTimesheets(new Date(workDate)),
         (oldData: any[] | undefined) => {
@@ -371,67 +413,34 @@ export const TeamTimeComparisonTable = ({
         }
       );
 
-      // APOI force refetch pentru validare
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets() });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.teamPendingApprovals() });
 
       toast({
         title: '✅ Override salvat',
-        description: `${getSegmentLabel(segmentType)}: ${newHours.toFixed(2)}h (manual)`,
+        description: `${getSegmentLabel(segmentType)}: ${newHours.toFixed(2)}h (validat)`,
       });
 
       setEditingHours(null);
     };
 
-    // ✅ FIX: Dacă e Manual Override, salvăm DIRECT în daily_timesheets (orice segment)
+    // Dacă e Manual Override, salvăm DIRECT
     if (employee.manualOverride) {
       await saveAdminOverride();
       return;
     }
 
+    // Pentru segmente non-regular, aplicăm logica de rebalansare
     if (segmentType !== 'hours_regular') {
-      const regular = getDisplayHours(employee, 'hours_regular');
-      const others = getSum(segmentTypes.filter(t => t !== 'hours_regular' && t !== segmentType));
-      const desiredTotal = others + newHours + regular;
-
-      if (desiredTotal > employee.totalHours + tolerance) {
-        if (isAdmin) {
-          await saveAdminOverride();
-          return;
-        }
-        const diff = desiredTotal - employee.totalHours; // cât trebuie să scădem din normal
-        if (regular > 0) {
-          const adjustedRegular = Math.max(0, regular - diff);
-          const adjustedTotal = others + newHours + adjustedRegular;
-          if (adjustedTotal <= employee.totalHours + tolerance + 0.001) {
-            // ✅ Rebalansăm automat: scădem din "Zi" (hours_regular) diferența necesară
-            onSegmentHoursEdit(userId, 'hours_regular', Number(adjustedRegular.toFixed(2)));
-            onSegmentHoursEdit(userId, segmentType, Number(newHours.toFixed(2)));
-            setEditingHours(null);
-            return;
-          }
-        }
-        alert(`❌ Eroare: Total segmente ar depăși Clock In/Out (${employee.totalHours.toFixed(1)}h)`);
-        return;
-      }
-
-      // Nu depășește: salvăm direct prin recalcul segmente
+      // Recalculăm regular automat
+      onSegmentHoursEdit(userId, 'hours_regular', Number(hoursRegularCalculated.toFixed(2)));
       onSegmentHoursEdit(userId, segmentType, Number(newHours.toFixed(2)));
       setEditingHours(null);
       return;
     }
 
-    // Cazul "hours_regular": respectăm totalul maxim (clamp dacă e nevoie)
-    const othersWithoutRegular = getSum(segmentTypes.filter(t => t !== 'hours_regular'));
-    const maxRegular = Math.max(0, employee.totalHours - othersWithoutRegular);
-
-    if (isAdmin && newHours > maxRegular + tolerance) {
-      await saveAdminOverride();
-      return;
-    }
-
-    const appliedRegular = newHours > maxRegular + tolerance ? maxRegular : newHours;
-    onSegmentHoursEdit(userId, 'hours_regular', Number(appliedRegular.toFixed(2)));
+    // Pentru hours_regular: acceptăm valoarea calculată automat
+    onSegmentHoursEdit(userId, 'hours_regular', Number(hoursRegularCalculated.toFixed(2)));
     setEditingHours(null);
   };
 
@@ -806,6 +815,26 @@ export const TeamTimeComparisonTable = ({
                   {/* Fragmentare - Badge display cu butoane + pentru tipuri noi */}
                   <TableCell>
                     <div className="flex flex-wrap gap-1.5 max-w-2xl">
+                      {/* ⚠️ WARNING BADGE pentru suprapunere ore */}
+                      {(() => {
+                        if (!employee.lastClockOut) return null;
+                        
+                        const durataBruta = (new Date(employee.lastClockOut).getTime() - new Date(employee.firstClockIn).getTime()) / (1000 * 60 * 60);
+                        const segmentTypesManuale = ['hours_passenger', 'hours_driving', 'hours_equipment', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday'];
+                        const sumaManuale = segmentTypesManuale.reduce((sum, t) => sum + getDisplayHours(employee, t), 0);
+                        const regular = getDisplayHours(employee, 'hours_regular');
+                        const sumaTotal = sumaManuale + regular;
+                        
+                        if (sumaTotal > durataBruta + 0.05) {
+                          const suprapunere = sumaTotal - durataBruta;
+                          return (
+                            <Badge variant="destructive" className="animate-pulse">
+                              ⚠️ Suprapunere: {suprapunere.toFixed(2)}h
+                            </Badge>
+                          );
+                        }
+                        return null;
+                      })()}
                       {/* Afișăm TOATE tipurile de segmente */}
                       {['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'].map((segmentType) => {
                         const hours = getDisplayHours(employee, segmentType);
