@@ -220,6 +220,21 @@ export const TeamTimeApprovalManager = ({
   const incompleteEntries = pendingEntries.filter(e => 
     e.clock_in_time && !e.clock_out_time && !e.isMissing && e.approval_status !== 'approved'
   );
+  
+  // 🐛 DEBUG: Log incomplete entries details
+  console.log('[Incomplete Check]', {
+    total_pending: pendingEntries.length,
+    incomplete_count: incompleteEntries.length,
+    incomplete_details: incompleteEntries.map(e => ({ 
+      id: e.id.slice(0, 8), 
+      name: e.profiles?.full_name, 
+      isMissing: e.isMissing,
+      has_clock_in: !!e.clock_in_time,
+      has_clock_out: !!e.clock_out_time,
+      status: e.approval_status
+    }))
+  });
+  
   const missingEntries = pendingEntries.filter(e => e.isMissing);
   
   // ✅ Entries COMPLETE (exclude missing) pentru statistici corecte

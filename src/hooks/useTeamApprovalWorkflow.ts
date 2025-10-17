@@ -487,10 +487,16 @@ export const useTeamApprovalWorkflow = (
         )
       );
     },
-    onSuccess: (_, entryIds) => {
-      queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+    onSuccess: async (_, entryIds) => {
+      await queryClient.invalidateQueries({ queryKey: ['team-pending-approvals'] });
+      await queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      await queryClient.invalidateQueries({ queryKey: ['daily-timesheets'] });
+      
+      // ✅ Force refetch immediate pentru refresh vizual
+      await queryClient.refetchQueries({ 
+        queryKey: ['team-pending-approvals', teamId, weekStartDate, selectedDayOfWeek] 
+      });
+      
       toast({
         title: 'Pontaje aprobate',
         description: `${entryIds.length} pontaje au fost aprobate cu succes`,
