@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ro } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn, normalizeTimeInput } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -199,6 +199,10 @@ export function TimeEntryCorrectionDialog({ open, onOpenChange }: TimeEntryCorre
               type="time"
               value={proposedClockIn}
               onChange={(e) => setProposedClockIn(e.target.value)}
+              onBlur={(e) => {
+                const normalized = normalizeTimeInput(e.target.value);
+                setProposedClockIn(normalized);
+              }}
             />
           </div>
 
@@ -212,6 +216,10 @@ export function TimeEntryCorrectionDialog({ open, onOpenChange }: TimeEntryCorre
               type="time"
               value={proposedClockOut}
               onChange={(e) => setProposedClockOut(e.target.value)}
+              onBlur={(e) => {
+                const normalized = normalizeTimeInput(e.target.value);
+                setProposedClockOut(normalized);
+              }}
             />
           </div>
 

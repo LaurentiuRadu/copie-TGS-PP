@@ -224,15 +224,26 @@ export default function TimesheetVerificare() {
   });
 
   // Setează echipa selectată DOAR dacă nu există nicio selecție
+  // PRIORITATE: prima echipă cu pontaje pending/incomplete (neverificată)
   useEffect(() => {
     if (availableTeams && availableTeams.size > 0 && !selectedTeam) {
-      const firstTeam = Array.from(availableTeams)[0];
-      setSelectedTeam(firstTeam);
+      // Sortăm echipele alfabetic pentru ordine consistentă
+      const sortedTeams = Array.from(availableTeams).sort();
+      
+      // Căutăm prima echipă cu pontaje pending/incomplete
+      const unverifiedTeam = sortedTeams.find(teamId => {
+        const counts = teamPendingCounts?.[teamId];
+        return counts && counts.total > 0;
+      });
+      
+      // Dacă există echipă neverificată, o selectăm; altfel, prima din listă
+      const targetTeam = unverifiedTeam || sortedTeams[0];
+      setSelectedTeam(targetTeam);
     } else if (availableTeams && !availableTeams.has(selectedTeam || '')) {
       // Dacă echipa selectată nu mai e disponibilă, resetează
       setSelectedTeam(null);
     }
-  }, [selectedWeek, selectedDayOfWeek, availableTeams, selectedTeam]);
+  }, [selectedWeek, selectedDayOfWeek, availableTeams, selectedTeam, teamPendingCounts]);
 
   // Reset edited teams DOAR când schimbăm săptămâna
   useEffect(() => {

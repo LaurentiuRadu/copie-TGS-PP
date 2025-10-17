@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Pencil, Trash2, Check, X, CheckCircle2, Plus, AlertCircle, Clock, Info, Calendar } from 'lucide-react';
 import { formatRomania } from '@/lib/timezone';
+import { normalizeTimeInput } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -623,7 +624,7 @@ export const TeamTimeComparisonTable = ({
                   
                   {/* Clock In - cu editare inline */}
                   <TableCell>
-                    {editingSegment && 
+                     {editingSegment && 
                      editingSegment.userId === employee.userId && 
                      editingSegment.field === 'startTime' &&
                      editingSegment.segmentIndex === 0 ? (
@@ -632,6 +633,10 @@ export const TeamTimeComparisonTable = ({
                           type="time"
                           value={editingSegment.value}
                           onChange={(e) => onTimeChange(e.target.value)}
+                          onBlur={(e) => {
+                            const normalized = normalizeTimeInput(e.target.value);
+                            onTimeChange(normalized);
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') onTimeSave(employee);
                             if (e.key === 'Escape') onTimeCancel();
@@ -703,6 +708,10 @@ export const TeamTimeComparisonTable = ({
                             type="time"
                             value={editingSegment.value}
                             onChange={(e) => onTimeChange(e.target.value)}
+                            onBlur={(e) => {
+                              const normalized = normalizeTimeInput(e.target.value);
+                              onTimeChange(normalized);
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') onTimeSave(employee);
                               if (e.key === 'Escape') onTimeCancel();

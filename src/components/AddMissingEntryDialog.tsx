@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Clock, Calendar } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { ro } from 'date-fns/locale';
+import { normalizeTimeInput } from '@/lib/utils';
 
 interface AddMissingEntryDialogProps {
   open: boolean;
@@ -163,6 +164,10 @@ export function AddMissingEntryDialog({
               type="time"
               value={clockIn}
               onChange={(e) => setClockIn(e.target.value)}
+              onBlur={(e) => {
+                const normalized = normalizeTimeInput(e.target.value);
+                setClockIn(normalized);
+              }}
               className="font-mono"
             />
           </div>
@@ -175,6 +180,10 @@ export function AddMissingEntryDialog({
               type="time"
               value={clockOut}
               onChange={(e) => setClockOut(e.target.value)}
+              onBlur={(e) => {
+                const normalized = normalizeTimeInput(e.target.value);
+                setClockOut(normalized);
+              }}
               className="font-mono"
             />
           </div>
