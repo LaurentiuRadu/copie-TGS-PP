@@ -49,9 +49,11 @@ export const UniformizeDialog = ({
     return segments.some(s => s.type === 'hours_driving' || s.type === 'hours_equipment');
   };
 
-  // Calculează media echipei (exclude șoferii)
+  // Calculează media echipei (exclude șoferii și entries missing)
   const calculateTeamAverage = () => {
-    const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
+    const nonDrivers = groupedByEmployee.filter(emp => 
+      !isDriver(emp.segments) && emp.firstClockIn !== null
+    );
     
     if (nonDrivers.length === 0) {
       return { avgClockIn: null, avgClockOut: null };
@@ -83,8 +85,8 @@ export const UniformizeDialog = ({
   };
 
   const teamAverage = calculateTeamAverage();
-  const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
-  const drivers = groupedByEmployee.filter(emp => isDriver(emp.segments));
+  const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments) && emp.firstClockIn !== null);
+  const drivers = groupedByEmployee.filter(emp => isDriver(emp.segments) && emp.firstClockIn !== null);
 
   const handleConfirm = () => {
     if (teamAverage.avgClockIn) {
@@ -137,8 +139,14 @@ export const UniformizeDialog = ({
                     <span className="text-xs text-muted-foreground">@{emp.username}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Curent: {formatRomania(emp.firstClockIn, 'HH:mm')}
-                    {emp.lastClockOut && ` - ${formatRomania(emp.lastClockOut, 'HH:mm')}`}
+                    {emp.firstClockIn ? (
+                      <>
+                        Curent: {formatRomania(emp.firstClockIn, 'HH:mm')}
+                        {emp.lastClockOut && ` - ${formatRomania(emp.lastClockOut, 'HH:mm')}`}
+                      </>
+                    ) : (
+                      <span className="text-red-500">Lipsă pontaj</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -158,8 +166,14 @@ export const UniformizeDialog = ({
                       <Badge variant="secondary" className="text-xs">🚗 Șofer</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Păstrează: {formatRomania(emp.firstClockIn, 'HH:mm')}
-                      {emp.lastClockOut && ` - ${formatRomania(emp.lastClockOut, 'HH:mm')}`}
+                      {emp.firstClockIn ? (
+                        <>
+                          Păstrează: {formatRomania(emp.firstClockIn, 'HH:mm')}
+                          {emp.lastClockOut && ` - ${formatRomania(emp.lastClockOut, 'HH:mm')}`}
+                        </>
+                      ) : (
+                        <span className="text-red-500">Lipsă pontaj</span>
+                      )}
                     </div>
                   </div>
                 ))}
