@@ -741,6 +741,13 @@ export const TeamTimeApprovalManager = ({
       return;
     }
 
+    // ✅ Lista completă de tipuri de ore standard (folosită în validări și salvare)
+    const standardTypes = [
+      'hours_regular', 'hours_night', 'hours_saturday', 
+      'hours_sunday', 'hours_holiday', 'hours_passenger', 
+      'hours_driving', 'hours_equipment'
+    ];
+
     try {
       // Găsește work_date din managementEntries
       const userEntry = managementEntries.find(e => e.user_id === userId);
@@ -808,14 +815,23 @@ export const TeamTimeApprovalManager = ({
         .eq('work_date', workDate)
         .maybeSingle();
       
-      const updateData = {
+      // ✅ Păstrează TOATE valorile existente + modificarea nouă
+      const updateData: any = {
         employee_id: userId,
         work_date: workDate,
-        [segmentType]: newValue,
         notes: existingTimesheet?.notes?.includes('[OVERRIDE MANUAL')
           ? existingTimesheet.notes
           : `[OVERRIDE MANUAL] Editat manual la ${new Date().toISOString()}`
       };
+
+      // Populăm toate tipurile cu valorile curente (sau 0)
+      standardTypes.forEach(type => {
+        if (type === segmentType) {
+          updateData[type] = newValue; // Valoarea nouă pentru tipul editat
+        } else {
+          updateData[type] = existingTimesheet?.[type] || 0; // Păstrăm valoarea existentă
+        }
+      });
       
       if (existingTimesheet) {
         // Update
