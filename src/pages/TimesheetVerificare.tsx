@@ -229,27 +229,41 @@ export default function TimesheetVerificare() {
     staleTime: 30000, // Cache valid for 30s
   });
 
-  // Setează echipa selectată DOAR dacă nu există nicio selecție
-  // PRIORITATE: prima echipă cu pontaje pending/incomplete (neverificată)
+  // Recalculează echipa selectată la fiecare schimbare de zi/săptămână
+  // PRIORITATE: echipă neverificată → echipă curentă (dacă validă) → prima echipă
   useEffect(() => {
-    if (availableTeams && availableTeams.size > 0 && !selectedTeam) {
-      // Sortăm echipele alfabetic pentru ordine consistentă
+    if (availableTeams && availableTeams.size > 0) {
       const sortedTeams = Array.from(availableTeams).sort();
       
-      // Căutăm prima echipă cu pontaje pending/incomplete
+      // Căutăm prima echipă cu pontaje pending/incomplete (neverificată)
       const unverifiedTeam = sortedTeams.find(teamId => {
         const counts = teamPendingCounts?.[teamId];
         return counts && counts.total > 0;
       });
       
-      // Dacă există echipă neverificată, o selectăm; altfel, prima din listă
-      const targetTeam = unverifiedTeam || sortedTeams[0];
-      setSelectedTeam(targetTeam);
+      // PRIORITATE: echipă neverificată > echipă curentă (dacă e validă) > prima echipă
+      let targetTeam: string | null = null;
+      
+      if (unverifiedTeam) {
+        // Dacă există echipă neverificată, o selectăm
+        targetTeam = unverifiedTeam;
+      } else if (selectedTeam && availableTeams.has(selectedTeam)) {
+        // Dacă echipa curentă e validă (chiar dacă e verificată), o păstrăm
+        targetTeam = selectedTeam;
+      } else {
+        // Fallback: prima echipă din listă
+        targetTeam = sortedTeams[0];
+      }
+      
+      // Setăm echipa DOAR dacă s-a schimbat (previne loop infinit)
+      if (targetTeam !== selectedTeam) {
+        setSelectedTeam(targetTeam);
+      }
     } else if (availableTeams && !availableTeams.has(selectedTeam || '')) {
       // Dacă echipa selectată nu mai e disponibilă, resetează
       setSelectedTeam(null);
     }
-  }, [selectedWeek, selectedDayOfWeek, availableTeams, selectedTeam, teamPendingCounts]);
+  }, [selectedWeek, selectedDayOfWeek, availableTeams, teamPendingCounts]);
 
   // Reset edited teams DOAR când schimbăm săptămâna
   useEffect(() => {
