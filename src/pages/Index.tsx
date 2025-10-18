@@ -1,10 +1,12 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Calendar, TrendingUp, Award } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import heroImage from "@/assets/hero-team.jpg";
 import { SecurityAlertsManager } from "@/components/SecurityAlertsManager";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { WeeklyHoursChart } from "@/components/dashboard/WeeklyHoursChart";
+import { RecentActivityFeed } from "@/components/dashboard/RecentActivityFeed";
+import { QuickActions } from "@/components/dashboard/QuickActions";
 
 const Index = () => {
   const { user } = useAuth();
@@ -53,67 +55,20 @@ const Index = () => {
 
             {/* Content */}
             <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-              {/* Quick Stats */}
-              <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-                <Card className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="hidden sm:inline">Ore Azi</span>
-                      <span className="sm:hidden">Azi</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xl md:text-2xl font-bold">0h</div>
-                    <p className="text-xs text-muted-foreground mt-1">În pontaj</p>
-                  </CardContent>
-                </Card>
+              {/* Stats Cards */}
+              <DashboardStats />
 
-                <Card className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-success" />
-                      <span className="hidden sm:inline">Săptămâna</span>
-                      <span className="sm:hidden">Săpt</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xl md:text-2xl font-bold">0h</div>
-                    <p className="text-xs text-muted-foreground mt-1">Total lucrat</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-info" />
-                      <span className="hidden sm:inline">Luna</span>
-                      <span className="sm:hidden">Lună</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xl md:text-2xl font-bold">0h</div>
-                    <p className="text-xs text-muted-foreground mt-1">Acest mois</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <Award className="h-4 w-4 text-warning" />
-                      <span className="hidden sm:inline">Concediu</span>
-                      <span className="sm:hidden">CO</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xl md:text-2xl font-bold">21</div>
-                    <p className="text-xs text-muted-foreground mt-1">Zile rămase</p>
-                  </CardContent>
-                </Card>
-
+              {/* Charts & Activity Grid */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <WeeklyHoursChart />
+                <RecentActivityFeed />
               </div>
 
-              <SecurityAlertsManager className="mt-6" />
+              {/* Quick Actions */}
+              <QuickActions />
+
+              {/* Security Alerts */}
+              <SecurityAlertsManager />
             </div>
           </main>
         </div>
