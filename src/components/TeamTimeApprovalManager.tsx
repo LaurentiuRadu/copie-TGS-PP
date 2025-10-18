@@ -1409,12 +1409,35 @@ export const TeamTimeApprovalManager = ({
   }, [groupedByEmployee, toast, queryClient, selectedWeek, selectedDayOfWeek]);
 
   if (availableTeams.size === 0) {
+    const getDayName = (day: number) => {
+      const days = ['', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
+      return days[day];
+    };
+
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground text-center">
-            Nu există echipe programate în această săptămână
-          </p>
+          <div className="text-center py-12 space-y-3">
+            <div className="flex flex-col items-center gap-3">
+              <AlertCircle className="h-12 w-12 text-muted-foreground" />
+              <div>
+                <p className="text-lg font-medium mb-1">
+                  Nu există echipe programate pentru {getDayName(selectedDayOfWeek)}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Săptămâna {format(new Date(selectedWeek), 'dd MMM - ', { locale: ro })}
+                  {format(new Date(new Date(selectedWeek).getTime() + 6 * 24 * 60 * 60 * 1000), 'dd MMM yyyy', { locale: ro })}
+                </p>
+              </div>
+            </div>
+            
+            <Alert className="max-w-md mx-auto">
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Folosește selectorul de zi de mai sus pentru a vizualiza alte zile din săptămână.
+              </AlertDescription>
+            </Alert>
+          </div>
         </CardContent>
       </Card>
     );

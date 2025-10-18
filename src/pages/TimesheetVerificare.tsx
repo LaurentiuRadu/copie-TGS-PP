@@ -32,6 +32,12 @@ import {
 const getDefaultVerificationDay = (): number => {
   const today = new Date();
   const todayDayOfWeek = today.getDay() || 7; // 1=luni, 7=duminică
+  
+  // Dacă e weekend (6=sâmbătă, 7=duminică), selectează vineri
+  if (todayDayOfWeek === 6 || todayDayOfWeek === 7) {
+    return 5; // Vineri
+  }
+  
   return todayDayOfWeek;
 };
 
