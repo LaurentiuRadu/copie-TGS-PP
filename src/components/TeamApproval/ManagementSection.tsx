@@ -4,7 +4,7 @@
  * Extracted from TeamTimeApprovalManager for better code organization
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
   X,
   Plus,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -27,6 +28,7 @@ import {
 import { formatRomania } from '@/lib/timezone';
 import { getSegmentIcon, getSegmentLabel, SEGMENT_TYPES } from '@/lib/segments';
 import type { ManagementUser, EmployeeDayData } from '@/types/timeApproval';
+import { DeleteManualOverrideDialog } from '@/components/DeleteManualOverrideDialog';
 
 interface ManagementSectionProps {
   managementGroupedByUser: ManagementUser[];
@@ -68,6 +70,15 @@ export const ManagementSection = React.memo(({
   managementEntries,
 }: ManagementSectionProps) => {
   const standardTypes = SEGMENT_TYPES;
+  const [deleteOverrideDialogOpen, setDeleteOverrideDialogOpen] = useState(false);
+
+  // Calculează data zilei curente pentru dialog
+  const currentDate = React.useMemo(() => {
+    const weekStart = new Date(selectedWeek);
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(dayDate.getDate() + (selectedDayOfWeek - 1));
+    return dayDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  }, [selectedWeek, selectedDayOfWeek]);
 
   const getDisplayHoursMgmt = (user: ManagementUser, type: string): number => {
     if (user.manualOverride && user.overrideHours) {
@@ -82,19 +93,33 @@ export const ManagementSection = React.memo(({
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1">
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Badge variant="default" className="bg-primary text-primary-foreground">
                     👔 Supervizori și Coordonatori
                   </Badge>
                 </div>
-                <div>
+                <div className="flex-1">
                   <CardTitle className="text-lg">Pontaje Supervizori și Coordonatori</CardTitle>
                   <CardDescription>
                     {managementGroupedByUser.length}{' '}
                     {managementGroupedByUser.length === 1 ? 'pontaj' : 'pontaje'}
                   </CardDescription>
                 </div>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteOverrideDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Șterge Override Manual
+                  </Button>
+                )}
               </div>
               <ChevronDown className="h-5 w-5 transition-transform data-[state=open]:rotate-180" />
             </div>
@@ -463,6 +488,13 @@ export const ManagementSection = React.memo(({
           </CardContent>
         </CollapsibleContent>
       </Card>
+
+      {/* Dialog pentru ștergere override-uri */}
+      <DeleteManualOverrideDialog
+        open={deleteOverrideDialogOpen}
+        onOpenChange={setDeleteOverrideDialogOpen}
+        selectedDate={currentDate}
+      />
     </Collapsible>
   );
 }, (prevProps, nextProps) => {
