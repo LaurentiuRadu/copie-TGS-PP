@@ -94,7 +94,8 @@ const Timesheet = () => {
   });
 
   // ✅ Fetch all timesheets for the current month (primary data source)
-  const { data: allTimesheets, isLoading: loadingTimesheets } = useQuery({
+  // 🔄 Forțăm reîncărcarea pentru a evita discrepanțe de cache după reprocessing
+  const { data: allTimesheets, isLoading: loadingTimesheets, refetch: refetchTimesheets } = useQuery({
     queryKey: QUERY_KEYS.dailyTimesheets(monthStart),
     queryFn: async () => {
       const { data, error } = await supabase
@@ -114,6 +115,10 @@ const Timesheet = () => {
       if (error) throw error;
       return data as DailyTimesheet[];
     },
+    staleTime: 0, // ✅ Datele devin stale imediat
+    refetchOnMount: 'always', // ✅ Refetch la fiecare mount
+    refetchOnWindowFocus: true, // ✅ Refetch când utilizatorul revine la tab
+    refetchOnReconnect: true, // ✅ Refetch când se reconectează
   });
 
   // ✅ Fetch time_entries for calendar view calculation
@@ -356,11 +361,12 @@ const Timesheet = () => {
         );
         toast.success(data.message);
         
-        // ✅ Invalidare imediată DUPĂ success confirm
+        // ✅ Invalidare imediată DUPĂ success confirm + refetch explicit
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) }),
           queryClient.invalidateQueries({ queryKey: QUERY_KEYS.timeEntries() }),
-          queryClient.invalidateQueries({ queryKey: ['users-with-roles-batched'] })
+          queryClient.invalidateQueries({ queryKey: ['users-with-roles-batched'] }),
+          queryClient.refetchQueries({ queryKey: QUERY_KEYS.dailyTimesheets(monthStart) }) // ✅ Forțăm refetch instant
         ]);
       } else {
         throw new Error(data.error || 'Eroare necunoscută');
@@ -448,6 +454,27 @@ const Timesheet = () => {
                 <div className="text-sm font-medium whitespace-nowrap">
                   {filteredEmployees.length} din {employeeData.length} angajați
                 </div>
+                
+                {/* 🆕 Buton Reîncarcă Datele */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetchTimesheets()}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Reîncarcă
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Reîncarcă datele din backend</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
                 <TimeEntryReprocessButton />
                 <PayrollExportDialog
                   allTimesheets={allTimesheets || []}
@@ -481,10 +508,10 @@ const Timesheet = () => {
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-md">
                       <div className="space-y-2">
-                        <p className="text-sm font-semibold">🌙 Regulă Noapte (00:00-06:00)</p>
+                        <p className="text-sm font-semibold">📊 Diferență între moduri</p>
                         <div className="text-xs space-y-1">
-                          <p><strong>Mod Salarizare (implicit):</strong> Orele între 00:00-06:00 sunt alocate zilei precedente conform politicii companiei pentru raportare salarială.</p>
-                          <p><strong>Mod Calendaristic:</strong> Orele sunt afișate pe ziua calendaristică efectivă, fără mutare. Folosit doar pentru vizualizare.</p>
+                          <p><strong>Mod Salarizare (implicit):</strong> Afișează datele aprobate din backend, calculate prin segmentare automată. Fiecare segment este atribuit zilei sale calendaristice corecte.</p>
+                          <p><strong>Mod Calendaristic:</strong> Vizualizare simplificată bazată pe pontaje brute (clock_in/clock_out). Folosit doar pentru referință, nu afectează raportarea oficială.</p>
                         </div>
                       </div>
                     </TooltipContent>
@@ -492,12 +519,19 @@ const Timesheet = () => {
                 </TooltipProvider>
               </div>
               
-              {viewMode === 'calendar' && (
-                <Badge variant="secondary" className="gap-2">
-                  <CalendarIcon className="h-3 w-3" />
-                  Vizualizare calendaristică (nu afectează raportarea)
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {viewMode === 'calendar' ? (
+                  <Badge variant="secondary" className="gap-2">
+                    <CalendarIcon className="h-3 w-3" />
+                    Vizualizare calendaristică (nu afectează raportarea)
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="gap-2 bg-green-600 hover:bg-green-700">
+                    <Lock className="h-3 w-3" />
+                    Sursă: Date aprobate (backend)
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
