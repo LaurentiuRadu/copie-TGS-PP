@@ -760,8 +760,26 @@ const Timesheet = () => {
                               <TableHead>Data</TableHead>
                               <TableHead className="text-center">Zi</TableHead>
                               <TableHead className="text-center">Noapte</TableHead>
-                              <TableHead className="text-center">Săm</TableHead>
-                              <TableHead className="text-center">Dum</TableHead>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <TableHead className="text-center cursor-help">Săm</TableHead>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom" className="max-w-xs">
+                                    <p className="text-xs">Afișează orele Sâmbătă 06:00 → Duminică 05:59:59 (agregate)</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <TableHead className="text-center cursor-help">Dum</TableHead>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom" className="max-w-xs">
+                                    <p className="text-xs">Afișează orele Duminică 06:00 → 23:59:59 (agregate)</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                               <TableHead className="text-center">Sârb</TableHead>
                               <TableHead className="text-center">Pasager</TableHead>
                               <TableHead className="text-center">Condus</TableHead>
@@ -773,66 +791,239 @@ const Timesheet = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {employee.timesheets.map((ts) => {
-                              const total = ts.hours_regular + ts.hours_night + ts.hours_saturday + ts.hours_sunday + ts.hours_holiday + 
-                                          ts.hours_passenger + ts.hours_driving + ts.hours_equipment + 
-                                          ts.hours_leave + ts.hours_medical_leave;
+                            {(() => {
+                              // ✅ Creăm index pentru nextDay lookup
+                              const timesheetMap = new Map(employee.timesheets.map(t => [t.work_date, t]));
                               
-                              const isPlaceholder = ts.id.startsWith('placeholder-');
-                              
-                              return (
-                                <TableRow key={ts.id} className={cn(
-                                  getRowBackground(ts.work_date, isPlaceholder),
-                                  "hover:bg-muted/80 transition-colors"
-                                )}>
-                                  <TableCell className="font-medium">
-                                    <div className="flex flex-col">
-                                      <span>{format(new Date(ts.work_date), 'EEEE', { locale: ro })}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {format(new Date(ts.work_date), 'dd.MM')}
-                                      </span>
-                                    </div>
-                                  </TableCell>
-                                  {/* ✅ Celule READ-ONLY cu badge-uri */}
-                                  {['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 
-                                    'hours_passenger', 'hours_driving', 'hours_equipment', 'hours_leave', 'hours_medical_leave'].map(field => {
-                                    const fieldValue = ts[field as keyof DailyTimesheet] as number;
+                              return employee.timesheets.map((ts, idx) => {
+                                // ✅ Calculăm ziua următoare pentru lookup
+                                const currentDate = new Date(ts.work_date + 'T00:00:00Z');
+                                const nextDate = new Date(currentDate);
+                                nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+                                const nextDateStr = format(nextDate, 'yyyy-MM-dd');
+                                const nextDayTimesheet = timesheetMap.get(nextDateStr);
+                                
+                                // ✅ Determinăm ziua săptămânii (0=Duminică, 6=Sâmbătă)
+                                const dayOfWeek = currentDate.getUTCDay();
+                                
+                                // ✅ Calculăm weekend "ancorat pe rând"
+                                let displayedSaturday = 0;
+                                let displayedSunday = 0;
+                                
+                                if (dayOfWeek === 6) { // Sâmbătă
+                                  displayedSaturday = (ts.hours_saturday || 0) + (nextDayTimesheet?.hours_saturday || 0);
+                                  displayedSunday = 0;
+                                } else if (dayOfWeek === 0) { // Duminică
+                                  displayedSaturday = 0; // Orele Dum 00:00-06:00 sunt deja la Sâmbătă
+                                  displayedSunday = ts.hours_sunday || 0;
+                                } else {
+                                  displayedSaturday = 0;
+                                  displayedSunday = 0;
+                                }
+                                
+                                // ✅ Recalculăm totalul cu valorile AFIȘATE
+                                const total = ts.hours_regular + ts.hours_night + displayedSaturday + displayedSunday + ts.hours_holiday + 
+                                            ts.hours_passenger + ts.hours_driving + ts.hours_equipment + 
+                                            ts.hours_leave + ts.hours_medical_leave;
+                                
+                                const isPlaceholder = ts.id.startsWith('placeholder-');
+                                
+                                return (
+                                  <TableRow key={ts.id} className={cn(
+                                    getRowBackground(ts.work_date, isPlaceholder),
+                                    "hover:bg-muted/80 transition-colors"
+                                  )}>
+                                    <TableCell className="font-medium">
+                                      <div className="flex flex-col">
+                                        <span>{format(new Date(ts.work_date), 'EEEE', { locale: ro })}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {format(new Date(ts.work_date), 'dd.MM')}
+                                        </span>
+                                      </div>
+                                    </TableCell>
                                     
-                                    return (
-                                      <TableCell key={field} className="text-center">
-                                        <Badge
-                                          variant="secondary"
-                                          className={cn(
-                                            "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
-                                            fieldValue > 0 
-                                              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
-                                              : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
-                                            isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
-                                          )}
-                                        >
-                                          {fieldValue > 0 ? formatHours(fieldValue) : '0'}
-                                        </Badge>
-                                      </TableCell>
-                                    );
-                                  })}
-                                  <TableCell>
-                                    <Badge
-                                      variant="outline"
-                                      className={cn(
-                                        "text-xs max-w-[150px] truncate",
-                                        !ts.notes && "text-muted-foreground bg-gray-50 dark:bg-gray-900",
-                                        isPlaceholder && "opacity-50"
-                                      )}
-                                    >
-                                      {ts.notes || 'Fără observații'}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold">
-                                    {formatHours(total)}
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
+                                    {/* Zi */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_regular > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_regular > 0 ? formatHours(ts.hours_regular) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Noapte */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_night > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_night > 0 ? formatHours(ts.hours_night) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* ✅ Săm (weekend ancorat) */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          displayedSaturday > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {displayedSaturday > 0 ? formatHours(displayedSaturday) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* ✅ Dum (weekend ancorat) */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          displayedSunday > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {displayedSunday > 0 ? formatHours(displayedSunday) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Sârb */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_holiday > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_holiday > 0 ? formatHours(ts.hours_holiday) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Pasager */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_passenger > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_passenger > 0 ? formatHours(ts.hours_passenger) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Condus */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_driving > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_driving > 0 ? formatHours(ts.hours_driving) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Utilaj */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_equipment > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_equipment > 0 ? formatHours(ts.hours_equipment) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* CO */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_leave > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_leave > 0 ? formatHours(ts.hours_leave) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* CM */}
+                                    <TableCell className="text-center">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn(
+                                          "rounded-full px-3 py-1.5 text-sm font-medium min-w-[48px]",
+                                          ts.hours_medical_leave > 0 
+                                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100" 
+                                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                                          isPlaceholder && "opacity-50 bg-gray-50 dark:bg-gray-900"
+                                        )}
+                                      >
+                                        {ts.hours_medical_leave > 0 ? formatHours(ts.hours_medical_leave) : '0'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Observații */}
+                                    <TableCell>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "text-xs max-w-[150px] truncate",
+                                          !ts.notes && "text-muted-foreground bg-gray-50 dark:bg-gray-900",
+                                          isPlaceholder && "opacity-50"
+                                        )}
+                                      >
+                                        {ts.notes || 'Fără observații'}
+                                      </Badge>
+                                    </TableCell>
+                                    
+                                    {/* Total (recalculat cu valori afișate) */}
+                                    <TableCell className="text-center font-bold">
+                                      {formatHours(total)}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              });
+                            })()}
                           </TableBody>
                         </Table>
                       </div>
