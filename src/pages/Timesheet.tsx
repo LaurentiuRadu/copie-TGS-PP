@@ -763,7 +763,7 @@ const Timesheet = () => {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <TableHead className="text-center cursor-help">Săm</TableHead>
+                                    <TableHead className="text-center cursor-help">Sâmbătă</TableHead>
                                   </TooltipTrigger>
                                   <TooltipContent side="bottom" className="max-w-xs">
                                     <p className="text-xs">Afișează orele Sâmbătă 06:00 → Duminică 05:59:59 (agregate)</p>
@@ -773,14 +773,19 @@ const Timesheet = () => {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <TableHead className="text-center cursor-help">Dum</TableHead>
+                                    <TableHead className="text-center cursor-help">Duminică</TableHead>
                                   </TooltipTrigger>
                                   <TooltipContent side="bottom" className="max-w-xs">
                                     <p className="text-xs">Afișează orele Duminică 06:00 → 23:59:59 (agregate)</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
-                              <TableHead className="text-center">Sârb</TableHead>
+                              <TableHead className="text-center">
+                                <div className="flex flex-col">
+                                  <span>Sărbătoare</span>
+                                  <span>legală</span>
+                                </div>
+                              </TableHead>
                               <TableHead className="text-center">Pasager</TableHead>
                               <TableHead className="text-center">Condus</TableHead>
                               <TableHead className="text-center">Utilaj</TableHead>
