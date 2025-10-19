@@ -806,12 +806,12 @@ Deno.serve(async (req) => {
         const local = new Date(segmentStartUTC.getTime() + offset);
         let workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
         
-        // 🔄 REGULA SPECIALĂ: hours_night între 00:00 → 05:59:59 
-        // se atribuie la ziua ANTERIOARĂ (vineri noapte, nu sâmbătă dimineață)
-        if (segment.segment_type === 'hours_night') {
+        // 🔄 REGULA SPECIALĂ: Segmente între 00:00 → 05:59:59 
+        // se atribuie la ziua ANTERIOARĂ (ex: vineri noapte, nu sâmbătă dimineață)
+        if (segment.segment_type === 'hours_night' || segment.segment_type === 'hours_saturday') {
           const hour = toRomaniaHour(segmentStartUTC);
           if (hour >= 0 && hour < 6) {
-            // Acest segment night (00:00-05:59) aparține turei începute IERI
+            // Acest segment (night/saturday dimineață) aparține turei începute IERI
             const prevDay = new Date(local);
             prevDay.setDate(prevDay.getDate() - 1);
             workDate = toRomaniaDateString(prevDay);
