@@ -16,8 +16,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export function TimeEntryReprocessButton() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing' | 'current_month' | 'specific_date'>('missing_segments');
+  const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing' | 'current_month' | 'specific_date' | 'date_range'>('missing_segments');
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [open, setOpen] = useState(false);
 
   const handleReprocess = async () => {
@@ -40,6 +42,18 @@ export function TimeEntryReprocessButton() {
           return;
         }
         body = { mode: 'date_range', start_date: selectedDate, end_date: selectedDate, batch_size: 100 };
+      } else if (mode === 'date_range') {
+        if (!startDate || !endDate) {
+          toast.error('Te rog selectează ambele date');
+          setIsProcessing(false);
+          return;
+        }
+        if (startDate > endDate) {
+          toast.error('Data de start trebuie să fie înainte de data de sfârșit');
+          setIsProcessing(false);
+          return;
+        }
+        body = { mode: 'date_range', start_date: startDate, end_date: endDate, batch_size: 100 };
       } else {
         body = { mode, batch_size: 100 };
       }
@@ -149,6 +163,18 @@ export function TimeEntryReprocessButton() {
                 </div>
               </Label>
             </div>
+            
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="date_range" id="date_range" />
+              <Label htmlFor="date_range" className="font-normal cursor-pointer">
+                <div>
+                  <div className="font-medium">Reprocesează interval de date</div>
+                  <div className="text-sm text-muted-foreground">
+                    Recalculează toate pontajele dintr-un interval (ex: 17-19 octombrie)
+                  </div>
+                </div>
+              </Label>
+            </div>
           </RadioGroup>
           
           {mode === 'specific_date' && (
@@ -162,6 +188,33 @@ export function TimeEntryReprocessButton() {
                 defaultValue="2025-10-12"
                 className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
               />
+            </div>
+          )}
+          
+          {mode === 'date_range' && (
+            <div className="mt-4 space-y-3">
+              <div>
+                <Label htmlFor="start_date" className="text-sm font-medium">Data de start</Label>
+                <input
+                  type="date"
+                  id="start_date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  defaultValue="2025-10-17"
+                  className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
+                />
+              </div>
+              <div>
+                <Label htmlFor="end_date" className="text-sm font-medium">Data de sfârșit</Label>
+                <input
+                  type="date"
+                  id="end_date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  defaultValue="2025-10-19"
+                  className="w-full mt-2 px-3 py-2 border border-input rounded-md bg-background"
+                />
+              </div>
             </div>
           )}
           

@@ -222,6 +222,9 @@ function segmentShiftIntoTimesheets(
   // ✅ LOGICĂ DIFERITĂ pentru tipuri speciale vs normal
   const isSpecialShift = ['condus', 'pasager', 'utilaj'].includes(shiftType);
   
+  // ✅ NEW: Track min/max UTC boundaries per work_date
+  const dayBoundaries = new Map<string, { minStartUTC: Date, maxEndUTC: Date }>();
+  
   // Track both UTC and Local in parallel
   let currentSegmentStartLocal = new Date(startLocal);
   let currentSegmentStartUTC = new Date(startUTC);
@@ -269,6 +272,23 @@ function segmentShiftIntoTimesheets(
     
     // ✅ FIXED: Găsește sau creează pontaj pentru această zi (ora României)
     const workDate = toRomaniaDateString(currentSegmentStartLocal);
+    
+    // ✅ NEW: Update day boundaries for this workDate
+    if (!dayBoundaries.has(workDate)) {
+      dayBoundaries.set(workDate, {
+        minStartUTC: currentSegmentStartUTC,
+        maxEndUTC: currentSegmentEndUTC
+      });
+    } else {
+      const bounds = dayBoundaries.get(workDate)!;
+      if (currentSegmentStartUTC < bounds.minStartUTC) {
+        bounds.minStartUTC = currentSegmentStartUTC;
+      }
+      if (currentSegmentEndUTC > bounds.maxEndUTC) {
+        bounds.maxEndUTC = currentSegmentEndUTC;
+      }
+    }
+    
     let existingTimesheet = timesheets.find(t => t.work_date === workDate);
     
     if (!existingTimesheet) {
@@ -286,8 +306,8 @@ function segmentShiftIntoTimesheets(
         hours_leave: 0,
         hours_medical_leave: 0,
         notes: shift.notes || null,
-        start_time: startUTC,  // ✅ FIX: Use exact clock_in_time (UTC) - no conversions
-        end_time: endUTC        // ✅ FIX: Use exact clock_out_time (UTC) - no conversions
+        start_time: currentSegmentStartUTC,  // Temporary, will be updated after loop
+        end_time: currentSegmentEndUTC        // Temporary, will be updated after loop
       };
       timesheets.push(existingTimesheet);
     }
@@ -302,6 +322,14 @@ function segmentShiftIntoTimesheets(
     currentSegmentStartLocal = new Date(currentSegmentEndLocal);
     currentSegmentStartUTC = currentSegmentEndUTC; // ✅ CORECT: already in UTC
   }
+  
+  // ✅ NEW: Update all timesheets with correct UTC boundaries per day
+  timesheets.forEach(t => {
+    const bounds = dayBoundaries.get(t.work_date)!;
+    t.start_time = bounds.minStartUTC;
+    t.end_time = bounds.maxEndUTC;
+    console.log(`[Segment Boundaries] ${t.work_date}: ${bounds.minStartUTC.toISOString()} → ${bounds.maxEndUTC.toISOString()}`);
+  });
   
   // ✅ REGULI NOI PAUZĂ
   timesheets.forEach(t => {
@@ -810,11 +838,10 @@ Deno.serve(async (req) => {
         const local = new Date(segmentStartUTC.getTime() + offset);
         let workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
         
-        // 🔄 REGULA SPECIALĂ: Segmente între 00:00 → 05:59:59 
-        // se atribuie la ziua ANTERIOARĂ DOAR dacă tura a început înainte de miezul nopții
-        if (segment.segment_type === 'hours_night' || segment.segment_type === 'hours_saturday') {
-          const hour = toRomaniaHour(segmentStartUTC);
-          if (hour >= 0 && hour < 6) {
+        // 🔄 STRICT NIGHT SHIFT RULE: ONLY hours_night from 00:00-05:59 → previous day
+        const hour = toRomaniaHour(segmentStartUTC);
+        if (hour >= 0 && hour < 6) {
+          if (segment.segment_type === 'hours_night') {
             // Verificăm dacă tura a început înainte de miezul nopții din ziua segmentului
             const segmentDateRO = toRomaniaDateString(segmentStartUTC); // Data segmentului (ex: 2025-10-18)
             const clockInDateRO = toRomaniaDateString(new Date(entry.clock_in_time)); // Data clock_in
@@ -831,10 +858,13 @@ Deno.serve(async (req) => {
               const prevDay = new Date(local);
               prevDay.setDate(prevDay.getDate() - 1);
               workDate = toRomaniaDateString(prevDay);
-              console.log(`[Night Shift Rule] Segment ${segment.segment_type} at ${hour}:xx attributed to previous day: ${workDate} (shift started ${clockInDateRO} ${clockInHourRO}:xx)`);
+              console.log(`[Night Shift Rule] ✅ hours_night at ${hour}:xx → previous day: ${workDate} (shift started ${clockInDateRO} ${clockInHourRO}:xx)`);
             } else {
-              console.log(`[Night Shift Rule] SKIP - Segment ${segment.segment_type} at ${hour}:xx stays on current day: ${workDate} (shift started same day ${clockInDateRO} ${clockInHourRO}:xx)`);
+              console.log(`[Night Shift Rule] ⚠️ SKIP hours_night at ${hour}:xx stays on: ${workDate} (shift started same day ${clockInDateRO} ${clockInHourRO}:xx)`);
             }
+          } else {
+            // ✅ NEW: Explicit log for non-night segments in 00:00-05:59 range
+            console.log(`[Night Shift Rule] ⚠️ SKIP ${segment.segment_type} at ${hour}:xx - rule applies ONLY to hours_night`);
           }
         }
         
