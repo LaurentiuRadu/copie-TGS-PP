@@ -150,6 +150,7 @@ function toRomaniaHour(date: Date): number {
 
 /**
  * Determină tipul de ore bazat pe interval orar, ziua săptămânii și sărbători
+ * ✅ FIXED: Primește timestamp-uri UTC și face conversie RO o singură dată
  * PRIORITATE REGULI (de sus în jos):
  * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate absolută)
  * 2. Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday
@@ -158,17 +159,19 @@ function toRomaniaHour(date: Date): number {
  * 5. Restul = hours_regular
  */
 function determineHoursType(
-  segmentStart: Date,
-  segmentEnd: Date,
+  segmentStartUTC: Date,
+  segmentEndUTC: Date,
   holidayDates: Set<string>
 ): string {
-  const hour = toRomaniaHour(segmentStart);
-  const roDateString = toRomaniaDateString(segmentStart);
+  // ✅ Conversie SINGURĂ de la UTC → România
+  const romaniaDate = new Date(segmentStartUTC.getTime() + getRomaniaOffsetMs(segmentStartUTC));
+  const hour = romaniaDate.getUTCHours();
+  const roDateString = toRomaniaDateString(romaniaDate);
   const dateObj = new Date(roDateString + 'T12:00:00Z');
   const dayOfWeek = dateObj.getUTCDay(); // 0=Duminică, 6=Sâmbătă
   
   // PRIORITATE 1: Sărbătoare legală (06:00 → 23:59:59)
-  if (isLegalHoliday(segmentStart, holidayDates) && hour >= 6 && hour < 24) {
+  if (isLegalHoliday(romaniaDate, holidayDates) && hour >= 6 && hour < 24) {
     return 'hours_holiday';
   }
   
@@ -259,7 +262,8 @@ function segmentShiftIntoTimesheets(
       console.log(`[Segment] → hours_equipment (${hoursInSegment}h) [tarif unic utilaj]`);
     } else {
       // DOAR pentru shift-uri normale ("zi" / "noapte") → aplică reguli sărbători/ore
-      hoursType = determineHoursType(currentSegmentStartLocal, currentSegmentEndLocal, holidayDates);
+      // ✅ FIXED: Trimitem timestamp-uri UTC, nu locale
+      hoursType = determineHoursType(currentSegmentStartUTC, currentSegmentEndUTC, holidayDates);
       console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [shift normal - include weekend]`);
     }
     
