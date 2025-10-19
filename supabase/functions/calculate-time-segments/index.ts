@@ -807,15 +807,30 @@ Deno.serve(async (req) => {
         let workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
         
         // 🔄 REGULA SPECIALĂ: Segmente între 00:00 → 05:59:59 
-        // se atribuie la ziua ANTERIOARĂ (ex: vineri noapte, nu sâmbătă dimineață)
+        // se atribuie la ziua ANTERIOARĂ DOAR dacă tura a început înainte de miezul nopții
         if (segment.segment_type === 'hours_night' || segment.segment_type === 'hours_saturday') {
           const hour = toRomaniaHour(segmentStartUTC);
           if (hour >= 0 && hour < 6) {
-            // Acest segment (night/saturday dimineață) aparține turei începute IERI
-            const prevDay = new Date(local);
-            prevDay.setDate(prevDay.getDate() - 1);
-            workDate = toRomaniaDateString(prevDay);
-            console.log(`[Night Shift Rule] Segment ${segment.segment_type} at ${hour}:xx attributed to previous day: ${workDate}`);
+            // Verificăm dacă tura a început înainte de miezul nopții din ziua segmentului
+            const segmentDateRO = toRomaniaDateString(segmentStartUTC); // Data segmentului (ex: 2025-10-18)
+            const clockInDateRO = toRomaniaDateString(new Date(entry.clock_in_time)); // Data clock_in
+            const clockInHourRO = toRomaniaHour(new Date(entry.clock_in_time));
+            
+            // Mutăm la ziua anterioară DOAR dacă:
+            // 1. Clock-in a fost în ziua anterioară SAU
+            // 2. Clock-in a fost în aceeași zi DAR înainte de 06:00 (tură de noapte continuă)
+            const shouldMoveToYesterday = 
+              (clockInDateRO < segmentDateRO) || 
+              (clockInDateRO === segmentDateRO && clockInHourRO < 6);
+            
+            if (shouldMoveToYesterday) {
+              const prevDay = new Date(local);
+              prevDay.setDate(prevDay.getDate() - 1);
+              workDate = toRomaniaDateString(prevDay);
+              console.log(`[Night Shift Rule] Segment ${segment.segment_type} at ${hour}:xx attributed to previous day: ${workDate} (shift started ${clockInDateRO} ${clockInHourRO}:xx)`);
+            } else {
+              console.log(`[Night Shift Rule] SKIP - Segment ${segment.segment_type} at ${hour}:xx stays on current day: ${workDate} (shift started same day ${clockInDateRO} ${clockInHourRO}:xx)`);
+            }
           }
         }
         
