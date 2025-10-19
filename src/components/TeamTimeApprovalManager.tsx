@@ -193,13 +193,13 @@ export const TeamTimeApprovalManager = ({
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'bg-red-600/20 text-red-900 dark:text-red-200 border-red-600/40 dark:bg-red-950/50 dark:border-red-700';
+        return 'bg-destructive/20 text-destructive-foreground border-destructive/40';
       case 'high':
-        return 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20 dark:bg-red-950/30 dark:border-red-800';
+        return 'bg-destructive/10 text-destructive-foreground border-destructive/20';
       case 'medium':
-        return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/20 dark:bg-yellow-950/20 dark:border-yellow-800';
+        return 'bg-warning/10 text-warning-foreground border-warning/20';
       default:
-        return 'bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20 dark:bg-green-950/20 dark:border-green-800';
+        return 'bg-success/10 text-success-foreground border-success/20';
     }
   };
 
@@ -1477,14 +1477,14 @@ export const TeamTimeApprovalManager = ({
 
           {/* ✅ CARDURI CU BUTOANE DE EDITARE pentru Coordonator */}
           {coordinator && (
-            <Card className="mb-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 border-2 border-purple-200 dark:border-purple-800">
+            <Card className="mb-6 bg-gradient-to-br from-info/5 to-info/10 border-2 border-info/20">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-purple-600 text-white">
+                    <Badge variant="secondary" className="bg-info text-info-foreground">
                       👔 Coordonator
                     </Badge>
-                    <span className="font-medium text-purple-900 dark:text-purple-100">{coordinator.full_name}</span>
+                    <span className="font-medium">{coordinator.full_name}</span>
                     <Badge variant="outline" className="text-xs">
                       {coordinator.username}
                     </Badge>
@@ -1497,7 +1497,7 @@ export const TeamTimeApprovalManager = ({
                       full_name: coordinator.full_name, 
                       username: coordinator.username 
                     })}
-                    className="h-7 gap-1 border-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40"
+                    className="h-7 gap-1 border-info/30 hover:bg-info/10"
                   >
                     <Pencil className="h-3 w-3" />
                     Editează
@@ -1511,14 +1511,14 @@ export const TeamTimeApprovalManager = ({
           {(teamLeader || teamMembers.length > 0) && (
             <div className="mb-6 space-y-4">
               {teamLeader && (
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800">
+                <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-2 border-primary/20">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Badge variant="default" className="bg-blue-600">
+                        <Badge variant="default" className="bg-primary text-primary-foreground">
                           👷 Șef Echipă
                         </Badge>
-                        <span className="font-medium text-blue-900 dark:text-blue-100">{teamLeader.full_name}</span>
+                        <span className="font-medium">{teamLeader.full_name}</span>
                         <Badge variant="outline" className="text-xs">
                           {teamLeader.username}
                         </Badge>
@@ -1531,7 +1531,7 @@ export const TeamTimeApprovalManager = ({
                           full_name: teamLeader.full_name, 
                           username: teamLeader.username 
                         })}
-                        className="h-7 gap-1 border-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                        className="h-7 gap-1 border-primary/30 hover:bg-primary/10"
                       >
                         <Pencil className="h-3 w-3" />
                         Editează

@@ -34,6 +34,22 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Semantic Colors */
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    /* Shift Type Colors */
+    --shift-driving: 142 76% 45%;
+    --shift-passenger: 217 91% 60%;
+    --shift-equipment: 38 92% 50%;
+    --shift-normal: 271 91% 65%;
+
     --border: 210 30% 90%;
     --input: 210 30% 90%;
     --ring: 189 85% 55%;
@@ -199,6 +215,22 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Semantic Colors - Dark Mode */
+    --success: 142 76% 50%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 60%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 217 91% 70%;
+    --info-foreground: 0 0% 100%;
+
+    /* Shift Type Colors - Dark Mode */
+    --shift-driving: 142 86% 55%;
+    --shift-passenger: 217 98% 70%;
+    --shift-equipment: 38 98% 60%;
+    --shift-normal: 271 98% 75%;
+
     --border: 220 40% 18%;
     --input: 220 40% 18%;
     --ring: 189 85% 55%;
@@ -226,16 +258,16 @@ All colors MUST be HSL.
     --popover: 220 70% 8%;
     --popover-foreground: 210 30% 98%;
     
-    /* Primary NEON BLUE */
-    --primary: 200 100% 60%;
+    /* Primary - Uniformizat cu desktop dar mai saturat */
+    --primary: 189 95% 60%;
     --primary-foreground: 0 0% 100%;
     
     /* Secondary dark steel blue */
     --secondary: 220 60% 15%;
     --secondary-foreground: 210 30% 95%;
     
-    /* Accent ELECTRIC CYAN */
-    --accent: 190 100% 55%;
+    /* Accent - Uniformizat cu desktop dar mai saturat */
+    --accent: 189 95% 60%;
     --accent-foreground: 0 0% 100%;
     
     /* Muted ultra dark - improved contrast */
@@ -244,6 +276,22 @@ All colors MUST be HSL.
     
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Semantic Colors - Mobile (mai intense) */
+    --success: 142 86% 55%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 98% 60%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 217 98% 70%;
+    --info-foreground: 0 0% 100%;
+
+    /* Shift Type Colors - Mobile (neon) */
+    --shift-driving: 142 96% 65%;
+    --shift-passenger: 217 100% 75%;
+    --shift-equipment: 38 100% 65%;
+    --shift-normal: 271 100% 80%;
     
     /* Border subtle glow */
     --border: 220 60% 15%;

@@ -50,7 +50,7 @@ export function ClockConfirmationDialog({
           <DialogTitle className="flex items-center gap-2 text-xl">
             <div
               className={`h-3 w-3 rounded-full animate-pulse ${
-                isClockIn ? "bg-green-500" : "bg-red-500"
+                isClockIn ? "bg-success" : "bg-destructive"
               }`}
             />
             {isClockIn ? "📍 Confirmă Pontaj Intrare" : "🏁 Confirmă Pontaj Ieșire"}
@@ -93,10 +93,10 @@ export function ClockConfirmationDialog({
                 <Badge 
                   variant="outline" 
                   className={`text-base px-3 py-1 ${
-                    shiftType === "Condus" ? "border-blue-500 text-blue-700 dark:text-blue-300" :
-                    shiftType === "Pasager" ? "border-purple-500 text-purple-700 dark:text-purple-300" :
-                    shiftType === "Utilaj" ? "border-orange-500 text-orange-700 dark:text-orange-300" :
-                    "border-green-500 text-green-700 dark:text-green-300"
+                    shiftType === "Condus" ? "border-shift-driving text-shift-driving" :
+                    shiftType === "Pasager" ? "border-shift-passenger text-shift-passenger" :
+                    shiftType === "Utilaj" ? "border-shift-equipment text-shift-equipment" :
+                    "border-shift-normal text-shift-normal"
                   }`}
                 >
                   {shiftType}
@@ -106,14 +106,14 @@ export function ClockConfirmationDialog({
 
             {/* Locație */}
             {location && (
-              <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <MapPin className="h-6 w-6 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-3 p-4 bg-info/5 rounded-lg border border-info/20">
+                <MapPin className="h-6 w-6 text-info mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-blue-900 dark:text-blue-100 text-base">
+                  <p className="font-semibold text-foreground text-base">
                     {location.name}
                   </p>
                   {location.address && (
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1 break-words">
+                    <p className="text-sm text-muted-foreground mt-1 break-words">
                       📍 {location.address}
                     </p>
                   )}
@@ -134,7 +134,7 @@ export function ClockConfirmationDialog({
                     alt="Preview pontaj"
                     className="w-full h-48 object-cover"
                   />
-                  <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                  <div className="absolute top-2 right-2 bg-success text-success-foreground text-xs px-2 py-1 rounded-full font-medium">
                     ✓ Verificat
                   </div>
                 </div>
@@ -142,7 +142,7 @@ export function ClockConfirmationDialog({
             )}
 
             {/* Warning Important */}
-            <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-start gap-3 p-4 bg-warning/5 rounded-lg border border-warning/20">
               <AlertCircle className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-sm text-yellow-900 dark:text-yellow-100 font-medium mb-1">
@@ -170,8 +170,8 @@ export function ClockConfirmationDialog({
             disabled={loading}
             className={`flex-1 h-12 text-base gap-2 font-semibold ${
               isClockIn
-                ? "bg-green-600 hover:bg-green-700 text-white"
-                : "bg-red-600 hover:bg-red-700 text-white"
+                ? "bg-success hover:bg-success/90 text-success-foreground"
+                : "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             }`}
           >
             {loading ? (

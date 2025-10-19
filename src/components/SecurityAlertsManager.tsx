@@ -102,10 +102,10 @@ export function SecurityAlertsManager({ className }: SecurityAlertsManagerProps)
 
   const getSeverityBadge = (severity: string) => {
     const config = {
-      critical: { label: 'Critică', class: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' },
-      high: { label: 'Ridicată', class: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300' },
-      medium: { label: 'Medie', class: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300' },
-      low: { label: 'Scăzută', class: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
+      critical: { label: 'Critică', class: 'bg-destructive/10 text-destructive-foreground' },
+      high: { label: 'Ridicată', class: 'bg-warning/10 text-warning-foreground' },
+      medium: { label: 'Medie', class: 'bg-warning/5 text-warning-foreground' },
+      low: { label: 'Scăzută', class: 'bg-info/10 text-info-foreground' },
     };
     const { label, class: className } = config[severity as keyof typeof config] || config.low;
     return <Badge className={className}>{label}</Badge>;
@@ -185,25 +185,25 @@ export function SecurityAlertsManager({ className }: SecurityAlertsManagerProps)
               <CardTitle className="text-sm font-medium">Nerezolvate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{unresolvedCount}</div>
+              <div className="text-2xl font-bold text-warning">{unresolvedCount}</div>
             </CardContent>
           </Card>
           
-          <Card className="border-red-500/20">
+          <Card className="border-destructive/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Critice Active</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{criticalCount}</div>
+              <div className="text-2xl font-bold text-destructive">{criticalCount}</div>
             </CardContent>
           </Card>
           
-          <Card className="border-green-500/20">
+          <Card className="border-success/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Rezolvate Azi</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{resolvedTodayCount}</div>
+              <div className="text-2xl font-bold text-success">{resolvedTodayCount}</div>
             </CardContent>
           </Card>
         </div>
@@ -239,7 +239,7 @@ export function SecurityAlertsManager({ className }: SecurityAlertsManagerProps)
                         <div className="flex items-center gap-2">
                           {getSeverityBadge(alert.severity)}
                           {alert.resolved && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950/30">
+                            <Badge variant="outline" className="bg-success/10 text-success-foreground">
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Rezolvată
                             </Badge>
@@ -366,7 +366,7 @@ export function SecurityAlertsManager({ className }: SecurityAlertsManagerProps)
                   <Button
                     variant="default"
                     onClick={() => handleResolve(selectedAlert.id)}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-success hover:bg-success/90"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Marchează ca Rezolvată

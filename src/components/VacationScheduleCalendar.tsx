@@ -80,13 +80,13 @@ export const VacationScheduleCalendar = () => {
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
       case 'vacation':
-        return 'bg-green-500/10 text-green-700 border-green-500/20';
+        return 'bg-success/10 text-success-foreground border-success/20';
       case 'sick':
-        return 'bg-orange-500/10 text-orange-700 border-orange-500/20';
+        return 'bg-warning/10 text-warning-foreground border-warning/20';
       case 'unpaid':
-        return 'bg-red-500/10 text-red-700 border-red-500/20';
+        return 'bg-destructive/10 text-destructive-foreground border-destructive/20';
       default:
-        return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
+        return 'bg-info/10 text-info-foreground border-info/20';
     }
   };
 
@@ -196,15 +196,15 @@ export const VacationScheduleCalendar = () => {
         <CardContent>
           <div className="flex flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Badge className="bg-green-500/10 text-green-700 border-green-500/20">CO</Badge>
+              <Badge className="bg-success/10 text-success-foreground border-success/20">CO</Badge>
               <span className="text-muted-foreground">Concediu de odihnă</span>
             </div>
             <div className="flex items-center gap-2">
-              <Badge className="bg-orange-500/10 text-orange-700 border-orange-500/20">CM</Badge>
+              <Badge className="bg-warning/10 text-warning-foreground border-warning/20">CM</Badge>
               <span className="text-muted-foreground">Concediu medical</span>
             </div>
             <div className="flex items-center gap-2">
-              <Badge className="bg-red-500/10 text-red-700 border-red-500/20">Fără plată</Badge>
+              <Badge className="bg-destructive/10 text-destructive-foreground border-destructive/20">Fără plată</Badge>
               <span className="text-muted-foreground">Concediu fără plată</span>
             </div>
           </div>

@@ -288,14 +288,14 @@ const Mobile = () => {
   const getShiftColor = (shiftType: string): string => {
     switch (shiftType.toLowerCase()) {
       case 'condus':
-        return 'bg-green-500';
+        return 'bg-shift-driving';
       case 'pasager':
-        return 'bg-blue-500';
+        return 'bg-shift-passenger';
       case 'utilaj':
       case 'condus utilaj':
-        return 'bg-orange-500';
+        return 'bg-shift-equipment';
       default:
-        return 'bg-gray-500';
+        return 'bg-shift-normal';
     }
   };
 
@@ -1182,9 +1182,9 @@ const Mobile = () => {
     );
     
     if (!dayData) return "";
-    if (dayData.condusHours > 0) return "bg-blue-500/20 hover:bg-blue-500/30";
-    if (dayData.pasagerHours > 0) return "bg-green-500/20 hover:bg-green-500/30";
-    if (dayData.normalHours > 0) return "bg-purple-500/20 hover:bg-purple-500/30";
+    if (dayData.condusHours > 0) return "bg-shift-driving/20 hover:bg-shift-driving/30";
+    if (dayData.pasagerHours > 0) return "bg-shift-passenger/20 hover:bg-shift-passenger/30";
+    if (dayData.normalHours > 0) return "bg-shift-normal/20 hover:bg-shift-normal/30";
     return "";
   };
 
