@@ -747,7 +747,7 @@ Deno.serve(async (req) => {
         
         const calculatedTimesheets = segmentShiftIntoTimesheets(entryShift, holidayDates);
         
-        // Transformă în segmente
+        // Transformă în segmente cu limite corecte per zi
         const segmentsToSave: any[] = [];
         for (const timesheet of calculatedTimesheets) {
           const hoursMap = {
@@ -767,11 +767,12 @@ Deno.serve(async (req) => {
               segmentsToSave.push({
                 time_entry_id: entry.id,
                 segment_type: segmentType,
-                start_time: entry.clock_in_time,  // ✅ FIX: ALWAYS use exact clock_in_time (UTC)
-                end_time: entry.clock_out_time,    // ✅ FIX: ALWAYS use exact clock_out_time (UTC)
+                start_time: timesheet.start_time,  // ✅ FIXED: Use day-specific boundaries from dayBoundaries
+                end_time: timesheet.end_time,      // ✅ FIXED: Use day-specific boundaries from dayBoundaries
                 hours_decimal: hoursValue,
                 multiplier: 1.0
               });
+              console.log(`[Save Segment] ${timesheet.work_date} ${segmentType}: ${(timesheet.start_time as Date).toISOString()} → ${(timesheet.end_time as Date).toISOString()} (${hoursValue}h)`);
             }
           }
         }
@@ -836,37 +837,9 @@ Deno.serve(async (req) => {
         const segmentStartUTC = new Date(segment.start_time);
         const offset = getRomaniaOffsetMs(segmentStartUTC);
         const local = new Date(segmentStartUTC.getTime() + offset);
-        let workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
+        const workDate = toRomaniaDateString(local);  // ✅ Derivă workDate din segment.start_time (nu din clock_in_time global)
         
-        // 🔄 STRICT NIGHT SHIFT RULE: ONLY hours_night from 00:00-05:59 → previous day
-        const hour = toRomaniaHour(segmentStartUTC);
-        if (hour >= 0 && hour < 6) {
-          if (segment.segment_type === 'hours_night') {
-            // Verificăm dacă tura a început înainte de miezul nopții din ziua segmentului
-            const segmentDateRO = toRomaniaDateString(segmentStartUTC); // Data segmentului (ex: 2025-10-18)
-            const clockInDateRO = toRomaniaDateString(new Date(entry.clock_in_time)); // Data clock_in
-            const clockInHourRO = toRomaniaHour(new Date(entry.clock_in_time));
-            
-            // Mutăm la ziua anterioară DOAR dacă:
-            // 1. Clock-in a fost în ziua anterioară SAU
-            // 2. Clock-in a fost în aceeași zi DAR înainte de 06:00 (tură de noapte continuă)
-            const shouldMoveToYesterday = 
-              (clockInDateRO < segmentDateRO) || 
-              (clockInDateRO === segmentDateRO && clockInHourRO < 6);
-            
-            if (shouldMoveToYesterday) {
-              const prevDay = new Date(local);
-              prevDay.setDate(prevDay.getDate() - 1);
-              workDate = toRomaniaDateString(prevDay);
-              console.log(`[Night Shift Rule] ✅ hours_night at ${hour}:xx → previous day: ${workDate} (shift started ${clockInDateRO} ${clockInHourRO}:xx)`);
-            } else {
-              console.log(`[Night Shift Rule] ⚠️ SKIP hours_night at ${hour}:xx stays on: ${workDate} (shift started same day ${clockInDateRO} ${clockInHourRO}:xx)`);
-            }
-          } else {
-            // ✅ NEW: Explicit log for non-night segments in 00:00-05:59 range
-            console.log(`[Night Shift Rule] ⚠️ SKIP ${segment.segment_type} at ${hour}:xx - rule applies ONLY to hours_night`);
-          }
-        }
+        console.log(`[Aggregate] Segment ${segment.id}: ${segment.segment_type} (${segment.hours_decimal}h) | start_time=${segmentStartUTC.toISOString()} → workDate=${workDate}`);
         
         let existing = aggregatedTimesheets.get(workDate);
         if (!existing) {
