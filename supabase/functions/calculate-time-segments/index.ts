@@ -149,36 +149,46 @@ function toRomaniaHour(date: Date): number {
 }
 
 /**
- * Determină tipul de ore bazat pe interval orar și sărbători
+ * Determină tipul de ore bazat pe interval orar, ziua săptămânii și sărbători
  * PRIORITATE REGULI (de sus în jos):
  * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate absolută)
- * 2. Noapte 22:00 → 05:59:59 = hours_night (pentru TOATE zilele)
- * 3. Zi 06:00 → 21:59:59 = hours_regular (pentru TOATE zilele, include weekend)
- * 
- * NOTE: hours_saturday și hours_sunday vor fi calculate SEPARAT în agregare
- * bazat pe work_date (ziua săptămânii), NU pe segment_type
+ * 2. Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday
+ * 3. Duminică 06:00 → 23:59:59 = hours_sunday
+ * 4. Orice zi 00:00 → 05:59:59 SAU 22:00 → 23:59:59 (non-sărbătoare) = hours_night
+ * 5. Restul = hours_regular
  */
 function determineHoursType(
   segmentStart: Date,
   segmentEnd: Date,
   holidayDates: Set<string>
 ): string {
-  const hour = toRomaniaHour(segmentStart); // ✅ FOLOSEȘTE ORA ROMÂNIEI!
+  const hour = toRomaniaHour(segmentStart);
+  const roDateString = toRomaniaDateString(segmentStart);
+  const dateObj = new Date(roDateString + 'T12:00:00Z');
+  const dayOfWeek = dateObj.getUTCDay(); // 0=Duminică, 6=Sâmbătă
   
-  // PRIORITATE 1: Sărbători legale (06:00 → 23:59:59)
-  // Sărbătoarea are prioritate peste orice altceva!
+  // PRIORITATE 1: Sărbătoare legală (06:00 → 23:59:59)
   if (isLegalHoliday(segmentStart, holidayDates) && hour >= 6 && hour < 24) {
     return 'hours_holiday';
   }
   
-  // PRIORITATE 2: Noapte (22:00 → 05:59:59) pentru TOATE zilele
-  // Include luni, marți, miercuri, joi, vineri, SÂMBĂTĂ, DUMINICĂ
-  if (hour >= 22 || hour < 6) {
+  // PRIORITATE 2: Weekend (Sâmbătă 06:00 → Duminică 05:59:59)
+  if ((dayOfWeek === 6 && hour >= 6) || (dayOfWeek === 0 && hour < 6)) {
+    return 'hours_saturday';
+  }
+  
+  // PRIORITATE 3: Duminică (06:00 → 23:59:59)
+  if (dayOfWeek === 0 && hour >= 6 && hour < 24) {
+    return 'hours_sunday';
+  }
+  
+  // PRIORITATE 4: Noapte (00:00 → 05:59:59 SAU 22:00 → 23:59:59)
+  // Pentru TOATE zilele non-sărbătoare/non-weekend
+  if (hour < 6 || hour >= 22) {
     return 'hours_night';
   }
   
-  // PRIORITATE 3: Zi (06:00 → 21:59:59) pentru TOATE zilele
-  // Include luni, marți, miercuri, joi, vineri, SÂMBĂTĂ, DUMINICĂ
+  // PRIORITATE 5: Zi normală (06:00 → 21:59:59)
   return 'hours_regular';
 }
 
@@ -840,26 +850,9 @@ Deno.serve(async (req) => {
       console.log(`[Aggregate] ✅ Keeping ${savedSegments.length} segments for entry ${entry.id} (audit trail)`);
     }
 
-    // ✅ STEP 5: Calculează hours_saturday și hours_sunday bazat pe work_date
-    // hours_saturday și hours_sunday sunt populate pentru payroll/raportare
-    // dar segmentele sunt clasificate în hours_regular/hours_night pentru vizualizare
-    for (const [workDate, timesheet] of aggregatedTimesheets.entries()) {
-      const dateObj = new Date(workDate + 'T12:00:00Z'); // Noon to avoid timezone issues
-      const dayOfWeek = dateObj.getUTCDay(); // 0=Sunday, 6=Saturday
-      
-      // Calculează totalul de ore normale (zi + noapte) pentru această zi
-      const normalHours = timesheet.hours_regular + timesheet.hours_night;
-      
-      if (dayOfWeek === 6 && normalHours > 0) {
-        // Sâmbătă: agregă ore normale în hours_saturday
-        timesheet.hours_saturday = normalHours;
-        console.log(`[Weekend Aggregate] ${workDate} (Saturday): hours_saturday = ${normalHours.toFixed(2)}h (from regular + night)`);
-      } else if (dayOfWeek === 0 && normalHours > 0) {
-        // Duminică: agregă ore normale în hours_sunday
-        timesheet.hours_sunday = normalHours;
-        console.log(`[Weekend Aggregate] ${workDate} (Sunday): hours_sunday = ${normalHours.toFixed(2)}h (from regular + night)`);
-      }
-    }
+    // ✅ ELIMINAT: Weekend aggregation nu mai este necesar
+    // Segmentele sunt acum clasificate corect direct în determineHoursType()
+    // hours_saturday și hours_sunday sunt populate automat din segmente
 
     // ✅ STEP 6: Rotunjire finală și validare
     const finalTimesheets = Array.from(aggregatedTimesheets.values());
@@ -899,7 +892,7 @@ Deno.serve(async (req) => {
           timesheet.hours_medical_leave;
         
         console.error('❌ [Validation Failed]', {
-          user_id: userId,
+          user_id: user_id,
           date: timesheet.work_date,
           errors: errors,
           hours_total: totalHours.toFixed(2),
