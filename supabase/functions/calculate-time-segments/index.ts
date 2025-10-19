@@ -149,6 +149,39 @@ function toRomaniaHour(date: Date): number {
 }
 
 /**
+ * ✅ Ancorează work_date corect bazat pe tipul de segment și ora
+ * REGULI CRITICE:
+ * - hours_night înainte de 06:00 → ancorează la ziua precedentă (Vineri 22:00 → Sâm 05:59 = Vineri)
+ * - hours_saturday în Duminică 00:00-05:59 → ancorează la Sâmbătă (weekend continuu)
+ * - Restul → folosește data curentă
+ */
+function anchorWorkDate(segmentType: string, romaniaDate: Date): string {
+  const hour = romaniaDate.getUTCHours();
+  const dayOfWeek = romaniaDate.getUTCDay(); // 0=Dum, 6=Sâm
+  
+  // REGULA 1: hours_night înainte de 06:00 → ziua precedentă
+  if (segmentType === 'hours_night' && hour < 6) {
+    const previousDay = new Date(romaniaDate);
+    previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+    const anchoredDate = toRomaniaDateString(previousDay);
+    console.log(`[Anchor] hours_night pre-06:00 → ${anchoredDate} (original: ${toRomaniaDateString(romaniaDate)})`);
+    return anchoredDate;
+  }
+  
+  // REGULA 2: hours_saturday în Duminică 00:00-05:59 → Sâmbătă
+  if (segmentType === 'hours_saturday' && dayOfWeek === 0 && hour < 6) {
+    const previousDay = new Date(romaniaDate);
+    previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+    const anchoredDate = toRomaniaDateString(previousDay);
+    console.log(`[Anchor] hours_saturday (Dum 00:00-05:59) → ${anchoredDate} (weekend continuu)`);
+    return anchoredDate;
+  }
+  
+  // REGULA 3: Default → data curentă
+  return toRomaniaDateString(romaniaDate);
+}
+
+/**
  * Determină tipul de ore bazat pe interval orar, ziua săptămânii și sărbători
  * ✅ UPDATED: Logică explicită pentru Duminică 00:00-06:00 → hours_saturday
  * PRIORITATE REGULI (de sus în jos):
@@ -278,8 +311,8 @@ function segmentShiftIntoTimesheets(
       console.log(`[Segment] → ${hoursType} (${hoursInSegment}h) [shift normal - include weekend]`);
     }
     
-    // ✅ FIXED: Găsește sau creează pontaj pentru această zi (ora României)
-    const workDate = toRomaniaDateString(currentSegmentStartLocal);
+    // ✅ FIXED: Ancorează work_date corect bazat pe tipul de segment
+    const workDate = anchorWorkDate(hoursType, currentSegmentStartLocal);
     
     // ✅ NEW: Update day boundaries for this workDate
     if (!dayBoundaries.has(workDate)) {

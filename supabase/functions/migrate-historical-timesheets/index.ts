@@ -119,6 +119,39 @@ function isLegalHoliday(date: Date, holidayDates: Set<string>): boolean {
 }
 
 /**
+ * ✅ Ancorează work_date corect bazat pe tipul de segment și ora
+ * REGULI CRITICE:
+ * - hours_night înainte de 06:00 → ancorează la ziua precedentă (Vineri 22:00 → Sâm 05:59 = Vineri)
+ * - hours_saturday în Duminică 00:00-05:59 → ancorează la Sâmbătă (weekend continuu)
+ * - Restul → folosește data curentă
+ */
+function anchorWorkDate(segmentType: string, romaniaDate: Date): string {
+  const hour = romaniaDate.getUTCHours();
+  const dayOfWeek = romaniaDate.getUTCDay(); // 0=Dum, 6=Sâm
+  
+  // REGULA 1: hours_night înainte de 06:00 → ziua precedentă
+  if (segmentType === 'hours_night' && hour < 6) {
+    const previousDay = new Date(romaniaDate);
+    previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+    const anchoredDate = toRomaniaDateString(previousDay);
+    console.log(`[Migration Anchor] hours_night pre-06:00 → ${anchoredDate} (original: ${toRomaniaDateString(romaniaDate)})`);
+    return anchoredDate;
+  }
+  
+  // REGULA 2: hours_saturday în Duminică 00:00-05:59 → Sâmbătă
+  if (segmentType === 'hours_saturday' && dayOfWeek === 0 && hour < 6) {
+    const previousDay = new Date(romaniaDate);
+    previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+    const anchoredDate = toRomaniaDateString(previousDay);
+    console.log(`[Migration Anchor] hours_saturday (Dum 00:00-05:59) → ${anchoredDate} (weekend continuu)`);
+    return anchoredDate;
+  }
+  
+  // REGULA 3: Default → data curentă
+  return toRomaniaDateString(romaniaDate);
+}
+
+/**
  * Determină tipul de ore bazat pe ziua săptămânii și interval orar
  * PRIORITATE REGULI (de sus în jos):
  * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate peste weekend)
@@ -199,12 +232,13 @@ function segmentShiftIntoTimesheets(
     const roundedHours = Math.round(hoursDecimal * 100) / 100;
 
     if (roundedHours > 0) {
-      // ✅ FIXED: Folosește toRomaniaDateString pentru work_date (ora României)
-      const workDate = toRomaniaDateString(currentTime);
+      // ✅ FIXED: Ancorează work_date corect bazat pe tipul de segment
+      // Mai întâi determinăm tipul de ore bazat pe timp
+      const timeBasedHoursType = determineHoursType(currentTime, segmentEnd, holidayDates);
+      const workDate = anchorWorkDate(timeBasedHoursType, currentTime);
       
       // ✅ LOGICĂ CORECTATĂ: Determină tipul de ore bazat pe ziua săptămânii ȘI tipul de tură
-      // Mai întâi, determinăm coloana bazată pe ziua săptămânii (saturday/sunday/holiday/night/regular)
-      const timeBasedHoursType = determineHoursType(currentTime, segmentEnd, holidayDates);
+      // timeBasedHoursType deja determinat mai sus pentru ancorare
       
       // Apoi, determinăm coloana suplimentară bazată pe tipul turei (doar pentru condus/pasager/utilaj)
       let shiftBasedHoursType: string | null = null;
