@@ -150,13 +150,14 @@ function toRomaniaHour(date: Date): number {
 
 /**
  * Determină tipul de ore bazat pe interval orar, ziua săptămânii și sărbători
- * ✅ FIXED: Primește timestamp-uri UTC și face conversie RO o singură dată
+ * ✅ UPDATED: Logică explicită pentru Duminică 00:00-06:00 → hours_saturday
  * PRIORITATE REGULI (de sus în jos):
  * 1. Sărbătoare 06:00 → 23:59:59 = hours_holiday (prioritate absolută)
- * 2. Sâmbătă 06:00 → Duminică 05:59:59 = hours_saturday
+ * 2. Sâmbătă 06:00 → 23:59:59 = hours_saturday
  * 3. Duminică 06:00 → 23:59:59 = hours_sunday
- * 4. Orice zi 00:00 → 05:59:59 SAU 22:00 → 23:59:59 (non-sărbătoare) = hours_night
- * 5. Restul = hours_regular
+ * 4. Duminică 00:00 → 05:59:59 = hours_saturday (weekend continuu)
+ * 5. Orice altă zi 00:00 → 05:59:59 SAU 22:00 → 23:59:59 = hours_night
+ * 6. Restul = hours_regular
  */
 function determineHoursType(
   segmentStartUTC: Date,
@@ -171,23 +172,30 @@ function determineHoursType(
   const dayOfWeek = dateObj.getUTCDay(); // 0=Duminică, 6=Sâmbătă
   
   // PRIORITATE 1: Sărbătoare legală (06:00 → 23:59:59)
-  if (isLegalHoliday(romaniaDate, holidayDates) && hour >= 6 && hour < 24) {
+  if (isLegalHoliday(romaniaDate, holidayDates) && hour >= 6) {
     return 'hours_holiday';
   }
   
-  // PRIORITATE 2: Weekend (Sâmbătă 06:00 → Duminică 05:59:59)
-  if ((dayOfWeek === 6 && hour >= 6) || (dayOfWeek === 0 && hour < 6)) {
+  // PRIORITATE 2: Sâmbătă (06:00 → 23:59:59)
+  if (dayOfWeek === 6 && hour >= 6) {
     return 'hours_saturday';
   }
   
   // PRIORITATE 3: Duminică (06:00 → 23:59:59)
-  if (dayOfWeek === 0 && hour >= 6 && hour < 24) {
+  if (dayOfWeek === 0 && hour >= 6) {
     return 'hours_sunday';
   }
   
   // PRIORITATE 4: Noapte (00:00 → 05:59:59 SAU 22:00 → 23:59:59)
-  // Pentru TOATE zilele non-sărbătoare/non-weekend
-  if (hour < 6 || hour >= 22) {
+  // ✅ SPECIAL: Duminică 00:00-06:00 → hours_saturday (weekend continuu)
+  if (hour < 6) {
+    if (dayOfWeek === 0) {
+      return 'hours_saturday';
+    }
+    return 'hours_night';
+  }
+  
+  if (hour >= 22) {
     return 'hours_night';
   }
   
