@@ -259,19 +259,7 @@ export const TeamTimeApprovalManager = ({
     e.clock_in_time && !e.clock_out_time && !e.isMissing && e.approval_status !== 'approved'
   );
   
-  // 🐛 DEBUG: Log incomplete entries details
-  console.log('[Incomplete Check]', {
-    total_pending: pendingEntries.length,
-    incomplete_count: incompleteEntries.length,
-    incomplete_details: incompleteEntries.map(e => ({ 
-      id: e.id.slice(0, 8), 
-      name: e.profiles?.full_name, 
-      isMissing: e.isMissing,
-      has_clock_in: !!e.clock_in_time,
-      has_clock_out: !!e.clock_out_time,
-      status: e.approval_status
-    }))
-  });
+  // Incomplete entries filtered
   
   const missingEntries = pendingEntries.filter(e => e.isMissing);
   
@@ -590,8 +578,6 @@ export const TeamTimeApprovalManager = ({
       newTime: string;
       currentSegment: any;
     }) => {
-      console.log('[Update Segment] Start:', { segmentId, field, newTime });
-      
       // Validare segment ID
       if (!segmentId) {
         throw new Error('ID segment lipsește');
@@ -605,15 +591,11 @@ export const TeamTimeApprovalManager = ({
       const newDate = new Date(existingDate);
       newDate.setHours(hours, minutes, 0, 0);
       
-      console.log('[Update Segment] New Date:', newDate.toISOString());
-      
       // Calculate new duration
       const startTime = field === 'startTime' ? newDate : new Date(currentSegment.startTime);
       const endTime = field === 'endTime' ? newDate : new Date(currentSegment.endTime);
       const durationMs = endTime.getTime() - startTime.getTime();
       const durationHours = durationMs / (1000 * 60 * 60);
-      
-      console.log('[Update Segment] New Duration:', durationHours.toFixed(2), 'hours');
       
       if (durationHours <= 0 || durationHours > 24) {
         throw new Error(`Durata trebuie să fie între 0 și 24 ore (calculat: ${durationHours.toFixed(2)}h)`);
@@ -624,8 +606,6 @@ export const TeamTimeApprovalManager = ({
         ? { start_time: newDate.toISOString(), hours_decimal: durationHours }
         : { end_time: newDate.toISOString(), hours_decimal: durationHours };
       
-      console.log('[Update Segment] Update Data:', updateData);
-      
       const { data: updatedSegment, error: updateError } = await supabase
         .from('time_entry_segments')
         .update(updateData)
@@ -633,11 +613,8 @@ export const TeamTimeApprovalManager = ({
         .select();
       
       if (updateError) {
-        console.error('[Update Segment] Error:', updateError);
         throw updateError;
       }
-      
-      console.log('[Update Segment] Success:', updatedSegment);
       
       return { segmentId, field, newTime, durationHours };
     },
@@ -1011,8 +988,6 @@ export const TeamTimeApprovalManager = ({
       shiftType: string;
       notes: string;
     }) => {
-      console.log('[Manual Entry] Creating entry:', data);
-
       // 1. Creează time_entry
       const { data: entry, error: entryError } = await supabase
         .from('time_entries')
@@ -1039,10 +1014,6 @@ export const TeamTimeApprovalManager = ({
           notes: data.shiftType,
         },
       });
-
-      if (calcError) {
-        console.warn('[Manual Entry] Segment calculation warning:', calcError);
-      }
 
       return entry;
     },
