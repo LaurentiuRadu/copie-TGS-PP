@@ -878,7 +878,7 @@ Deno.serve(async (req) => {
         const segmentStartUTC = new Date(segment.start_time);
         const offset = getRomaniaOffsetMs(segmentStartUTC);
         const local = new Date(segmentStartUTC.getTime() + offset);
-        const workDate = toRomaniaDateString(local);  // ✅ Derivă workDate din segment.start_time (nu din clock_in_time global)
+        const workDate = anchorWorkDate(segment.segment_type, local);  // ✅ ANCORAT: hours_night <06:00 → ziua anterioară, hours_saturday duminică <06:00 → sâmbătă
         
         console.log(`[Aggregate] Segment ${segment.id}: ${segment.segment_type} (${segment.hours_decimal}h) | start_time=${segmentStartUTC.toISOString()} → workDate=${workDate}`);
         

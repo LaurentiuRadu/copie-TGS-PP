@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { RefreshCw, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export function TimeEntryReprocessButton() {
+  const queryClient = useQueryClient();
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<'missing_segments' | 'needs_reprocessing' | 'current_month' | 'specific_date' | 'date_range'>('missing_segments');
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -77,6 +79,16 @@ export function TimeEntryReprocessButton() {
               : undefined,
           duration: 5000,
         });
+        
+        // ✅ Invalidează cache-ul pentru a reîncărca datele
+        queryClient.invalidateQueries({ queryKey: ['dailyTimesheets'] });
+        queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
+        queryClient.invalidateQueries({ queryKey: ['time_entry_segments'] });
+        
+        // Refresh pagina pentru a forța reîncărcarea completă
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else if (results.total === 0) {
         toast.info('Nu există pontaje de reprocesat');
       } else {
