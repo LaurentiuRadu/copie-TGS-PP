@@ -804,7 +804,20 @@ Deno.serve(async (req) => {
         const segmentStartUTC = new Date(segment.start_time);
         const offset = getRomaniaOffsetMs(segmentStartUTC);
         const local = new Date(segmentStartUTC.getTime() + offset);
-        const workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
+        let workDate = toRomaniaDateString(local);  // ✅ YYYY-MM-DD in RO timezone
+        
+        // 🔄 REGULA SPECIALĂ: hours_night între 00:00 → 05:59:59 
+        // se atribuie la ziua ANTERIOARĂ (vineri noapte, nu sâmbătă dimineață)
+        if (segment.segment_type === 'hours_night') {
+          const hour = toRomaniaHour(segmentStartUTC);
+          if (hour >= 0 && hour < 6) {
+            // Acest segment night (00:00-05:59) aparține turei începute IERI
+            const prevDay = new Date(local);
+            prevDay.setDate(prevDay.getDate() - 1);
+            workDate = toRomaniaDateString(prevDay);
+            console.log(`[Night Shift Rule] Segment ${segment.segment_type} at ${hour}:xx attributed to previous day: ${workDate}`);
+          }
+        }
         
         let existing = aggregatedTimesheets.get(workDate);
         if (!existing) {
