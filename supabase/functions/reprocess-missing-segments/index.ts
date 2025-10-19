@@ -29,10 +29,11 @@ Deno.serve(async (req) => {
       start_date, 
       end_date, 
       cursor_date,
-      only_mismatched = false 
+      only_mismatched = false,
+      user_id // ✅ Filtru opțional pe user_id
     } = await req.json();
     
-    console.log(`[Reprocess] Mode: ${mode}, Batch Size: ${batch_size}`, start_date && end_date ? `| Range: ${start_date} → ${end_date}` : '', cursor_date ? `| Cursor: ${cursor_date}` : '');
+    console.log(`[Reprocess] Mode: ${mode}, Batch Size: ${batch_size}`, start_date && end_date ? `| Range: ${start_date} → ${end_date}` : '', cursor_date ? `| Cursor: ${cursor_date}` : '', user_id ? `| User: ${user_id}` : '');
 
     // Rulează în batch-uri până procesează TOATE entries
     let totalProcessed = 0;
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
 
       if (mode === 'missing_segments') {
         // Găsește pontaje fără segmente
-        const { data: entriesWithoutSegments } = await supabase
+        let query = supabase
           .from('time_entries')
           .select(`
             id, user_id, clock_in_time, clock_out_time, notes,
@@ -61,27 +62,41 @@ Deno.serve(async (req) => {
           .order('clock_out_time', { ascending: false })
           .limit(batch_size * 2);  // Luăm mai multe pentru a filtra
 
+        // ✅ Aplică filtru user_id dacă este specificat
+        if (user_id) {
+          query = query.eq('user_id', user_id);
+        }
+
+        const { data: entriesWithoutSegments } = await query;
+
         batch = (entriesWithoutSegments || [])
           .filter(e => !e.time_entry_segments || e.time_entry_segments.length === 0)
           .slice(0, batch_size)
           .map(({ time_entry_segments, ...rest }) => rest as TimeEntry);
 
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries without segments`);
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries without segments${user_id ? ` for user ${user_id}` : ''}`);
         
       } else if (mode === 'needs_reprocessing') {
         // Procesează pontaje marcate pentru reprocesare
-        const { data: entries, error } = await supabase
+        let query = supabase
           .from('time_entries')
           .select('id, user_id, clock_in_time, clock_out_time, notes')
           .not('clock_out_time', 'is', null)
           .eq('needs_reprocessing', true)
           .order('clock_out_time', { ascending: false })
           .limit(batch_size);
+
+        // ✅ Aplică filtru user_id dacă este specificat
+        if (user_id) {
+          query = query.eq('user_id', user_id);
+        }
+        
+        const { data: entries, error } = await query;
         
         if (error) throw error;
         batch = entries || [];
         
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries marked for reprocessing`);
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries marked for reprocessing${user_id ? ` for user ${user_id}` : ''}`);
         
       } else if (mode === 'date_range') {
         // Procesează după interval de date (paginat cu cursor)
@@ -101,6 +116,11 @@ Deno.serve(async (req) => {
           .order('clock_out_time', { ascending: false })
           .limit(batch_size);
         
+        // ✅ Aplică filtru user_id dacă este specificat
+        if (user_id) {
+          query = query.eq('user_id', user_id);
+        }
+
         // ✅ Apply cursor for pagination (local cursor updated each batch)
         if (currentCursor) {
           query = query.lt('clock_out_time', currentCursor);
@@ -116,7 +136,7 @@ Deno.serve(async (req) => {
           currentCursor = batch[batch.length - 1].clock_out_time;
         }
         
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range ${start_date} → ${end_date}${currentCursor ? ` (cursor: ${currentCursor})` : ''}`);
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries in date range ${start_date} → ${end_date}${currentCursor ? ` (cursor: ${currentCursor})` : ''}${user_id ? ` for user ${user_id}` : ''}`);
         
       } else if (mode === 'all') {
         // ✅ Process ALL entries with pagination
@@ -126,6 +146,11 @@ Deno.serve(async (req) => {
           .not('clock_out_time', 'is', null)
           .order('clock_out_time', { ascending: false })
           .limit(batch_size);
+
+        // ✅ Aplică filtru user_id dacă este specificat
+        if (user_id) {
+          query = query.eq('user_id', user_id);
+        }
         
         // ✅ Apply cursor for pagination (local cursor updated each batch)
         if (currentCursor) {
@@ -142,7 +167,7 @@ Deno.serve(async (req) => {
           currentCursor = batch[batch.length - 1].clock_out_time;
         }
         
-        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries (all mode)${currentCursor ? ` (cursor: ${currentCursor})` : ''}`);
+        console.log(`[Reprocess] Batch ${batchNumber}: Found ${batch.length} entries (all mode)${currentCursor ? ` (cursor: ${currentCursor})` : ''}${user_id ? ` for user ${user_id}` : ''}`);
         
       } else {
         return new Response(
