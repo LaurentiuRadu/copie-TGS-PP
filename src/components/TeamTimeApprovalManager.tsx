@@ -929,30 +929,56 @@ export const TeamTimeApprovalManager = ({
         return { userId, segmentType, newHours, isManualOverride: true };
       }
 
-      // Calculează total ore actuale pentru acest tip
-      const currentTotalHours = segments.reduce((sum, s) => sum + s.duration, 0);
+      // ✅ FIX: Salvează override în daily_timesheets în loc să modifici segmentele direct
+      const workDate = format(dayDate, 'yyyy-MM-dd');
+      const standardTypes = ['hours_regular', 'hours_night', 'hours_saturday', 'hours_sunday', 'hours_holiday', 'hours_passenger', 'hours_driving', 'hours_equipment'];
       
-      // Calculează factorul de scalare
-      const scaleFactor = newHours / currentTotalHours;
+      // Construim payload cu valorile existente + modificarea nouă
+      const overridePayload: any = {
+        employee_id: userId,
+        work_date: workDate,
+        notes: '[SEGMENTARE EDITATĂ] Modificat din tabel (ore segment)',
+      };
+      
+      // Păstrăm valorile existente pentru celelalte tipuri
+      const { data: existingTimesheet } = await supabase
+        .from('daily_timesheets')
+        .select('*')
+        .eq('employee_id', userId)
+        .eq('work_date', workDate)
+        .maybeSingle();
+      
+      standardTypes.forEach((t) => {
+        if (t === segmentType) {
+          overridePayload[t] = Number(newHours.toFixed(2));
+        } else if (existingTimesheet && existingTimesheet[t] !== null && existingTimesheet[t] !== undefined) {
+          overridePayload[t] = Number(existingTimesheet[t]);
+        } else {
+          // Folosește valoarea calculată din segmente
+          const currentValue = segments.filter(s => s.type === t).reduce((sum, s) => sum + s.duration, 0);
+          overridePayload[t] = Number(currentValue.toFixed(2));
+        }
+      });
 
-      // Update fiecare segment de acest tip proporțional
-      for (const segment of segments) {
-        const newDuration = segment.duration * scaleFactor;
-        
-        // Calculează noul end_time bazat pe durată
-        const startTime = new Date(segment.startTime);
-        const endTime = new Date(startTime.getTime() + newDuration * 60 * 60 * 1000);
-
+      // Upsert în daily_timesheets
+      if (existingTimesheet) {
         await supabase
-          .from('time_entry_segments')
-          .update({
-            hours_decimal: newDuration,
-            end_time: endTime.toISOString(),
-          })
-          .eq('id', segment.id);
+          .from('daily_timesheets')
+          .update(overridePayload)
+          .eq('id', existingTimesheet.id);
+      } else {
+        await supabase
+          .from('daily_timesheets')
+          .insert(overridePayload);
       }
+      
+      // Marchează time_entry pentru reprocessare (opțional, pentru debugging)
+      await supabase
+        .from('time_entries')
+        .update({ needs_reprocessing: true })
+        .eq('id', timeEntryId);
 
-      return { userId, segmentType, newHours, isManualOverride: false };
+      return { userId, segmentType, newHours, isManualOverride: true };
     },
     onSuccess: async (data) => {
       // ✅ FIX 2: Force refetch IMEDIAT (nu doar invalidate)
