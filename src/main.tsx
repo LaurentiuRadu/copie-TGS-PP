@@ -23,6 +23,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: STALE_TIME.ADMIN_DATA,
       retry: 1,
+      refetchOnWindowFocus: false,
     },
   },
 });
