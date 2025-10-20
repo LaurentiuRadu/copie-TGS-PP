@@ -18,6 +18,17 @@ export interface TimeEntryForApproval {
   pontajNumber?: number;
   isMissing?: boolean; // ← Flag pentru angajați lipsă
   isManagement?: boolean; // ← ✅ NOU: Flag pentru coordonatori/team leaders
+  manualOverride?: boolean; // ← ✅ FIX: Flag pentru override-uri manuale din daily_timesheets
+  overrideHours?: { // ← ✅ FIX: Ore editate manual
+    hours_regular: number;
+    hours_night: number;
+    hours_saturday: number;
+    hours_sunday: number;
+    hours_holiday: number;
+    hours_passenger: number;
+    hours_driving: number;
+    hours_equipment: number;
+  };
   profiles: {
     id: string;
     full_name: string;
@@ -193,6 +204,19 @@ export const useTeamApprovalWorkflow = (
         segmentsByEntry.get(segment.time_entry_id)!.push(segment);
       });
 
+      // ✅ FIX: Fetch daily_timesheets for manual overrides
+      const { data: dailyTimesheetsData } = await supabase
+        .from('daily_timesheets')
+        .select('*')
+        .in('employee_id', allUserIds)
+        .eq('work_date', format(targetDate, 'yyyy-MM-dd'));
+      
+      // Creăm un Map pentru acces rapid la timesheets by user_id
+      const timesheetsByUser = new Map<string, typeof dailyTimesheetsData[0]>();
+      dailyTimesheetsData?.forEach(ts => {
+        timesheetsByUser.set(ts.employee_id, ts);
+      });
+
       // Fetch profiles separately (exclude contractors + office staff)
       const { data: profilesData } = await supabase
         .from('profiles')
@@ -294,10 +318,104 @@ export const useTeamApprovalWorkflow = (
           total: (new Date(entry.clock_out_time).getTime() - new Date(entry.clock_in_time).getTime()) / (1000 * 60 * 60)
         } : { total: 0 };
 
+        // ✅ FIX: PRIORITATE - daily_timesheet (override manual) > time_entry_segments (auto)
+        const dailyTimesheet = timesheetsByUser.get(entry.user_id);
+        
+        let segments = segmentsByEntry.get(entry.id) || [];
+        let manualOverride = false;
+        let overrideHours: any = undefined;
+        
+        // Dacă există override manual în daily_timesheets, reconstruim segmentele
+        if (dailyTimesheet && dailyTimesheet.notes?.includes('SEGMENTARE')) {
+          manualOverride = true;
+          
+          // Reconstruim segments din daily_timesheets (valorile editate manual)
+          segments = [
+            { 
+              id: `manual-regular-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_regular', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_regular || 0 
+            },
+            { 
+              id: `manual-night-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_night', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_night || 0 
+            },
+            { 
+              id: `manual-saturday-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_saturday', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_saturday || 0 
+            },
+            { 
+              id: `manual-sunday-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_sunday', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_sunday || 0 
+            },
+            { 
+              id: `manual-holiday-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_holiday', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_holiday || 0 
+            },
+            { 
+              id: `manual-passenger-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_passenger', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_passenger || 0 
+            },
+            { 
+              id: `manual-driving-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_driving', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_driving || 0 
+            },
+            { 
+              id: `manual-equipment-${entry.id}`,
+              time_entry_id: entry.id,
+              segment_type: 'hours_equipment', 
+              start_time: entry.clock_in_time,
+              end_time: entry.clock_out_time || entry.clock_in_time,
+              hours_decimal: dailyTimesheet.hours_equipment || 0 
+            },
+          ].filter(s => s.hours_decimal > 0);
+          
+          // Salvăm toate valorile pentru acces rapid în UI
+          overrideHours = {
+            hours_regular: dailyTimesheet.hours_regular || 0,
+            hours_night: dailyTimesheet.hours_night || 0,
+            hours_saturday: dailyTimesheet.hours_saturday || 0,
+            hours_sunday: dailyTimesheet.hours_sunday || 0,
+            hours_holiday: dailyTimesheet.hours_holiday || 0,
+            hours_passenger: dailyTimesheet.hours_passenger || 0,
+            hours_driving: dailyTimesheet.hours_driving || 0,
+            hours_equipment: dailyTimesheet.hours_equipment || 0,
+          };
+        }
+
         return {
           ...entry,
           pontajNumber: currentCount,
-          segments: segmentsByEntry.get(entry.id) || [],
+          segments,
+          manualOverride,
+          overrideHours,
           profiles: profilesData?.find(p => p.id === entry.user_id) || {
             id: entry.user_id,
             full_name: 'Unknown',
