@@ -291,14 +291,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (abortController.signal.aborted) return;
 
       try {
-        // Parallel execution of all session setup tasks
+        // First fetch role to determine session table
+        let fetchedRole: UserRole = null;
+        try {
+          const { data: roleData, error } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId)
+            .abortSignal(abortController.signal)
+            .maybeSingle();
+
+          if (abortController.signal.aborted) return;
+
+          if (!error && roleData) {
+            fetchedRole = (roleData.role as UserRole) ?? null;
+            setUserRole(fetchedRole);
+          }
+        } catch (error) {
+          if (!abortController.signal.aborted) {
+            logger.error('[AuthContext] Role fetch error:', error);
+          }
+        }
+
+        // Parallel execution of session setup tasks
         await Promise.all([
-          // 1. Session registration
+          // 1. Session registration (only if role is known)
           (async () => {
+            if (!fetchedRole) return;
+            
             try {
               // Verifică dacă există deja o sesiune activă pentru acest device
+              const tableName = fetchedRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
               const { data: existingSession } = await supabase
-                .from('active_sessions')
+                .from(tableName)
                 .select('id, invalidated_at')
                 .eq('user_id', userId)
                 .eq('session_id', sessionId)
@@ -310,7 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (existingSession && !existingSession.invalidated_at) {
                 // Sesiune existentă validă - doar actualizează timestamp
                 await supabase
-                  .from('active_sessions')
+                  .from(tableName)
                   .update({ 
                     last_activity: new Date().toISOString(),
                     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -318,49 +343,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   .eq('id', existingSession.id)
                   .abortSignal(abortController.signal);
               } else {
-                // Sesiune nouă sau invalidată - verifică limita și creează
-                const { data: limitCheck, error: limitError } = await supabase.rpc('check_session_limit', {
-                  _user_id: userId,
-                  _session_id: sessionId,
-                  _device_fingerprint: deviceFingerprint
-                });
-                
-                if (abortController.signal.aborted) return;
-                
-                if (limitError) {
-                  logger.error('[AuthContext] Session limit check failed:', limitError);
-                  return;
-                }
-                
-                const limitResult = limitCheck as { allowed?: boolean; action?: string; message?: string };
-                
-                if (limitResult?.allowed) {
-                  // Șterge sesiunea veche invalidată dacă există
-                  if (existingSession?.invalidated_at) {
-                    await supabase
-                      .from('active_sessions')
-                      .delete()
-                      .eq('id', existingSession.id)
-                      .abortSignal(abortController.signal);
-                  }
-                  
-                  if (abortController.signal.aborted) return;
-                  
-                  // Înregistrează noua sesiune
-                  const { error: insertError } = await supabase
-                    .from('active_sessions')
-                    .insert({
-                      user_id: userId,
-                      session_id: sessionId,
-                      device_fingerprint: deviceFingerprint,
-                      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                    })
-                    .abortSignal(abortController.signal);
-                  
-                  if (insertError) {
-                    logger.error('[AuthContext] Failed to insert session:', insertError);
-                  }
-                }
+                // Import helper doar când e nevoie
+                const { registerActiveSession } = await import('@/lib/auth/sessionHelpers');
+                await registerActiveSession(userId, sessionId, fetchedRole);
               }
             } catch (error) {
               if (!abortController.signal.aborted) {
@@ -369,46 +354,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           })(),
 
-          // 2. Role fetch and redirect
+          // 2. Redirect logic
           (async () => {
+            if (!fetchedRole) return;
+            
             try {
-              const { data: roleData, error } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', userId)
-                .abortSignal(abortController.signal)
-                .maybeSingle();
-
-              if (abortController.signal.aborted) return;
-
-              if (error) {
-                console.error('Role fetch error:', error);
-                setUserRole(null);
-                return;
-              }
-
-              let role = (roleData?.role as UserRole) ?? null;
-              setUserRole(role);
-
-              // Redirect logic
               const currentPath = window.location.pathname;
               const adminPaths = ['/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/gdpr-admin', '/settings', '/backup-restore'];
               const employeePaths = ['/mobile', '/vacations', '/settings', '/gdpr-settings'];
               
-              // Admins can access BOTH admin and employee areas; employees only employee paths
-              const isOnValidPath = (role === 'admin' && (adminPaths.some(path => currentPath.startsWith(path)) || employeePaths.some(path => currentPath.startsWith(path)))) ||
-                                   (role === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
+              const isOnValidPath = (fetchedRole === 'admin' && (adminPaths.some(path => currentPath.startsWith(path)) || employeePaths.some(path => currentPath.startsWith(path)))) ||
+                                   (fetchedRole === 'employee' && employeePaths.some(path => currentPath.startsWith(path)));
               
               if (!isOnValidPath) {
-                if (role === 'admin') {
+                if (fetchedRole === 'admin') {
                   navigate('/admin');
-                } else if (role === 'employee') {
+                } else if (fetchedRole === 'employee') {
                   navigate('/mobile');
                 }
               }
             } catch (error) {
               if (!abortController.signal.aborted) {
-                logger.error('[AuthContext] Role fetch error:', error);
+                logger.error('[AuthContext] Redirect error:', error);
               }
             }
           })(),
@@ -437,27 +404,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // 4. GDPR consent check (only for employees)
           (async () => {
+            if (fetchedRole !== 'employee') return;
+            
             try {
-              // Wait for role to be set first
-              const roleResult = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', userId)
-                .abortSignal(abortController.signal)
-                .maybeSingle();
+              const hasConsents = await checkUserConsents(userId);
 
               if (abortController.signal.aborted) return;
 
-              const role = roleResult.data?.role as UserRole;
-              
-              if (role === 'employee') {
-                const hasConsents = await checkUserConsents(userId);
-
-                if (abortController.signal.aborted) return;
-
-                if (!hasConsents) {
-                  setNeedsGDPRConsent(true);
-                }
+              if (!hasConsents) {
+                setNeedsGDPRConsent(true);
               }
             } catch (error) {
               if (!abortController.signal.aborted) {

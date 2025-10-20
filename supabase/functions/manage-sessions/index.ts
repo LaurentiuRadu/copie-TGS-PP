@@ -5,6 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface RequestBody {
+  action: 'list' | 'logout-single' | 'logout-all';
+  sessionId?: string;
+  includeTimeEntries?: boolean;
+  excludeCurrentSession?: boolean;
+  reason?: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,27 +29,43 @@ Deno.serve(async (req) => {
       }
     );
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseClient.auth.getUser();
-
+    // Authenticate user
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
+      console.error('[manage-sessions] Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const body = await req.json();
-    const { action, sessionId, includeTimeEntries } = body;
+    // Get user's role
+    const { data: roleData, error: roleError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-    console.log('Session management action:', action, 'for user:', user.id);
+    if (roleError || !roleData) {
+      console.error('[manage-sessions] Role fetch error:', roleError);
+      return new Response(
+        JSON.stringify({ error: 'Role not found' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
+    const userRole = roleData.role as 'admin' | 'employee';
+    const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+
+    const body: RequestBody = await req.json();
+    const { action, sessionId, includeTimeEntries, excludeCurrentSession, reason } = body;
+
+    console.log(`[manage-sessions] Action: ${action}, User: ${user.id}, Role: ${userRole}`);
+
+    // ACTION: List active sessions
     if (action === 'list') {
-      // List all active sessions for user
       const { data: sessions, error } = await supabaseClient
-        .from('active_sessions')
+        .from(tableName)
         .select('*')
         .eq('user_id', user.id)
         .is('invalidated_at', null)
@@ -50,13 +74,12 @@ Deno.serve(async (req) => {
 
       if (error) throw error;
 
-      // Dacă e cerut, adaugă time_entries active pentru fiecare sesiune
+      // Optionally include active time entries
       if (includeTimeEntries && sessions && sessions.length > 0) {
         const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         
         const sessionsWithEntries = await Promise.all(
           sessions.map(async (session) => {
-            // Caută ultimul time_entry (fie în curs, fie completat în ultimele 24h)
             const { data: timeEntry } = await supabaseClient
               .from('time_entries')
               .select('id, clock_in_time, clock_out_time, approval_status')
@@ -85,20 +108,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ACTION: Logout single session
     if (action === 'logout-single' && sessionId) {
-      // Invalidate specific session
       const { error } = await supabaseClient
-        .from('active_sessions')
+        .from(tableName)
         .update({
           invalidated_at: new Date().toISOString(),
-          invalidation_reason: 'user_requested_logout',
+          invalidation_reason: reason || 'user_requested_logout',
         })
         .eq('session_id', sessionId)
         .eq('user_id', user.id);
 
       if (error) throw error;
 
-      console.log('Session invalidated:', sessionId);
+      console.log(`[manage-sessions] ${userRole} session invalidated:`, sessionId);
 
       return new Response(
         JSON.stringify({ success: true, message: 'Sesiune închisă cu succes' }),
@@ -106,23 +129,32 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ACTION: Logout all sessions
     if (action === 'logout-all') {
-      // Invalidate all sessions except current one
-      const { error } = await supabaseClient
-        .from('active_sessions')
-        .update({
-          invalidated_at: new Date().toISOString(),
-          invalidation_reason: 'user_requested_logout_all',
-        })
-        .eq('user_id', user.id)
-        .is('invalidated_at', null);
+      const currentSessionId = excludeCurrentSession ? req.headers.get('X-Session-ID') : null;
 
-      if (error) throw error;
+      const { data, error } = await supabaseClient.rpc('invalidate_sessions_by_role', {
+        _user_id: user.id,
+        _role: userRole,
+        _reason: reason || 'user_requested_logout_all',
+        _exclude_session_id: currentSessionId
+      });
 
-      console.log('All sessions invalidated for user:', user.id);
+      if (error) {
+        console.error('[manage-sessions] RPC error:', error);
+        throw error;
+      }
+
+      const invalidatedCount = data || 0;
+      console.log(`[manage-sessions] ${invalidatedCount} ${userRole} session(s) invalidated for user:`, user.id);
 
       return new Response(
-        JSON.stringify({ success: true, message: 'Toate sesiunile au fost închise cu succes' }),
+        JSON.stringify({ 
+          success: true, 
+          message: invalidatedCount > 0 
+            ? `Toate sesiunile au fost închise cu succes (${invalidatedCount})`
+            : 'Nu au fost găsite sesiuni active de închis'
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -132,7 +164,7 @@ Deno.serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in manage-sessions:', error);
+    console.error('[manage-sessions] Unhandled error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),

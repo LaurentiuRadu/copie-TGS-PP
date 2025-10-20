@@ -2,68 +2,80 @@ import { supabase } from '@/integrations/supabase/client';
 import { generateDeviceFingerprint, getDeviceInfo } from '@/lib/deviceFingerprint';
 import { logger } from '@/lib/logger';
 
-interface SessionLimitCheckResponse {
-  allowed: boolean;
-  action?: string;
-  message?: string;
-}
+type UserRole = 'admin' | 'employee';
 
 /**
- * Registers an active session in the database
+ * Registers an active session in the role-specific table
  * 
  * Purpose:
- * - Track active sessions for security monitoring
- * - Enforce concurrent session limits per user
+ * - Track active sessions for security monitoring (separate for admin/employee)
+ * - Enforce different concurrent session limits per role
  * - Enable "logout from other devices" functionality
  * 
  * @param userId - UUID of the authenticated user
- * @param sessionId - Supabase session ID (from session.access_token)
+ * @param sessionId - Generated session ID
+ * @param userRole - User's role ('admin' or 'employee')
  * @returns Promise<void>
  */
 export async function registerActiveSession(
   userId: string,
-  sessionId: string
+  sessionId: string,
+  userRole: UserRole
 ): Promise<void> {
   try {
-    // Generate device fingerprint
     const deviceFingerprint = generateDeviceFingerprint();
     const deviceInfo = getDeviceInfo();
+    const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+    const maxSessions = userRole === 'admin' ? 4 : 1;
 
-    // Check session limit via RPC
-    const { data: limitCheck, error: rpcError } = await supabase.rpc(
-      'check_session_limit',
-      {
-        _user_id: userId,
-        _session_id: sessionId,
-        _device_fingerprint: deviceFingerprint,
-      }
+    // Check current active sessions count
+    const { data: countData } = await supabase.rpc(
+      'get_active_sessions_count',
+      { _user_id: userId, _role: userRole }
     );
 
-    if (rpcError) {
-      logger.error('[sessionHelpers] Session limit check failed:', rpcError);
-      // Continue anyway - don't block login
-    } else if (limitCheck) {
-      const response = limitCheck as unknown as SessionLimitCheckResponse;
+    const activeCount = countData || 0;
 
-      if (!response.allowed) {
-        logger.warn('[sessionHelpers] Session limit exceeded:', response.message);
-        // For now, just log - AuthContext will handle UI
+    // If at or over limit, invalidate oldest session
+    if (activeCount >= maxSessions) {
+      logger.warn(`[sessionHelpers] Session limit reached for ${userRole} (${activeCount}/${maxSessions})`);
+      
+      // Get oldest session to invalidate
+      const { data: oldestSession } = await supabase
+        .from(tableName)
+        .select('session_id')
+        .eq('user_id', userId)
+        .is('invalidated_at', null)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (oldestSession) {
+        await supabase.rpc('invalidate_sessions_by_role', {
+          _user_id: userId,
+          _role: userRole,
+          _reason: 'session_limit_exceeded',
+          _exclude_session_id: oldestSession.session_id
+        });
       }
     }
 
-    // Insert into active_sessions table
+    // Insert new session into role-specific table
     const { error: insertError } = await supabase
-      .from('active_sessions')
+      .from(tableName)
       .insert({
         user_id: userId,
         session_id: sessionId,
         device_fingerprint: deviceFingerprint,
         device_info: deviceInfo,
         last_activity: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       });
 
     if (insertError) {
-      logger.error('[sessionHelpers] Failed to register session:', insertError);
+      logger.error(`[sessionHelpers] Failed to register ${userRole} session:`, insertError);
+    } else {
+      logger.info(`[sessionHelpers] ✅ Registered ${userRole} session: ${sessionId}`);
     }
   } catch (error) {
     logger.error('[sessionHelpers] Exception during session registration:', error);
@@ -74,18 +86,24 @@ export async function registerActiveSession(
  * Updates last_activity timestamp for an active session
  * Should be called periodically to keep session alive
  * 
- * @param sessionId - Supabase session ID
+ * @param sessionId - Session ID
+ * @param userRole - User's role ('admin' or 'employee')
  * @returns Promise<void>
  */
-export async function updateSessionActivity(sessionId: string): Promise<void> {
+export async function updateSessionActivity(
+  sessionId: string,
+  userRole: UserRole
+): Promise<void> {
   try {
+    const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+    
     const { error } = await supabase
-      .from('active_sessions')
+      .from(tableName)
       .update({ last_activity: new Date().toISOString() })
       .eq('session_id', sessionId);
 
     if (error) {
-      logger.error('[sessionHelpers] Failed to update session activity:', error);
+      logger.error(`[sessionHelpers] Failed to update ${userRole} session activity:`, error);
     }
   } catch (error) {
     logger.error('[sessionHelpers] Exception updating session activity:', error);
@@ -95,13 +113,19 @@ export async function updateSessionActivity(sessionId: string): Promise<void> {
 /**
  * Invalidates an active session (logout)
  * 
- * @param sessionId - Supabase session ID to invalidate
+ * @param sessionId - Session ID to invalidate
+ * @param userRole - User's role ('admin' or 'employee')
  * @returns Promise<void>
  */
-export async function invalidateSession(sessionId: string): Promise<void> {
+export async function invalidateSession(
+  sessionId: string,
+  userRole: UserRole
+): Promise<void> {
   try {
+    const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+    
     const { error } = await supabase
-      .from('active_sessions')
+      .from(tableName)
       .update({ 
         invalidated_at: new Date().toISOString(),
         invalidation_reason: 'user_logout' 
@@ -109,7 +133,9 @@ export async function invalidateSession(sessionId: string): Promise<void> {
       .eq('session_id', sessionId);
 
     if (error) {
-      logger.error('[sessionHelpers] Failed to invalidate session:', error);
+      logger.error(`[sessionHelpers] Failed to invalidate ${userRole} session:`, error);
+    } else {
+      logger.info(`[sessionHelpers] ✅ Invalidated ${userRole} session: ${sessionId}`);
     }
   } catch (error) {
     logger.error('[sessionHelpers] Exception invalidating session:', error);

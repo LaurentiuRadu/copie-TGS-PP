@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.dedupe-time-entries]
 verify_jwt = true
+
+[functions.manage-sessions]
+verify_jwt = true
