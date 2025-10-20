@@ -36,36 +36,6 @@ export default function EditTeamSchedule() {
   const teamId = searchParams.get('team');
   const weekStart = searchParams.get('week');
   
-  const [isValidating, setIsValidating] = useState(true);
-
-  // Validare parametri URL cu timeout pentru a aștepta stabilizarea React Router
-  useEffect(() => {
-    // Așteaptă ca React Router să finalizeze navigarea
-    const timer = setTimeout(() => {
-      if (!teamId || !weekStart) {
-        console.error('[EditTeamSchedule] Parametri invalidi:', { teamId, weekStart });
-        toast.error('Parametri lipsă - redirecționare către programări săptămânale');
-        navigate('/weekly-schedules', { replace: true });
-      } else {
-        console.log('[EditTeamSchedule] Parametri valizi:', { teamId, weekStart });
-        setIsValidating(false);
-      }
-    }, 100); // 100ms buffer pentru React Router
-
-    return () => clearTimeout(timer);
-  }, [teamId, weekStart, navigate]);
-
-  // Early return dacă încă validăm sau parametrii lipsesc
-  if (isValidating || !teamId || !weekStart) {
-    return (
-      <AdminLayout title="Editare Echipă">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AdminLayout>
-    );
-  }
-  
   const [projectManagerId, setProjectManagerId] = useState<string>('');
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
