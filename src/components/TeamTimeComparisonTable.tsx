@@ -133,37 +133,57 @@ export const TeamTimeComparisonTable = ({
 
   // Calculează media echipei (exclude șoferii)
   const calculateTeamAverage = () => {
-    const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments));
+    const nonDrivers = groupedByEmployee.filter(emp => !isDriver(emp.segments) && !emp.isMissing && emp.firstClockIn);
     
     if (nonDrivers.length === 0) {
       return { avgClockIn: null, avgClockOut: null, avgHours: 0 };
     }
 
-    const clockIns = nonDrivers.map(emp => {
-      const date = new Date(emp.firstClockIn);
-      return date.getHours() * 60 + date.getMinutes();
-    });
+    const clockIns = nonDrivers
+      .map(emp => {
+        const date = new Date(emp.firstClockIn);
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // ✅ Validare: verifică dacă valorile sunt valide
+        if (isNaN(hours) || isNaN(minutes)) return null;
+        return hours * 60 + minutes;
+      })
+      .filter((m): m is number => m !== null); // Exclude valorile null
 
     const clockOuts = nonDrivers
       .filter(emp => emp.lastClockOut)
       .map(emp => {
         const date = new Date(emp.lastClockOut!);
-        return date.getHours() * 60 + date.getMinutes();
-      });
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        // ✅ Validare: verifică dacă valorile sunt valide
+        if (isNaN(hours) || isNaN(minutes)) return null;
+        return hours * 60 + minutes;
+      })
+      .filter((m): m is number => m !== null); // Exclude valorile null
+
+    // ✅ Verificare: dacă nu avem date valide, returnează null
+    if (clockIns.length === 0) {
+      return { avgClockIn: null, avgClockOut: null, avgHours: 0 };
+    }
 
     const avgClockInMinutes = Math.round(clockIns.reduce((a, b) => a + b, 0) / clockIns.length);
     const avgClockOutMinutes = clockOuts.length > 0 
       ? Math.round(clockOuts.reduce((a, b) => a + b, 0) / clockOuts.length)
       : null;
 
-    const avgClockIn = `${Math.floor(avgClockInMinutes / 60).toString().padStart(2, '0')}:${(avgClockInMinutes % 60).toString().padStart(2, '0')}`;
-    const avgClockOut = avgClockOutMinutes 
+    // ✅ Validare finală: verifică NaN înainte de formatare
+    const avgClockIn = !isNaN(avgClockInMinutes) && isFinite(avgClockInMinutes)
+      ? `${Math.floor(avgClockInMinutes / 60).toString().padStart(2, '0')}:${(avgClockInMinutes % 60).toString().padStart(2, '0')}`
+      : null;
+    
+    const avgClockOut = avgClockOutMinutes !== null && !isNaN(avgClockOutMinutes) && isFinite(avgClockOutMinutes)
       ? `${Math.floor(avgClockOutMinutes / 60).toString().padStart(2, '0')}:${(avgClockOutMinutes % 60).toString().padStart(2, '0')}`
       : null;
 
     const avgHours = nonDrivers.reduce((sum, emp) => sum + emp.totalHours, 0) / nonDrivers.length;
 
-    return { avgClockIn, avgClockOut, avgHours };
+    return { avgClockIn, avgClockOut, avgHours: isNaN(avgHours) ? 0 : avgHours };
   };
 
   // ✅ FIX 5: Memoizare teamAverage pentru a evita recalcul la fiecare render
@@ -195,14 +215,25 @@ export const TeamTimeComparisonTable = ({
 
   // Format diferență
   const formatDifference = (time: string, avgTime: string | null): string => {
-    if (!avgTime) return '';
+    if (!avgTime || !time) return '';
     
-    const diff = getTimeDifferenceMinutes(time, avgTime);
-    const [h1, m1] = time.split(':').map(Number);
-    const [h2, m2] = avgTime.split(':').map(Number);
+    // ✅ Validare: verifică format valid înainte de procesare
+    const timeParts = time.split(':');
+    const avgParts = avgTime.split(':');
+    if (timeParts.length !== 2 || avgParts.length !== 2) return '';
+    
+    const [h1, m1] = timeParts.map(Number);
+    const [h2, m2] = avgParts.map(Number);
+    
+    // ✅ Validare: verifică că valorile sunt numere valide
+    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return '';
     
     const minutes1 = h1 * 60 + m1;
     const minutes2 = h2 * 60 + m2;
+    const diff = Math.abs(minutes1 - minutes2);
+    
+    // ✅ Validare finală: verifică NaN
+    if (isNaN(diff) || !isFinite(diff)) return '';
     
     const sign = minutes1 >= minutes2 ? '+' : '-';
     return `${sign}${diff}min`;
@@ -314,6 +345,14 @@ export const TeamTimeComparisonTable = ({
     
     const workDate = format(new Date(employee.firstClockIn), 'yyyy-MM-dd');
 
+    // ✅ FIX CRITICAL: Obține valorile EXISTENTE din daily_timesheets
+    const { data: existingTimesheet } = await supabase
+      .from('daily_timesheets')
+      .select('*')
+      .eq('employee_id', userId)
+      .eq('work_date', workDate)
+      .maybeSingle();
+
     // Funcție helper pentru override manual
     const saveAdminOverride = async () => {
       const overridePayload: any = {
@@ -324,28 +363,28 @@ export const TeamTimeComparisonTable = ({
           : '[SEGMENTARE VALIDATĂ] Setat manual din tabel',
       };
       
+      // ✅ FIX: Păstrează valorile EXISTENTE pentru tipurile ne-editate
       segmentTypes.forEach((t) => {
         if (t === 'hours_regular') {
-          overridePayload[t] = Number(hoursRegularCalculated.toFixed(2)); // FORȚAT
+          overridePayload[t] = Number(hoursRegularCalculated.toFixed(2));
         } else if (t === segmentType) {
           overridePayload[t] = Number(newHours.toFixed(2));
         } else {
-          overridePayload[t] = Number(getDisplayHours(employee, t).toFixed(2));
+          // ✅ CRITICAL: Păstrează valoarea existentă din DB sau folosește valoarea calculată
+          const existingValue = existingTimesheet?.[t as keyof typeof existingTimesheet];
+          const displayValue = getDisplayHours(employee, t);
+          const finalValue = existingValue !== undefined && existingValue !== null 
+            ? Number(existingValue) 
+            : displayValue;
+          overridePayload[t] = Number(finalValue.toFixed(2));
         }
       });
 
-      const { data: existing } = await supabase
-        .from('daily_timesheets')
-        .select('id, notes')
-        .eq('employee_id', userId)
-        .eq('work_date', workDate)
-        .maybeSingle();
-
-      if (existing) {
+      if (existingTimesheet) {
         await supabase
           .from('daily_timesheets')
           .update(overridePayload)
-          .eq('id', existing.id);
+          .eq('id', existingTimesheet.id);
       } else {
         await supabase
           .from('daily_timesheets')
