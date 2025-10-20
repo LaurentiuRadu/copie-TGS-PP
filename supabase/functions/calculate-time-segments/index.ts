@@ -945,6 +945,11 @@ Deno.serve(async (req) => {
       t.hours_leave = Math.round(t.hours_leave * 100) / 100;
       t.hours_medical_leave = Math.round(t.hours_medical_leave * 100) / 100;
       
+      // ⚠️ MONITORING: Detectează cazuri excepționale când hours_regular > 0 (ar trebui să fie 0 pentru shift-uri 100% clasificate)
+      if (t.hours_regular > 0.1) {
+        console.warn(`[Aggregate] ⚠️ hours_regular detected: ${t.hours_regular}h for ${t.work_date} (user: ${user_id}) - verifică clasificarea segmentelor`);
+      }
+      
       console.log(`[Aggregate] Final for ${t.work_date}: regular=${t.hours_regular}h, night=${t.hours_night}h, driving=${t.hours_driving}h, passenger=${t.hours_passenger}h, equipment=${t.hours_equipment}h`);
     });
 
