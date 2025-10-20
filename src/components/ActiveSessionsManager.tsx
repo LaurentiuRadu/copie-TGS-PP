@@ -52,10 +52,11 @@ export function ActiveSessionsManager() {
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      const roles = roleData?.map(r => r.role) || [];
-      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+      const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
+      console.log('[ActiveSessionsManager] loadSessions - User role:', userRole);
 
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
         body: { 
@@ -89,10 +90,11 @@ export function ActiveSessionsManager() {
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      const roles = roleData?.map(r => r.role) || [];
-      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+      const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
+      console.log('[ActiveSessionsManager] handleLogoutAll - User role:', userRole);
 
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
         body: { 
@@ -124,10 +126,11 @@ export function ActiveSessionsManager() {
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      const roles = roleData?.map(r => r.role) || [];
-      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+      const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
+      console.log('[ActiveSessionsManager] handleLogoutSingle - User role:', userRole);
 
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
         body: { 

@@ -49,15 +49,17 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
           .from('user_roles')
           .select('role')
           .eq('user_id', userId)
-          .abortSignal(controller.signal);
+          .abortSignal(controller.signal)
+          .maybeSingle();
 
         if (controller.signal.aborted) {
           return;
         }
 
-        const roles = roleData?.map(r => r.role) || [];
-        const userRole = roles.includes('admin') ? 'admin' : 'employee';
+        const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
         const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+        
+        logger.info(`[SessionMonitor] User role detected: ${userRole}, using table: ${tableName}`);
         
         const { data, error } = await supabase
           .from(tableName)
@@ -122,11 +124,13 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      const roles = roleData?.map(r => r.role) || [];
-      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+      const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
       const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+      
+      logger.info(`[SessionMonitor] Setup monitoring for ${userRole} using table: ${tableName}`);
 
       // Nu verifica imediat - lasă AuthContext să termine setup-ul
       const initialCheckTimeout = setTimeout(() => checkSessionValidity(), 5000);
