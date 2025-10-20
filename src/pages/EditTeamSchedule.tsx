@@ -146,7 +146,7 @@ export default function EditTeamSchedule() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_schedules')
-        .select('*, profiles!weekly_schedules_user_id_fkey(full_name)')
+        .select('*')
         .eq('team_id', teamId)
         .eq('week_start_date', weekStart);
       if (error) throw error;
