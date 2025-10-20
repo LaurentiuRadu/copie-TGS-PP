@@ -355,6 +355,15 @@ export const TeamTimeComparisonTable = ({
 
     // Funcție helper pentru override manual
     const saveAdminOverride = async () => {
+      console.log('[🔍 SAVE SEGMENT DEBUG] Starting saveAdminOverride:', {
+        userId,
+        segmentType,
+        newHours,
+        workDate,
+        existingTimesheetExists: !!existingTimesheet,
+        existingTimesheetId: existingTimesheet?.id,
+      });
+
       const overridePayload: any = {
         employee_id: userId,
         work_date: workDate,
@@ -363,22 +372,41 @@ export const TeamTimeComparisonTable = ({
           : '[SEGMENTARE VALIDATĂ] Setat manual din tabel',
       };
       
+      console.log('[🔍 SAVE SEGMENT DEBUG] Processing segment types...');
+      
       // ✅ FIX: Păstrează valorile EXISTENTE pentru tipurile ne-editate
       segmentTypes.forEach((t) => {
         if (t === 'hours_regular') {
           overridePayload[t] = Number(hoursRegularCalculated.toFixed(2));
+          console.log(`[🔍 SEGMENT ${t}] AUTO-CALCULATED:`, overridePayload[t]);
         } else if (t === segmentType) {
           overridePayload[t] = Number(newHours.toFixed(2));
+          console.log(`[🔍 SEGMENT ${t}] EDITED VALUE:`, overridePayload[t]);
         } else {
           // ✅ CRITICAL: Păstrează valoarea existentă din DB sau folosește valoarea calculată
           const existingValue = existingTimesheet?.[t as keyof typeof existingTimesheet];
           const displayValue = getDisplayHours(employee, t);
+          
+          console.log(`[🔍 SEGMENT ${t}] Values:`, {
+            existingValue,
+            existingValueType: typeof existingValue,
+            displayValue,
+            displayValueType: typeof displayValue,
+            existingIsUndefined: existingValue === undefined,
+            existingIsNull: existingValue === null,
+          });
+          
           const finalValue = existingValue !== undefined && existingValue !== null 
             ? Number(existingValue) 
             : displayValue;
+            
           overridePayload[t] = Number(finalValue.toFixed(2));
+          
+          console.log(`[🔍 SEGMENT ${t}] Final value in payload:`, overridePayload[t]);
         }
       });
+
+      console.log('[🔍 SAVE SEGMENT DEBUG] Complete overridePayload:', overridePayload);
 
       if (existingTimesheet) {
         await supabase
