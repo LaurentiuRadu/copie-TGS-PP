@@ -113,18 +113,12 @@ export default function EditTeamSchedule() {
     }
   });
 
-  // Fetch projects from database
-  const { data: dbProjects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('name')
-        .order('name');
-      if (error) throw error;
-      return data.map(p => p.name);
-    }
-  });
+  // Fetch projects names from database (duplicate removed)
+  const { data: dbProjects } = useMemo(() => {
+    return {
+      data: projects?.map(p => p.name) || []
+    };
+  }, [projects]);
   
   // Fetch execution items
   const { data: executionItems } = useQuery({
