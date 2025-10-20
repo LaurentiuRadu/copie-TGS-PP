@@ -169,14 +169,24 @@ Deno.serve(async (req) => {
       console.log('Warning deleting consents:', consentsError.message)
     }
 
-    // 11. Șterge active sessions
-    const { error: sessionsError } = await supabaseAdmin
-      .from('active_sessions')
+    // 11. Șterge admin sessions
+    const { error: adminSessionsError } = await supabaseAdmin
+      .from('admin_sessions')
       .delete()
       .eq('user_id', userId)
     
-    if (sessionsError) {
-      console.log('Warning deleting sessions:', sessionsError.message)
+    if (adminSessionsError) {
+      console.log('Warning deleting admin sessions:', adminSessionsError.message)
+    }
+
+    // 12. Șterge employee sessions
+    const { error: employeeSessionsError } = await supabaseAdmin
+      .from('employee_sessions')
+      .delete()
+      .eq('user_id', userId)
+    
+    if (employeeSessionsError) {
+      console.log('Warning deleting employee sessions:', employeeSessionsError.message)
     }
 
     // 12. Șterge notification settings

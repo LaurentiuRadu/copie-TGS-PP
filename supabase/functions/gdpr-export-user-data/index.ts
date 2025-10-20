@@ -83,9 +83,19 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    // Fetch active sessions
+    // Determine user role for session table
+    const { data: roleData } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const userRole = roleData?.role || 'employee';
+    const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+
+    // Fetch sessions based on role
     const { data: sessions } = await supabaseClient
-      .from('active_sessions')
+      .from(tableName)
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
@@ -105,6 +115,7 @@ Deno.serve(async (req) => {
       consents: consents || [],
       gdprRequests: gdprRequests || [],
       activeSessions: sessions || [],
+      sessionType: userRole, // Session table type used for export
     };
 
     // Log GDPR request

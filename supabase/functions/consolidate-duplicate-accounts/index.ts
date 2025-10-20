@@ -180,15 +180,26 @@ Deno.serve(async (req) => {
     if (consentsError) throw new Error(`user_consents: ${consentsError.message}`);
     migratedCounts.userConsents = consentsData?.length || 0;
 
-    // 11. Migrare active_sessions
-    const { data: sessionsData, error: sessionsError } = await supabase
-      .from('active_sessions')
+    // 11. Migrare admin_sessions
+    const { data: adminSessionsData, error: adminSessionsError } = await supabase
+      .from('admin_sessions')
       .update({ user_id: targetUserId })
       .eq('user_id', sourceUserId)
       .select('id');
     
-    if (sessionsError) throw new Error(`active_sessions: ${sessionsError.message}`);
-    migratedCounts.activeSessions = sessionsData?.length || 0;
+    if (adminSessionsError) throw new Error(`admin_sessions: ${adminSessionsError.message}`);
+
+    // 12. Migrare employee_sessions
+    const { data: employeeSessionsData, error: employeeSessionsError } = await supabase
+      .from('employee_sessions')
+      .update({ user_id: targetUserId })
+      .eq('user_id', sourceUserId)
+      .select('id');
+    
+    if (employeeSessionsError) throw new Error(`employee_sessions: ${employeeSessionsError.message}`);
+
+    migratedCounts.activeSessions = 
+      (adminSessionsData?.length || 0) + (employeeSessionsData?.length || 0);
 
     // 12. Ștergere dependencies ale contului source
     await supabase.from('user_password_tracking').delete().eq('user_id', sourceUserId);
