@@ -5,12 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ✅ Conditional logging pentru producție
-const isDev = Deno.env.get('DENO_ENV') === 'development';
-
-// Log helpers - doar console.log e condiționat, warn/error sunt mereu active
+// Logging helpers
 const log = {
-  info: (...args: any[]) => { if (isDev) console.log(...args); },
+  info: (...args: any[]) => console.log(...args),
   warn: (...args: any[]) => console.warn(...args),
   error: (...args: any[]) => console.error(...args),
 };
