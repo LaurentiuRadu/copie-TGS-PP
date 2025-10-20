@@ -43,9 +43,24 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
         if (!currentSession || controller.signal.aborted) {
           return;
         }
+
+        // Determină rolul utilizatorului
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .abortSignal(controller.signal);
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const roles = roleData?.map(r => r.role) || [];
+        const userRole = roles.includes('admin') ? 'admin' : 'employee';
+        const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
         
         const { data, error } = await supabase
-          .from('active_sessions')
+          .from(tableName)
           .select('invalidated_at, invalidation_reason')
           .eq('session_id', sessionId)
           .eq('user_id', userId)
@@ -99,44 +114,63 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
     if (!userId || !enabled) return;
 
     const sessionId = generateDeviceFingerprint();
+    let channels: any[] = [];
 
-    // Nu verifica imediat - lasă AuthContext să termine setup-ul
-    const initialCheckTimeout = setTimeout(() => checkSessionValidity(), 5000);
+    // Setup async pentru a determina tabela corectă
+    const setupMonitoring = async () => {
+      // Determină rolul utilizatorului
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
 
-    // Verifică la fiecare 60 de secunde
-    const interval = setInterval(() => checkSessionValidity(), 60000);
+      const roles = roleData?.map(r => r.role) || [];
+      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+      const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
 
-    // Setup realtime subscription pentru invalidări instant
-    const channel = supabase
-      .channel(`session-monitor-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'active_sessions',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          if (payload.new.session_id === sessionId && payload.new.invalidated_at) {
-            checkSessionValidity();
+      // Nu verifica imediat - lasă AuthContext să termine setup-ul
+      const initialCheckTimeout = setTimeout(() => checkSessionValidity(), 5000);
+
+      // Verifică la fiecare 60 de secunde
+      const interval = setInterval(() => checkSessionValidity(), 60000);
+
+      // Setup realtime subscription pentru invalidări instant
+      const channel = supabase
+        .channel(`session-monitor-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: tableName,
+            filter: `user_id=eq.${userId}`
+          },
+          (payload) => {
+            if (payload.new.session_id === sessionId && payload.new.invalidated_at) {
+              checkSessionValidity();
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+
+      channels.push({ initialCheckTimeout, interval, channel });
+    };
+
+    setupMonitoring();
 
     // Cleanup complet
     return () => {
-      clearTimeout(initialCheckTimeout);
-      clearInterval(interval);
+      channels.forEach(({ initialCheckTimeout, interval, channel }) => {
+        clearTimeout(initialCheckTimeout);
+        clearInterval(interval);
+        channel.unsubscribe();
+      });
       
       // Abort orice request în curs
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
       }
-      
-      channel.unsubscribe();
       
       // Reset toate ref-urile
       pendingCheckRef.current = null;
