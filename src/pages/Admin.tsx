@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SecurityAlertsManager } from "@/components/SecurityAlertsManager";
 import { TimeAuditDialog } from "@/components/TimeAuditDialog";
+import { FullDatabaseExportDialog } from "@/components/FullDatabaseExportDialog";
 
 const Admin = () => {
   const isMobile = useIsMobile();
@@ -48,6 +49,7 @@ const Admin = () => {
           <h1 className="text-3xl font-bold">Panou Administrare</h1>
           
           <div className="flex items-center gap-2">
+            <FullDatabaseExportDialog />
             <TimeAuditDialog />
             
             {pendingCount > 0 && (
