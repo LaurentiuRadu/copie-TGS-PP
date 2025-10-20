@@ -36,6 +36,25 @@ export default function EditTeamSchedule() {
   const teamId = searchParams.get('team');
   const weekStart = searchParams.get('week');
   
+  // Validare parametri URL - previne rendering cu date invalide
+  useEffect(() => {
+    if (!teamId || !weekStart) {
+      toast.error('Parametri lipsă - redirecționare către programări săptămânale');
+      navigate('/weekly-schedules', { replace: true });
+    }
+  }, [teamId, weekStart, navigate]);
+
+  // Early return dacă parametrii lipsesc - previne query-uri invalide
+  if (!teamId || !weekStart) {
+    return (
+      <AdminLayout title="Editare Echipă">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
+  
   const [projectManagerId, setProjectManagerId] = useState<string>('');
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
