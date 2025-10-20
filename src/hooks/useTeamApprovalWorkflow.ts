@@ -93,7 +93,7 @@ export const useTeamApprovalWorkflow = (
       const weekEnd = addDays(weekStart, 7);
 
       // Get user IDs and schedules data - exclude contractori și personal birou
-      const { data: schedules, error: schedError } = await supabase
+      const { data: schedulesRaw, error: schedError } = await supabase
         .from('weekly_schedules')
         .select(`
           user_id, 
@@ -104,16 +104,36 @@ export const useTeamApprovalWorkflow = (
           location, 
           activity, 
           vehicle, 
-          observations,
-          profiles!inner(id, full_name, username, is_external_contractor, is_office_staff)
+          observations
         `)
         .eq('team_id', teamId)
         .eq('week_start_date', weekStartDate)
-        .eq('day_of_week', selectedDayOfWeek)
-        .eq('profiles.is_external_contractor', false)
-        .eq('profiles.is_office_staff', false);
+        .eq('day_of_week', selectedDayOfWeek);
 
       if (schedError) throw schedError;
+
+      // Fetch profiles separately to filter contractors and office staff
+      const userIds = [...new Set(schedulesRaw?.map(s => s.user_id) || [])];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, is_external_contractor, is_office_staff')
+        .in('id', userIds);
+
+      const profileMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+
+      // Filter schedules to exclude contractors and office staff
+      const schedules = schedulesRaw?.map(s => ({
+        ...s,
+        profiles: profileMap.get(s.user_id)
+      })).filter(s => 
+        s.profiles && 
+        !s.profiles.is_external_contractor && 
+        !s.profiles.is_office_staff
+      ) || [];
+
+      if (schedules.length === 0) {
+        return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
+      }
 
       // ✅ Debugging: log schedules found
       console.log('[Team Approval] Schedules found:', schedules?.length, 'for team:', teamId, 'week:', weekStartDate);
@@ -160,15 +180,15 @@ export const useTeamApprovalWorkflow = (
 
       // ✅ Combinăm schedules reale cu virtuale
       const allSchedules = [...(schedules || []), ...virtualManagementSchedules];
-      const userIds = allSchedules.map(s => s.user_id);
+      const allScheduleUserIds = allSchedules.map(s => s.user_id);
 
-      if (userIds.length === 0) {
+      if (allScheduleUserIds.length === 0) {
         console.warn('[Team Approval] ⚠️ No schedules found for this team/week');
         return { entries: [], teamLeader: null, coordinator: null, teamMembers: [] };
       }
 
       // Combine all IDs for profile fetch
-      const allUserIds = [...new Set([...userIds, ...teamLeaderIds, ...coordinatorIds])];
+      const allUserIds = [...new Set([...allScheduleUserIds, ...teamLeaderIds, ...coordinatorIds])];
 
       // Calculăm data exactă pentru ziua selectată
       const targetDate = addDays(weekStart, selectedDayOfWeek - 1);
@@ -219,7 +239,7 @@ export const useTeamApprovalWorkflow = (
       });
 
       // Fetch profiles separately (exclude contractors + office staff)
-      const { data: profilesData } = await supabase
+      const { data: allProfilesData } = await supabase
         .from('profiles')
         .select('id, full_name, username, is_external_contractor, is_office_staff')
         .in('id', allUserIds)
@@ -254,7 +274,7 @@ export const useTeamApprovalWorkflow = (
       // Creează entries "virtuale" pentru angajați lipsă (inclusiv management virtual)
       const virtualEntries = missingUserIds.map(userId => {
         const schedule = allSchedules.find(s => s.user_id === userId);
-        const profile = profilesData?.find(p => p.id === userId);
+        const profile = allProfilesData?.find(p => p.id === userId);
         
         // ✅ Verificăm dacă user-ul este coordinator sau team leader
         const isCoordinator = coordinatorIds.includes(userId);
@@ -420,7 +440,7 @@ export const useTeamApprovalWorkflow = (
           segments,
           manualOverride,
           overrideHours,
-          profiles: profilesData?.find(p => p.id === entry.user_id) || {
+          profiles: allProfilesData?.find(p => p.id === entry.user_id) || {
             id: entry.user_id,
             full_name: 'Unknown',
             username: 'unknown'
@@ -436,13 +456,13 @@ export const useTeamApprovalWorkflow = (
       });
 
       // Extract team leader and coordinator profiles
-      const teamLeader = profilesData?.find(p => teamLeaderIds.includes(p.id)) || null;
-      const coordinator = profilesData?.find(p => coordinatorIds.includes(p.id)) || null;
+      const teamLeader = allProfilesData?.find(p => teamLeaderIds.includes(p.id)) || null;
+      const coordinator = allProfilesData?.find(p => coordinatorIds.includes(p.id)) || null;
 
       // Extract unique team members (exclude team leader and coordinator)
       const memberIds = [...new Set(schedules?.map(s => s.user_id) || [])];
       const teamMembersData = memberIds
-        .map(memberId => profilesData?.find(p => p.id === memberId))
+        .map(memberId => allProfilesData?.find(p => p.id === memberId))
         .filter((p): p is NonNullable<typeof p> => 
           p !== null && 
           p.id !== teamLeader?.id && 

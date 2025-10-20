@@ -11,14 +11,28 @@ export const RecentActivityFeed = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['recent-activity'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: entries, error } = await supabase
         .from('time_entries')
-        .select('id, clock_in_time, clock_out_time, user_id, profiles!inner(full_name)')
+        .select('id, clock_in_time, clock_out_time, user_id')
         .order('clock_in_time', { ascending: false })
         .limit(10);
 
       if (error) throw error;
-      return data;
+
+      // Fetch profiles separately
+      const userIds = [...new Set(entries?.map(e => e.user_id) || [])];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, { full_name: p.full_name }]) || []);
+
+      // Merge profiles with entries
+      return entries?.map(entry => ({
+        ...entry,
+        profiles: profileMap.get(entry.user_id) || { full_name: 'Unknown' }
+      }));
     },
     staleTime: 30000,
   });
