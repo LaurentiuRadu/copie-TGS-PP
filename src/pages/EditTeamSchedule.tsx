@@ -13,7 +13,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { ArrowLeft, Calendar, Plus, X, Save, Check, ChevronsUpDown, ArrowRightLeft, Loader2 } from 'lucide-react';
-import { AdminLayout } from '@/components/AdminLayout';
 import { cn } from '@/lib/utils';
 import { STALE_TIME } from '@/lib/queryConfig';
 
@@ -454,26 +453,23 @@ export default function EditTeamSchedule() {
 
   if (isLoading) {
     return (
-      <AdminLayout title="Editare Echipă">
-        <div className="flex items-center justify-center min-h-screen">
-          <p>Se încarcă...</p>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Se încarcă...</p>
+      </div>
     );
   }
 
   return (
-    <AdminLayout title={`Editare Echipa ${teamId}`}>
-      <div className="w-full p-4 md:p-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => navigate('/weekly-schedules')}>
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-                Editare Echipa {teamId}
-              </CardTitle>
+    <div className="w-full p-4 md:p-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/weekly-schedules')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              Editare Echipa {teamId}
+            </CardTitle>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
@@ -986,6 +982,5 @@ export default function EditTeamSchedule() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminLayout>
   );
 }
