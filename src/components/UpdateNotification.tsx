@@ -65,129 +65,134 @@ export function UpdateNotification() {
   });
 
   useEffect(() => {
-    const checkVersion = async () => {
+    let cancelled = false;
+    let intervalId: number | null = null;
+    let batteryChangeIntervalId: number | null = null;
+    let iosCheckIntervalId: number | null = null;
+
+    const controllerChangeHandler = () => {
+      if (!controllerChangedRef.current) {
+        controllerChangedRef.current = true;
+        setShowUpdate(false);
+        setTimeout(() => window.location.reload(), 100);
+      }
+    };
+
+    const init = async () => {
+      // Init version storage
       const savedVersion = await iosStorage.getItem(APP_VERSION_KEY);
       if (!savedVersion) {
         await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
       }
-    };
-    checkVersion();
 
-    // Curățare one-time pentru versiuni vechi dismissed
-    const dismissedVersion = localStorage.getItem(DISMISSED_VERSION_KEY);
-    if (dismissedVersion && dismissedVersion !== "10") {
-      localStorage.removeItem(DISMISSED_VERSION_KEY);
-      console.log('[UpdateNotification] Cleared old dismissed version:', dismissedVersion);
-    }
+      // One-time cleanup for old dismissed versions
+      const dismissedVersion = localStorage.getItem(DISMISSED_VERSION_KEY);
+      if (dismissedVersion && dismissedVersion !== "10") {
+        localStorage.removeItem(DISMISSED_VERSION_KEY);
+        console.log('[UpdateNotification] Cleared old dismissed version:', dismissedVersion);
+      }
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        setRegistration(reg);
+      if ('serviceWorker' in navigator && !cancelled) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (cancelled) return;
 
-        // Interval adaptiv bazat pe baterie ȘI business hours
-        const updateCheckInterval = () => {
-          const batteryInterval = getRecommendedPollingInterval();
-          const finalInterval = getBusinessHoursInterval(batteryInterval);
-          
-          if (!isBusinessHours()) {
-            console.log(`[UpdateNotification] Night mode - using 2h interval`);
-          } else {
-            console.log(`[UpdateNotification] Using ${finalInterval}ms interval (battery: ${Math.round(batteryInfo.level * 100)}%, charging: ${batteryInfo.charging})`);
-          }
-          
-          return finalInterval;
-        };
-
-        const checkForUpdates = () => {
-          // Nu verifica dacă bateria e critică și nu e în încărcare
-          if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
-            console.log('[UpdateNotification] Skipping check - critical battery');
-            return;
-          }
-          
-          // Nu verifica dacă suntem în afara business hours (00:00-05:00)
-          if (!isBusinessHours()) {
-            console.log('[UpdateNotification] Skipping check - outside business hours');
-            return;
-          }
-          
-          reg.update().catch((err) => {
-            console.debug('Update check failed:', err);
-          });
-        };
-
-        checkForUpdates();
-
-        // Interval dinamic care se ajustează pe baterie
-        let intervalId = setInterval(checkForUpdates, updateCheckInterval());
-        
-        // Reajustează intervalul când se schimbă bateria
-        const batteryChangeInterval = setInterval(() => {
-          clearInterval(intervalId);
-          intervalId = setInterval(checkForUpdates, updateCheckInterval());
-        }, 30000); // Verifică la 30s dacă trebuie schimbat intervalul
-
-        return () => {
-          clearInterval(intervalId);
-          clearInterval(batteryChangeInterval);
-        };
-      });
-
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // Când noul SW devine controller, reîncărcăm o singură dată și ascundem cardul
-        if (!controllerChangedRef.current) {
-          controllerChangedRef.current = true;
-          setShowUpdate(false);
-          setTimeout(() => window.location.reload(), 100);
-        }
-      });
-    }
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((reg) => {
-        if (reg?.waiting) {
-          setShowUpdate(true);
-          setUpdateType('pwa');
           setRegistration(reg);
-        }
-      });
-    }
 
-    // Pentru iOS PWA - verificare mai puțin agresivă cu business hours
-    if (isIOSPWA()) {
-      // Verificare la 30 minute, doar în business hours
-      const iosCheckInterval = setInterval(async () => {
-        // Skip dacă baterie critică
-        if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
-          return;
-        }
-        
-        // Skip dacă suntem în afara business hours (00:00-05:00)
-        if (!isBusinessHours()) {
-          console.log('[UpdateNotification] Skipping iOS check - outside business hours');
-          return;
-        }
-        
-        // Nu afișa update dacă utilizatorul nu e autentificat
-        if (!window.location.pathname.includes('/auth')) {
-          try {
-            const reg = await navigator.serviceWorker.getRegistration();
-            if (reg?.waiting || reg?.installing) {
-              setShowUpdate(true);
-              setUpdateType('ios');
-              setRegistration(reg);
+          // Interval adaptiv bazat pe baterie ȘI business hours
+          const updateCheckInterval = () => {
+            const batteryInterval = getRecommendedPollingInterval();
+            const finalInterval = getBusinessHoursInterval(batteryInterval);
+
+            if (!isBusinessHours()) {
+              console.log(`[UpdateNotification] Night mode - using 2h interval`);
+            } else {
+              console.log(`[UpdateNotification] Using ${finalInterval}ms interval (battery: ${Math.round(batteryInfo.level * 100)}%, charging: ${batteryInfo.charging})`);
             }
-          } catch (error) {
-            console.debug('iOS update check failed:', error);
-          }
-        }
-      }, 30 * 60 * 1000); // 30 minute
+            return finalInterval;
+          };
 
-      return () => {
-        clearInterval(iosCheckInterval);
-      };
-    }
-  }, [showUpdate, batteryInfo, getRecommendedPollingInterval]);
+          const checkForUpdates = () => {
+            if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+              console.log('[UpdateNotification] Skipping check - critical battery');
+              return;
+            }
+            if (!isBusinessHours()) {
+              console.log('[UpdateNotification] Skipping check - outside business hours');
+              return;
+            }
+            reg.update().catch((err) => {
+              console.debug('Update check failed:', err);
+            });
+          };
+
+          // Initial check
+          checkForUpdates();
+
+          // Start dynamic interval and a 30s adjuster
+          intervalId = window.setInterval(checkForUpdates, updateCheckInterval());
+          batteryChangeIntervalId = window.setInterval(() => {
+            if (intervalId) clearInterval(intervalId);
+            intervalId = window.setInterval(checkForUpdates, updateCheckInterval());
+          }, 30000);
+
+          // SW controller change => single reload
+          navigator.serviceWorker.addEventListener('controllerchange', controllerChangeHandler);
+        } catch (e) {
+          console.debug('Service worker not ready:', e);
+        }
+      }
+
+      // If a waiting SW exists, prompt update immediately
+      if ('serviceWorker' in navigator && !cancelled) {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (!cancelled && reg?.waiting) {
+            setShowUpdate(true);
+            setUpdateType('pwa');
+            setRegistration(reg);
+          }
+        } catch (e) {
+          console.debug('Get registration failed:', e);
+        }
+      }
+
+      // iOS PWA: light 30m checks only in business hours
+      if (isIOSPWA() && !cancelled) {
+        iosCheckIntervalId = window.setInterval(async () => {
+          if (batteryInfo.isCriticalBattery && !batteryInfo.charging) return;
+          if (!isBusinessHours()) {
+            console.log('[UpdateNotification] Skipping iOS check - outside business hours');
+            return;
+          }
+          if (!window.location.pathname.includes('/auth')) {
+            try {
+              const reg = await navigator.serviceWorker.getRegistration();
+              if (reg?.waiting || reg?.installing) {
+                setShowUpdate(true);
+                setUpdateType('ios');
+                setRegistration(reg);
+              }
+            } catch (error) {
+              console.debug('iOS update check failed:', error);
+            }
+          }
+        }, 30 * 60 * 1000);
+      }
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+      if (batteryChangeIntervalId) clearInterval(batteryChangeIntervalId);
+      if (iosCheckIntervalId) clearInterval(iosCheckIntervalId);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('controllerchange', controllerChangeHandler);
+      }
+    };
+  }, [batteryInfo.level, batteryInfo.charging]);
 
   // Verifică versiune din DB
   useEffect(() => {
