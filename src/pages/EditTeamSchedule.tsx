@@ -58,6 +58,14 @@ export default function EditTeamSchedule() {
     'BC-29-CUL', 'BC-37-CUL', 'BC-61-CUL', 'BC-81-TGS', 'BC-99-CUL'
   ];
 
+  // Redirect dacă parametrii lipsesc
+  useEffect(() => {
+    if (!teamId || !weekStart) {
+      toast.error('Parametri lipsă pentru editare echipă');
+      navigate('/weekly-schedules', { replace: true });
+    }
+  }, [teamId, weekStart, navigate]);
+
   // Fetch employees
   const { data: employees } = useQuery({
     queryKey: ['employees'],
