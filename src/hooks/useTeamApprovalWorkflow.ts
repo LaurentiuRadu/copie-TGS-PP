@@ -211,10 +211,11 @@ export const useTeamApprovalWorkflow = (
         .in('employee_id', allUserIds)
         .eq('work_date', format(targetDate, 'yyyy-MM-dd'));
       
-      // Creăm un Map pentru acces rapid la timesheets by user_id
-      const timesheetsByUser = new Map<string, typeof dailyTimesheetsData[0]>();
+      // Creăm un Map pentru acces rapid: ${employee_id}-${work_date}
+      const timesheetsByUserDate = new Map<string, typeof dailyTimesheetsData[0]>();
       dailyTimesheetsData?.forEach(ts => {
-        timesheetsByUser.set(ts.employee_id, ts);
+        const key = `${ts.employee_id}-${ts.work_date}`;
+        timesheetsByUserDate.set(key, ts);
       });
 
       // Fetch profiles separately (exclude contractors + office staff)
@@ -319,7 +320,10 @@ export const useTeamApprovalWorkflow = (
         } : { total: 0 };
 
         // ✅ FIX: PRIORITATE - daily_timesheet (override manual) > time_entry_segments (auto)
-        const dailyTimesheet = timesheetsByUser.get(entry.user_id);
+        // Căutăm timesheet pentru combinația (user_id, work_date)
+        const workDate = format(new Date(entry.clock_in_time), 'yyyy-MM-dd');
+        const timesheetKey = `${entry.user_id}-${workDate}`;
+        const dailyTimesheet = timesheetsByUserDate.get(timesheetKey);
         
         let segments = segmentsByEntry.get(entry.id) || [];
         let manualOverride = false;
