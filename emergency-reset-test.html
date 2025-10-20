@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Emergency Password Reset - Lovable Cloud</title>
+    <title>Emergency Password Reset - TGS PP</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -68,9 +68,9 @@
         <h1>🔐 Emergency Password Reset</h1>
 
         <div class="info">
-            <strong>Project:</strong> Lovable Cloud (hbwkufaksipsqipqdqcv)<br>
+            <strong>Project:</strong> TGS PP (effcxrqcdplktvoagnlt)<br>
             <strong>Email:</strong> laurentiu.radu@tgservices.ro<br>
-            <strong>New Password:</strong> Maciuca2016!
+            <strong>New Password:</strong> TGSAdmin2025!
         </div>
 
         <button onclick="resetPassword()" id="resetBtn">Reset Password Now</button>
@@ -89,16 +89,16 @@
             result.className = 'result';
 
             try {
-                const response = await fetch('https://hbwkufaksipsqipqdqcv.supabase.co/functions/v1/emergency-password-reset', {
+                const response = await fetch('https://effcxrqcdplktvoagnlt.supabase.co/functions/v1/emergency-reset-admin-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhid2t1ZmFrc2lwc3FpcHFkcWN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMTE4MDUsImV4cCI6MjA3NDc4NzgwNX0.3OVj-S-JgcWp531gmjCdMgag8TIZl8K4AgL9Ap_44BM'
+                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmZmN4cnFjZHBsa3R2b2Fnbmx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5NDU2MDMsImV4cCI6MjA3NjUyMTYwM30._VLkr9jIfpClbxtlqAUd-3UnaAwyvc_y7r9AIDWL5Hs'
                     },
                     body: JSON.stringify({
                         email: 'laurentiu.radu@tgservices.ro',
-                        newPassword: 'Maciuca2016!',
-                        secretKey: 'EMERGENCY_RESET_2025'
+                        newPassword: 'TGSAdmin2025!',
+                        secretKey: 'TGS-EMERGENCY-2025'
                     })
                 });
 
@@ -111,7 +111,7 @@
                         ${data.message}<br><br>
                         <strong>You can now login with:</strong><br>
                         📧 Email: <code>laurentiu.radu@tgservices.ro</code><br>
-                        🔑 Password: <code>Maciuca2016!</code>
+                        🔑 Password: <code>TGSAdmin2025!</code>
                     `;
                 } else {
                     result.className = 'result error';
