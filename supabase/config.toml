@@ -1,5 +1,8 @@
 project_id = "hbwkufaksipsqipqdqcv"
 
+[functions.emergency-reset-admin-password]
+verify_jwt = false
+
 [functions.get-romania-time]
 verify_jwt = false
 
