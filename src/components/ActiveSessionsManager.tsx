@@ -45,9 +45,23 @@ export function ActiveSessionsManager() {
 
   const loadSessions = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Determine user role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      
+      const roles = roleData?.map(r => r.role) || [];
+      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
         body: { 
           action: 'list',
+          userId: user.id,
+          userRole,
           includeTimeEntries: true
         }
       });
@@ -68,9 +82,23 @@ export function ActiveSessionsManager() {
 
   const handleLogoutAll = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Determine user role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      
+      const roles = roleData?.map(r => r.role) || [];
+      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
         body: { 
           action: 'logout-all',
+          userId: user.id,
+          userRole,
           excludeCurrentSession: true,
           reason: 'user_requested_logout_all'
         }
@@ -89,9 +117,23 @@ export function ActiveSessionsManager() {
 
   const handleLogoutSingle = async (sessionId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Determine user role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+      
+      const roles = roleData?.map(r => r.role) || [];
+      const userRole = roles.includes('admin') ? 'admin' : 'employee';
+
       const { data, error } = await supabase.functions.invoke('manage-sessions', {
         body: { 
           action: 'logout-single',
+          userId: user.id,
+          userRole,
           sessionId
         }
       });
@@ -131,8 +173,8 @@ export function ActiveSessionsManager() {
     );
   }
 
-  const maxSessions = isAdmin ? 3 : 1;
-  const isApproachingLimit = isAdmin && sessions.length >= 2;
+  const maxSessions = isAdmin ? 4 : 1;
+  const isApproachingLimit = isAdmin && sessions.length >= 3;
 
   return (
     <>
@@ -148,7 +190,7 @@ export function ActiveSessionsManager() {
               </CardTitle>
               <CardDescription className="mt-1">
                 {isAdmin 
-                  ? "Poți fi conectat pe până la 3 dispozitive simultan" 
+                  ? "Poți fi conectat pe până la 4 dispozitive simultan" 
                   : "Poți fi conectat doar pe un singur dispozitiv"}
               </CardDescription>
               {sessions.length > 0 && (
