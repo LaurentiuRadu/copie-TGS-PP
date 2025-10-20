@@ -5,16 +5,20 @@ import type { Database } from './types';
 import { logger } from '@/lib/logger';
 
 // Fallback builder for URL using project id
-function buildSupabaseUrl(): string | null {
+const DEFAULT_PROJECT_ID = 'hbwkufaksipsqipqdqcv';
+const DEFAULT_URL = `https://${DEFAULT_PROJECT_ID}.supabase.co`;
+const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhid2t1ZmFrc2lwc3FpcHFkcWN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkyMTE4MDUsImV4cCI6MjA3NDc4NzgwNX0.3OVj-S-JgcWp531gmjCdMgag8TIZl8K4AgL9Ap_44BM';
+
+function buildSupabaseUrl(): string {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   if (url && url.trim().length > 0) return url;
   const pid = import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined;
   if (pid && pid.trim().length > 0) return `https://${pid}.supabase.co`;
-  return null;
+  return DEFAULT_URL;
 }
 
 const SUPABASE_URL = buildSupabaseUrl();
-const SUPABASE_PUBLISHABLE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
+const SUPABASE_PUBLISHABLE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || DEFAULT_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   // Surface a clear error in console to avoid a cryptic crash
