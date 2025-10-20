@@ -47,11 +47,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
     return <>{children}</>;
   }
 
-  if (allowedRole === 'admin' && userRole !== 'admin') {
-    return <Navigate to="/mobile" replace />;
-  }
-
-  // Fallback: redirect bazat pe rol
+  // Dacă nu are rolul necesar, redirect la pagina corespunzătoare
   if (userRole === 'employee') {
     return <Navigate to="/mobile" replace />;
   }
