@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SecurityAlertsManager } from "@/components/SecurityAlertsManager";
+import { TimeAuditDialog } from "@/components/TimeAuditDialog";
 
 const Admin = () => {
   const isMobile = useIsMobile();
@@ -43,29 +44,33 @@ const Admin = () => {
   return (
     <div className="w-full p-4 md:p-6 space-y-6">
         {/* 📋 HEADER CU BADGE COMPACT */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold">Panou Administrare</h1>
           
-          {pendingCount > 0 && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-300 cursor-help">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    ⚠️ {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} pending
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <p className="text-sm">
-                    <strong>{pendingCount} cerere{pendingCount !== 1 ? 'ri' : ''} de corecție</strong> așteaptă aprobare.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Scroll jos pentru a le procesa.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+          <div className="flex items-center gap-2">
+            <TimeAuditDialog />
+            
+            {pendingCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-950/30 dark:text-yellow-300 cursor-help">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      ⚠️ {pendingCount} {pendingCount === 1 ? 'cerere' : 'cereri'} pending
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="text-sm">
+                      <strong>{pendingCount} cerere{pendingCount !== 1 ? 'ri' : ''} de corecție</strong> așteaptă aprobare.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Scroll jos pentru a le procesa.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </div>
 
         <ErrorBoundary>

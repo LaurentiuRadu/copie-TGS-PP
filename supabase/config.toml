@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.manage-sessions]
 verify_jwt = true
+
+[functions.admin-time-audit]
+verify_jwt = true
