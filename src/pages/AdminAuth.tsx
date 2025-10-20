@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ const AdminAuth = () => {
         password: adminPassword,
       });
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: validated.email,
         password: validated.password,
       });
@@ -44,6 +44,23 @@ const AdminAuth = () => {
           throw new Error("Email sau parolă incorectă");
         }
         throw signInError;
+      }
+
+      if (!data.session) {
+        throw new Error("Autentificare eșuată - sesiune invalidă");
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.session.user.id)
+        .maybeSingle();
+
+      if (!roleData || roleData.role !== 'admin') {
+        await supabase.auth.signOut();
+        throw new Error("Acces interzis - doar pentru administratori");
       }
 
       navigate("/admin");
