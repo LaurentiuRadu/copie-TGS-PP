@@ -14,42 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      active_sessions: {
-        Row: {
-          created_at: string | null
-          device_fingerprint: string
-          expires_at: string | null
-          id: string
-          invalidated_at: string | null
-          invalidation_reason: string | null
-          last_activity: string | null
-          session_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          device_fingerprint: string
-          expires_at?: string | null
-          id?: string
-          invalidated_at?: string | null
-          invalidation_reason?: string | null
-          last_activity?: string | null
-          session_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          device_fingerprint?: string
-          expires_at?: string | null
-          id?: string
-          invalidated_at?: string | null
-          invalidation_reason?: string | null
-          last_activity?: string | null
-          session_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       admin_sessions: {
         Row: {
           created_at: string | null
@@ -798,33 +762,6 @@ export type Database = {
           },
         ]
       }
-      session_limits: {
-        Row: {
-          auto_logout_oldest: boolean
-          created_at: string | null
-          id: string
-          max_concurrent_sessions: number
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          auto_logout_oldest?: boolean
-          created_at?: string | null
-          id?: string
-          max_concurrent_sessions?: number
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          auto_logout_oldest?: boolean
-          created_at?: string | null
-          id?: string
-          max_concurrent_sessions?: number
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       team_time_discrepancies: {
         Row: {
           actual_value: string | null
@@ -1448,14 +1385,6 @@ export type Database = {
         Args: { _attempt_type: string; _identifier: string }
         Returns: Json
       }
-      check_session_limit: {
-        Args: {
-          _device_fingerprint: string
-          _session_id: string
-          _user_id: string
-        }
-        Returns: Json
-      }
       cleanup_expired_sessions: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -1533,10 +1462,6 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
-        Returns: number
-      }
-      invalidate_user_sessions: {
-        Args: { _reason: string; _user_id: string }
         Returns: number
       }
       log_client_error: {
