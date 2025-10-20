@@ -8,6 +8,10 @@
 import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from 'dotenv';
+
+// Load .env file
+config();
 
 // Citire credentials din .env
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL!;
@@ -26,11 +30,11 @@ async function exportDatabase() {
   // PASUL 1: Autentificare
   console.log('📝 Please provide admin credentials:');
   console.log('   Username format: laurentiu.radu');
-  console.log('   Email will be: laurentiu.radu@company.local\n');
+  console.log('   Email will be: laurentiu.radu@tgservices.ro\n');
 
   // În producție, ar trebui să citești din prompt sau env var
   // Pentru siguranță, NU hardcode-zi parola aici!
-  const email = 'laurentiu.radu@company.local';
+  const email = 'laurentiu.radu@tgservices.ro';
   const password = process.env.ADMIN_PASSWORD;
 
   if (!password) {
@@ -59,14 +63,19 @@ async function exportDatabase() {
   // PASUL 2: Verificare rol admin
   console.log('🔍 Verifying admin role...');
 
-  const { data: roleData, error: roleError } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', authData.user.id)
-    .eq('role', 'admin')
-    .maybeSingle();
+  const { data: isAdmin, error: roleError } = await supabase
+    .rpc('has_role', {
+      _user_id: authData.user.id,
+      _role: 'admin'
+    });
 
-  if (roleError || !roleData) {
+  if (roleError) {
+    console.error('❌ Error checking role:', roleError);
+    await supabase.auth.signOut();
+    process.exit(1);
+  }
+
+  if (!isAdmin) {
     console.error('❌ User is not an admin!');
     await supabase.auth.signOut();
     process.exit(1);

@@ -11,9 +11,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
+    // Client for user authentication (uses user token)
+    const authClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
           headers: { Authorization: req.headers.get('Authorization')! },
@@ -25,7 +26,7 @@ Deno.serve(async (req) => {
     const {
       data: { user },
       error: authError,
-    } = await supabaseClient.auth.getUser();
+    } = await authClient.auth.getUser();
 
     if (authError || !user) {
       return new Response(
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify user is admin
-    const { data: isAdmin } = await supabaseClient.rpc('has_role', {
+    const { data: isAdmin } = await authClient.rpc('has_role', {
       _user_id: user.id,
       _role: 'admin',
     });
@@ -48,6 +49,12 @@ Deno.serve(async (req) => {
     }
 
     console.log('Starting full database export for admin:', user.id);
+
+    // Client for data export (uses service role to bypass RLS)
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     // Export all tables
     const [
