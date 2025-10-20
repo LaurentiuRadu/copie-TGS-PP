@@ -372,51 +372,59 @@ export const TeamTimeComparisonTable = ({
           : '[SEGMENTARE VALIDATĂ] Setat manual din tabel',
       };
       
-      console.log('[🔍 SAVE SEGMENT DEBUG] Processing segment types...');
+      console.log('[🔍 SAVE] Editing segment:', { segmentType, newHours, userId, workDate });
       
-      // ✅ FIX: Păstrează valorile EXISTENTE pentru tipurile ne-editate
+      // ✅ FIX SIMPLIFICAT: Construim payload cu prioritate clară pentru valoarea editată
       segmentTypes.forEach((t) => {
         if (t === 'hours_regular') {
+          // Auto-calculată mereu
           overridePayload[t] = Number(hoursRegularCalculated.toFixed(2));
-          console.log(`[🔍 SEGMENT ${t}] AUTO-CALCULATED:`, overridePayload[t]);
+          console.log(`[✅ AUTO] ${t} = ${hoursRegularCalculated.toFixed(2)}`);
         } else if (t === segmentType) {
+          // ✅ Valoarea editată - PRIORITATE MAXIMĂ
           overridePayload[t] = Number(newHours.toFixed(2));
-          console.log(`[🔍 SEGMENT ${t}] EDITED VALUE:`, overridePayload[t]);
+          console.log(`[✅ EDITED] ${t} = ${newHours.toFixed(2)}`);
         } else {
-          // ✅ CRITICAL: Păstrează valoarea existentă din DB sau folosește valoarea calculată
+          // Pentru celelalte: ia din DB sau calculează din segmente
           const existingValue = existingTimesheet?.[t as keyof typeof existingTimesheet];
           const displayValue = getDisplayHours(employee, t);
           
-          console.log(`[🔍 SEGMENT ${t}] Values:`, {
-            existingValue,
-            existingValueType: typeof existingValue,
-            displayValue,
-            displayValueType: typeof displayValue,
-            existingIsUndefined: existingValue === undefined,
-            existingIsNull: existingValue === null,
-          });
-          
-          const finalValue = existingValue !== undefined && existingValue !== null 
+          const finalValue = (existingValue !== undefined && existingValue !== null) 
             ? Number(existingValue) 
             : displayValue;
             
           overridePayload[t] = Number(finalValue.toFixed(2));
-          
-          console.log(`[🔍 SEGMENT ${t}] Final value in payload:`, overridePayload[t]);
+          console.log(`[📦 PRESERVED] ${t} = ${finalValue.toFixed(2)} (from: ${existingValue !== undefined && existingValue !== null ? 'DB' : 'segments'})`);
         }
       });
+      
+      console.log('[🔍 SAVE] Final payload:', overridePayload);
 
       console.log('[🔍 SAVE SEGMENT DEBUG] Complete overridePayload:', overridePayload);
 
+      console.log('[🔍 SAVE] Upserting to daily_timesheets...');
+
       if (existingTimesheet) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('daily_timesheets')
           .update(overridePayload)
           .eq('id', existingTimesheet.id);
+        
+        if (updateError) {
+          console.error('[❌ UPDATE ERROR]', updateError);
+          throw updateError;
+        }
+        console.log('[✅ UPDATE SUCCESS] ID:', existingTimesheet.id);
       } else {
-        await supabase
+        const { error: insertError } = await supabase
           .from('daily_timesheets')
           .insert(overridePayload);
+        
+        if (insertError) {
+          console.error('[❌ INSERT ERROR]', insertError);
+          throw insertError;
+        }
+        console.log('[✅ INSERT SUCCESS]');
       }
 
       // Optimistic update cache

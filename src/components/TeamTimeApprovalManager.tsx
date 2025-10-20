@@ -948,17 +948,26 @@ export const TeamTimeApprovalManager = ({
         .eq('work_date', workDate)
         .maybeSingle();
       
+      console.log('[🔍 SAVE] Editing segment:', { segmentType, newHours, userId });
+      
       standardTypes.forEach((t) => {
         if (t === segmentType) {
+          // ✅ Valoarea editată - prioritate maximă
           overridePayload[t] = Number(newHours.toFixed(2));
+          console.log(`[✅ EDITED] ${t} = ${newHours.toFixed(2)}`);
         } else if (existingTimesheet && existingTimesheet[t] !== null && existingTimesheet[t] !== undefined) {
+          // ✅ Păstrează valoarea existentă din DB
           overridePayload[t] = Number(existingTimesheet[t]);
+          console.log(`[📦 FROM DB] ${t} = ${existingTimesheet[t]}`);
         } else {
-          // Folosește valoarea calculată din segmente
-          const currentValue = segments.filter(s => s.type === t).reduce((sum, s) => sum + s.duration, 0);
+          // ✅ FIX CRITIC: Folosește employee.segments în loc de segments (filtrate)
+          const currentValue = employee.segments.filter(s => s.type === t).reduce((sum, s) => sum + s.duration, 0);
           overridePayload[t] = Number(currentValue.toFixed(2));
+          console.log(`[🔢 CALCULATED] ${t} = ${currentValue.toFixed(2)}`);
         }
       });
+      
+      console.log('[🔍 SAVE] Final payload:', overridePayload);
 
       // Upsert în daily_timesheets
       if (existingTimesheet) {
