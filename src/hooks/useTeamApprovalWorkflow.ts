@@ -113,11 +113,11 @@ export const useTeamApprovalWorkflow = (
       if (schedError) throw schedError;
 
       // Fetch profiles separately to filter contractors and office staff
-      const userIds = [...new Set(schedulesRaw?.map(s => s.user_id) || [])];
+      const scheduleUserIds = [...new Set(schedulesRaw?.map(s => s.user_id) || [])];
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name, username, is_external_contractor, is_office_staff')
-        .in('id', userIds);
+        .in('id', scheduleUserIds);
 
       const profileMap = new Map(profilesData?.map(p => [p.id, p]) || []);
 
@@ -188,7 +188,7 @@ export const useTeamApprovalWorkflow = (
       }
 
       // Combine all IDs for profile fetch
-      const allUserIds = [...new Set([...allScheduleUserIds, ...teamLeaderIds, ...coordinatorIds])];
+      const allProfileUserIds = [...new Set([...allScheduleUserIds, ...teamLeaderIds, ...coordinatorIds])];
 
       // Calculăm data exactă pentru ziua selectată
       const targetDate = addDays(weekStart, selectedDayOfWeek - 1);
@@ -198,7 +198,7 @@ export const useTeamApprovalWorkflow = (
       const { data: entriesData, error } = await supabase
         .from('time_entries')
         .select('id, user_id, clock_in_time, clock_out_time, approval_status, original_clock_in_time, original_clock_out_time, was_edited_by_admin, approval_notes, approved_at, approved_by')
-        .in('user_id', allUserIds)
+        .in('user_id', allProfileUserIds)
         .gte('clock_in_time', targetDate.toISOString())
         .lt('clock_in_time', nextDay.toISOString())
         .in('approval_status', ['pending_review', 'approved'])
@@ -228,7 +228,7 @@ export const useTeamApprovalWorkflow = (
       const { data: dailyTimesheetsData } = await supabase
         .from('daily_timesheets')
         .select('*')
-        .in('employee_id', allUserIds)
+        .in('employee_id', allProfileUserIds)
         .eq('work_date', format(targetDate, 'yyyy-MM-dd'));
       
       // Creăm un Map pentru acces rapid: ${employee_id}-${work_date}
@@ -242,7 +242,7 @@ export const useTeamApprovalWorkflow = (
       const { data: allProfilesData } = await supabase
         .from('profiles')
         .select('id, full_name, username, is_external_contractor, is_office_staff')
-        .in('id', allUserIds)
+        .in('id', allProfileUserIds)
         .eq('is_external_contractor', false)
         .eq('is_office_staff', false);
 
