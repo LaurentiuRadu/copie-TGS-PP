@@ -50,6 +50,45 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_sessions: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string
+          device_info: Json | null
+          expires_at: string | null
+          id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
+          last_activity: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint: string
+          device_info?: Json | null
+          expires_at?: string | null
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_activity?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string
+          device_info?: Json | null
+          expires_at?: string | null
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_activity?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_versions: {
         Row: {
           created_at: string | null
@@ -208,6 +247,45 @@ export type Database = {
           last_cleanup_run?: string | null
           retention_days?: number
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      employee_sessions: {
+        Row: {
+          created_at: string | null
+          device_fingerprint: string
+          device_info: Json | null
+          expires_at: string | null
+          id: string
+          invalidated_at: string | null
+          invalidation_reason: string | null
+          last_activity: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_fingerprint: string
+          device_info?: Json | null
+          expires_at?: string | null
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_activity?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_fingerprint?: string
+          device_info?: Json | null
+          expires_at?: string | null
+          id?: string
+          invalidated_at?: string | null
+          invalidation_reason?: string | null
+          last_activity?: string | null
+          session_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1382,6 +1460,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      cleanup_expired_sessions_by_role: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       cleanup_expired_sessions_enhanced: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -1408,6 +1490,13 @@ export type Database = {
       enforce_data_retention: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_active_sessions_count: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: number
       }
       get_team_discrepancies: {
         Args: Record<PropertyKey, never>
@@ -1436,6 +1525,15 @@ export type Database = {
       init_vacation_balance_2025: {
         Args: { _used_days?: number; _user_id: string }
         Returns: undefined
+      }
+      invalidate_sessions_by_role: {
+        Args: {
+          _exclude_session_id?: string
+          _reason: string
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: number
       }
       invalidate_user_sessions: {
         Args: { _reason: string; _user_id: string }
