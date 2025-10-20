@@ -42,6 +42,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const abortController = new AbortController();
     let mounted = true;
 
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        logger.warn('[AuthProvider] Safety timeout reached - forcing loading to false');
+        setLoading(false);
+      }
+    }, 10000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted || abortController.signal.aborted) return;
@@ -130,7 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           logger.error('[AuthProvider] Session fetch error:', error);
-          setLoading(false);
+          if (mounted && !abortController.signal.aborted) {
+            setLoading(false);
+          }
           return;
         }
 
@@ -173,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (err) {
             if (!mounted || abortController.signal.aborted) return;
             logger.error('[AuthProvider] Initial role fetch error:', err);
+            setUserRole(null);
           }
         } else {
           logger.debug('[AuthProvider] No initial session');
@@ -181,14 +191,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => {
         if (!mounted || abortController.signal.aborted) return;
         logger.error('[AuthProvider] Session fetch exception:', err);
+        if (mounted && !abortController.signal.aborted) {
+          setLoading(false);
+        }
       })
       .finally(() => {
-        if (!mounted || abortController.signal.aborted) return;
-        setLoading(false);
+        if (mounted && !abortController.signal.aborted) {
+          logger.debug('[AuthProvider] Initial load complete, setting loading to false');
+          setLoading(false);
+        }
       });
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       abortController.abort();
       subscription.unsubscribe();
     };
@@ -277,12 +293,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, session, userRole, loading, signOut }}>
       {loading ? (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-muted-foreground">Se încarcă...</p>
-          </div>
-        </div>
+        <LoadingScreen onForceReload={() => {
+          logger.warn('[AuthProvider] Force reload triggered by user');
+          window.location.reload();
+        }} />
       ) : (
         <>
           {children}
@@ -305,6 +319,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         </>
       )}
     </AuthContext.Provider>
+  );
+}
+
+function LoadingScreen({ onForceReload }: { onForceReload: () => void }) {
+  const [showReloadButton, setShowReloadButton] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowReloadButton(true);
+    }, 8000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center space-y-4 max-w-md px-4">
+        <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="text-muted-foreground">Se încarcă...</p>
+        {showReloadButton && (
+          <div className="space-y-2 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Încărcarea durează mai mult decât de obicei
+            </p>
+            <button
+              onClick={onForceReload}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Reîncarcă pagina
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
