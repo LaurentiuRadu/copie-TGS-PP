@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { iosStorage } from '@/lib/iosStorage';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = "https://hbwkufaksipsqipqdqcv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhid2t1ZmFrc2lwc3FpcHFkcWN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjc3MTk3MjYsImV4cCI6MjA0MzI5NTcyNn0.H3EqNAqay5vIdw4YW1Hn0Kd78-RrZnRj3gxDbwOI6TY";
 
 // Custom storage adapter pentru iOS PWA compatibility
 const storageAdapter = {
