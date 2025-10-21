@@ -96,7 +96,6 @@ const App = () => {
               <Route path="/" element={<RootRedirect />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin-login" element={<AdminAuth />} />
-              <Route path="/dashboard" element={<Index />} />
               <Route path="/landing" element={<Landing />} />
               
               {/* Employee Routes */}
@@ -135,6 +134,7 @@ const App = () => {
                   </ProtectedRoute>
                 }
               >
+                <Route path="/dashboard" element={<Index />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/time-entries" element={<TimeEntries />} />
                 <Route path="/work-locations" element={<WorkLocations />} />

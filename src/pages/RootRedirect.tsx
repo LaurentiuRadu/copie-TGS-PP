@@ -20,11 +20,11 @@ const RootRedirect = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (userRole === "admin") return <Navigate to="/admin" replace />;
+  if (userRole === "admin") return <Navigate to="/dashboard" replace />;
   if (userRole === "employee") return <Navigate to="/mobile" replace />;
 
-  // Default fallback
-  return <Navigate to="/dashboard" replace />;
+  // Default fallback to auth if no role
+  return <Navigate to="/auth" replace />;
 };
 
 export default RootRedirect;

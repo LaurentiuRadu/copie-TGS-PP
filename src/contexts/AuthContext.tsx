@@ -248,7 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted || abortController.signal.aborted) return;
 
         const currentPath = window.location.pathname;
-        const adminPaths = ['/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/edit-team-schedule', '/gdpr-admin', '/settings', '/backup-restore'];
+        const adminPaths = ['/dashboard', '/admin', '/time-entries', '/timesheet', '/work-locations', '/alerts', '/face-verifications', '/bulk-import', '/user-management', '/vacations', '/weekly-schedules', '/edit-team-schedule', '/gdpr-admin', '/settings', '/backup-restore'];
         const employeePaths = ['/mobile', '/vacations', '/settings', '/gdpr-settings'];
 
         const isOnValidPath = (userRole === 'admin' && (adminPaths.some(path => currentPath.startsWith(path)) || employeePaths.some(path => currentPath.startsWith(path)))) ||
