@@ -34,18 +34,24 @@ const AdminAuth = () => {
         password: adminPassword,
       });
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: validated.email,
         password: validated.password,
       });
 
       if (signInError) {
-        if (signInError.message.includes("Invalid")) {
+        console.error('Sign in error:', signInError);
+        if (signInError.message.includes("Invalid") || signInError.message.includes("credentials")) {
           throw new Error("Email sau parolă incorectă");
         }
-        throw signInError;
+        throw new Error(signInError.message || "Eroare la autentificare");
       }
 
+      if (!data.user) {
+        throw new Error("Nu s-a putut autentifica utilizatorul");
+      }
+
+      console.log('Admin login successful:', data.user.email);
       navigate("/admin");
     } catch (err) {
       if (err instanceof z.ZodError) {
