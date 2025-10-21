@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Link } from "react-router-dom";
@@ -23,16 +23,34 @@ const AdminAuth = () => {
   const [adminPassword, setAdminPassword] = useState("");
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
+  // Redirect dacă există deja sesiune activă
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard", { replace: true });
+      }
+    };
+    checkSession();
+  }, [navigate]);
+
   const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Verifică conexiunea înainte de a încerca
+    if (!navigator.onLine) {
+      setError("Sunteți offline – verificați conexiunea la internet");
+      return;
+    }
+
     setLoading(true);
 
-    // Safety timeout to prevent infinite loading
+    // Safety timeout pentru sign-in (15s)
     const loadingTimeout = setTimeout(() => {
       setLoading(false);
-      setError("Timeout - vă rugăm reîncercați");
-    }, 10000);
+      setError("Timeout – vă rugăm verificați conexiunea și reîncercați");
+    }, 15000);
 
     try {
       const validated = adminSchema.parse({
@@ -45,44 +63,29 @@ const AdminAuth = () => {
         password: validated.password,
       });
 
+      clearTimeout(loadingTimeout);
+
       if (signInError) {
-        clearTimeout(loadingTimeout);
-        if (signInError.message.includes("Invalid")) {
+        // Mapare erori prietenoase
+        if (signInError.message.includes("Invalid login")) {
           throw new Error("Email sau parolă incorectă");
         }
-        throw signInError;
+        if (signInError.message.includes("Email not confirmed")) {
+          throw new Error("Email neconfirmat – verificați inbox-ul");
+        }
+        if (signInError.message.includes("Network") || signInError.message.includes("fetch")) {
+          throw new Error("Problemă de rețea – verificați conexiunea");
+        }
+        throw new Error("Eroare la autentificare – încercați din nou");
       }
 
       if (!data.session) {
-        clearTimeout(loadingTimeout);
-        throw new Error("Autentificare eșuată - sesiune invalidă");
+        throw new Error("Autentificare eșuată – sesiune invalidă");
       }
 
-      // Wait a bit for auth state to propagate
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.session.user.id)
-        .maybeSingle();
-
-      clearTimeout(loadingTimeout);
-
-      if (roleError) {
-        console.error('[AdminAuth] Role check error:', roleError);
-        await supabase.auth.signOut();
-        throw new Error("Eroare la verificarea rolului");
-      }
-
-      if (!roleData || roleData.role !== 'admin') {
-        await supabase.auth.signOut();
-        throw new Error("Acces interzis - doar pentru administratori");
-      }
-
-      // Success - navigate to dashboard
+      // Succes - ProtectedRoute va verifica rolul
       setLoading(false);
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       clearTimeout(loadingTimeout);
       if (err instanceof z.ZodError) {
@@ -90,7 +93,7 @@ const AdminAuth = () => {
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("A apărut o eroare");
+        setError("A apărut o eroare neașteptată");
       }
       setLoading(false);
     }
