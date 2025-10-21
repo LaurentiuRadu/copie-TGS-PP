@@ -28,6 +28,12 @@ const AdminAuth = () => {
     setError(null);
     setLoading(true);
 
+    // Safety timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+      setError("Timeout - vă rugăm reîncercați");
+    }, 10000);
+
     try {
       const validated = adminSchema.parse({
         email: adminEmail,
@@ -40,6 +46,7 @@ const AdminAuth = () => {
       });
 
       if (signInError) {
+        clearTimeout(loadingTimeout);
         if (signInError.message.includes("Invalid")) {
           throw new Error("Email sau parolă incorectă");
         }
@@ -47,24 +54,37 @@ const AdminAuth = () => {
       }
 
       if (!data.session) {
+        clearTimeout(loadingTimeout);
         throw new Error("Autentificare eșuată - sesiune invalidă");
       }
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait a bit for auth state to propagate
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', data.session.user.id)
         .maybeSingle();
+
+      clearTimeout(loadingTimeout);
+
+      if (roleError) {
+        console.error('[AdminAuth] Role check error:', roleError);
+        await supabase.auth.signOut();
+        throw new Error("Eroare la verificarea rolului");
+      }
 
       if (!roleData || roleData.role !== 'admin') {
         await supabase.auth.signOut();
         throw new Error("Acces interzis - doar pentru administratori");
       }
 
-      navigate("/admin");
+      // Success - navigate to dashboard
+      setLoading(false);
+      navigate("/dashboard");
     } catch (err) {
+      clearTimeout(loadingTimeout);
       if (err instanceof z.ZodError) {
         setError(err.errors[0].message);
       } else if (err instanceof Error) {
@@ -72,7 +92,6 @@ const AdminAuth = () => {
       } else {
         setError("A apărut o eroare");
       }
-    } finally {
       setLoading(false);
     }
   };
