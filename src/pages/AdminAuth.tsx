@@ -23,6 +23,9 @@ const AdminAuth = () => {
   const [adminPassword, setAdminPassword] = useState("");
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
+  console.log('[AdminAuth] Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+  console.log('[AdminAuth] Supabase Key:', import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 20) + '...');
+
   const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
