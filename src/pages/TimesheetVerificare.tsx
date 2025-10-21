@@ -82,32 +82,19 @@ export default function TimesheetVerificare() {
   const { data: availableTeams = new Set<string>() } = useQuery<Set<string>>({
     queryKey: ['teams-for-day', selectedWeek, selectedDayOfWeek],
     queryFn: async (): Promise<Set<string>> => {
-      const { data: schedulesRaw } = await supabase
+      const { data } = await supabase
         .from('weekly_schedules')
-        .select('team_id, user_id, coordinator_id, team_leader_id')
+        .select(`
+          team_id,
+          user_id,
+          coordinator_id,
+          team_leader_id,
+          profiles!inner(id, is_external_contractor, is_office_staff)
+        `)
         .eq('week_start_date', selectedWeek)
         .eq('day_of_week', selectedDayOfWeek);
       
-      if (!schedulesRaw) return new Set();
-
-      // Fetch profiles separately to filter
-      const scheduledUserIds = [...new Set(schedulesRaw.map(s => s.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, is_external_contractor, is_office_staff')
-        .in('id', scheduledUserIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-      // Filter to keep only employees (not contractors, not office staff)
-      const data = schedulesRaw.map(s => ({
-        ...s,
-        profiles: profileMap.get(s.user_id)
-      })).filter(s => 
-        s.profiles && 
-        !s.profiles.is_external_contractor && 
-        !s.profiles.is_office_staff
-      );
+      if (!data) return new Set();
       
       // ✅ Colectăm toate ID-urile unice de coordonatori și team leaders
       const allManagementIds = new Set<string>();
@@ -167,32 +154,20 @@ export default function TimesheetVerificare() {
       const startOfDay = format(targetDate, 'yyyy-MM-dd');
       const endOfDay = format(addDays(targetDate, 1), 'yyyy-MM-dd');
 
-      const { data: schedulesRaw, error: schedulesError } = await supabase
+      const { data: schedules, error: schedulesError } = await supabase
         .from('weekly_schedules')
-        .select('user_id, team_id, coordinator_id, team_leader_id')
+        .select(`
+          user_id, 
+          team_id, 
+          coordinator_id,
+          team_leader_id,
+          profiles!inner(is_external_contractor, is_office_staff)
+        `)
         .eq('week_start_date', selectedWeek)
         .eq('day_of_week', selectedDayOfWeek)
         .in('team_id', Array.from(availableTeams));
 
       if (schedulesError) throw schedulesError;
-
-      // Fetch profiles separately
-      const scheduleUserIds = [...new Set(schedulesRaw?.map(s => s.user_id) || [])];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, is_external_contractor, is_office_staff')
-        .in('id', scheduleUserIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-      const schedules = schedulesRaw?.map(s => ({
-        ...s,
-        profiles: profileMap.get(s.user_id)
-      })).filter(s => 
-        s.profiles && 
-        !s.profiles.is_external_contractor && 
-        !s.profiles.is_office_staff
-      ) || [];
 
       // Colectăm management IDs pentru excludere din counters
       const coordinatorIds = Array.from(new Set(schedules?.map(s => s.coordinator_id).filter(Boolean) || []));
@@ -204,13 +179,13 @@ export default function TimesheetVerificare() {
         s => !s.profiles.is_external_contractor && !s.profiles.is_office_staff
       ) || [];
 
-      const normalMemberIds = normalMembers.map(s => s.user_id);
-      if (normalMemberIds.length === 0) return {};
+      const userIds = normalMembers.map(s => s.user_id);
+      if (userIds.length === 0) return {};
 
       const { data: timeEntries, error: entriesError } = await supabase
         .from('time_entries')
         .select('id, user_id, clock_in_time, clock_out_time, approval_status')
-        .in('user_id', normalMemberIds)
+        .in('user_id', userIds)
         .gte('clock_in_time', `${startOfDay}T00:00:00Z`)
         .lt('clock_in_time', `${endOfDay}T00:00:00Z`);
 
@@ -313,56 +288,39 @@ export default function TimesheetVerificare() {
       const coordinatorIds = Array.from(new Set(coordinatorData?.map(c => c.coordinator_id).filter(Boolean) || []));
 
       // Obține toți userii din echipele programate în această zi (exclude contractori + personal birou)
-      const { data: schedulesRaw } = await supabase
+      const { data: schedules } = await supabase
         .from('weekly_schedules')
-        .select('user_id')
+        .select(`
+          user_id,
+          profiles!inner(is_external_contractor, is_office_staff)
+        `)
         .eq('week_start_date', selectedWeek)
-        .eq('day_of_week', selectedDayOfWeek);
+        .eq('day_of_week', selectedDayOfWeek)
+        .eq('profiles.is_external_contractor', false)
+        .eq('profiles.is_office_staff', false);
 
-      if (!schedulesRaw || schedulesRaw.length === 0) return 0;
-
-      // Fetch profiles to filter
-      const allScheduledUserIds = [...new Set(schedulesRaw.map(s => s.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, is_external_contractor, is_office_staff')
-        .in('id', allScheduledUserIds);
-
-      const filteredUserIds = profiles?.filter(p => 
-        !p.is_external_contractor && !p.is_office_staff
-      ).map(p => p.id) || [];
-
-      if (filteredUserIds.length === 0) return 0;
-
-      const schedules = schedulesRaw.filter(s => filteredUserIds.includes(s.user_id));
+      if (!schedules || schedules.length === 0) return 0;
 
       // Filter out coordinators
       const filteredSchedules = schedules.filter(s => !coordinatorIds.includes(s.user_id));
       if (filteredSchedules.length === 0) return 0;
 
-      const finalUserIds = filteredSchedules.map(s => s.user_id);
+      const userIds = filteredSchedules.map(s => s.user_id);
 
       // Numără pontajele pending pentru acești useri în ziua selectată
-      // EXCLUDE office staff explicit
+      // EXCLUDE office staff explicit prin JOIN cu profiles
       // EXCLUDE entries incomplete (fără clock_out)
-      
-      // Fetch profiles to filter office staff
-      const { data: userProfiles } = await supabase
-        .from('profiles')
-        .select('id, is_office_staff')
-        .in('id', finalUserIds);
-
-      const nonOfficeUserIds = userProfiles?.filter(p => !p.is_office_staff).map(p => p.id) || [];
-
-      if (nonOfficeUserIds.length === 0) return 0;
-
       const { data: entries } = await supabase
         .from('time_entries')
-        .select('*')
-        .in('user_id', nonOfficeUserIds)
+        .select(`
+          *,
+          profiles!inner(is_office_staff)
+        `)
+        .in('user_id', userIds)
         .gte('clock_in_time', `${targetDateStr}T00:00:00Z`)
         .lt('clock_in_time', `${format(addDays(targetDate, 1), 'yyyy-MM-dd')}T00:00:00Z`)
         .eq('approval_status', 'pending_review')
+        .eq('profiles.is_office_staff', false)
         .not('clock_out_time', 'is', null);
 
       // Filtrare pe client pentru durată >= 10 min (0.17 ore)

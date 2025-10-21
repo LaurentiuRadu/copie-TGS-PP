@@ -13,6 +13,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { ArrowLeft, Calendar, Plus, X, Save, Check, ChevronsUpDown, ArrowRightLeft, Loader2 } from 'lucide-react';
+import { AdminLayout } from '@/components/AdminLayout';
 import { cn } from '@/lib/utils';
 import { STALE_TIME } from '@/lib/queryConfig';
 
@@ -112,12 +113,18 @@ export default function EditTeamSchedule() {
     }
   });
 
-  // Fetch projects names from database (duplicate removed)
-  const { data: dbProjects } = useMemo(() => {
-    return {
-      data: projects?.map(p => p.name) || []
-    };
-  }, [projects]);
+  // Fetch projects from database
+  const { data: dbProjects } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('name')
+        .order('name');
+      if (error) throw error;
+      return data.map(p => p.name);
+    }
+  });
   
   // Fetch execution items
   const { data: executionItems } = useQuery({
@@ -139,7 +146,7 @@ export default function EditTeamSchedule() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_schedules')
-        .select('*')
+        .select('*, profiles!weekly_schedules_user_id_fkey(full_name)')
         .eq('team_id', teamId)
         .eq('week_start_date', weekStart);
       if (error) throw error;
@@ -453,23 +460,26 @@ export default function EditTeamSchedule() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Se încarcă...</p>
-      </div>
+      <AdminLayout title="Editare Echipă">
+        <div className="flex items-center justify-center min-h-screen">
+          <p>Se încarcă...</p>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="w-full p-4 md:p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/weekly-schedules')}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              Editare Echipa {teamId}
-            </CardTitle>
+    <AdminLayout title={`Editare Echipa ${teamId}`}>
+      <div className="w-full p-4 md:p-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => navigate('/weekly-schedules')}>
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                Editare Echipa {teamId}
+              </CardTitle>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
@@ -982,5 +992,6 @@ export default function EditTeamSchedule() {
           </DialogContent>
         </Dialog>
       </div>
+    </AdminLayout>
   );
 }

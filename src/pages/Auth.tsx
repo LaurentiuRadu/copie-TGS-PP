@@ -49,16 +49,18 @@ const Auth = () => {
         // Signup disabled for employees - only admins can create employee accounts
         throw new Error("Crearea contului de angajat este dezactivată. Contactează administratorul pentru a-ți crea un cont.");
       } else {
+        // Login with username - try both domains with fallback
         const primaryEmail = `${validated.username}@company.local`;
-
-        let { data, error: signInError } = await supabase.auth.signInWithPassword({
+        
+        let { error: signInError } = await supabase.auth.signInWithPassword({
           email: primaryEmail,
           password: validated.password,
         });
 
+        // If failed with @company.local, try @employee.local
         if (signInError && signInError.message.includes("Invalid")) {
           const fallbackEmail = `${validated.username}@employee.local`;
-
+          
           const { data: fallbackData, error: fallbackError } = await supabase.auth.signInWithPassword({
             email: fallbackEmail,
             password: validated.password,
@@ -68,33 +70,16 @@ const Auth = () => {
             throw new Error("Username sau parolă incorectă");
           }
 
+          // Successfully logged in with old domain - migrate to new domain in background
           if (fallbackData.user) {
             supabase.auth.admin.updateUserById(fallbackData.user.id, {
               email: primaryEmail
             }).catch(err => console.error("Domain migration error:", err));
-
+            
             toast.success("Autentificare reușită!");
-            data = fallbackData;
           }
         } else if (signInError) {
           throw signInError;
-        }
-
-        if (!data?.session) {
-          throw new Error("Autentificare eșuată - sesiune invalidă");
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.session.user.id)
-          .maybeSingle();
-
-        if (!roleData || roleData.role !== 'employee') {
-          await supabase.auth.signOut();
-          throw new Error("Acces interzis - doar pentru angajați");
         }
 
         navigate("/mobile");

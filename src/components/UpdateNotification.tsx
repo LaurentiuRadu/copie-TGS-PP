@@ -1,34 +1,48 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { RefreshCw, X, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { isIOSPWA, activateWaitingServiceWorker } from '@/lib/iosPwaUpdate';
+import { isIOSPWA, forceRefreshApp, activateWaitingServiceWorker } from '@/lib/iosPwaUpdate';
 import { iosStorage } from '@/lib/iosStorage';
 import { useBatteryOptimization } from '@/hooks/useBatteryOptimization';
+import { useUpdateNotifications } from '@/hooks/useUpdateNotifications';
 import { supabase } from '@/integrations/supabase/client';
 
-// Singleton guards pentru a preveni duplicate initialization
-declare global {
-  interface Window {
-    __UPDATE_NOTIF_INIT__?: boolean;
-  }
-}
-
 const APP_VERSION_KEY = 'app_version';
-const CURRENT_VERSION = "10";
+const CURRENT_VERSION = "10"; // Actualizează manual după fiecare publish în package.json
 const DISMISSED_VERSION_KEY = 'dismissedAppVersion';
+
+// Helper pentru a verifica dacă suntem în program de lucru (05:00 - 24:00)
+const isBusinessHours = (): boolean => {
+  const currentHour = new Date().getHours();
+  // Program lucru: 05:00 - 23:59 (true)
+  // Noapte: 00:00 - 04:59 (false)
+  return currentHour >= 5;
+};
+
+// Helper pentru interval adaptiv cu business hours
+const getBusinessHoursInterval = (baseInterval: number): number => {
+  if (!isBusinessHours()) {
+    // Noapte: interval de 2 ore (minimal checks)
+    return 2 * 60 * 60 * 1000;
+  }
+  return baseInterval;
+};
 
 export function UpdateNotification() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [updateType, setUpdateType] = useState<'pwa' | 'ios' | 'version'>('pwa');
   const [isDismissed, setIsDismissed] = useState(false);
+  const controllerChangedRef = useRef(false);
+  const suppressRef = useRef(false);
   
-  const { batteryInfo } = useBatteryOptimization();
+  const { batteryInfo, getRecommendedPollingInterval } = useBatteryOptimization();
+  const { hasUpdate: notificationHasUpdate } = useUpdateNotifications();
 
-  // Check versiune din DB - mai puțin frecvent
+  // Check versiune din DB
   const { data: latestVersion } = useQuery({
     queryKey: ['latestAppVersion'],
     queryFn: async () => {
@@ -41,75 +55,139 @@ export function UpdateNotification() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 6 * 60 * 60 * 1000, // Check every 6 hours
+    refetchInterval: (query) => {
+      if (!isBusinessHours()) {
+        console.log('[UpdateNotification] Skipping DB check - outside business hours (00:00-05:00)');
+        return false; // Oprește verificările
+      }
+      return 6 * 60 * 60 * 1000; // Check every 6 hours (05:00, 11:00, 17:00, 23:00)
+    },
   });
 
-  // Singleton initialization - runs only once per session
   useEffect(() => {
-    // Guard: prevent duplicate initialization
-    if (window.__UPDATE_NOTIF_INIT__) {
-      return;
-    }
-    window.__UPDATE_NOTIF_INIT__ = true;
-
-    let cancelled = false;
-
-    const init = async () => {
-      // Init version storage
+    const checkVersion = async () => {
       const savedVersion = await iosStorage.getItem(APP_VERSION_KEY);
       if (!savedVersion) {
         await iosStorage.setItem(APP_VERSION_KEY, CURRENT_VERSION);
       }
+    };
+    checkVersion();
 
-      // One-time cleanup for old dismissed versions
-      const dismissedVersion = localStorage.getItem(DISMISSED_VERSION_KEY);
-      if (dismissedVersion && dismissedVersion !== "10") {
-        localStorage.removeItem(DISMISSED_VERSION_KEY);
-      }
+    // Curățare one-time pentru versiuni vechi dismissed
+    const dismissedVersion = localStorage.getItem(DISMISSED_VERSION_KEY);
+    if (dismissedVersion && dismissedVersion !== "10") {
+      localStorage.removeItem(DISMISSED_VERSION_KEY);
+      console.log('[UpdateNotification] Cleared old dismissed version:', dismissedVersion);
+    }
 
-      if ('serviceWorker' in navigator && !cancelled) {
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          if (cancelled) return;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        setRegistration(reg);
 
-          setRegistration(reg);
-
-          // Event-driven approach: listen for updatefound
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (newWorker) {
-              console.log('[UpdateNotification] Update found, new service worker installing');
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  console.log('[UpdateNotification] New service worker installed and ready');
-                  setShowUpdate(true);
-                  setUpdateType('pwa');
-                  setRegistration(reg);
-                }
-              });
-            }
-          });
-
-          // Check if there's already a waiting SW
-          if (reg.waiting) {
-            console.log('[UpdateNotification] Service worker waiting, showing update prompt');
-            setShowUpdate(true);
-            setUpdateType('pwa');
-            setRegistration(reg);
+        // Interval adaptiv bazat pe baterie ȘI business hours
+        const updateCheckInterval = () => {
+          const batteryInterval = getRecommendedPollingInterval();
+          const finalInterval = getBusinessHoursInterval(batteryInterval);
+          
+          if (!isBusinessHours()) {
+            console.log(`[UpdateNotification] Night mode - using 2h interval`);
+          } else {
+            console.log(`[UpdateNotification] Using ${finalInterval}ms interval (battery: ${Math.round(batteryInfo.level * 100)}%, charging: ${batteryInfo.charging})`);
           }
-        } catch (e) {
-          console.debug('[UpdateNotification] Service worker not ready:', e);
+          
+          return finalInterval;
+        };
+
+        const checkForUpdates = () => {
+          // Nu verifica dacă bateria e critică și nu e în încărcare
+          if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+            console.log('[UpdateNotification] Skipping check - critical battery');
+            return;
+          }
+          
+          // Nu verifica dacă suntem în afara business hours (00:00-05:00)
+          if (!isBusinessHours()) {
+            console.log('[UpdateNotification] Skipping check - outside business hours');
+            return;
+          }
+          
+          reg.update().catch((err) => {
+            console.debug('Update check failed:', err);
+          });
+        };
+
+        checkForUpdates();
+
+        // Interval dinamic care se ajustează pe baterie
+        let intervalId = setInterval(checkForUpdates, updateCheckInterval());
+        
+        // Reajustează intervalul când se schimbă bateria
+        const batteryChangeInterval = setInterval(() => {
+          clearInterval(intervalId);
+          intervalId = setInterval(checkForUpdates, updateCheckInterval());
+        }, 30000); // Verifică la 30s dacă trebuie schimbat intervalul
+
+        return () => {
+          clearInterval(intervalId);
+          clearInterval(batteryChangeInterval);
+        };
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // Când noul SW devine controller, reîncărcăm o singură dată și ascundem cardul
+        if (!controllerChangedRef.current) {
+          controllerChangedRef.current = true;
+          setShowUpdate(false);
+          setTimeout(() => window.location.reload(), 100);
         }
-      }
-    };
+      });
+    }
 
-    init();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg?.waiting) {
+          setShowUpdate(true);
+          setUpdateType('pwa');
+          setRegistration(reg);
+        }
+      });
+    }
 
-    return () => {
-      cancelled = true;
-      // Don't reset __UPDATE_NOTIF_INIT__ to maintain singleton behavior
-    };
-  }, []); // Empty deps - runs only once
+    // Pentru iOS PWA - verificare mai puțin agresivă cu business hours
+    if (isIOSPWA()) {
+      // Verificare la 30 minute, doar în business hours
+      const iosCheckInterval = setInterval(async () => {
+        // Skip dacă baterie critică
+        if (batteryInfo.isCriticalBattery && !batteryInfo.charging) {
+          return;
+        }
+        
+        // Skip dacă suntem în afara business hours (00:00-05:00)
+        if (!isBusinessHours()) {
+          console.log('[UpdateNotification] Skipping iOS check - outside business hours');
+          return;
+        }
+        
+        // Nu afișa update dacă utilizatorul nu e autentificat
+        if (!window.location.pathname.includes('/auth')) {
+          try {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg?.waiting || reg?.installing) {
+              setShowUpdate(true);
+              setUpdateType('ios');
+              setRegistration(reg);
+            }
+          } catch (error) {
+            console.debug('iOS update check failed:', error);
+          }
+        }
+      }, 30 * 60 * 1000); // 30 minute
+
+      return () => {
+        clearInterval(iosCheckInterval);
+      };
+    }
+  }, [showUpdate, batteryInfo, getRecommendedPollingInterval]);
 
   // Verifică versiune din DB
   useEffect(() => {
@@ -129,16 +207,26 @@ export function UpdateNotification() {
     }
   }, [latestVersion, isDismissed]);
 
+  // Arată automat update dacă hook-ul de notificări a detectat unul
+  useEffect(() => {
+    if (notificationHasUpdate && !showUpdate && !suppressRef.current && !isDismissed) {
+      setShowUpdate(true);
+    }
+  }, [notificationHasUpdate, showUpdate, isDismissed]);
 
   const handleUpdate = async () => {
+    // Previne reapariția imediată a cardului
+    suppressRef.current = true;
     setShowUpdate(false);
+    
+    // Scurt delay pentru feedback vizual
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     if (updateType === 'version') {
       toast.info('Se actualizează aplicația...');
       if (latestVersion?.version) {
         await iosStorage.setItem(APP_VERSION_KEY, latestVersion.version);
       }
-      // registerServiceWorker will handle the reload via controllerchange
       setTimeout(() => window.location.reload(), 200);
     } else if (isIOSPWA()) {
       toast.info('Se actualizează aplicația...');
@@ -146,7 +234,6 @@ export function UpdateNotification() {
       setTimeout(() => window.location.reload(), 200);
     } else if (registration?.waiting) {
       toast.info('Se instalează actualizarea...');
-      // Send SKIP_WAITING message - registerServiceWorker will handle reload
       activateWaitingServiceWorker();
     } else {
       toast.info('Se reîncarcă aplicația...');
@@ -155,6 +242,7 @@ export function UpdateNotification() {
   };
 
   const handleDismiss = () => {
+    suppressRef.current = true;
     if (updateType === 'version' && latestVersion?.version) {
       localStorage.setItem(DISMISSED_VERSION_KEY, latestVersion.version);
       setIsDismissed(true);

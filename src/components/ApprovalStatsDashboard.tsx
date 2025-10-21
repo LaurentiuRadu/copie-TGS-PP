@@ -33,22 +33,13 @@ export function ApprovalStatsDashboard() {
       // Top 5 angajați cu cele mai multe editări
       const { data: topEdited } = await supabase
         .from('time_entries')
-        .select('user_id')
+        .select('user_id, profiles!inner(full_name)')
         .eq('was_edited_by_admin', true)
         .gte('approved_at', weekStart.toISOString())
         .lte('approved_at', weekEnd.toISOString());
 
-      // Fetch profiles separately
-      const userIds = [...new Set(topEdited?.map(e => e.user_id) || [])];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
-
       const editCounts = topEdited?.reduce((acc: any, entry: any) => {
-        const name = profileMap.get(entry.user_id) || 'Unknown';
+        const name = entry.profiles.full_name;
         acc[name] = (acc[name] || 0) + 1;
         return acc;
       }, {});

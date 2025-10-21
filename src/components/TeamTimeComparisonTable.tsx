@@ -372,17 +372,12 @@ export const TeamTimeComparisonTable = ({
           : '[SEGMENTARE VALIDATĂ] Setat manual din tabel',
       };
       
-      console.log('[🔍 SAVE] Editing segment:', { segmentType, newHours, userId, workDate, existingTimesheet: existingTimesheet ? 'EXISTS' : 'NULL' });
-
-      // ✅ FIX CRITICAL: Strategie unificată pentru construire payload
-      // 1. hours_regular → auto-calculat mereu (durata brută - ore manuale)
-      // 2. Segment editat → valoarea nouă
-      // 3. Există în DB → păstrează din DB (chiar dacă e 0)
-      // 4. Nu există în DB → calculează din segmente
-
+      console.log('[🔍 SAVE] Editing segment:', { segmentType, newHours, userId, workDate });
+      
+      // ✅ FIX SIMPLIFICAT: Construim payload cu prioritate clară pentru valoarea editată
       segmentTypes.forEach((t) => {
         if (t === 'hours_regular') {
-          // Auto-calculată mereu din durata brută
+          // Auto-calculată mereu
           overridePayload[t] = Number(hoursRegularCalculated.toFixed(2));
           console.log(`[✅ AUTO] ${t} = ${hoursRegularCalculated.toFixed(2)}`);
         } else if (t === segmentType) {
@@ -390,18 +385,16 @@ export const TeamTimeComparisonTable = ({
           overridePayload[t] = Number(newHours.toFixed(2));
           console.log(`[✅ EDITED] ${t} = ${newHours.toFixed(2)}`);
         } else {
-          // ✅ CRITICĂ: Pentru celelalte segmente, păstrează din DB sau calculează
-          if (existingTimesheet && (t in existingTimesheet)) {
-            // Păstrează valoarea din DB (chiar dacă e 0 sau NULL)
-            const dbValue = existingTimesheet[t as keyof typeof existingTimesheet] ?? 0;
-            overridePayload[t] = Number(dbValue);
-            console.log(`[📦 PRESERVED] ${t} = ${dbValue} (from DB - protected)`);
-          } else {
-            // Calculează din segmente DOAR dacă nu există în DB
-            const displayValue = getDisplayHours(employee, t);
-            overridePayload[t] = Number(displayValue.toFixed(2));
-            console.log(`[🔢 CALCULATED] ${t} = ${displayValue.toFixed(2)} (from segments)`);
-          }
+          // Pentru celelalte: ia din DB sau calculează din segmente
+          const existingValue = existingTimesheet?.[t as keyof typeof existingTimesheet];
+          const displayValue = getDisplayHours(employee, t);
+          
+          const finalValue = (existingValue !== undefined && existingValue !== null) 
+            ? Number(existingValue) 
+            : displayValue;
+            
+          overridePayload[t] = Number(finalValue.toFixed(2));
+          console.log(`[📦 PRESERVED] ${t} = ${finalValue.toFixed(2)} (from: ${existingValue !== undefined && existingValue !== null ? 'DB' : 'segments'})`);
         }
       });
       
@@ -412,23 +405,21 @@ export const TeamTimeComparisonTable = ({
       console.log('[🔍 SAVE] Upserting to daily_timesheets...');
 
       if (existingTimesheet) {
-        // ✅ FIX: Verificare optimistă concurență prin updated_at
         const { error: updateError } = await supabase
           .from('daily_timesheets')
           .update(overridePayload)
-          .eq('id', existingTimesheet.id)
-          .eq('updated_at', existingTimesheet.updated_at); // ✅ Optimistic lock
-
+          .eq('id', existingTimesheet.id);
+        
         if (updateError) {
           console.error('[❌ UPDATE ERROR]', updateError);
-          throw new Error('Conflict: Datele au fost modificate între timp. Reîncarcă pagina.');
+          throw updateError;
         }
         console.log('[✅ UPDATE SUCCESS] ID:', existingTimesheet.id);
       } else {
         const { error: insertError } = await supabase
           .from('daily_timesheets')
           .insert(overridePayload);
-
+        
         if (insertError) {
           console.error('[❌ INSERT ERROR]', insertError);
           throw insertError;

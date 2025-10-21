@@ -120,69 +120,47 @@ export function useSessionMonitor(userId: string | undefined, enabled: boolean =
 
     // Setup async pentru a determina tabela corectă
     const setupMonitoring = async () => {
-      try {
-        // Determină rolul utilizatorului
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .maybeSingle();
+      // Determină rolul utilizatorului
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-        if (roleError) {
-          logger.error('[SessionMonitor] Failed to fetch user role:', roleError);
-          return;
-        }
+      const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
+      const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+      
+      logger.info(`[SessionMonitor] Setup monitoring for ${userRole} using table: ${tableName}`);
 
-        const userRole = roleData?.role === 'admin' ? 'admin' : 'employee';
-        const tableName = userRole === 'admin' ? 'admin_sessions' : 'employee_sessions';
+      // Nu verifica imediat - lasă AuthContext să termine setup-ul
+      const initialCheckTimeout = setTimeout(() => checkSessionValidity(), 5000);
 
-        logger.info(`[SessionMonitor] Setup monitoring for ${userRole} using table: ${tableName}`);
+      // Verifică la fiecare 60 de secunde
+      const interval = setInterval(() => checkSessionValidity(), 60000);
 
-        // Verifică dacă tabelul există
-        const { error: tableCheckError } = await supabase
-          .from(tableName)
-          .select('id')
-          .limit(1);
-
-        if (tableCheckError) {
-          logger.warn('[SessionMonitor] Session table not accessible, skipping monitoring:', tableCheckError);
-          return;
-        }
-
-        // Delay de 10 secunde pentru a lăsa AuthContext să termine setup-ul
-        const initialCheckTimeout = setTimeout(() => checkSessionValidity(), 10000);
-
-        // Verifică la fiecare 60 de secunde
-        const interval = setInterval(() => checkSessionValidity(), 60000);
-
-        // Setup realtime subscription pentru invalidări instant
-        const channel = supabase
-          .channel(`session-monitor-${userId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: tableName,
-              filter: `user_id=eq.${userId}`
-            },
-            (payload) => {
-              if (payload.new.session_id === sessionId && payload.new.invalidated_at) {
-                checkSessionValidity();
-              }
+      // Setup realtime subscription pentru invalidări instant
+      const channel = supabase
+        .channel(`session-monitor-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: tableName,
+            filter: `user_id=eq.${userId}`
+          },
+          (payload) => {
+            if (payload.new.session_id === sessionId && payload.new.invalidated_at) {
+              checkSessionValidity();
             }
-          )
-          .subscribe();
+          }
+        )
+        .subscribe();
 
-        channels.push({ initialCheckTimeout, interval, channel });
-      } catch (error) {
-        logger.error('[SessionMonitor] Setup error:', error);
-      }
+      channels.push({ initialCheckTimeout, interval, channel });
     };
 
-    setupMonitoring().catch((err) => {
-      logger.error('[SessionMonitor] Async setup failed:', err);
-    });
+    setupMonitoring();
 
     // Cleanup complet
     return () => {

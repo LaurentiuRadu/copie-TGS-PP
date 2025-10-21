@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Eye, EyeOff, WifiOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Link } from "react-router-dom";
@@ -23,34 +23,10 @@ const AdminAuth = () => {
   const [adminPassword, setAdminPassword] = useState("");
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
-  // Redirect dacă există deja sesiune activă
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/dashboard", { replace: true });
-      }
-    };
-    checkSession();
-  }, [navigate]);
-
   const handleAdminAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Verifică conexiunea înainte de a încerca
-    if (!navigator.onLine) {
-      setError("Sunteți offline – verificați conexiunea la internet");
-      return;
-    }
-
     setLoading(true);
-
-    // Safety timeout pentru sign-in (15s)
-    const loadingTimeout = setTimeout(() => {
-      setLoading(false);
-      setError("Timeout – vă rugăm verificați conexiunea și reîncercați");
-    }, 15000);
 
     try {
       const validated = adminSchema.parse({
@@ -58,43 +34,28 @@ const AdminAuth = () => {
         password: adminPassword,
       });
 
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: validated.email,
         password: validated.password,
       });
 
-      clearTimeout(loadingTimeout);
-
       if (signInError) {
-        // Mapare erori prietenoase
-        if (signInError.message.includes("Invalid login")) {
+        if (signInError.message.includes("Invalid")) {
           throw new Error("Email sau parolă incorectă");
         }
-        if (signInError.message.includes("Email not confirmed")) {
-          throw new Error("Email neconfirmat – verificați inbox-ul");
-        }
-        if (signInError.message.includes("Network") || signInError.message.includes("fetch")) {
-          throw new Error("Problemă de rețea – verificați conexiunea");
-        }
-        throw new Error("Eroare la autentificare – încercați din nou");
+        throw signInError;
       }
 
-      if (!data.session) {
-        throw new Error("Autentificare eșuată – sesiune invalidă");
-      }
-
-      // Succes - ProtectedRoute va verifica rolul
-      setLoading(false);
-      navigate("/dashboard", { replace: true });
+      navigate("/admin");
     } catch (err) {
-      clearTimeout(loadingTimeout);
       if (err instanceof z.ZodError) {
         setError(err.errors[0].message);
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("A apărut o eroare neașteptată");
+        setError("A apărut o eroare");
       }
+    } finally {
       setLoading(false);
     }
   };

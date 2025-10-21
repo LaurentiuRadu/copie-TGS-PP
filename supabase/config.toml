@@ -3,9 +3,6 @@ project_id = "hbwkufaksipsqipqdqcv"
 [functions.get-romania-time]
 verify_jwt = false
 
-[functions.admin-full-database-export]
-verify_jwt = true
-
 [functions.consolidate-duplicate-accounts]
 verify_jwt = true
 
@@ -67,7 +64,4 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.manage-sessions]
-verify_jwt = true
-
-[functions.admin-time-audit]
 verify_jwt = true

@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -9,12 +10,15 @@ interface ProtectedRouteProps {
 
 /**
  * ProtectedRoute - Protejează rutele bazat pe rol
- *
+ * 
  * IMPORTANT: Admin-ii au acces la TOATE rutele (admin + employee)
  * Angajații normali au acces doar la rutele employee
  */
 export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
-  const { user, userRole, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin, isEmployee, loading: roleLoading } = useUserRole();
+
+  const loading = authLoading || roleLoading;
 
   if (loading) {
     return (
@@ -26,6 +30,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
 
   // Utilizator neautentificat → redirect la login
   if (!user) {
+    // Redirect to admin login if trying to access admin routes
     if (allowedRole === 'admin') {
       return <Navigate to="/admin-login" replace />;
     }
@@ -38,17 +43,22 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   }
 
   // Admin-ii au acces la ORICE (inclusiv rute employee și admin)
-  if (userRole === 'admin') {
+  if (isAdmin) {
     return <>{children}</>;
   }
 
   // Verifică dacă user-ul are rolul necesar
-  if (allowedRole === 'employee' && userRole === 'employee') {
+  if (allowedRole === 'employee' && isEmployee) {
     return <>{children}</>;
   }
 
-  // Dacă nu are rolul necesar, redirect la pagina corespunzătoare
-  if (userRole === 'employee') {
+  if (allowedRole === 'admin' && !isAdmin) {
+    // User fără rol admin încearcă să acceseze rută admin → redirect la mobile
+    return <Navigate to="/mobile" replace />;
+  }
+
+  // Fallback: redirect bazat pe rol
+  if (isEmployee) {
     return <Navigate to="/mobile" replace />;
   }
 
